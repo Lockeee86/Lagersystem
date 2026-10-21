@@ -1,0 +1,63 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro variety_chip(variety, empty=false) -%}
+{%- if variety and not empty -%}
+<span class="chip" style="--chip: {{ variety.color }}; --chip-text: {{ variety.color|textcolor }}">{{ variety.name }}</span>
+{%- elif empty -%}
+<span class="chip chip-empty">leer</span>
+{%- else -%}
+<span class="text-body-tertiary">–</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro fill_bar(fill) -%}
+<span class="fill-bar" title="Füllstand {{ fill }} %"><span style="width: {{ fill }}%"></span></span>
+{%- endmacro %}
+
+{% macro location_badge(box) -%}
+{%- if box.is_stored -%}
+<a class="loc-badge" href="{{ url_for('main.stack_view', warehouse_id=box.warehouse_id, row=box.row, slot=box.slot) }}"><i class="bi bi-geo-alt"></i>{{ box.location }}</a>
+{%- else -%}
+<span class="loc-badge loc-none"><i class="bi bi-dash-circle"></i>nicht eingelagert</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro movement_item(m, show_box=true) %}
+<li class="timeline-item">
+    <span class="timeline-icon act-{{ m.action }}"><i class="bi {{ m.action_icon }}"></i></span>
+    <div class="flex-grow-1 min-w-0">
+        <div class="d-flex flex-wrap gap-2 align-items-baseline">
+            {% if show_box %}<a class="fw-semibold text-decoration-none" href="{{ url_for('main.box_detail', code=m.box.code) }}">{{ m.box.code }}</a>{% endif %}
+            <span class="fw-medium">{{ m.action_label }}</span>
+            {% if m.from_location or m.to_location %}
+            <span class="small text-body-secondary">
+                {{ m.from_location or '' }}{% if m.from_location and m.to_location %} <i class="bi bi-arrow-right"></i> {% endif %}{{ m.to_location or '' }}
+            </span>
+            {% endif %}
+            {% if m.fill_before is not none and m.fill_after is not none and m.fill_before != m.fill_after %}
+            <span class="small text-body-secondary">{{ m.fill_before }} % <i class="bi bi-arrow-right"></i> {{ m.fill_after }} %</span>
+            {% endif %}
+        </div>
+        {% if m.note %}<div class="small text-body-secondary">{{ m.note }}</div>{% endif %}
+        <div class="small text-body-tertiary">{{ m.created_at|datetime }}{% if m.user %} · {{ m.user.name }}{% endif %}</div>
+    </div>
+</li>
+{% endmacro %}
+
+{% macro pagination(page, endpoint, args) %}
+{% if page.pages > 1 %}
+<nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center flex-wrap">
+        {% set params = args.to_dict() %}
+        {% for p in page.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            {% set _ = params.update(page=p) %}
+            <li class="page-item {% if p == page.page %}active{% endif %}"><a class="page-link" href="{{ url_for(endpoint, **params) }}">{{ p }}</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}

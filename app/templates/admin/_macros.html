@@ -1,0 +1,21 @@
+{# Gemeinsames Modal zum Anlegen/Bearbeiten. Buttons mit data-edit='{...}' füllen die Felder (siehe app.js). #}
+{% macro edit_modal(modal_id, title_new, title_edit, action) %}
+<div class="modal fade edit-modal" id="{{ modal_id }}" tabindex="-1" aria-hidden="true"
+     data-title-new="{{ title_new }}" data-title-edit="{{ title_edit }}">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <form class="modal-content" method="post" action="{{ action }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="id" value="">
+            <div class="modal-header">
+                <h2 class="modal-title h5">{{ title_new }}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">{{ caller() }}</div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button class="btn btn-primary">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}

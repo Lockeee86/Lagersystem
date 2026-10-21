@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}Lager verwalten{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+    <h1>Lager</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#whModal" data-edit='{"rows": 10, "slots": 15, "max_levels": 5}'><i class="bi bi-plus-lg me-1"></i>Neues Lager</button>
+</div>
+<div class="row g-3">
+    {% for wh in items %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h2 class="h5">{{ wh.name }}</h2>
+                    <span class="badge text-bg-light border align-self-start">{{ counts.get(wh.id, 0) }} / {{ wh.capacity }}</span>
+                </div>
+                <p class="text-body-secondary mb-2">{{ wh.rows }} Reihen ({{ wh.row_label(1) }}–{{ wh.row_label(wh.rows) }}) × {{ wh.slots }} Plätze × {{ wh.max_levels }} Ebenen</p>
+                {% if wh.note %}<p class="small">{{ wh.note }}</p>{% endif %}
+            </div>
+            <div class="card-footer d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#whModal"
+                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "note": wh.note or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>Bearbeiten</button>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.warehouse_map', warehouse_id=wh.id) }}"><i class="bi bi-grid-3x3-gap me-1"></i>Karte</a>
+                {% if not counts.get(wh.id) %}
+                <form method="post" action="{{ url_for('admin.warehouse_delete', wh_id=wh.id) }}" class="ms-auto">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-link text-danger" data-confirm="Lager „{{ wh.name }}“ löschen?"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><div class="empty-state"><i class="bi bi-buildings"></i><p>Noch kein Lager angelegt.</p></div></div>
+    {% endfor %}
+</div>
+
+{% call edit_modal("whModal", "Neues Lager", "Lager bearbeiten", url_for('admin.warehouses')) %}
+<div class="mb-3">
+    <label class="form-label" for="wh_name">Name</label>
+    <input class="form-control" id="wh_name" name="name" required maxlength="100">
+</div>
+<div class="row g-2 mb-3">
+    <div class="col-4">
+        <label class="form-label" for="wh_rows">Reihen</label>
+        <input class="form-control" id="wh_rows" name="rows" type="number" min="1" max="100" required>
+    </div>
+    <div class="col-4">
+        <label class="form-label" for="wh_slots">Plätze/Reihe</label>
+        <input class="form-control" id="wh_slots" name="slots" type="number" min="1" max="100" required>
+    </div>
+    <div class="col-4">
+        <label class="form-label" for="wh_levels">Max. Höhe</label>
+        <input class="form-control" id="wh_levels" name="max_levels" type="number" min="1" max="20" required>
+    </div>
+    <div class="col-12 form-text">Verkleinern geht nur, wenn außerhalb der neuen Maße keine Kisten stehen.</div>
+</div>
+<div>
+    <label class="form-label" for="wh_note">Notiz</label>
+    <textarea class="form-control" id="wh_note" name="note" rows="2"></textarea>
+</div>
+{% endcall %}
+{% endblock %}

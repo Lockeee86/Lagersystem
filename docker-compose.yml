@@ -1,0 +1,43 @@
+services:
+  web:
+    build: .
+    container_name: lagersystem-web
+    ports:
+      - "${WEB_PORT:-5000}:5000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-lager}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lager}
+      - SECRET_KEY=${SECRET_KEY}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-1}
+      - TZ=${TZ:-Europe/Berlin}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  db:
+    image: postgres:16-alpine
+    container_name: lagersystem-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lager}
+      POSTGRES_USER: ${POSTGRES_USER:-lager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lager} -d ${POSTGRES_DB:-lager}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:

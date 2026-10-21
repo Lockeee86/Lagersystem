@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Scannen{% endblock %}
+{% block content %}
+<div class="scan-page mx-auto">
+    <div class="page-head"><h1>Kiste scannen</h1></div>
+
+    <div class="card shadow-sm mb-3 overflow-hidden">
+        <div class="scan-viewport">
+            <div id="reader"></div>
+            <div class="scan-placeholder" id="scanPlaceholder">
+                <i class="bi bi-camera"></i>
+                <p class="mb-3">Halte die Kamera auf den QR-Code der Kiste.</p>
+                <button class="btn btn-primary btn-lg" id="startScan"><i class="bi bi-camera-video me-2"></i>Kamera starten</button>
+            </div>
+        </div>
+        <div class="card-body py-2 d-flex justify-content-between align-items-center small">
+            <span class="text-body-secondary" id="scanStatus">Kamera aus</span>
+            <button class="btn btn-sm btn-outline-secondary d-none" id="stopScan"><i class="bi bi-stop-circle me-1"></i>Stopp</button>
+        </div>
+    </div>
+
+    <div class="alert alert-warning small d-none" id="insecureHint">
+        <i class="bi bi-shield-exclamation me-1"></i>
+        Die Kamera funktioniert im Browser nur über <strong>HTTPS</strong> (oder auf localhost).
+        Gib den Code bis dahin unten von Hand ein.
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('main.scan') }}">
+                <label class="form-label" for="manualCode">Oder Code eingeben</label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text">K-</span>
+                    <input class="form-control" id="manualCode" name="code" inputmode="numeric" placeholder="0012" autocomplete="off" required>
+                    <button class="btn btn-primary"><i class="bi bi-arrow-right"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/html5-qrcode/html5-qrcode.min.js') }}"></script>
+<script>
+(function () {
+    var startBtn = document.getElementById("startScan");
+    var stopBtn = document.getElementById("stopScan");
+    var placeholder = document.getElementById("scanPlaceholder");
+    var status = document.getElementById("scanStatus");
+    var target = "{{ url_for('main.scan') }}?code=";
+    var scanner = null, done = false;
+
+    if (!window.isSecureContext) {
+        document.getElementById("insecureHint").classList.remove("d-none");
+        startBtn.disabled = true;
+        return;
+    }
+
+    function stop() {
+        if (!scanner) return Promise.resolve();
+        return scanner.stop().catch(function () {}).then(function () {
+            scanner = null;
+            placeholder.classList.remove("d-none");
+            stopBtn.classList.add("d-none");
+            status.textContent = "Kamera aus";
+        });
+    }
+
+    function start() {
+        done = false;
+        scanner = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
+        placeholder.classList.add("d-none");
+        status.textContent = "Kamera wird gestartet …";
+        scanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
+            function (text) {
+                if (done) return;
+                done = true;
+                if (navigator.vibrate) navigator.vibrate(80);
+                status.textContent = "Erkannt: " + text;
+                stop().then(function () { window.location = target + encodeURIComponent(text); });
+            },
+            function () {}
+        ).then(function () {
+            status.textContent = "Suche QR-Code …";
+            stopBtn.classList.remove("d-none");
+            try { localStorage.setItem("scanAutoStart", "1"); } catch (e) {}
+        }).catch(function (err) {
+            scanner = null;
+            placeholder.classList.remove("d-none");
+            status.textContent = "Kamera nicht verfügbar: " + err;
+        });
+    }
+
+    startBtn.addEventListener("click", start);
+    stopBtn.addEventListener("click", stop);
+    // Wenn die Kamera schon einmal freigegeben wurde, direkt starten
+    var auto = null;
+    try { auto = localStorage.getItem("scanAutoStart"); } catch (e) {}
+    if (auto) start();
+    window.addEventListener("pagehide", stop);
+})();
+</script>
+{% endblock %}

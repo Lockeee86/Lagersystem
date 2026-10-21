@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% from "macros.html" import variety_chip %}
+{% block title %}Sorten{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+    <h1>Sorten</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#varModal" data-edit='{"color": "#c8a24a", "usage": "speise", "active": true}'><i class="bi bi-plus-lg me-1"></i>Neue Sorte</button>
+</div>
+{% if items %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Sorte</th><th>Verwendung</th><th class="text-end">Befüllte Kisten</th><th class="d-none d-md-table-cell">Notiz</th><th></th></tr></thead>
+            <tbody>
+            {% for v in items %}
+            <tr class="{% if not v.active %}opacity-50{% endif %}">
+                <td>{{ variety_chip(v) }}{% if not v.active %} <span class="badge text-bg-secondary">inaktiv</span>{% endif %}</td>
+                <td>{{ v.usage_label }}</td>
+                <td class="text-end">{{ counts.get(v.id, 0) }}</td>
+                <td class="d-none d-md-table-cell small text-body-secondary">{{ v.note or '' }}</td>
+                <td class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#varModal"
+                            data-edit='{{ {"id": v.id, "name": v.name, "color": v.color, "usage": v.usage, "note": v.note or "", "active": v.active}|tojson }}'><i class="bi bi-pencil"></i></button>
+                    <form method="post" action="{{ url_for('admin.variety_delete', v_id=v.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-link text-danger" data-confirm="Sorte „{{ v.name }}“ löschen?"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-palette"></i><p>Noch keine Sorten. Lege z. B. Belana, Linda oder Agria an.</p></div>
+{% endif %}
+
+{% call edit_modal("varModal", "Neue Sorte", "Sorte bearbeiten", url_for('admin.varieties')) %}
+<div class="mb-3">
+    <label class="form-label" for="v_name">Name</label>
+    <input class="form-control" id="v_name" name="name" required maxlength="100">
+</div>
+<div class="row g-2 mb-3">
+    <div class="col-4">
+        <label class="form-label" for="v_color">Farbe</label>
+        <input class="form-control form-control-color w-100" id="v_color" name="color" type="color">
+    </div>
+    <div class="col-8">
+        <label class="form-label" for="v_usage">Verwendung</label>
+        <select class="form-select" id="v_usage" name="usage">
+            {% for key, label in SORT_USAGES.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+</div>
+<div class="color-presets mb-3" data-target="#v_color">
+    {% for c in ["#e6b422", "#c8553d", "#8e5572", "#3d7ea6", "#2a9d8f", "#6a994e", "#bc6c25", "#7f5539", "#9d4edd", "#ef476f"] %}
+    <button type="button" class="color-preset" style="background: {{ c }}" data-color="{{ c }}" aria-label="{{ c }}"></button>
+    {% endfor %}
+</div>
+<div class="mb-3">
+    <label class="form-label" for="v_note">Notiz</label>
+    <textarea class="form-control" id="v_note" name="note" rows="2" placeholder="z. B. festkochend, früh"></textarea>
+</div>
+<div class="form-check edit-only">
+    <input class="form-check-input" type="checkbox" id="v_active" name="active" value="1">
+    <label class="form-check-label" for="v_active">Aktiv (in Auswahllisten anzeigen)</label>
+</div>
+{% endcall %}
+{% endblock %}

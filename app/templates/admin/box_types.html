@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}Kistentypen{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+    <h1>Kistentypen</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#typeModal" data-edit='{"full_weight_kg": 400}'><i class="bi bi-plus-lg me-1"></i>Neuer Kistentyp</button>
+</div>
+<p class="text-body-secondary">Das Gewicht einer vollen Kiste wird für die Bestandsschätzung verwendet (½ voll = halbes Gewicht).</p>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Name</th><th class="text-end">Voll</th><th class="text-end">Kisten</th><th class="d-none d-md-table-cell">Notiz</th><th></th></tr></thead>
+            <tbody>
+            {% for t in items %}
+            <tr>
+                <td class="fw-medium">{{ t.name }}</td>
+                <td class="text-end">{{ t.full_weight_kg }} kg</td>
+                <td class="text-end">{{ counts.get(t.id, 0) }}</td>
+                <td class="d-none d-md-table-cell small text-body-secondary">{{ t.note or '' }}</td>
+                <td class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#typeModal"
+                            data-edit='{{ {"id": t.id, "name": t.name, "full_weight_kg": t.full_weight_kg, "note": t.note or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
+                    {% if not counts.get(t.id) %}
+                    <form method="post" action="{{ url_for('admin.box_type_delete', t_id=t.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-link text-danger" data-confirm="Kistentyp „{{ t.name }}“ löschen?"><i class="bi bi-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-body-secondary">Noch keine Kistentypen.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% call edit_modal("typeModal", "Neuer Kistentyp", "Kistentyp bearbeiten", url_for('admin.box_types')) %}
+<div class="mb-3">
+    <label class="form-label" for="t_name">Name</label>
+    <input class="form-control" id="t_name" name="name" required maxlength="100" placeholder="z. B. Großkiste Holz">
+</div>
+<div class="mb-3">
+    <label class="form-label" for="t_weight">Gewicht bei voller Kiste</label>
+    <div class="input-group">
+        <input class="form-control" id="t_weight" name="full_weight_kg" type="number" min="1" max="5000" required>
+        <span class="input-group-text">kg</span>
+    </div>
+</div>
+<div>
+    <label class="form-label" for="t_note">Notiz</label>
+    <textarea class="form-control" id="t_note" name="note" rows="2" placeholder="z. B. Maße 120 × 100 × 80 cm"></textarea>
+</div>
+{% endcall %}
+{% endblock %}

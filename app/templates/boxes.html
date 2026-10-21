@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "macros.html" import variety_chip, fill_bar, location_badge, pagination, csrf %}
+{% block title %}Kisten{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Kisten</h1>
+        <p class="text-body-secondary mb-0">{{ page.total }} {{ "Kiste" if page.total == 1 else "Kisten" }}</p>
+    </div>
+    {% if current_user.is_admin %}
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#createBoxes"><i class="bi bi-plus-lg me-1"></i>Kisten anlegen</button>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse {% if page.total == 0 and not args %}show{% endif %}" id="createBoxes">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('main.boxes_create') }}" class="row g-2 align-items-end">
+                {{ csrf() }}
+                <div class="col-sm-3">
+                    <label class="form-label" for="count">Anzahl</label>
+                    <input class="form-control" type="number" name="count" id="count" min="1" max="1000" value="{{ 150 if page.total == 0 else 10 }}" required>
+                </div>
+                <div class="col-sm-5">
+                    <label class="form-label" for="box_type_id">Kistentyp</label>
+                    <select class="form-select" name="box_type_id" id="box_type_id" required>
+                        {% for t in box_types %}<option value="{{ t.id }}">{{ t.name }} ({{ t.full_weight_kg }} kg)</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-4">
+                    <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Anlegen</button>
+                </div>
+                <div class="col-12 form-text">Die Kisten werden fortlaufend nummeriert (K-0001, K-0002 …). Danach kannst du direkt die QR-Etiketten drucken.</div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<form class="filter-bar card shadow-sm mb-3" method="get">
+    <div class="card-body row g-2">
+        <div class="col-12 col-md-4">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="Code, Feld, Notiz …">
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <select class="form-select" name="sorte" onchange="this.form.submit()">
+                <option value="">Alle Sorten</option>
+                {% for v in varieties %}<option value="{{ v.id }}" {% if args.get('sorte')|int == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">Alle Status</option>
+                {% for key, (label, _) in filters.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        {% if warehouses|length > 1 %}
+        <div class="col-6 col-md-2">
+            <select class="form-select" name="lager" onchange="this.form.submit()">
+                <option value="">Alle Lager</option>
+                {% for wh in warehouses %}<option value="{{ wh.id }}" {% if args.get('lager')|int == wh.id %}selected{% endif %}>{{ wh.name }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="col-6 col-md-2">
+            <select class="form-select" name="sort" onchange="this.form.submit()">
+                {% for key, label in [('code', 'nach Code'), ('ernte', 'nach Ernte'), ('platz', 'nach Platz'), ('geaendert', 'zuletzt geändert')] %}
+                <option value="{{ key }}" {% if args.get('sort', 'code') == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</form>
+
+{% if page.items %}
+<div class="card shadow-sm">
+    <div class="list-group list-group-flush box-list">
+        {% for b in page.items %}
+        <a class="list-group-item list-group-item-action box-row" href="{{ url_for('main.box_detail', code=b.code) }}" style="--c: {{ b.color or 'var(--box-blank)' }}">
+            <span class="box-row-code">{{ b.code }}</span>
+            <span class="box-row-variety">{{ variety_chip(b.variety, b.is_empty) }}</span>
+            <span class="box-row-fill">{{ fill_bar(b.fill) }}<span class="small text-body-secondary">{{ b.fill_label }}</span></span>
+            <span class="box-row-meta small text-body-secondary">
+                {% if b.harvest_date %}{{ b.harvest_date|date }}{% endif %}{% if b.field %} · {{ b.field }}{% endif %}
+            </span>
+            <span class="box-row-loc">{{ location_badge(b) }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{{ pagination(page, 'main.boxes', args) }}
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-boxes"></i>
+    <p>{% if args %}Keine Kisten für diesen Filter.{% else %}Noch keine Kisten angelegt.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}

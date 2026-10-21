@@ -1,0 +1,214 @@
+import re
+
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask_login import current_user
+from sqlalchemy import func, or_
+
+from .auth import validate_password
+from .extensions import db
+from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, User, Variety, Warehouse)
+from .utils import admin_required, flash_error, form_int, form_str
+
+bp = Blueprint("admin", __name__)
+
+COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+@bp.before_request
+@admin_required
+def _only_admins():
+    return None
+
+
+def _get(model, obj_id):
+    obj = db.session.get(model, obj_id)
+    if obj is None:
+        abort(404)
+    return obj
+
+
+def _name_taken(model, name, own_id=None):
+    query = model.query.filter(func.lower(model.name) == name.lower())
+    if own_id:
+        query = query.filter(model.id != own_id)
+    return query.first() is not None
+
+
+# --- Lager ------------------------------------------------------------------
+
+@bp.route("/lager", methods=["GET", "POST"])
+def warehouses():
+    if request.method == "POST":
+        wh_id = form_int("id")
+        wh = _get(Warehouse, wh_id) if wh_id else Warehouse()
+        name = form_str("name", 100)
+        rows = form_int("rows", minimum=1, maximum=100)
+        slots = form_int("slots", minimum=1, maximum=100)
+        levels = form_int("max_levels", minimum=1, maximum=20)
+        if not name or None in (rows, slots, levels):
+            flash_error("Bitte Name, Reihen (1–100), Stellplätze (1–100) und Ebenen (1–20) angeben.")
+        elif _name_taken(Warehouse, name, wh.id):
+            flash_error(f"Ein Lager „{name}“ gibt es schon.")
+        elif wh.id and wh.boxes.filter(or_(Box.row > rows, Box.slot > slots, Box.level > levels)).first():
+            flash_error("Es stehen noch Kisten außerhalb der neuen Maße. Bitte zuerst umlagern.")
+        else:
+            wh.name, wh.rows, wh.slots, wh.max_levels = name, rows, slots, levels
+            wh.note = form_str("note", 2000) or None
+            db.session.add(wh)
+            db.session.commit()
+            flash(f"Lager „{wh.name}“ gespeichert.", "success")
+        return redirect(url_for("admin.warehouses"))
+
+    items = Warehouse.query.order_by(Warehouse.name).all()
+    counts = dict(db.session.query(Box.warehouse_id, func.count(Box.id)).group_by(Box.warehouse_id))
+    return render_template("admin/warehouses.html", items=items, counts=counts)
+
+
+@bp.route("/lager/<int:wh_id>/loeschen", methods=["POST"])
+def warehouse_delete(wh_id):
+    wh = _get(Warehouse, wh_id)
+    if wh.boxes.first():
+        flash_error("Im Lager stehen noch Kisten. Bitte zuerst auslagern.")
+    else:
+        db.session.delete(wh)
+        db.session.commit()
+        flash(f"Lager „{wh.name}“ gelöscht.", "success")
+    return redirect(url_for("admin.warehouses"))
+
+
+# --- Sorten -----------------------------------------------------------------
+
+@bp.route("/sorten", methods=["GET", "POST"])
+def varieties():
+    if request.method == "POST":
+        v_id = form_int("id")
+        variety = _get(Variety, v_id) if v_id else Variety()
+        name = form_str("name", 100)
+        color = form_str("color", 7)
+        usage = form_str("usage", 20)
+        if not name:
+            flash_error("Bitte einen Namen angeben.")
+        elif _name_taken(Variety, name, variety.id):
+            flash_error(f"Die Sorte „{name}“ gibt es schon.")
+        else:
+            variety.name = name
+            variety.color = color if COLOR_RE.match(color) else "#c8a24a"
+            variety.usage = usage if usage in SORT_USAGES else "speise"
+            variety.note = form_str("note", 2000) or None
+            variety.active = bool(request.form.get("active")) if variety.id else True
+            db.session.add(variety)
+            db.session.commit()
+            flash(f"Sorte „{variety.name}“ gespeichert.", "success")
+        return redirect(url_for("admin.varieties"))
+
+    items = Variety.query.order_by(Variety.active.desc(), Variety.name).all()
+    counts = dict(db.session.query(Box.variety_id, func.count(Box.id))
+                  .filter(Box.fill > 0).group_by(Box.variety_id))
+    return render_template("admin/varieties.html", items=items, counts=counts)
+
+
+@bp.route("/sorten/<int:v_id>/loeschen", methods=["POST"])
+def variety_delete(v_id):
+    variety = _get(Variety, v_id)
+    if Box.query.filter_by(variety_id=variety.id).first():
+        variety.active = False
+        db.session.commit()
+        flash(f"„{variety.name}“ wird noch in Kisten verwendet und wurde deshalb nur deaktiviert.", "warning")
+    else:
+        db.session.delete(variety)
+        db.session.commit()
+        flash(f"Sorte „{variety.name}“ gelöscht.", "success")
+    return redirect(url_for("admin.varieties"))
+
+
+# --- Kistentypen ------------------------------------------------------------
+
+@bp.route("/kistentypen", methods=["GET", "POST"])
+def box_types():
+    if request.method == "POST":
+        t_id = form_int("id")
+        box_type = _get(BoxType, t_id) if t_id else BoxType()
+        name = form_str("name", 100)
+        weight = form_int("full_weight_kg", minimum=1, maximum=5000)
+        if not name or weight is None:
+            flash_error("Bitte Name und Gewicht (1–5000 kg) angeben.")
+        elif _name_taken(BoxType, name, box_type.id):
+            flash_error(f"Den Kistentyp „{name}“ gibt es schon.")
+        else:
+            box_type.name, box_type.full_weight_kg = name, weight
+            box_type.note = form_str("note", 2000) or None
+            db.session.add(box_type)
+            db.session.commit()
+            flash(f"Kistentyp „{box_type.name}“ gespeichert.", "success")
+        return redirect(url_for("admin.box_types"))
+
+    items = BoxType.query.order_by(BoxType.name).all()
+    counts = dict(db.session.query(Box.box_type_id, func.count(Box.id)).group_by(Box.box_type_id))
+    return render_template("admin/box_types.html", items=items, counts=counts)
+
+
+@bp.route("/kistentypen/<int:t_id>/loeschen", methods=["POST"])
+def box_type_delete(t_id):
+    box_type = _get(BoxType, t_id)
+    if Box.query.filter_by(box_type_id=box_type.id).first():
+        flash_error("Dieser Kistentyp wird noch verwendet.")
+    else:
+        db.session.delete(box_type)
+        db.session.commit()
+        flash(f"Kistentyp „{box_type.name}“ gelöscht.", "success")
+    return redirect(url_for("admin.box_types"))
+
+
+# --- Benutzer ---------------------------------------------------------------
+
+def _active_admins(exclude_id=None):
+    query = User.query.filter_by(role=ROLE_ADMIN, active=True)
+    if exclude_id:
+        query = query.filter(User.id != exclude_id)
+    return query.count()
+
+
+@bp.route("/benutzer", methods=["GET", "POST"])
+def users():
+    if request.method == "POST":
+        u_id = form_int("id")
+        user = _get(User, u_id) if u_id else User()
+        username = form_str("username", 64).lower()
+        role = form_str("role", 20)
+        active = bool(request.form.get("active")) if user.id else True
+        password = request.form.get("password", "")
+
+        error = None
+        if not re.match(r"^[a-z0-9._-]{2,64}$", username):
+            error = "Benutzername: 2–64 Zeichen, nur a–z, 0–9, Punkt, Minus, Unterstrich."
+        elif User.query.filter(User.username == username, User.id != (user.id or 0)).first():
+            error = f"Den Benutzer „{username}“ gibt es schon."
+        elif role not in ROLES:
+            error = "Ungültige Rolle."
+        elif (not user.id or password) and (msg := validate_password(password, request.form.get("password2", ""))):
+            error = msg
+        elif user.id and user.role == ROLE_ADMIN and user.active and (role != ROLE_ADMIN or not active) \
+                and _active_admins(exclude_id=user.id) == 0:
+            error = "Es muss mindestens ein aktiver Admin bleiben."
+        if error:
+            flash_error(error)
+            return redirect(url_for("admin.users"))
+
+        was_active = user.active
+        user.username = username
+        user.display_name = form_str("display_name", 100) or None
+        user.role = role
+        user.active = active
+        if password:
+            user.set_password(password)
+        elif user.id and was_active and not active:
+            user.rotate_session()
+        db.session.add(user)
+        db.session.commit()
+        flash(f"Benutzer „{user.username}“ gespeichert.", "success")
+        if user.id == current_user.id and (not user.active or password):
+            return redirect(url_for("auth.login"))
+        return redirect(url_for("admin.users"))
+
+    items = User.query.order_by(User.active.desc(), User.username).all()
+    return render_template("admin/users.html", items=items)

@@ -1,0 +1,9 @@
+{
+  "name": "Lagersystem",
+  "short_name": "Lager",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f0e6",
+  "theme_color": "#3f5a2a",
+  "icons": [{ "src": "/static/img/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

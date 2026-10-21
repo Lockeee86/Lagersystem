@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Passwort ändern{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Passwort ändern</h1></div>
+<div class="card shadow-sm" style="max-width: 520px">
+    <div class="card-body">
+        <p class="text-body-secondary small">Angemeldet als <strong>{{ current_user.username }}</strong> ({{ current_user.role_label }}).
+            Nach der Änderung werden alle anderen Geräte abgemeldet.</p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label" for="current_password">Aktuelles Passwort</label>
+                <input class="form-control" id="current_password" name="current_password" type="password" required autocomplete="current-password">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Neues Passwort <span class="text-body-tertiary">(min. 8 Zeichen)</span></label>
+                <input class="form-control" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="password2">Neues Passwort wiederholen</label>
+                <input class="form-control" id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
+            </div>
+            <button class="btn btn-primary">Speichern</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

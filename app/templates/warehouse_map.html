@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "macros.html" import variety_chip %}
+{% block title %}Lagerkarte{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Lagerkarte</h1>
+        <p class="text-body-secondary mb-0">{{ warehouse.name }} · {{ warehouse.rows }} Reihen × {{ warehouse.slots }} Plätze, bis {{ warehouse.max_levels }} Kisten hoch</p>
+    </div>
+    {% if warehouses|length > 1 %}
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-buildings me-1"></i>{{ warehouse.name }}</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            {% for wh in warehouses %}
+            <li><a class="dropdown-item {% if wh.id == warehouse.id %}active{% endif %}" href="{{ url_for('main.warehouse_map', warehouse_id=wh.id) }}">{{ wh.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<div class="map-filters mb-3" id="mapFilters">
+    <button class="chip chip-filter active" data-filter="">Alle</button>
+    <button class="chip chip-filter" data-filter="free"><i class="bi bi-plus-square me-1"></i>Platz frei</button>
+    {% for v in varieties %}
+    <button class="chip chip-filter" data-filter="v{{ v.id }}" style="--chip: {{ v.color }}; --chip-text: {{ v.color|textcolor }}">{{ v.name }}</button>
+    {% endfor %}
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-2 p-md-3">
+        <div class="map-scroll">
+            <table class="lager-map" style="--levels: {{ warehouse.max_levels }}; --slots: {{ warehouse.slots }}">
+                <thead>
+                    <tr>
+                        <th></th>
+                        {% for s in range(1, warehouse.slots + 1) %}<th class="slot-head">{{ s }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                {% for r, label in warehouse.row_labels() %}
+                    <tr>
+                        <th class="row-head">{{ label }}</th>
+                        {% for s in range(1, warehouse.slots + 1) %}
+                        {% set boxes = stacks.get((r, s), []) %}
+                        {% set vids = boxes|rejectattr('is_empty')|map(attribute='variety_id')|select|unique|list %}
+                        <td>
+                            <a class="stack-cell {% if not boxes %}is-empty{% elif boxes|length >= warehouse.max_levels %}is-full{% endif %}"
+                               href="{{ url_for('main.stack_view', warehouse_id=warehouse.id, row=r, slot=s) }}"
+                               data-stack-url="{{ url_for('main.stack_view', warehouse_id=warehouse.id, row=r, slot=s, partial=1) }}"
+                               data-v="{% for v in vids %}v{{ v }} {% endfor %}{% if boxes|length < warehouse.max_levels %}free{% endif %}"
+                               title="{{ warehouse.location_label(r, s) }}: {{ boxes|length }} / {{ warehouse.max_levels }}">
+                                <span class="stack-levels">
+                                    {% for lvl in range(warehouse.max_levels, 0, -1) %}
+                                    {% set b = boxes[lvl - 1] if boxes|length >= lvl else none %}
+                                    <span class="lvl {% if b %}{% if b.color %}has-box{% else %}has-box is-blank{% endif %}{% endif %}"
+                                          {% if b and b.color %}style="--c: {{ b.color }}"{% endif %}></span>
+                                    {% endfor %}
+                                </span>
+                                <span class="stack-count">{{ boxes|length or '' }}</span>
+                            </a>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="map-legend small text-body-secondary mt-3">
+            <span><span class="legend-swatch is-blank"></span>leere Kiste</span>
+            <span><span class="legend-swatch is-free"></span>freie Ebene</span>
+            <span><span class="legend-swatch is-full"></span>Stapel voll</span>
+            <span class="d-none d-md-inline">Klick auf einen Stapel zeigt die Kisten darin.</span>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="stackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content" id="stackModalContent"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var filters = document.getElementById("mapFilters");
+    filters.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-filter]");
+        if (!btn) return;
+        filters.querySelectorAll("[data-filter]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+        var f = btn.dataset.filter;
+        document.querySelectorAll(".stack-cell").forEach(function (cell) {
+            var tags = cell.dataset.v.split(" ");
+            cell.classList.toggle("is-dimmed", !!f && tags.indexOf(f) === -1);
+        });
+    });
+
+    var modalEl = document.getElementById("stackModal");
+    var modal = new bootstrap.Modal(modalEl);
+    var content = document.getElementById("stackModalContent");
+    document.querySelectorAll(".stack-cell").forEach(function (cell) {
+        cell.addEventListener("click", function (e) {
+            if (e.metaKey || e.ctrlKey) return;  // in neuem Tab öffnen erlauben
+            e.preventDefault();
+            content.innerHTML = '<div class="modal-body text-center py-5"><div class="spinner-border"></div></div>';
+            modal.show();
+            fetch(cell.dataset.stackUrl, { credentials: "same-origin" })
+                .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+                .then(function (html) { content.innerHTML = html; App.initForms(content); })
+                .catch(function () { window.location = cell.href; });
+        });
+    });
+    App.autoRefresh(function () { return !modalEl.classList.contains("show"); });
+})();
+</script>
+{% endblock %}

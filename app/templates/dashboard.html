@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% from "macros.html" import movement_item, variety_chip %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Übersicht</h1>
+        <p class="text-body-secondary mb-0">Hallo {{ current_user.name }}!</p>
+    </div>
+    {% if current_user.can_edit %}
+    <a class="btn btn-primary d-none d-lg-inline-flex" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>Kiste scannen</a>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin and (not has_varieties or stats.total == 0) %}
+<div class="card setup-card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-flag me-1"></i>Erste Schritte</h2>
+        <ol class="steps mb-0">
+            <li class="{% if has_varieties %}done{% endif %}"><a href="{{ url_for('admin.varieties') }}">Sorten anlegen</a> (z. B. Belana, Linda, Agria)</li>
+            <li class="{% if stats.total %}done{% endif %}"><a href="{{ url_for('main.boxes') }}">Kisten anlegen</a> und QR-Etiketten drucken</li>
+            <li>Kisten scannen, befüllen und einlagern</li>
+        </ol>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label"><i class="bi bi-basket"></i>Bestand (geschätzt)</div>
+            <div class="stat-value">{{ stats.kg|kg }}</div>
+            <div class="stat-sub">{{ stats.filled }} befüllte Kisten</div>
+        </div>
+    </div>
+    {% for o in occupancy[:1] %}
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label"><i class="bi bi-grid-3x3-gap"></i>Belegung</div>
+            <div class="stat-value">{{ o.percent }} %</div>
+            <div class="stat-sub">{{ o.stored }} von {{ o.capacity }} Plätzen</div>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label"><i class="bi bi-box"></i>Leere Kisten</div>
+            <div class="stat-value">{{ stats.empty }}</div>
+            <div class="stat-sub">von {{ stats.total }} Kisten gesamt</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="stat-card stat-link {% if stats.filled_not_stored %}stat-warn{% endif %}"
+           href="{{ url_for('main.boxes', status='befuellt_nicht_eingelagert') }}">
+            <div class="stat-label"><i class="bi bi-truck"></i>Befüllt, nicht eingelagert</div>
+            <div class="stat-value">{{ stats.filled_not_stored }}</div>
+            <div class="stat-sub">Kisten <i class="bi bi-chevron-right"></i></div>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bar-chart me-1"></i>Bestand je Sorte</span>
+                <span class="small text-body-secondary">geschätzt aus Füllstand</span>
+            </div>
+            <div class="card-body">
+                {% if varieties %}
+                <div class="variety-bars">
+                    {% for v in varieties %}
+                    <a class="variety-bar" href="{{ url_for('main.boxes', sorte=v.variety.id, status='befuellt') }}">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
+                            <span>{{ variety_chip(v.variety) }}
+                                <span class="small text-body-secondary ms-1">{{ v.variety.usage_label }}</span></span>
+                            <span class="text-nowrap"><strong>{{ v.kg|kg }}</strong>
+                                <span class="small text-body-secondary">· {{ v.boxes }} Kisten</span></span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill" style="width: {{ (100 * v.kg / max_kg)|round(1) if max_kg else 0 }}%; --bar: {{ v.variety.color }}"></div></div>
+                        <div class="small text-body-tertiary mt-1">
+                            {% if v.stored < v.boxes %}{{ v.boxes - v.stored }} nicht eingelagert · {% endif %}
+                            {% if v.oldest %}älteste Ernte {{ v.oldest|date }}{% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-basket"></i>
+                    <p>Noch keine befüllten Kisten.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        {% for o in occupancy %}
+        <a class="card shadow-sm mb-4 card-link" href="{{ url_for('main.warehouse_map', warehouse_id=o.warehouse.id) }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="fw-semibold">{{ o.warehouse.name }}</div>
+                        <div class="small text-body-secondary">{{ o.warehouse.rows }} Reihen × {{ o.warehouse.slots }} Plätze × {{ o.warehouse.max_levels }} Ebenen</div>
+                    </div>
+                    <span class="badge rounded-pill text-bg-light border">{{ o.percent }} %</span>
+                </div>
+                <div class="progress progress-thick mb-2" role="progressbar" aria-valuenow="{{ o.percent }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar" style="width: {{ o.percent }}%"></div>
+                </div>
+                <div class="d-flex justify-content-between small text-body-secondary">
+                    <span>{{ o.stored }} / {{ o.capacity }} Kisten</span>
+                    <span>{{ o.stacks }} / {{ o.stack_capacity }} Stapel belegt · {{ o.full_stacks }} voll</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history me-1"></i>Letzte Bewegungen</span>
+                <a class="small" href="{{ url_for('main.history') }}">alle</a>
+            </div>
+            <div class="card-body">
+                {% if recent %}
+                <ul class="timeline">{% for m in recent %}{{ movement_item(m) }}{% endfor %}</ul>
+                {% else %}
+                <p class="text-body-secondary mb-0">Noch keine Bewegungen.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>App.autoRefresh();</script>{% endblock %}

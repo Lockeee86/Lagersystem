@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf %}
+{% block title %}{{ box.code }}{% endblock %}
+{% block content %}
+<div class="box-hero card shadow-sm mb-4" style="--c: {{ box.color or 'var(--box-blank)' }}">
+    <div class="card-body d-flex gap-3 align-items-center">
+        <button type="button" class="qr-thumb" data-bs-toggle="modal" data-bs-target="#qrModal" title="QR-Code anzeigen">
+            <img src="{{ url_for('main.box_qr', code=box.code) }}" alt="QR {{ box.code }}">
+        </button>
+        <div class="flex-grow-1 min-w-0">
+            <h1 class="box-code mb-1">{{ box.code }}</h1>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                {{ variety_chip(box.variety, box.is_empty) }}
+                {{ location_badge(box) }}
+            </div>
+            <div class="d-flex flex-wrap gap-3 mt-2 small text-body-secondary">
+                <span>{{ fill_bar(box.fill) }} {{ box.fill_label }} · ≈ {{ box.weight_kg|kg }}</span>
+                <span><i class="bi bi-box me-1"></i>{{ box.box_type.name }}</span>
+                {% if box.harvest_date %}<span><i class="bi bi-calendar-event me-1"></i>Ernte {{ box.harvest_date|date }}</span>{% endif %}
+                {% if box.field %}<span><i class="bi bi-map me-1"></i>{{ box.field }}</span>{% endif %}
+                {% if box.grade %}<span><i class="bi bi-rulers me-1"></i>{{ box.grade }}</span>{% endif %}
+            </div>
+            {% if box.note %}<div class="small mt-2"><i class="bi bi-sticky me-1"></i>{{ box.note }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if current_user.can_edit %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-speedometer2 me-1"></i>Füllstand</div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('main.box_fill', code=box.code) }}" class="fill-picker">
+            {{ csrf() }}
+            {% for value, label in FILL_LEVELS %}
+            <button name="fill" value="{{ value }}" class="fill-option {% if box.fill == value %}active{% endif %}">
+                <span class="fill-icon"><span style="height: {{ value }}%"></span></span>
+                <span>{{ label }}</span>
+            </button>
+            {% endfor %}
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-geo-alt me-1"></i>Lagerplatz</div>
+            <div class="card-body">
+                {% if box.is_stored %}
+                <p class="mb-2">Steht auf <a href="{{ url_for('main.stack_view', warehouse_id=box.warehouse_id, row=box.row, slot=box.slot) }}"><strong>{{ box.location }}</strong></a>
+                    <span class="text-body-secondary">({{ box.warehouse.name }}, Reihe {{ box.warehouse.row_label(box.row) }}, Platz {{ box.slot }}, Ebene {{ box.level }})</span></p>
+                {% if above %}
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i><strong>Blockiert durch:</strong>
+                    {% for b in above %}<a href="{{ url_for('main.box_detail', code=b.code) }}">{{ b.code }}</a> (Ebene {{ b.level }}){{ ", " if not loop.last }}{% endfor %}.
+                    Nach dem Entnehmen rutschen diese Kisten eine Ebene nach unten.
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-body-secondary">Die Kiste ist nicht eingelagert.</p>
+                {% endif %}
+
+                {% if current_user.can_edit %}
+                <form method="post" action="{{ url_for('main.box_store', code=box.code) }}" class="mt-3" id="storeForm">
+                    {{ csrf() }}
+                    <div class="fw-medium mb-2">{{ "Umlagern nach" if box.is_stored else "Einlagern auf" }}</div>
+                    <div class="row g-2">
+                        <div class="col-12 {% if warehouses|length < 2 %}d-none{% endif %}">
+                            <select class="form-select" name="warehouse_id" id="whSelect">
+                                {% for wh in warehouses %}
+                                <option value="{{ wh.id }}" data-rows='{{ wh.row_labels()|tojson }}' data-slots="{{ wh.slots }}"
+                                        {% if (box.warehouse_id or warehouses[0].id) == wh.id %}selected{% endif %}>{{ wh.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label small mb-1" for="rowSelect">Reihe</label>
+                            <select class="form-select form-select-lg" name="row" id="rowSelect" data-current="{{ box.row or '' }}"></select>
+                        </div>
+                        <div class="col-7">
+                            <label class="form-label small mb-1" for="slotInput">Stellplatz</label>
+                            <input class="form-control form-control-lg" type="number" inputmode="numeric" name="slot" id="slotInput" min="1" required value="{{ box.slot or '' }}">
+                        </div>
+                    </div>
+                    <div class="form-text mb-2">Die Kiste kommt oben auf den Stapel.</div>
+                    <button class="btn btn-primary w-100"><i class="bi {{ 'bi-arrow-left-right' if box.is_stored else 'bi-box-arrow-in-down' }} me-1"></i>{{ "Umlagern" if box.is_stored else "Einlagern" }}</button>
+                </form>
+
+                {% if box.is_stored %}
+                <hr>
+                <form method="post" action="{{ url_for('main.box_remove', code=box.code) }}">
+                    {{ csrf() }}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="empty" value="1" id="emptyCheck" {% if box.is_empty %}checked{% endif %}>
+                        <label class="form-check-label" for="emptyCheck">Kiste ist leer (Füllstand auf 0 setzen)</label>
+                    </div>
+                    <button class="btn btn-outline-danger w-100" data-confirm="{{ box.code }} wirklich auslagern?"><i class="bi bi-box-arrow-up me-1"></i>Auslagern</button>
+                </form>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-basket me-1"></i>Inhalt</div>
+            <div class="card-body">
+                {% if current_user.can_edit %}
+                <form method="post" action="{{ url_for('main.box_contents', code=box.code) }}">
+                    {{ csrf() }}
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label" for="variety_id">Sorte</label>
+                            <select class="form-select" name="variety_id" id="variety_id">
+                                <option value="">– keine –</option>
+                                {% for v in varieties %}
+                                <option value="{{ v.id }}" {% if box.variety_id == v.id %}selected{% endif %}>{{ v.name }}{% if not v.active %} (inaktiv){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="harvest_date">Erntedatum</label>
+                            <div class="input-group">
+                                <input class="form-control" type="date" name="harvest_date" id="harvest_date" value="{{ box.harvest_date.isoformat() if box.harvest_date else '' }}">
+                                <button class="btn btn-outline-secondary" type="button" data-today="#harvest_date" title="Heute">Heute</button>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="field">Feld / Schlag</label>
+                            <input class="form-control" name="field" id="field" value="{{ box.field or '' }}" maxlength="100" list="fieldList">
+                            <datalist id="fieldList">{% for f in fields %}<option value="{{ f }}">{% endfor %}</datalist>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="grade">Sortierung / Größe</label>
+                            <input class="form-control" name="grade" id="grade" value="{{ box.grade or '' }}" maxlength="50" placeholder="z. B. 35–55 mm">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="fill">Füllstand</label>
+                            <select class="form-select" name="fill" id="fill">
+                                {% for value, label in FILL_LEVELS %}<option value="{{ value }}" {% if box.fill == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="box_type_id">Kistentyp</label>
+                            <select class="form-select" name="box_type_id" id="box_type_id">
+                                {% for t in box_types %}<option value="{{ t.id }}" {% if box.box_type_id == t.id %}selected{% endif %}>{{ t.name }} ({{ t.full_weight_kg }} kg)</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="note">Notiz</label>
+                            <textarea class="form-control" name="note" id="note" rows="2" maxlength="2000">{{ box.note or '' }}</textarea>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100 mt-3"><i class="bi bi-check-lg me-1"></i>Speichern</button>
+                </form>
+                {% else %}
+                <dl class="row mb-0">
+                    <dt class="col-5">Sorte</dt><dd class="col-7">{{ variety_chip(box.variety, box.is_empty) }}</dd>
+                    <dt class="col-5">Erntedatum</dt><dd class="col-7">{{ box.harvest_date|date }}</dd>
+                    <dt class="col-5">Feld</dt><dd class="col-7">{{ box.field or '–' }}</dd>
+                    <dt class="col-5">Sortierung</dt><dd class="col-7">{{ box.grade or '–' }}</dd>
+                    <dt class="col-5">Füllstand</dt><dd class="col-7">{{ box.fill_label }} (≈ {{ box.weight_kg|kg }})</dd>
+                    <dt class="col-5">Notiz</dt><dd class="col-7">{{ box.note or '–' }}</dd>
+                </dl>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-clock-history me-1"></i>Verlauf</div>
+    <div class="card-body">
+        {% if movements %}
+        <ul class="timeline">{% for m in movements %}{{ movement_item(m, show_box=false) }}{% endfor %}</ul>
+        {% else %}<p class="text-body-secondary mb-0">Noch keine Einträge.</p>{% endif %}
+    </div>
+</div>
+
+{% if current_user.is_admin and not box.is_stored %}
+<form method="post" action="{{ url_for('main.box_delete', code=box.code) }}" class="text-end mb-4">
+    {{ csrf() }}
+    <button class="btn btn-sm btn-link text-danger" data-confirm="{{ box.code }} mit gesamtem Verlauf endgültig löschen?"><i class="bi bi-trash me-1"></i>Kiste löschen</button>
+</form>
+{% endif %}
+
+<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <img src="{{ url_for('main.box_qr', code=box.code) }}" alt="QR {{ box.code }}" class="img-fluid qr-large">
+                <div class="box-code mt-2">{{ box.code }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var wh = document.getElementById("whSelect");
+    if (!wh) return;
+    var rowSel = document.getElementById("rowSelect");
+    var slot = document.getElementById("slotInput");
+    function fillRows() {
+        var opt = wh.options[wh.selectedIndex];
+        var current = rowSel.value || rowSel.dataset.current;
+        rowSel.innerHTML = "";
+        JSON.parse(opt.dataset.rows).forEach(function (r) {
+            var o = new Option(r[1], r[0]);
+            if (String(r[0]) === String(current)) o.selected = true;
+            rowSel.add(o);
+        });
+        slot.max = opt.dataset.slots;
+    }
+    wh.addEventListener("change", fillRows);
+    fillRows();
+})();
+</script>
+{% endblock %}

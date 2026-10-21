@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "macros.html" import movement_item, pagination %}
+{% block title %}Verlauf{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Verlauf</h1>
+        <p class="text-body-secondary mb-0">{{ page.total }} Einträge</p>
+    </div>
+</div>
+<form class="card shadow-sm mb-3" method="get">
+    <div class="card-body row g-2">
+        <div class="col-12 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="Kisten-Code oder Platz (z. B. C-07)">
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select" name="aktion" onchange="this.form.submit()">
+                <option value="">Alle Aktionen</option>
+                {% for key, (label, _) in actions.items() %}<option value="{{ key }}" {% if args.get('aktion') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select" name="benutzer" onchange="this.form.submit()">
+                <option value="">Alle Benutzer</option>
+                {% for u in users %}<option value="{{ u.id }}" {% if args.get('benutzer')|int == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-1"><button class="btn btn-outline-secondary w-100"><i class="bi bi-funnel"></i></button></div>
+    </div>
+</form>
+<div class="card shadow-sm">
+    <div class="card-body">
+        {% if page.items %}
+        <ul class="timeline">{% for m in page.items %}{{ movement_item(m) }}{% endfor %}</ul>
+        {% else %}<p class="text-body-secondary mb-0">Keine Einträge gefunden.</p>{% endif %}
+    </div>
+</div>
+{{ pagination(page, 'main.history', args) }}
+{% endblock %}

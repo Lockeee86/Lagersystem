@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Stapel {{ warehouse.location_label(row, slot) }}{% endblock %}
+{% block content %}
+<nav class="mb-3"><a href="{{ url_for('main.warehouse_map', warehouse_id=warehouse.id) }}" class="text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Lagerkarte</a></nav>
+<div class="card shadow-sm stack-page" style="max-width: 640px">
+    {% with in_modal = false %}{% include "partials/stack.html" %}{% endwith %}
+</div>
+{% endblock %}
