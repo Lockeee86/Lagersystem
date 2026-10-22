@@ -191,10 +191,13 @@ def remove_box(box, user, empty=False, note=None):
     return shifted
 
 
-def clear_all(user, note=None):
-    """Nimmt alle Kisten aus allen Lagern (z. B. vor dem Neubefüllen per Import).
+def clear_all(user, warehouse_id=None, note=None):
+    """Nimmt alle Kisten aus einem Lager (oder aus allen) – z. B. vor dem Neubefüllen per Import.
     Inhalt und Verlauf bleiben erhalten. Liefert die Anzahl der ausgelagerten Kisten."""
-    boxes = Box.query.filter(Box.warehouse_id.isnot(None)).all()
+    query = Box.query.filter(Box.warehouse_id.isnot(None))
+    if warehouse_id:
+        query = query.filter(Box.warehouse_id == warehouse_id)
+    boxes = query.all()
     for box in boxes:
         old = location_text(box.warehouse, box.row, box.slot, box.level)
         box.warehouse_id = box.row = box.slot = box.level = None

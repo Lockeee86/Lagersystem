@@ -297,3 +297,24 @@ def test_import_blocked_by_old_box_and_clear_first(as_admin, db, seed):
     assert not old.is_stored and old.variety_id == seed["belana"].id   # Inhalt bleibt
     assert Box.query.filter_by(code="K-0020").one().location == "A-04-5"
     assert Movement.query.filter_by(box_id=old.id, action="ausgelagert").count() == 1
+
+
+def test_import_into_chosen_warehouse_clears_only_that_one(as_admin, db, seed):
+    from app.models import Warehouse
+    other = Warehouse(name="Halle 2", rows=3, slots=4, max_levels=5, numeric_rows=True)
+    db.session.add(other)
+    a, b = storage.create_boxes(2, seed["bt"].id, seed["admin"])
+    storage.store_box(a, seed["wh"].id, 1, 1, seed["admin"])   # steht im ersten Lager
+    storage.store_box(b, other.id, 2, 2, seed["admin"])         # steht in Halle 2
+    db.session.commit()
+    data = xlsx([("K-0003", "Belana", None, None, "voll", "1", 1, None, None)])
+    html = as_admin.post("/admin/daten/import", data={
+        "file": (io.BytesIO(data), "z.xlsx"), "create_missing": "1", "clear_first": "1", "warehouse_id": other.id,
+    }, content_type="multipart/form-data").get_data(as_text=True)
+    assert "Ziel-Lager: Halle 2" in html and "1 Kiste vorher ausgelagert" in html
+    assert 'Halle 2 (3 × 4 × 5)' in as_admin.get("/admin/daten").get_data(as_text=True)
+    as_admin.post("/admin/daten/import/uebernehmen")
+    assert Box.query.filter_by(code="K-0003").one().location == "1-01-1"
+    assert Box.query.filter_by(code="K-0003").one().warehouse_id == other.id
+    assert a.location == "A-01-1"      # erstes Lager unberührt
+    assert not b.is_stored             # Halle 2 wurde vorher geleert

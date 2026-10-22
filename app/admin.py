@@ -358,7 +358,8 @@ def _pending_import():
 @bp.route("/daten")
 def data():
     years = transfer.season_years()
-    return render_template("admin/data.html", years=years, current_year=date.today().year)
+    return render_template("admin/data.html", years=years, current_year=date.today().year,
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all())
 
 
 @bp.route("/daten/vorlage.xlsx")
@@ -392,7 +393,9 @@ def import_preview():
 
     create_missing = bool(request.form.get("create_missing"))
     clear_first = bool(request.form.get("clear_first"))
-    results = transfer.run_import(rows, current_user, create_missing, clear_first)
+    warehouse = db.session.get(Warehouse, form_int("warehouse_id", 0))
+    warehouse_id = warehouse.id if warehouse else None
+    results = transfer.run_import(rows, current_user, create_missing, clear_first, warehouse_id)
     db.session.rollback()   # nur Vorschau
 
     _cleanup_imports()
@@ -400,10 +403,10 @@ def import_preview():
     with open(os.path.join(_import_dir(), token), "wb") as f:
         f.write(data_bytes)
     session["import"] = {"token": token, "name": upload.filename[:200], "create": create_missing,
-                         "clear": clear_first}
+                         "clear": clear_first, "warehouse": warehouse_id}
     errors = sum(1 for r in results if r["errors"])
     return render_template("admin/import_preview.html", results=results, errors=errors,
-                           filename=upload.filename, create_missing=create_missing)
+                           filename=upload.filename, create_missing=create_missing, warehouse=warehouse)
 
 
 @bp.route("/daten/import/uebernehmen", methods=["POST"])
@@ -416,7 +419,8 @@ def import_apply():
         data_bytes = f.read()
     try:
         rows = transfer.read_file(info["name"], data_bytes)
-        results = transfer.run_import(rows, current_user, info["create"], info.get("clear", False))
+        results = transfer.run_import(rows, current_user, info["create"], info.get("clear", False),
+                                      info.get("warehouse"))
     except transfer.TransferError as e:
         db.session.rollback()
         flash_error(str(e))
@@ -426,7 +430,8 @@ def import_apply():
         # Zwischen Vorschau und Übernehmen hat sich etwas geändert (z. B. jemand hat gebucht)
         db.session.rollback()
         return render_template("admin/import_preview.html", results=results, errors=errors,
-                               filename=info["name"], create_missing=info["create"])
+                               filename=info["name"], create_missing=info["create"],
+                               warehouse=db.session.get(Warehouse, info.get("warehouse") or 0))
     db.session.commit()
     os.remove(path)
     session.pop("import", None)

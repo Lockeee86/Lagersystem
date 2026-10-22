@@ -24,13 +24,18 @@
                         <form method="post" action="{{ url_for('admin.import_preview') }}" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input class="form-control mb-2" type="file" name="file" accept=".xlsx,.csv" required aria-label="{{ _('Datei') }}">
+                            <label class="form-label small mb-1" for="importWarehouse">{{ _("Ziel-Lager") }}</label>
+                            <select class="form-select mb-1" name="warehouse_id" id="importWarehouse">
+                                {% for wh in warehouses %}<option value="{{ wh.id }}">{{ wh.name }} ({{ wh.rows }} × {{ wh.slots }} × {{ wh.max_levels }})</option>{% endfor %}
+                            </select>
+                            <div class="form-text mb-2">{{ _("Gilt für alle Zeilen ohne Angabe in der Spalte „Lager“.") }}</div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="create_missing" value="1" id="createMissing">
                                 <label class="form-check-label" for="createMissing">{{ _("Unbekannte Kistennummern neu anlegen") }}</label>
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="clear_first" value="1" id="clearFirst">
-                                <label class="form-check-label" for="clearFirst">{{ _("Vorher alle Kisten auslagern (Lager neu befüllen)") }}</label>
+                                <label class="form-check-label" for="clearFirst">{{ _("Vorher alle Kisten aus dem Ziel-Lager auslagern (neu befüllen)") }}</label>
                                 <div class="form-text">{{ _("Für das erste Befüllen: alte Testkisten blockieren dann keine Stapel. Inhalt und Verlauf der Kisten bleiben erhalten.") }}</div>
                             </div>
                             <button class="btn btn-primary"><i class="bi bi-search me-1"></i>{{ _("Prüfen") }}</button>

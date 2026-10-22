@@ -525,7 +525,10 @@ MESSAGES = {
     "{n} Kisten vorher ausgelagert": ("Wcześniej wydano {n} skrzynię", "Wcześniej wydano {n} skrzynie", "Wcześniej wydano {n} skrzyń"),
     "Stapel {stack} ist voll – dort stehen schon: {codes}. Tipp: „Vorher alle Kisten auslagern“ ankreuzen.":
         "Stos {stack} jest pełny – stoją tam już: {codes}. Wskazówka: zaznacz „Najpierw wydaj wszystkie skrzynie“.",
-    "Vorher alle Kisten auslagern (Lager neu befüllen)": "Najpierw wydaj wszystkie skrzynie (napełnij magazyn od nowa)",
+    "Vorher alle Kisten aus dem Ziel-Lager auslagern (neu befüllen)": "Najpierw wydaj wszystkie skrzynie z magazynu docelowego (napełnij od nowa)",
+    "Ziel-Lager": "Magazyn docelowy",
+    "Ziel-Lager: {name}": "Magazyn docelowy: {name}",
+    "Gilt für alle Zeilen ohne Angabe in der Spalte „Lager“.": "Dotyczy wszystkich wierszy bez wpisu w kolumnie „Magazyn“.",
     "Für das erste Befüllen: alte Testkisten blockieren dann keine Stapel. Inhalt und Verlauf der Kisten bleiben erhalten.":
         "Przy pierwszym napełnianiu: stare skrzynie testowe nie blokują stosów. Zawartość i historia skrzyń zostają zachowane.",
 }

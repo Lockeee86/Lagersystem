@@ -338,9 +338,10 @@ def _is_yes(value):
 
 # --- Import -----------------------------------------------------------------
 
-def run_import(rows, user, create_missing=False, clear_first=False):
+def run_import(rows, user, create_missing=False, clear_first=False, warehouse_id=None):
     """Führt alle Zeilen aus und liefert je Zeile {line, code, actions, errors}.
-    Mit `clear_first` werden vorher alle Kisten ausgelagert (Lager neu befüllen).
+    `warehouse_id` = Ziel-Lager für Zeilen ohne Angabe in der Spalte „Lager“ (sonst das erste Lager).
+    Mit `clear_first` werden vorher alle Kisten des Ziel-Lagers ausgelagert (Lager neu befüllen).
     Speichert nichts – Commit/Rollback macht der Aufrufer."""
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     lookup = {
@@ -351,8 +352,9 @@ def run_import(rows, user, create_missing=False, clear_first=False):
     }
     default_type = BoxType.query.order_by(BoxType.id).first()
     results = []
-    if clear_first:
-        cleared = storage.clear_all(user)
+    default_wh = next((w for w in warehouses if w.id == warehouse_id), warehouses[0] if warehouses else None)
+    if clear_first and default_wh:
+        cleared = storage.clear_all(user, default_wh.id)
         results.append({"line": "–", "code": "", "errors": [],
                         "actions": [ngettext("{n} Kiste vorher ausgelagert", "{n} Kisten vorher ausgelagert", cleared)]})
     for line, raw in rows:
@@ -360,7 +362,7 @@ def run_import(rows, user, create_missing=False, clear_first=False):
         results.append(result)
         try:
             with db.session.begin_nested():
-                _apply_row(raw, user, result, lookup, warehouses, default_type, create_missing)
+                _apply_row(raw, user, result, lookup, default_wh, default_type, create_missing)
         except (RowError, StorageError) as e:
             result["errors"].append(str(e))
     return results
@@ -408,7 +410,7 @@ def _check_room(warehouse, row, slot, box):
                          stack=warehouse.location_label(row, slot), codes=", ".join(b.code for b in occupants)))
 
 
-def _apply_row(raw, user, result, lookup, warehouses, default_type, create_missing):
+def _apply_row(raw, user, result, lookup, default_wh, default_type, create_missing):
     code = storage.normalize_code(str(raw.get("code") or ""))
     if not code:
         raise RowError(_("Ungültige Kistennummer."))
@@ -426,7 +428,7 @@ def _apply_row(raw, user, result, lookup, warehouses, default_type, create_missi
     grade = raw.get("grade")
     note = raw.get("note")
     remove = _is_yes(raw.get("remove"))
-    target_wh = warehouse or (warehouses[0] if warehouses else None)
+    target_wh = warehouse or default_wh
     row = _parse_row_label(raw.get("row"), target_wh) if raw.get("row") is not None and target_wh else None
     slot = _parse_int(raw.get("slot"), "Platz")
     if (row is None) != (slot is None):

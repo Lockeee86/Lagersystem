@@ -5,7 +5,7 @@
 <div class="page-head">
     <div>
         <h1>{{ _("Import prüfen") }}</h1>
-        <p class="text-body-secondary mb-0">{{ filename }} · {{ ngettext("{n} Zeile", "{n} Zeilen", results|length) }}</p>
+        <p class="text-body-secondary mb-0">{{ filename }} · {{ ngettext("{n} Zeile", "{n} Zeilen", results|length) }}{% if warehouse %} · {{ _("Ziel-Lager: {name}", name=warehouse.name) }}{% endif %}</p>
     </div>
 </div>
 
