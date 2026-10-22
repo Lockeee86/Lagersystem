@@ -433,3 +433,12 @@ body:not(.has-tabbar) {
     background: var(--chip); color: var(--chip-text); font-size: .72rem; font-weight: 800; line-height: 1.4;
 }
 .short-chip.chip-blank { background: var(--box-blank); color: #2c2a24; }
+
+/* Nummerierte Schritte (Import) */
+.steps-numbered { list-style: none; counter-reset: step; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1.1rem; }
+.steps-numbered > li { counter-increment: step; position: relative; padding-left: 2.6rem; }
+.steps-numbered > li::before {
+    content: counter(step); position: absolute; left: 0; top: 0;
+    width: 1.9rem; height: 1.9rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--brand-soft); color: var(--brand); font-weight: 800;
+}

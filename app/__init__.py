@@ -59,6 +59,9 @@ def create_app(config=None):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxies, x_proto=proxies, x_host=proxies)
 
     db.init_app(app)
+    if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+        with app.app_context():
+            _fix_sqlite_transactions(db.engine)
     migrate.init_app(app, db, directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations"))
     csrf.init_app(app)
     login_manager.init_app(app)
@@ -136,3 +139,18 @@ def create_app(config=None):
 def load_user(token):
     user = User.query.filter_by(session_token=token).first()
     return user if user and user.active else None
+
+
+def _fix_sqlite_transactions(engine):
+    """pysqlite startet Transaktionen zu spät; dadurch würde das Freigeben eines Savepoints
+    (Import-Vorschau, `begin_nested`) bereits committen. Offizielles SQLAlchemy-Rezept:
+    Transaktionen selbst mit BEGIN starten. Betrifft nur SQLite (Entwicklung/Tests)."""
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def _connect(dbapi_connection, _record):
+        dbapi_connection.isolation_level = None
+
+    @event.listens_for(engine, "begin")
+    def _begin(conn):
+        conn.exec_driver_sql("BEGIN")

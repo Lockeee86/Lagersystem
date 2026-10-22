@@ -290,11 +290,18 @@ class Movement(db.Model):
     # Systemangabe, sprachneutral: bei "nachgerueckt" der Code der entnommenen Kiste,
     # bei "befuellt" die geänderten Felder (Schlüssel aus CONTENT_FIELDS, kommagetrennt)
     detail = db.Column(db.String(200))
+    # Momentaufnahme des Kisteninhalts nach der Bewegung (für die Auswertung je Kartoffeljahr)
+    variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"))
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id"))
+    harvest_date = db.Column(db.Date, index=True)
+    fill = db.Column(db.Integer)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
 
     box = db.relationship("Box", back_populates="movements")
     user = db.relationship("User")
+    variety = db.relationship("Variety")
+    plot = db.relationship("Plot")
 
     @property
     def action_label(self):

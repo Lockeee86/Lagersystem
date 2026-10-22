@@ -92,7 +92,12 @@ def location_text(warehouse, row, slot, level):
 # --- Änderungen -------------------------------------------------------------
 
 def _log(box, action, user, **kwargs):
-    db.session.add(Movement(box=box, action=action, user_id=user.id if user else None, **kwargs))
+    """Protokolliert eine Bewegung samt Momentaufnahme des Kisteninhalts *nach* der Änderung.
+    Die Momentaufnahme macht frühere Kartoffeljahre auswertbar, auch wenn die Kiste später neu befüllt wird."""
+    db.session.add(Movement(
+        box=box, action=action, user_id=user.id if user else None,
+        variety_id=box.variety_id, plot_id=box.plot_id, harvest_date=box.harvest_date, fill=box.fill,
+        **kwargs))
 
 
 def _lock_warehouse(warehouse_id):
@@ -190,8 +195,9 @@ def set_fill(box, fill, user, note=None):
         raise StorageError(_("Ungültiger Füllstand."))
     if fill == box.fill:
         return False
-    _log(box, "fuellstand", user, fill_before=box.fill, fill_after=fill, note=note)
+    fill_before = box.fill
     box.fill = fill
+    _log(box, "fuellstand", user, fill_before=fill_before, fill_after=fill, note=note)
     return True
 
 
@@ -214,8 +220,7 @@ def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, n
         changes.append("note")
     if not changes and box.fill == fill:
         return False
-    _log(box, "befuellt", user, fill_before=box.fill, fill_after=fill,
-         detail=",".join(changes) or None)
+    fill_before = box.fill
     box.box_type_id = box_type_id
     box.variety_id = variety_id
     box.harvest_date = harvest_date
@@ -223,12 +228,28 @@ def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, n
     box.grade = grade or None
     box.fill = fill
     box.note = note or None
+    _log(box, "befuellt", user, fill_before=fill_before, fill_after=fill,
+         detail=",".join(changes) or None)
     return True
 
 
 def next_code_number():
     numbers = [int(m.group(1)) for (code,) in db.session.query(Box.code) if (m := CODE_RE.match(code))]
     return max(numbers, default=0) + 1
+
+
+def create_box(code, box_type_id, user):
+    """Legt eine Kiste mit vorgegebener Nummer an (z. B. beim Import)."""
+    code = normalize_code(code)
+    if not code:
+        raise StorageError(_("Ungültige Kistennummer."))
+    if Box.query.filter_by(code=code).first():
+        raise StorageError(_("{code} gibt es schon.", code=code))
+    box = Box(code=code, box_type_id=box_type_id, fill=0)
+    db.session.add(box)
+    db.session.flush()
+    _log(box, "angelegt", user)
+    return box
 
 
 def create_boxes(count, box_type_id, user):

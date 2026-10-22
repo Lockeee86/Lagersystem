@@ -20,6 +20,11 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Scannen** mit der Handykamera direkt im Browser (benötigt HTTPS) oder Code von Hand eingeben
 - **Übersicht**: geschätzter Bestand je Sorte (kg/t), Belegung, letzte Bewegungen
 - **Verlauf** aller Buchungen mit Benutzer und Zeitpunkt
+- **Import aus Excel** (für die Zettel-Wirtschaft): Vorlage mit Auswahllisten herunterladen, ausfüllen,
+  hochladen – erst eine Vorschau, gespeichert wird nur, wenn alle Zeilen in Ordnung sind
+- **Export je Kartoffeljahr** als Excel: Auswertung je Sorte und Schlag (geschätzte Ernte, Bestand),
+  alle Kisten und alle Bewegungen. Jede Bewegung speichert den Kisteninhalt mit, daher bleiben
+  frühere Jahre auswertbar, auch wenn die Kisten neu befüllt werden
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)

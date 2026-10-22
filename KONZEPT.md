@@ -90,9 +90,15 @@ Portainer-Stack (docker-compose)
   Warnung < 85 % und > 97 %), Warnung bei Sensor-Ausfall
 - Benachrichtigung (Telegram, ntfy oder E-Mail, noch offen)
 
+### Zwischendurch umgesetzt
+- Import aus einer Excel-Vorlage (Zettel → Lagersystem) mit Vorschau, alles-oder-nichts
+- Export je Kartoffeljahr (= Erntejahr) als Excel: Auswertung je Sorte/Schlag, Kisten, Bewegungen
+- Momentaufnahme (Sorte, Schlag, Erntedatum, Füllstand) bei jeder Bewegung, damit frühere Jahre
+  auswertbar bleiben; benutzte Sorten/Schläge werden deshalb nur deaktiviert, nie gelöscht
+
 ### Phase 3 – Komfort
 - Entnahme-Vorschläge ("200 kg Belana": älteste und oben liegende Kisten zuerst)
-- Export als CSV/PDF, Saisonvergleich
+- Saisonvergleich direkt in der App (Diagramme über mehrere Kartoffeljahre)
 - Offline-Modus für den Scan (falls im Lager kein Netz)
 
 ## Noch offen

@@ -28,6 +28,8 @@ docker compose up --build -d
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF)
+- `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,
+  Übernehmen = Commit nur ohne Fehler) und Export je Kartoffeljahr
 - `app/static/js/lager3d.js`: 3D-Ansicht der Lagerkarte (isometrisches SVG aus JSON, das `views.warehouse_map` liefert)
 - `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html`
 - `app/static/vendor/`: lokal abgelegte Bibliotheken (Bootstrap, Bootstrap Icons, html5-qrcode), **kein CDN**
@@ -47,3 +49,5 @@ docker compose up --build -d
   mit `_()` übersetzen. Polnisch in `app/translations/pl.py` ergänzen; `tests/test_i18n.py` schlägt fehl,
   wenn eine Übersetzung fehlt. Keine fertigen Sätze in der DB speichern (siehe `Movement.detail`).
   In Jinja nie `_` als Variablennamen verwenden (überdeckt die Übersetzungsfunktion).
+- `Movement` speichert eine Momentaufnahme des Kisteninhalts (`storage._log` erst **nach** der Änderung aufrufen).
+  Sorten/Schläge, die im Verlauf vorkommen, nur deaktivieren, nie löschen.

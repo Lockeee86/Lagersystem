@@ -1,0 +1,556 @@
+"""Import aus einer Excel-Vorlage (für Zettel-Wirtschaft) und Export je Kartoffeljahr.
+
+Import:
+- Jede Zeile beschreibt eine Kiste. Leere Zellen lassen den bisherigen Wert unverändert.
+- Die Zeilen werden in der Reihenfolge der Datei ausgeführt (wichtig fürs Stapeln: wer zuerst
+  kommt, steht unten).
+- `run_import` führt alles aus, entscheidet aber nicht über das Speichern: Der Aufrufer
+  committet nur, wenn keine Zeile einen Fehler hatte (alles oder nichts), und macht für die
+  Vorschau einfach ein Rollback.
+
+Export: eine Excel-Datei mit Auswertung, Kisten und Bewegungen. Das Kartoffeljahr ist das
+Erntejahr; Bewegungen werden über ihre Momentaufnahme (Movement.harvest_date) zugeordnet.
+"""
+import csv
+import io
+import re
+from datetime import date, datetime
+
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
+from sqlalchemy import extract
+
+from . import storage
+from .extensions import db
+from .i18n import CATALOGS, N_, gettext as _
+from .models import FILL_LEVELS, Box, BoxType, Movement, Plot, Variety, Warehouse
+from .storage import StorageError
+from .utils import to_local
+
+MAX_ROWS = 5000
+TEMPLATE_ROWS = 1000
+
+# Spalten der Vorlage: (Schlüssel, Überschrift, zusätzliche Schreibweisen beim Einlesen)
+COLUMNS = [
+    ("code", N_("Kiste"), ["kistennummer", "kistennr", "nr", "nummer", "code"]),
+    ("variety", N_("Sorte"), []),
+    ("plot", N_("Schlag"), ["feld", "acker"]),
+    ("harvest_date", N_("Erntedatum"), ["ernte", "datum"]),
+    ("fill", N_("Füllstand"), ["fuellstand", "menge"]),
+    ("grade", N_("Sortierung"), ["groesse", "größe", "kaliber"]),
+    ("warehouse", N_("Lager"), ["halle"]),
+    ("row", N_("Reihe"), []),
+    ("slot", N_("Platz"), ["stellplatz"]),
+    ("remove", N_("Auslagern"), ["raus", "entnommen"]),
+    ("note", N_("Notiz"), ["bemerkung", "kommentar"]),
+]
+
+FILL_WORDS = {
+    "voll": 100, "1/1": 100, "¾": 75, "3/4": 75, "dreiviertel": 75, "½": 50, "1/2": 50, "halb": 50,
+    "¼": 25, "1/4": 25, "viertel": 25, "leer": 0,
+    "pełna": 100, "pelna": 100, "pełne": 100, "pół": 50, "pol": 50, "pusta": 0, "puste": 0,
+}
+YES_WORDS = {"x", "ja", "j", "yes", "y", "1", "true", "wahr", "tak", "t", "✓", "✔"}
+
+
+class SemicolonDialect(csv.excel):
+    delimiter = ";"
+
+
+class TransferError(Exception):
+    """Fehler, der die ganze Datei betrifft (z. B. falsches Format)."""
+
+
+class RowError(Exception):
+    pass
+
+
+def _norm(text):
+    return re.sub(r"[^0-9a-zäöüßąćęłńóśźż]", "", str(text).casefold())
+
+
+def _header_aliases():
+    """Überschrift (normalisiert) → Spaltenschlüssel, in allen Sprachen."""
+    aliases = {}
+    for key, label, extra in COLUMNS:
+        for text in [label, *extra, *(c.get(label, label) for c in CATALOGS.values())]:
+            aliases[_norm(text)] = key
+    return aliases
+
+
+# --- Vorlage ----------------------------------------------------------------
+
+HEADER_FONT = Font(bold=True, color="FFFFFF")
+HEADER_FILL = PatternFill("solid", fgColor="4F6F2F")
+TITLE_FONT = Font(bold=True, size=14)
+
+
+def _style_header(ws, row=1):
+    for cell in ws[row]:
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(vertical="center")
+    ws.row_dimensions[row].height = 22
+
+
+def _save(wb):
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_template():
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    varieties = Variety.query.filter_by(active=True).order_by(Variety.name).all()
+    plots = Plot.query.filter_by(active=True).order_by(Plot.name).all()
+    first_wh = warehouses[0] if warehouses else None
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = _("Kisten")
+    ws.append([_(label) for _key, label, _extra in COLUMNS])
+    _style_header(ws)
+    ws.freeze_panes = "A2"
+    widths = {"code": 12, "variety": 20, "plot": 20, "harvest_date": 13, "fill": 11, "grade": 14,
+              "warehouse": 16, "row": 8, "slot": 8, "remove": 11, "note": 36}
+    col = {key: get_column_letter(i + 1) for i, (key, _l, _e) in enumerate(COLUMNS)}
+    for key, width in widths.items():
+        ws.column_dimensions[col[key]].width = width
+    last = TEMPLATE_ROWS + 1
+    for r in range(2, last + 1):
+        ws[f"{col['code']}{r}"].number_format = "@"
+        ws[f"{col['harvest_date']}{r}"].number_format = "DD.MM.YYYY"
+
+    # Auswahllisten auf einem eigenen Blatt
+    lists = wb.create_sheet(_("Listen"))
+    columns = [
+        (_("Sorten"), [v.name for v in varieties]),
+        (_("Schläge"), [p.name for p in plots]),
+        (_("Füllstand"), [_(label) for _v, label in FILL_LEVELS]),
+        (_("Reihen"), [label for _r, label in first_wh.row_labels()] if first_wh else []),
+        (_("Lager"), [w.name for w in warehouses]),
+        (_("Auslagern"), ["x"]),
+    ]
+    for c, (title, values) in enumerate(columns, start=1):
+        lists.cell(row=1, column=c, value=title)
+        lists.column_dimensions[get_column_letter(c)].width = 22
+        for r, value in enumerate(values, start=2):
+            lists.cell(row=r, column=c, value=value)
+    _style_header(lists)
+
+    def validate(key, list_col, values, strict=True):
+        if not values:
+            return
+        letter = get_column_letter(list_col)
+        quoted = lists.title.replace("'", "''")
+        dv = DataValidation(type="list", formula1=f"='{quoted}'!${letter}$2:${letter}${len(values) + 1}",
+                            allow_blank=True, showErrorMessage=strict)
+        dv.error = _("Bitte einen Wert aus der Liste wählen.")
+        ws.add_data_validation(dv)
+        dv.add(f"{col[key]}2:{col[key]}{last}")
+
+    validate("variety", 1, columns[0][1])
+    validate("plot", 2, columns[1][1])
+    validate("fill", 3, columns[2][1], strict=False)
+    validate("row", 4, columns[3][1], strict=False)
+    validate("warehouse", 5, columns[4][1])
+    validate("remove", 6, ["x"], strict=False)
+
+    # Anleitung
+    guide = wb.create_sheet(_("Anleitung"))
+    guide.column_dimensions["A"].width = 110
+    lines = [
+        (_("So funktioniert der Import"), TITLE_FONT),
+        (_("Eine Zeile pro Kiste. Nur die Spalte „Kiste“ ist Pflicht (z. B. K-0012 oder einfach 12)."), None),
+        (_("Leere Zellen ändern nichts – es wird nur übernommen, was eingetragen ist."), None),
+        (_("Sorte, Schlag und Lager müssen so heißen wie im Lagersystem (Auswahlliste nutzen)."), None),
+        (_("Füllstand: voll, ¾, ½, ¼ oder leer (auch 100, 75, 50, 25, 0). Bekommt eine leere Kiste eine Sorte ohne Füllstand, gilt sie als voll."), None),
+        (_("Reihe + Platz: Die Kiste wird oben auf diesen Stapel gesetzt (bzw. dorthin umgelagert)."), None),
+        (_("Die Zeilen werden von oben nach unten ausgeführt: Wer zuerst kommt, steht im Stapel unten."), None),
+        (_("Auslagern: ein „x“ nimmt die Kiste aus dem Lager (mit Füllstand „leer“ gilt sie als leer)."), None),
+        (_("Lager leer lassen, wenn es nur ein Lager gibt."), None),
+        (_("Vor dem Übernehmen zeigt das Lagersystem eine Vorschau. Gibt es Fehler, wird nichts gespeichert."), None),
+        ("", None),
+        (_("Beispiel"), Font(bold=True)),
+        (_("Kiste 12, Sorte Belana, Schlag Acker Nord, Ernte 05.10.2026, voll, Reihe C, Platz 7"), None),
+    ]
+    for text, font in lines:
+        guide.append([text])
+        if font:
+            guide.cell(row=guide.max_row, column=1).font = font
+    wb.move_sheet(guide, offset=-(len(wb.sheetnames) - 1))
+    wb.active = 1
+    return _save(wb)
+
+
+# --- Einlesen ---------------------------------------------------------------
+
+def _cell(value):
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        value = value.strip()
+        return value or None
+    return value
+
+
+def _rows_from_table(table):
+    """Sucht die Kopfzeile und liefert [(Zeilennummer, {schlüssel: wert})]."""
+    aliases = _header_aliases()
+    mapping, header_line = None, None
+    for idx, row in enumerate(table[:15]):
+        found = {i: aliases[_norm(v)] for i, v in enumerate(row) if v is not None and _norm(v) in aliases}
+        if "code" in found.values() and len(found) >= 2:
+            mapping, header_line = found, idx
+            break
+    if mapping is None:
+        raise TransferError(_("Keine Kopfzeile mit der Spalte „Kiste“ gefunden. Bitte die Vorlage verwenden."))
+    rows = []
+    for idx, row in enumerate(table[header_line + 1:], start=header_line + 2):
+        values = {key: _cell(row[i]) for i, key in mapping.items() if i < len(row)}
+        if all(v is None for v in values.values()):
+            continue
+        rows.append((idx, values))
+        if len(rows) > MAX_ROWS:
+            raise TransferError(_("Zu viele Zeilen (max. {n}).", n=MAX_ROWS))
+    return rows
+
+
+def read_file(filename, data):
+    name = (filename or "").lower()
+    if name.endswith(".xlsx"):
+        try:
+            wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        except Exception as e:  # noqa: BLE001 – kaputte/fremde Datei
+            raise TransferError(_("Die Excel-Datei konnte nicht gelesen werden.")) from e
+        preferred = {_norm(n) for n in ["Kisten", *(c.get("Kisten", "Kisten") for c in CATALOGS.values())]}
+        sheet = next((wb[n] for n in wb.sheetnames if _norm(n) in preferred), wb.worksheets[0])
+        table = [list(r) for r in sheet.iter_rows(values_only=True, max_row=MAX_ROWS + 20)]
+        wb.close()
+        return _rows_from_table(table)
+    if name.endswith(".csv"):
+        for encoding in ("utf-8-sig", "cp1252"):
+            try:
+                text = data.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        try:
+            dialect = csv.Sniffer().sniff(text[:4096], delimiters=";,\t")
+        except csv.Error:
+            dialect = SemicolonDialect
+        return _rows_from_table([r for r in csv.reader(io.StringIO(text), dialect)])
+    raise TransferError(_("Bitte eine Excel-Datei (.xlsx) oder CSV-Datei hochladen."))
+
+
+# --- Werte prüfen -----------------------------------------------------------
+
+def _parse_fill(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        number = value * 100 if 0 < value <= 1 else value   # Excel-Prozentzelle: 0,75 = 75 %
+        if int(number) in (0, 25, 50, 75, 100) and number == int(number):
+            return int(number)
+    else:
+        text = str(value).casefold().replace("%", "").replace(" ", "")
+        if text in FILL_WORDS:
+            return FILL_WORDS[text]
+        for _v, label in FILL_LEVELS:
+            if text == _(label).casefold():
+                return _v
+        if text.isdigit() and int(text) in (0, 25, 50, 75, 100):
+            return int(text)
+    raise RowError(_("Füllstand „{value}“ verstehe ich nicht (voll, ¾, ½, ¼, leer).", value=value))
+
+
+def _parse_date(value):
+    if value is None or isinstance(value, date):
+        return value
+    text = str(value).strip()
+    for fmt in ("%d.%m.%Y", "%d.%m.%y", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    raise RowError(_("Datum „{value}“ verstehe ich nicht (z. B. 05.10.2026).", value=value))
+
+
+def _parse_int(value, label):
+    if value is None:
+        return None
+    try:
+        return int(str(value).strip())
+    except ValueError:
+        raise RowError(_("{field} „{value}“ ist keine Zahl.", field=_(label), value=value)) from None
+
+
+def _parse_row_label(value, warehouse):
+    if value is None:
+        return None
+    text = str(value).strip().upper()
+    for number, label in warehouse.row_labels():
+        if text == label or text == str(number):
+            return number
+    raise RowError(_("Reihe „{value}“ gibt es in {warehouse} nicht.", value=value, warehouse=warehouse.name))
+
+
+def _is_yes(value):
+    return value is not None and str(value).strip().casefold() in YES_WORDS
+
+
+# --- Import -----------------------------------------------------------------
+
+def run_import(rows, user, create_missing=False):
+    """Führt alle Zeilen aus und liefert je Zeile {line, code, actions, errors}.
+    Speichert nichts – Commit/Rollback macht der Aufrufer."""
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    lookup = {
+        "variety": {v.name.casefold(): v for v in Variety.query.all()},
+        "plot": {p.name.casefold(): p for p in Plot.query.all()},
+        "warehouse": {w.name.casefold(): w for w in warehouses},
+    }
+    default_type = BoxType.query.order_by(BoxType.id).first()
+    results = []
+    for line, raw in rows:
+        result = {"line": line, "code": str(raw.get("code") or ""), "actions": [], "errors": []}
+        results.append(result)
+        try:
+            with db.session.begin_nested():
+                _apply_row(raw, user, result, lookup, warehouses, default_type, create_missing)
+        except (RowError, StorageError) as e:
+            result["errors"].append(str(e))
+    return results
+
+
+def _lookup(lookup, kind, value, label):
+    if value is None:
+        return None
+    found = lookup[kind].get(str(value).strip().casefold())
+    if not found:
+        raise RowError(_("{field} „{value}“ gibt es nicht.", field=_(label), value=value))
+    return found
+
+
+def _apply_row(raw, user, result, lookup, warehouses, default_type, create_missing):
+    code = storage.normalize_code(str(raw.get("code") or ""))
+    if not code:
+        raise RowError(_("Ungültige Kistennummer."))
+    result["code"] = code
+
+    # Erst alles prüfen, dann ändern
+    variety = _lookup(lookup, "variety", raw.get("variety"), "Sorte")
+    plot = _lookup(lookup, "plot", raw.get("plot"), "Schlag")
+    warehouse = _lookup(lookup, "warehouse", raw.get("warehouse"), "Lager")
+    harvest = _parse_date(raw.get("harvest_date"))
+    fill = _parse_fill(raw.get("fill"))
+    grade = raw.get("grade")
+    note = raw.get("note")
+    remove = _is_yes(raw.get("remove"))
+    target_wh = warehouse or (warehouses[0] if warehouses else None)
+    row = _parse_row_label(raw.get("row"), target_wh) if raw.get("row") is not None and target_wh else None
+    slot = _parse_int(raw.get("slot"), "Platz")
+    if (row is None) != (slot is None):
+        raise RowError(_("Für das Einlagern bitte Reihe und Platz angeben."))
+    if remove and row is not None:
+        raise RowError(_("Auslagern und Reihe/Platz gleichzeitig geht nicht."))
+
+    box = Box.query.filter_by(code=code).first()
+    if box is None:
+        if not create_missing:
+            raise RowError(_("{code} gibt es nicht.", code=code))
+        if default_type is None:
+            raise RowError(_("Es ist noch kein Kistentyp angelegt."))
+        box = storage.create_box(code, default_type.id, user)
+        result["actions"].append(_("neu angelegt"))
+
+    content_given = any(v is not None for v in (variety, plot, harvest, grade, note))
+    if fill is None and variety is not None and box.fill == 0:
+        fill = 100   # leere Kiste bekommt eine Sorte → gilt als voll
+    if content_given:
+        new_fill = fill if fill is not None else box.fill
+        storage.update_contents(
+            box, user,
+            variety_id=variety.id if variety else box.variety_id,
+            harvest_date=harvest or box.harvest_date,
+            plot_id=plot.id if plot else box.plot_id,
+            grade=str(grade) if grade is not None else box.grade,
+            fill=new_fill,
+            note=str(note) if note is not None else box.note,
+        )
+        for label, value in ((N_("Sorte"), variety and variety.name), (N_("Schlag"), plot and plot.name),
+                             (N_("Ernte"), harvest and harvest.strftime("%d.%m.%Y")),
+                             (N_("Sortierung"), grade), (N_("Notiz"), note)):
+            if value is not None:
+                result["actions"].append(f"{_(label)}: {value}")
+    if fill is not None:
+        if not content_given:
+            storage.set_fill(box, fill, user)
+        result["actions"].append(f"{_('Füllstand')}: {box.fill_label}")
+
+    if remove:
+        if not box.is_stored:
+            raise RowError(_("{code} ist nicht eingelagert.", code=code))
+        storage.remove_box(box, user, empty=(fill == 0))
+        result["actions"].append(_("ausgelagert"))
+    elif row is not None:
+        if target_wh is None:
+            raise RowError(_("Es ist noch kein Lager angelegt."))
+        if box.is_stored and (box.warehouse_id, box.row, box.slot) == (target_wh.id, row, slot):
+            result["actions"].append(_("steht schon auf {location}", location=box.location))
+        elif box.is_stored:
+            storage.move_box(box, target_wh.id, row, slot, user)
+            result["actions"].append(_("umgelagert nach {location}", location=box.location))
+        else:
+            storage.store_box(box, target_wh.id, row, slot, user)
+            result["actions"].append(_("eingelagert auf {location}", location=box.location))
+
+    if not result["actions"]:
+        result["actions"].append(_("keine Änderung"))
+
+
+# --- Export -----------------------------------------------------------------
+
+def season_years():
+    years = {int(y) for (y,) in db.session.query(extract("year", Movement.harvest_date))
+             .filter(Movement.harvest_date.isnot(None)).distinct() if y}
+    years |= {int(y) for (y,) in db.session.query(extract("year", Box.harvest_date))
+              .filter(Box.harvest_date.isnot(None)).distinct() if y}
+    return sorted(years, reverse=True)
+
+
+def _naive_local(value):
+    value = to_local(value)
+    return value.replace(tzinfo=None) if value else None
+
+
+def _sheet(wb, title, headers, rows, widths=None, formats=None):
+    ws = wb.create_sheet(title)
+    ws.append(headers)
+    _style_header(ws)
+    for row in rows:
+        ws.append(row)
+    ws.freeze_panes = "A2"
+    if rows:
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{len(rows) + 1}"
+    for i, header in enumerate(headers, start=1):
+        width = (widths or {}).get(i) or max(10, min(40, len(str(header)) + 4))
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for col, fmt in (formats or {}).items():
+        for cell in ws[get_column_letter(col)][1:]:
+            cell.number_format = fmt
+    return ws
+
+
+def season_summary(year=None):
+    """Auswertung je Erntejahr, Sorte und Schlag aus den Momentaufnahmen der Bewegungen.
+    Geschätzte Ernte = höchster Füllstand, den die Kiste in dieser Saison hatte × Gewicht des Kistentyps."""
+    query = Movement.query.filter(Movement.harvest_date.isnot(None), Movement.variety_id.isnot(None))
+    if year:
+        query = query.filter(extract("year", Movement.harvest_date) == year)
+    seasons = {}   # (box_id, erntejahr) → Angaben
+    for m in query.order_by(Movement.created_at, Movement.id):
+        key = (m.box_id, m.harvest_date.year)
+        entry = seasons.setdefault(key, {"box": m.box, "year": m.harvest_date.year, "max_fill": 0})
+        entry["variety"] = m.variety
+        entry["plot"] = m.plot
+        entry["max_fill"] = max(entry["max_fill"], m.fill or 0)
+
+    groups = {}
+    for entry in seasons.values():
+        box = entry["box"]
+        full = box.box_type.full_weight_kg if box.box_type else 0
+        current = (box.harvest_date and box.harvest_date.year == entry["year"]
+                   and box.variety_id == entry["variety"].id)
+        for key in ((entry["year"], entry["variety"], None), (entry["year"], entry["variety"], entry["plot"])):
+            g = groups.setdefault(key, {"boxes": 0, "harvest_kg": 0, "stock_kg": 0, "stored": 0})
+            g["boxes"] += 1
+            g["harvest_kg"] += round(full * entry["max_fill"] / 100)
+            if current:
+                g["stock_kg"] += box.weight_kg
+                g["stored"] += 1 if box.is_stored and not box.is_empty else 0
+    return groups
+
+
+def build_export(year=None):
+    wb = Workbook()
+    wb.remove(wb.active)
+    title = _("Kartoffeljahr {year}", year=year) if year else _("Alle Jahre")
+
+    # Auswertung
+    groups = season_summary(year)
+    ws = wb.create_sheet(_("Auswertung"))
+    ws.append([_("Lagersystem – Auswertung"), title])
+    ws["A1"].font = TITLE_FONT
+    ws["B1"].font = TITLE_FONT
+    ws.append([_("Erstellt am"), _naive_local(datetime.now().astimezone())])
+    ws["B2"].number_format = "DD.MM.YYYY HH:MM"
+    ws.append([_("Geschätzte Ernte = höchster Füllstand der Kiste in der Saison × Gewicht des Kistentyps.")])
+    ws.append([])
+    headers = [_("Erntejahr"), _("Sorte"), _("Verwendung"), _("Schlag"), _("Kisten"),
+               _("Geschätzte Ernte (kg)"), _("Aktueller Bestand (kg)"), _("Kisten im Lager")]
+
+    def table(heading, with_plot):
+        ws.append([heading])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
+        ws.append(headers)
+        _style_header(ws, ws.max_row)
+        keys = sorted((k for k in groups if (k[2] is not None) == with_plot),
+                      key=lambda k: (-k[0], k[1].name, k[2].name if k[2] else ""))
+        for k in keys:
+            g = groups[k]
+            ws.append([k[0], k[1].name, k[1].usage_label, (k[2].name if k[2] else _("ohne Schlag")) if with_plot else "",
+                       g["boxes"], g["harvest_kg"], g["stock_kg"], g["stored"]])
+        if not keys:
+            ws.append([_("Keine Daten für diesen Zeitraum.")])
+        ws.append([])
+
+    table(_("Je Sorte"), with_plot=False)
+    table(_("Je Sorte und Schlag"), with_plot=True)
+    for i, width in enumerate([12, 22, 14, 22, 9, 22, 24, 16], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    # Kisten (aktueller Stand)
+    boxes = Box.query
+    if year:
+        boxes = boxes.filter(extract("year", Box.harvest_date) == year)
+    box_rows = [[
+        b.code, b.variety.name if b.variety and not b.is_empty else "", b.variety.usage_label if b.variety else "",
+        b.plot.name if b.plot else "", b.harvest_date, b.fill, b.weight_kg,
+        b.box_type.name if b.box_type else "", b.warehouse.name if b.warehouse else "", b.location or "",
+        b.grade or "", b.note or "", _naive_local(b.updated_at),
+    ] for b in boxes.order_by(Box.code)]
+    _sheet(wb, _("Kisten"),
+           [_("Kiste"), _("Sorte"), _("Verwendung"), _("Schlag"), _("Erntedatum"), _("Füllstand (%)"),
+            _("Gewicht geschätzt (kg)"), _("Kistentyp"), _("Lager"), _("Platz"), _("Sortierung"), _("Notiz"),
+            _("Zuletzt geändert")],
+           box_rows, widths={1: 10, 2: 18, 4: 18, 5: 12, 12: 30, 13: 17},
+           formats={5: "DD.MM.YYYY", 13: "DD.MM.YYYY HH:MM"})
+
+    # Bewegungen
+    moves = Movement.query.join(Box)
+    if year:
+        moves = moves.filter(extract("year", Movement.harvest_date) == year)
+    move_rows = [[
+        _naive_local(m.created_at), m.box.code, m.action_label, m.from_location or "", m.to_location or "",
+        m.fill_before, m.fill_after if m.fill_after is not None else m.fill,
+        m.variety.name if m.variety else "", m.plot.name if m.plot else "", m.harvest_date,
+        m.user.name if m.user else "", m.detail_text or "", m.note or "",
+    ] for m in moves.order_by(Movement.created_at, Movement.id)]
+    _sheet(wb, _("Bewegungen"),
+           [_("Zeitpunkt"), _("Kiste"), _("Aktion"), _("Von"), _("Nach"), _("Füllstand vorher (%)"),
+            _("Füllstand nachher (%)"), _("Sorte"), _("Schlag"), _("Erntedatum"), _("Benutzer"),
+            _("Hinweis"), _("Notiz")],
+           move_rows, widths={1: 17, 4: 24, 5: 24, 12: 30, 13: 30},
+           formats={1: "DD.MM.YYYY HH:MM", 10: "DD.MM.YYYY"})
+    return _save(wb)
+
+
+def export_filename(year=None):
+    stamp = datetime.now().strftime("%Y-%m-%d")
+    return f"lager_{year or 'alle-jahre'}_{stamp}.xlsx"
+

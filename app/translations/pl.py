@@ -327,8 +327,8 @@ MESSAGES = {
     "Bitte einen Namen angeben.": "Podaj nazwę.",
     "Die Sorte „{name}“ gibt es schon.": "Odmiana „{name}“ już istnieje.",
     "Sorte „{name}“ gespeichert.": "Zapisano odmianę „{name}“.",
-    "„{name}“ wird noch in Kisten verwendet und wurde deshalb nur deaktiviert.":
-        "„{name}“ jest jeszcze używana w skrzyniach, dlatego została tylko dezaktywowana.",
+    "„{name}“ wird in Kisten oder im Verlauf verwendet und wurde deshalb nur deaktiviert.":
+        "„{name}“ jest używane w skrzyniach lub w historii, dlatego zostało tylko dezaktywowane.",
     "Sorte „{name}“ gelöscht.": "Usunięto odmianę „{name}“.",
 
     # --- Verwaltung: Schläge ------------------------------------------------------------
@@ -380,4 +380,119 @@ MESSAGES = {
     "Ungültige Rolle.": "Nieprawidłowa rola.",
     "Es muss mindestens ein aktiver Admin bleiben.": "Musi pozostać co najmniej jeden aktywny administrator.",
     "Benutzer „{name}“ gespeichert.": "Zapisano użytkownika „{name}“.",
+
+    # --- Import / Export -------------------------------------------------------------
+    "Import / Export": "Import / eksport",
+    "Import von Zetteln": "Import z kartek",
+    "Vorlage herunterladen": "Pobierz szablon",
+    "Excel-Datei mit Auswahllisten für Sorten, Schläge und Füllstand. Eine Zeile pro Kiste.":
+        "Plik Excel z listami wyboru odmian, pól i napełnienia. Jeden wiersz na skrzynię.",
+    "Vorlage (.xlsx)": "Szablon (.xlsx)",
+    "Zettel übertragen": "Przepisz kartki",
+    "Leere Zellen ändern nichts. Mit Reihe und Platz wird die Kiste oben auf den Stapel gesetzt, ein „x“ bei Auslagern nimmt sie heraus.":
+        "Puste komórki niczego nie zmieniają. Rząd i miejsce stawiają skrzynię na górze stosu, „x“ w kolumnie Wydaj zdejmuje ją z magazynu.",
+    "Datei hochladen und prüfen": "Wgraj plik i sprawdź",
+    "Du siehst zuerst eine Vorschau. Gespeichert wird erst, wenn alle Zeilen in Ordnung sind.":
+        "Najpierw zobaczysz podgląd. Zapis nastąpi dopiero, gdy wszystkie wiersze będą poprawne.",
+    "Datei": "Plik",
+    "Unbekannte Kistennummern neu anlegen": "Utwórz nieznane numery skrzyń",
+    "Prüfen": "Sprawdź",
+    "Export je Kartoffeljahr": "Eksport według sezonu",
+    "Excel-Datei mit drei Blättern: Auswertung je Sorte und Schlag, alle Kisten und alle Bewegungen. Das Kartoffeljahr richtet sich nach dem Erntedatum.":
+        "Plik Excel z trzema arkuszami: podsumowanie według odmian i pól, wszystkie skrzynie i wszystkie operacje. Sezon określa data zbioru.",
+    "Kartoffeljahr": "Sezon",
+    "Kartoffeljahr {year}": "Sezon {year}",
+    "Alle Jahre": "Wszystkie lata",
+    "Export (.xlsx)": "Eksport (.xlsx)",
+    "Noch keine Kisten mit Erntedatum – der Export enthält dann nur die Kistenliste.":
+        "Brak skrzyń z datą zbioru – eksport zawiera wtedy tylko listę skrzyń.",
+    "Tipp: Am Ende jeder Saison „Alle Jahre“ exportieren und die Datei aufheben. Für eine komplette Datensicherung siehe README (Backup).":
+        "Wskazówka: na koniec każdego sezonu wyeksportuj „Wszystkie lata“ i zachowaj plik. Pełna kopia zapasowa: patrz README (Backup).",
+    "Import prüfen": "Sprawdź import",
+    "{n} Zeilen": ("{n} wiersz", "{n} wiersze", "{n} wierszy"),
+    "{n} Zeilen haben Fehler.": ("{n} wiersz zawiera błąd.", "{n} wiersze zawierają błędy.", "{n} wierszy zawiera błędy."),
+    "{n} Zeilen importiert.": ("Zaimportowano {n} wiersz.", "Zaimportowano {n} wiersze.", "Zaimportowano {n} wierszy."),
+    "Es wurde nichts gespeichert. Bitte die Datei korrigieren und erneut hochladen.":
+        "Nic nie zostało zapisane. Popraw plik i wgraj go ponownie.",
+    "Alle Zeilen sind in Ordnung. Noch ist nichts gespeichert.": "Wszystkie wiersze są poprawne. Nic jeszcze nie zapisano.",
+    "Import übernehmen": "Zatwierdź import",
+    "Zeile": "Wiersz",
+    "Ergebnis": "Wynik",
+    "Zurück": "Wstecz",
+    "Bitte eine Datei auswählen.": "Wybierz plik.",
+    "Die Datei enthält keine Zeilen.": "Plik nie zawiera wierszy.",
+    "Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen.": "Podgląd wygasł. Wgraj plik ponownie.",
+    "Kiste": "Skrzynia",
+    "Platz": "Miejsce",
+    "Listen": "Listy",
+    "Bitte einen Wert aus der Liste wählen.": "Wybierz wartość z listy.",
+    "Anleitung": "Instrukcja",
+    "So funktioniert der Import": "Jak działa import",
+    "Eine Zeile pro Kiste. Nur die Spalte „Kiste“ ist Pflicht (z. B. K-0012 oder einfach 12).":
+        "Jeden wiersz na skrzynię. Wymagana jest tylko kolumna „Skrzynia“ (np. K-0012 lub po prostu 12).",
+    "Leere Zellen ändern nichts – es wird nur übernommen, was eingetragen ist.":
+        "Puste komórki niczego nie zmieniają – przejmowane jest tylko to, co wpisano.",
+    "Sorte, Schlag und Lager müssen so heißen wie im Lagersystem (Auswahlliste nutzen).":
+        "Odmiana, pole i magazyn muszą nazywać się tak jak w systemie (użyj listy wyboru).",
+    "Füllstand: voll, ¾, ½, ¼ oder leer (auch 100, 75, 50, 25, 0). Bekommt eine leere Kiste eine Sorte ohne Füllstand, gilt sie als voll.":
+        "Napełnienie: pełna, ¾, ½, ¼ lub pusta (także 100, 75, 50, 25, 0). Pusta skrzynia z odmianą bez napełnienia liczy się jako pełna.",
+    "Reihe + Platz: Die Kiste wird oben auf diesen Stapel gesetzt (bzw. dorthin umgelagert).":
+        "Rząd + miejsce: skrzynia zostanie postawiona na górze tego stosu (lub tam przeniesiona).",
+    "Die Zeilen werden von oben nach unten ausgeführt: Wer zuerst kommt, steht im Stapel unten.":
+        "Wiersze są wykonywane od góry do dołu: co pierwsze, to stoi na dole stosu.",
+    "Auslagern: ein „x“ nimmt die Kiste aus dem Lager (mit Füllstand „leer“ gilt sie als leer).":
+        "Wydaj: „x“ zdejmuje skrzynię z magazynu (z napełnieniem „pusta“ liczy się jako pusta).",
+    "Lager leer lassen, wenn es nur ein Lager gibt.": "Zostaw magazyn pusty, jeśli jest tylko jeden.",
+    "Vor dem Übernehmen zeigt das Lagersystem eine Vorschau. Gibt es Fehler, wird nichts gespeichert.":
+        "Przed zatwierdzeniem system pokazuje podgląd. Jeśli są błędy, nic nie zostanie zapisane.",
+    "Beispiel": "Przykład",
+    "Kiste 12, Sorte Belana, Schlag Acker Nord, Ernte 05.10.2026, voll, Reihe C, Platz 7":
+        "Skrzynia 12, odmiana Belana, pole Pole Północ, zbiór 05.10.2026, pełna, rząd C, miejsce 7",
+    "Keine Kopfzeile mit der Spalte „Kiste“ gefunden. Bitte die Vorlage verwenden.":
+        "Nie znaleziono wiersza nagłówka z kolumną „Skrzynia“. Użyj szablonu.",
+    "Zu viele Zeilen (max. {n}).": "Za dużo wierszy (maks. {n}).",
+    "Die Excel-Datei konnte nicht gelesen werden.": "Nie można odczytać pliku Excel.",
+    "Bitte eine Excel-Datei (.xlsx) oder CSV-Datei hochladen.": "Wgraj plik Excel (.xlsx) lub CSV.",
+    "Füllstand „{value}“ verstehe ich nicht (voll, ¾, ½, ¼, leer).": "Nie rozumiem napełnienia „{value}“ (pełna, ¾, ½, ¼, pusta).",
+    "Datum „{value}“ verstehe ich nicht (z. B. 05.10.2026).": "Nie rozumiem daty „{value}“ (np. 05.10.2026).",
+    "{field} „{value}“ ist keine Zahl.": "{field} „{value}“ nie jest liczbą.",
+    "Reihe „{value}“ gibt es in {warehouse} nicht.": "Rząd „{value}“ nie istnieje w {warehouse}.",
+    "{field} „{value}“ gibt es nicht.": "{field} „{value}“ nie istnieje.",
+    "Für das Einlagern bitte Reihe und Platz angeben.": "Aby wstawić, podaj rząd i miejsce.",
+    "Auslagern und Reihe/Platz gleichzeitig geht nicht.": "Nie można jednocześnie wydać i podać rzędu/miejsca.",
+    "{code} gibt es nicht.": "{code} nie istnieje.",
+    "{code} gibt es schon.": "{code} już istnieje.",
+    "Ungültige Kistennummer.": "Nieprawidłowy numer skrzyni.",
+    "Es ist noch kein Kistentyp angelegt.": "Nie utworzono jeszcze typu skrzyni.",
+    "neu angelegt": "utworzono",
+    "Ernte": "Zbiór",
+    "ausgelagert": "wydano",
+    "steht schon auf {location}": "już stoi na {location}",
+    "umgelagert nach {location}": "przeniesiono na {location}",
+    "eingelagert auf {location}": "wstawiono na {location}",
+    "keine Änderung": "bez zmian",
+    "Auswertung": "Podsumowanie",
+    "Lagersystem – Auswertung": "System magazynowy – podsumowanie",
+    "Erstellt am": "Utworzono",
+    "Geschätzte Ernte = höchster Füllstand der Kiste in der Saison × Gewicht des Kistentyps.":
+        "Szacowany zbiór = najwyższe napełnienie skrzyni w sezonie × waga typu skrzyni.",
+    "Erntejahr": "Rok zbioru",
+    "Geschätzte Ernte (kg)": "Szacowany zbiór (kg)",
+    "Aktueller Bestand (kg)": "Aktualny stan (kg)",
+    "Kisten im Lager": "Skrzynie w magazynie",
+    "ohne Schlag": "bez pola",
+    "Keine Daten für diesen Zeitraum.": "Brak danych dla tego okresu.",
+    "Je Sorte": "Według odmian",
+    "Je Sorte und Schlag": "Według odmian i pól",
+    "Füllstand (%)": "Napełnienie (%)",
+    "Gewicht geschätzt (kg)": "Waga szacunkowa (kg)",
+    "Zuletzt geändert": "Ostatnia zmiana",
+    "Bewegungen": "Operacje",
+    "Zeitpunkt": "Czas",
+    "Aktion": "Operacja",
+    "Von": "Z",
+    "Nach": "Na",
+    "Füllstand vorher (%)": "Napełnienie przed (%)",
+    "Füllstand nachher (%)": "Napełnienie po (%)",
+    "Hinweis": "Uwaga",
 }
