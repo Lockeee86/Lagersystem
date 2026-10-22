@@ -34,12 +34,12 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
    |---|---|---|
    | `POSTGRES_PASSWORD` | langes Zufallspasswort | **Pflicht** |
    | `SECRET_KEY` | `python3 -c "import secrets; print(secrets.token_hex(32))"` | **Pflicht**, sonst werden alle bei jedem Neustart abgemeldet |
-   | `WEB_PORT` | `5000` | Port auf dem Docker-Host |
+   | `WEB_PORT` | `5050` | Port auf dem Docker-Host. Muss frei sein, sonst bricht der Deploy mit „port is already allocated“ ab |
    | `COOKIE_SECURE` | `false` / `true` | `true`, sobald nur noch über HTTPS zugegriffen wird |
    | `TRUSTED_PROXIES` | `1` | Anzahl Reverse Proxies vor der App, `0` ohne Proxy |
    | `TZ` | `Europe/Berlin` | Zeitzone |
 
-3. **Deploy the stack**, danach `http://<server>:5000` öffnen
+3. **Deploy the stack**, danach `http://<server>:5050` öffnen
 4. Die **Ersteinrichtung** startet automatisch: erstes Admin-Konto und Lagermaße angeben
    (Vorgabe: 10 Reihen × 15 Plätze × 5 Ebenen) und das Gewicht einer vollen Kiste.
 5. Danach: **Sorten anlegen → Kisten anlegen → Etiketten drucken → loslegen**
