@@ -108,6 +108,8 @@ class Warehouse(db.Model):
     max_levels = db.Column(db.Integer, nullable=False, default=5)
     # Reihen mit Zahlen (1, 2, 3 …) statt Buchstaben (A, B, C …) beschriften
     numeric_rows = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    # Reihe 1 (A) in der Karte unten anzeigen, wie an der Tafel im Lager
+    rows_bottom_up = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     note = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
@@ -125,6 +127,11 @@ class Warehouse(db.Model):
 
     def row_labels(self):
         return [(r, self.row_label(r)) for r in range(1, self.rows + 1)]
+
+    def display_rows(self):
+        """Reihen in der Anzeigereihenfolge der Karte (bei `rows_bottom_up` A unten)."""
+        labels = self.row_labels()
+        return labels[::-1] if self.rows_bottom_up else labels
 
     def location_label(self, row, slot, level=None):
         label = f"{self.row_label(row)}-{slot:02d}"

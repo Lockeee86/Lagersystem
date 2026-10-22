@@ -64,6 +64,7 @@ def warehouses():
             wh.name, wh.rows, wh.slots, wh.max_levels = name, rows, slots, levels
             wh.note = form_str("note", 2000) or None
             wh.numeric_rows = bool(request.form.get("numeric_rows"))
+            wh.rows_bottom_up = bool(request.form.get("rows_bottom_up"))
             db.session.add(wh)
             db.session.commit()
             flash(_("Lager „{name}“ gespeichert.", name=wh.name), "success")

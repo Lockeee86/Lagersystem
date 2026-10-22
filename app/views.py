@@ -136,7 +136,7 @@ def warehouse_map(warehouse_id=None):
     shorts = variety_shorts(varieties)
 
     rows = []
-    for r, label in warehouse.row_labels():
+    for r, label in warehouse.display_rows():
         row_stacks = [stacks.get((r, s), []) for s in range(1, warehouse.slots + 1)]
         mix = {}
         for boxes in row_stacks:

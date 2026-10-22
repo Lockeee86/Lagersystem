@@ -271,6 +271,15 @@ def test_seed_class_admin_and_numeric_rows(as_admin, db, seed):
     as_admin.post("/admin/lager", data={"id": seed["wh"].id, "name": "Halle 1", "rows": 9, "slots": 17,
                                         "max_levels": 5, "numeric_rows": "1"})
     assert seed["wh"].numeric_rows and seed["wh"].row_label(3) == "3"
+    assert not seed["wh"].rows_bottom_up and seed["wh"].display_rows()[0] == (1, "1")
+
+
+def test_rows_bottom_up(as_admin, db, seed):
+    as_admin.post("/admin/lager", data={"id": seed["wh"].id, "name": "Halle 1", "rows": 3, "slots": 4,
+                                        "max_levels": 5, "rows_bottom_up": "1"})
+    assert seed["wh"].display_rows() == [(3, "C"), (2, "B"), (1, "A")]
+    html = as_admin.get(f"/lager/{seed['wh'].id}?ansicht=karte").get_data(as_text=True)
+    assert html.index('row-head">C<') < html.index('row-head">A<')
 
 
 def test_season_date_guess():

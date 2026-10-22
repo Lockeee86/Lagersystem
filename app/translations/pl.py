@@ -513,6 +513,7 @@ MESSAGES = {
     "wie bei der Sorte": "jak dla odmiany",
     "Standard": "Domyślne",
     "Reihen mit Zahlen beschriften (1, 2, 3 … statt A, B, C …)": "Numeruj rzędy cyframi (1, 2, 3 … zamiast A, B, C …)",
+    "Erste Reihe in der Karte unten anzeigen": "Pokaż pierwszy rząd na dole mapy",
     "Verwendung: Saat oder SP (Speise). Stufe z. B. PB, SE, E, BE, Z. Erntedatum auch ohne Jahr (23.9).":
         "Przeznaczenie: Saat (sadzeniaki) lub SP (jadalne). Klasa np. PB, SE, E, BE, Z. Data zbioru także bez roku (23.9).",
     "Datum „{value}“ ist nicht eindeutig. Bitte als 20.10.2026 schreiben.": "Data „{value}“ jest niejednoznaczna. Wpisz np. 20.10.2026.",
