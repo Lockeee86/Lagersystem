@@ -10,7 +10,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 
 - **Lagerkarte**: Draufsicht aller Stapel (Reihe × Stellplatz) mit Stapelhöhe und Sortenfarbe,
   Filter nach Sorte oder freien Plätzen, Klick öffnet die Stapelansicht
-- **Kisten** mit fester Nummer (`K-0001` …) und QR-Code; Sorte, Erntedatum, Feld, Sortierung,
+- **Kisten** mit fester Nummer (`K-0001` …) und QR-Code; Sorte, Erntedatum, Schlag (Auswahlliste), Sortierung,
   Füllstand (voll / ¾ / ½ / ¼ / leer), Notiz
 - **Einlagern, Umlagern, Auslagern**. Kisten kommen immer oben auf den Stapel (max. Höhe einstellbar).
   Wird eine Kiste aus der Mitte genommen, zeigt das System „blockiert durch …“, und die
@@ -43,7 +43,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 3. **Deploy the stack**, danach `http://<server>:5050` öffnen
 4. Die **Ersteinrichtung** startet automatisch: erstes Admin-Konto und Lagermaße angeben
    (Vorgabe: 10 Reihen × 15 Plätze × 5 Ebenen) und das Gewicht einer vollen Kiste.
-5. Danach: **Sorten anlegen → Kisten anlegen → Etiketten drucken → loslegen**
+5. Danach: **Sorten und Schläge anlegen → Kisten anlegen → Etiketten drucken → loslegen**
 
 Beim Start spielt der Container automatisch alle Datenbank-Migrationen ein. Updates gehen
 deshalb einfach per **Pull and redeploy**, die Daten bleiben im Volume `postgres_data` erhalten.

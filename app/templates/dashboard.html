@@ -12,12 +12,13 @@
     {% endif %}
 </div>
 
-{% if current_user.is_admin and (not has_varieties or stats.total == 0) %}
+{% if current_user.is_admin and (not has_varieties or not has_plots or stats.total == 0) %}
 <div class="card setup-card shadow-sm mb-4">
     <div class="card-body">
         <h2 class="h6 mb-3"><i class="bi bi-flag me-1"></i>{{ _("Erste Schritte") }}</h2>
         <ol class="steps mb-0">
             <li class="{% if has_varieties %}done{% endif %}"><a href="{{ url_for('admin.varieties') }}">{{ _("Sorten anlegen") }}</a> ({{ _("z. B. Belana, Linda, Agria") }})</li>
+            <li class="{% if has_plots %}done{% endif %}"><a href="{{ url_for('admin.plots') }}">{{ _("Schläge anlegen") }}</a> ({{ _("z. B. Acker Nord, Hofwiese") }})</li>
             <li class="{% if stats.total %}done{% endif %}"><a href="{{ url_for('main.boxes') }}">{{ _("Kisten anlegen") }}</a> {{ _("und QR-Etiketten drucken") }}</li>
             <li>{{ _("Kisten scannen, befüllen und einlagern") }}</li>
         </ol>

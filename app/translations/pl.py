@@ -5,7 +5,7 @@ Pluralformen (bei ngettext) als Tupel: (1, 2–4 / 22–24 …, 5+ / 12–14 …
 Neue Texte im Code → `pytest tests/test_i18n.py` zeigt, was hier fehlt.
 
 Begriffe: Kiste = skrzynia, Stapel = stos, Reihe = rząd, Stellplatz = miejsce, Ebene = poziom,
-Sorte = odmiana, Füllstand = napełnienie, einlagern = wstawić, umlagern = przenieść,
+Sorte = odmiana, Schlag = pole, Füllstand = napełnienie, einlagern = wstawić, umlagern = przenieść,
 auslagern = wydać, Verlauf = historia.
 """
 
@@ -149,7 +149,6 @@ MESSAGES = {
     "Kistentyp": "Typ skrzyni",
     "Die Kisten werden fortlaufend nummeriert (K-0001, K-0002 …). Danach kannst du direkt die QR-Etiketten drucken.":
         "Skrzynie są numerowane kolejno (K-0001, K-0002 …). Potem możesz od razu wydrukować etykiety QR.",
-    "Code, Feld, Notiz …": "Kod, pole, notatka …",
     "Alle Sorten": "Wszystkie odmiany",
     "Alle Status": "Wszystkie statusy",
     "Alle Lager": "Wszystkie magazyny",
@@ -170,8 +169,10 @@ MESSAGES = {
     "Sorte": "Odmiana",
     "Erntedatum": "Data zbioru",
     "Ernte {date}": "Zbiór {date}",
-    "Feld": "Pole",
-    "Feld / Schlag": "Pole / działka",
+    "Schlag": "Pole",
+    "keiner": "brak",
+    "Code, Schlag, Notiz …": "Kod, pole, notatka …",
+    "Alle Schläge": "Wszystkie pola",
     "Sortierung": "Frakcja",
     "Sortierung / Größe": "Frakcja / wielkość",
     "z. B. 35–55 mm": "np. 35–55 mm",
@@ -314,6 +315,22 @@ MESSAGES = {
     "„{name}“ wird noch in Kisten verwendet und wurde deshalb nur deaktiviert.":
         "„{name}“ jest jeszcze używana w skrzyniach, dlatego została tylko dezaktywowana.",
     "Sorte „{name}“ gelöscht.": "Usunięto odmianę „{name}“.",
+
+    # --- Verwaltung: Schläge ------------------------------------------------------------
+    "Schläge": "Pola",
+    "Schläge anlegen": "Utwórz pola",
+    "z. B. Acker Nord, Hofwiese": "np. Pole Północ, Łąka",
+    "Neuer Schlag": "Nowe pole",
+    "Schlag bearbeiten": "Edytuj pole",
+    "Die Schläge stehen beim Befüllen einer Kiste zur Auswahl.": "Pola są do wyboru przy napełnianiu skrzyni.",
+    "Fläche": "Powierzchnia",
+    "Schlag „{name}“ löschen?": "Usunąć pole „{name}“?",
+    "Noch keine Schläge. Lege z. B. „Acker Nord“ oder „Hofwiese“ an.": "Brak pól. Utwórz np. „Pole Północ“ lub „Łąka“.",
+    "z. B. Acker Nord": "np. Pole Północ",
+    "z. B. Pachtfläche, Beregnung": "np. dzierżawa, nawadnianie",
+    "Den Schlag „{name}“ gibt es schon.": "Pole „{name}“ już istnieje.",
+    "Schlag „{name}“ gespeichert.": "Zapisano pole „{name}“.",
+    "Schlag „{name}“ gelöscht.": "Usunięto pole „{name}“.",
 
     # --- Verwaltung: Kistentypen ---------------------------------------------------------
     "Neuer Kistentyp": "Nowy typ skrzyni",

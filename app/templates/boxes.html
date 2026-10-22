@@ -40,33 +40,41 @@
 
 <form class="filter-bar card shadow-sm mb-3" method="get">
     <div class="card-body row g-2">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-lg-3">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="{{ _('Code, Feld, Notiz …') }}">
+                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="{{ _('Code, Schlag, Notiz …') }}">
             </div>
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-md">
             <select class="form-select" name="sorte" onchange="this.form.submit()">
                 <option value="">{{ _("Alle Sorten") }}</option>
                 {% for v in varieties %}<option value="{{ v.id }}" {% if args.get('sorte')|int == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
             </select>
         </div>
-        <div class="col-6 col-md-2">
+        {% if plots %}
+        <div class="col-6 col-md">
+            <select class="form-select" name="schlag" onchange="this.form.submit()">
+                <option value="">{{ _("Alle Schläge") }}</option>
+                {% for p in plots %}<option value="{{ p.id }}" {% if args.get('schlag')|int == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="col-6 col-md">
             <select class="form-select" name="status" onchange="this.form.submit()">
                 <option value="">{{ _("Alle Status") }}</option>
                 {% for key, (label, _filter) in filters.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         {% if warehouses|length > 1 %}
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-md">
             <select class="form-select" name="lager" onchange="this.form.submit()">
                 <option value="">{{ _("Alle Lager") }}</option>
                 {% for wh in warehouses %}<option value="{{ wh.id }}" {% if args.get('lager')|int == wh.id %}selected{% endif %}>{{ wh.name }}</option>{% endfor %}
             </select>
         </div>
         {% endif %}
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-md">
             <select class="form-select" name="sort" onchange="this.form.submit()">
                 {% for key, label in [('code', _('nach Code')), ('ernte', _('nach Ernte')), ('platz', _('nach Platz')), ('geaendert', _('zuletzt geändert'))] %}
                 <option value="{{ key }}" {% if args.get('sort', 'code') == key %}selected{% endif %}>{{ label }}</option>
@@ -85,7 +93,7 @@
             <span class="box-row-variety">{{ variety_chip(b.variety, b.is_empty) }}</span>
             <span class="box-row-fill">{{ fill_bar(b.fill) }}<span class="small text-body-secondary">{{ b.fill_label }}</span></span>
             <span class="box-row-meta small text-body-secondary">
-                {% if b.harvest_date %}{{ b.harvest_date|date }}{% endif %}{% if b.field %} · {{ b.field }}{% endif %}
+                {% if b.harvest_date %}{{ b.harvest_date|date }}{% endif %}{% if b.plot %} · {{ b.plot.name }}{% endif %}
             </span>
             <span class="box-row-loc">{{ location_badge(b) }}</span>
         </a>

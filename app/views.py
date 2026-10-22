@@ -11,7 +11,7 @@ from . import storage
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
-from .models import Box, BoxType, Movement, User, Variety, Warehouse
+from .models import Box, BoxType, Movement, Plot, User, Variety, Warehouse
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
                     form_str)
@@ -93,7 +93,8 @@ def dashboard():
     recent = Movement.query.order_by(Movement.created_at.desc()).limit(12).all()
     return render_template("dashboard.html", occupancy=occupancy, varieties=varieties,
                            max_kg=max_kg, stats=stats, recent=recent,
-                           has_varieties=Variety.query.first() is not None)
+                           has_varieties=Variety.query.first() is not None,
+                           has_plots=Plot.query.first() is not None)
 
 
 # --- Lagerkarte -------------------------------------------------------------
@@ -168,11 +169,14 @@ def boxes():
     q = request.args.get("q", "").strip()
     if q:
         like = f"%{q}%"
-        query = query.filter(or_(Box.code.ilike(like), Box.field.ilike(like),
-                                 Box.note.ilike(like), Box.grade.ilike(like)))
+        query = query.outerjoin(Plot).filter(or_(Box.code.ilike(like), Plot.name.ilike(like),
+                                                 Box.note.ilike(like), Box.grade.ilike(like)))
     variety_id = request.args.get("sorte", type=int)
     if variety_id:
         query = query.filter(Box.variety_id == variety_id)
+    plot_id = request.args.get("schlag", type=int)
+    if plot_id:
+        query = query.filter(Box.plot_id == plot_id)
     status = request.args.get("status", "")
     if status in BOX_FILTERS:
         query = query.filter(BOX_FILTERS[status][1])
@@ -191,6 +195,7 @@ def boxes():
     return render_template(
         "boxes.html", page=page, filters=BOX_FILTERS,
         varieties=Variety.query.order_by(Variety.name).all(),
+        plots=Plot.query.order_by(Plot.name).all(),
         warehouses=Warehouse.query.order_by(Warehouse.name).all(),
         box_types=BoxType.query.order_by(BoxType.name).all(),
         args=request.args,
@@ -231,8 +236,8 @@ def box_detail(code):
         .order_by(Variety.name).all(),
         warehouses=Warehouse.query.order_by(Warehouse.name).all(),
         box_types=BoxType.query.order_by(BoxType.name).all(),
-        fields=[f for (f,) in db.session.query(Box.field).filter(Box.field.isnot(None))
-                .distinct().order_by(Box.field).limit(200)],
+        plots=Plot.query.filter(or_(Plot.active.is_(True), Plot.id == box.plot_id))
+        .order_by(Plot.name).all(),
     )
 
 
@@ -246,12 +251,15 @@ def box_contents(code):
     box_type_id = form_int("box_type_id")
     if box_type_id and not db.session.get(BoxType, box_type_id):
         box_type_id = None
+    plot_id = form_int("plot_id")
+    if plot_id and not db.session.get(Plot, plot_id):
+        plot_id = None
     try:
         changed = storage.update_contents(
             box, current_user,
             variety_id=variety_id,
             harvest_date=form_date("harvest_date"),
-            field=form_str("field", 100),
+            plot_id=plot_id,
             grade=form_str("grade", 50),
             fill=form_int("fill", box.fill),
             note=form_str("note", 2000),

@@ -1,5 +1,5 @@
 from app import storage
-from app.models import Box, User
+from app.models import Box, Plot, User
 from app.utils import login_throttle
 
 from .conftest import login
@@ -68,10 +68,11 @@ def test_worker_workflow(as_worker, db, seed):
     storage.create_boxes(2, seed["bt"].id, seed["admin"])
     db.session.commit()
     as_worker.post("/kiste/K-0001/inhalt", data={"variety_id": seed["belana"].id, "harvest_date": "2026-10-05",
-                                                  "field": "Acker Nord", "fill": 100})
+                                                  "plot_id": seed["plot"].id, "fill": 100})
     as_worker.post("/kiste/K-0001/einlagern", data={"warehouse_id": seed["wh"].id, "row": 3, "slot": 7})
     as_worker.post(f"/lager/{seed['wh'].id}/stapel/3/7/einlagern", data={"code": "2"})
     box1, box2 = Box.query.order_by(Box.code).all()
+    assert box1.plot.name == "Acker Nord"
     assert box1.location == "C-07-1" and box2.location == "C-07-2"
     as_worker.post("/kiste/K-0001/fuellstand", data={"fill": 50})
     assert box1.fill == 50
@@ -160,7 +161,7 @@ def test_admin_sets_language_for_new_user(as_admin, seed):
 def test_messages_and_history_translated(as_worker, db, seed):
     as_worker.post("/sprache", data={"lang": "pl"})
     a, b = storage.create_boxes(2, seed["bt"].id, seed["admin"])
-    storage.update_contents(a, seed["admin"], seed["belana"].id, None, "Pole", None, 100, None)
+    storage.update_contents(a, seed["admin"], seed["belana"].id, None, seed["plot"].id, None, 100, None)
     storage.store_box(a, seed["wh"].id, 1, 1, seed["admin"])
     storage.store_box(b, seed["wh"].id, 1, 1, seed["admin"])
     db.session.commit()
@@ -191,3 +192,56 @@ def test_all_pages_render_in_polish(as_admin, db, seed):
         resp = as_admin.get(url)
         assert resp.status_code == 200, url
         assert 'lang="pl"' in resp.get_data(as_text=True), url
+
+
+# --- Schläge ----------------------------------------------------------------
+
+def test_plot_admin(as_admin, db, seed):
+    as_admin.post("/admin/schlaege", data={"name": "Hofwiese", "area_ha": "2,5", "note": "Pacht"})
+    plot = Plot.query.filter_by(name="Hofwiese").one()
+    assert str(plot.area_ha) == "2.50" and plot.active
+    # Doppelter Name (Groß/Klein egal) wird abgelehnt
+    as_admin.post("/admin/schlaege", data={"name": "hofwiese"})
+    assert Plot.query.count() == 2
+    assert "2,50 ha" in as_admin.get("/admin/schlaege").get_data(as_text=True)
+    # Ungültige Fläche → leer
+    as_admin.post("/admin/schlaege", data={"id": plot.id, "name": "Hofwiese", "area_ha": "abc", "active": "1"})
+    assert plot.area_ha is None
+
+
+def test_plot_delete_only_deactivates_when_used(as_admin, db, seed):
+    (box,) = storage.create_boxes(1, seed["bt"].id, seed["admin"])
+    storage.update_contents(box, seed["admin"], None, None, seed["plot"].id, None, 100, None)
+    db.session.commit()
+    as_admin.post(f"/admin/schlaege/{seed['plot'].id}/loeschen")
+    assert seed["plot"].active is False and box.plot_id == seed["plot"].id
+    # Inaktiver Schlag bleibt bei der Kiste auswählbar, taucht aber bei anderen nicht auf
+    assert "Acker Nord" in as_admin.get("/kiste/K-0001").get_data(as_text=True)
+    storage.create_boxes(1, seed["bt"].id, seed["admin"])
+    db.session.commit()
+    assert "Acker Nord" not in as_admin.get("/kiste/K-0002").get_data(as_text=True).split('id="plot_id"')[1].split("</select>")[0]
+    unused = Plot(name="Leer")
+    db.session.add(unused)
+    db.session.commit()
+    as_admin.post(f"/admin/schlaege/{unused.id}/loeschen")
+    assert db.session.get(Plot, unused.id) is None
+
+
+def test_boxes_filter_and_search_by_plot(as_admin, db, seed):
+    a, b = storage.create_boxes(2, seed["bt"].id, seed["admin"])
+    storage.update_contents(a, seed["admin"], None, None, seed["plot"].id, None, 100, None)
+    db.session.commit()
+    for url in (f"/kisten?schlag={seed['plot'].id}", "/kisten?q=acker"):
+        html = as_admin.get(url).get_data(as_text=True)
+        assert 'href="/kiste/K-0001"' in html and 'href="/kiste/K-0002"' not in html, url
+
+
+def test_unknown_plot_id_is_ignored(as_worker, db, seed):
+    storage.create_boxes(1, seed["bt"].id, seed["admin"])
+    db.session.commit()
+    as_worker.post("/kiste/K-0001/inhalt", data={"plot_id": 999, "fill": 100})
+    assert Box.query.one().plot_id is None
+
+
+def test_worker_cannot_manage_plots(as_worker, seed):
+    assert as_worker.get("/admin/schlaege").status_code == 403

@@ -22,7 +22,7 @@ docker compose up --build -d
 ## Aufbau
 
 - `app/__init__.py`: `create_app()`, Konfiguration aus Umgebungsvariablen, Security-Header, Setup-Umleitung
-- `app/models.py`: Benutzer (Rollen admin/mitarbeiter/betrachter), Lager, Sorte, Kistentyp, Kiste, Bewegung
+- `app/models.py`: Benutzer (Rollen admin/mitarbeiter/betrachter), Lager, Sorte, Schlag (`Plot`), Kistentyp, Kiste, Bewegung
 - `app/storage.py`: **die gesamte Lagerlogik** (Einlagern oben auf den Stapel, Umlagern,
   Auslagern mit Nachrücken, Füllstand, Kisten anlegen). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.

@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -7,7 +8,7 @@ from sqlalchemy import func, or_
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _
-from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, User, Variety, Warehouse)
+from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Plot, User, Variety, Warehouse)
 from .utils import admin_required, flash_error, form_int, form_str
 
 bp = Blueprint("admin", __name__)
@@ -120,6 +121,58 @@ def variety_delete(v_id):
         db.session.commit()
         flash(_("Sorte „{name}“ gelöscht.", name=variety.name), "success")
     return redirect(url_for("admin.varieties"))
+
+
+# --- Schläge ---------------------------------------------------------------
+
+def _form_area():
+    """Fläche in ha; akzeptiert Komma oder Punkt. None = leer oder ungültig."""
+    raw = form_str("area_ha", 20).replace(",", ".")
+    try:
+        value = Decimal(raw)
+    except InvalidOperation:
+        return None
+    return value.quantize(Decimal("0.01")) if 0 < value < 100000 else None
+
+
+@bp.route("/schlaege", methods=["GET", "POST"])
+def plots():
+    if request.method == "POST":
+        p_id = form_int("id")
+        plot = _get(Plot, p_id) if p_id else Plot()
+        name = form_str("name", 100)
+        if not name:
+            flash_error(_("Bitte einen Namen angeben."))
+        elif _name_taken(Plot, name, plot.id):
+            flash_error(_("Den Schlag „{name}“ gibt es schon.", name=name))
+        else:
+            plot.name = name
+            plot.area_ha = _form_area()
+            plot.note = form_str("note", 2000) or None
+            plot.active = bool(request.form.get("active")) if plot.id else True
+            db.session.add(plot)
+            db.session.commit()
+            flash(_("Schlag „{name}“ gespeichert.", name=plot.name), "success")
+        return redirect(url_for("admin.plots"))
+
+    items = Plot.query.order_by(Plot.active.desc(), Plot.name).all()
+    counts = dict(db.session.query(Box.plot_id, func.count(Box.id))
+                  .filter(Box.fill > 0).group_by(Box.plot_id))
+    return render_template("admin/plots.html", items=items, counts=counts)
+
+
+@bp.route("/schlaege/<int:p_id>/loeschen", methods=["POST"])
+def plot_delete(p_id):
+    plot = _get(Plot, p_id)
+    if Box.query.filter_by(plot_id=plot.id).first():
+        plot.active = False
+        db.session.commit()
+        flash(_("„{name}“ wird noch in Kisten verwendet und wurde deshalb nur deaktiviert.", name=plot.name), "warning")
+    else:
+        db.session.delete(plot)
+        db.session.commit()
+        flash(_("Schlag „{name}“ gelöscht.", name=plot.name), "success")
+    return redirect(url_for("admin.plots"))
 
 
 # --- Kistentypen ------------------------------------------------------------

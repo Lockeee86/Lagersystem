@@ -103,7 +103,7 @@ def test_move_to_full_stack_keeps_box_in_place(db, seed):
 
 def test_contents_and_fill(db, seed):
     (box,) = boxes(db, seed, 1)
-    assert storage.update_contents(box, seed["worker"], seed["belana"].id, None, "Acker Nord", "35-55", 100, None)
+    assert storage.update_contents(box, seed["worker"], seed["belana"].id, None, seed["plot"].id, "35-55", 100, None)
     db.session.commit()
     assert box.weight_kg == 400
     assert storage.set_fill(box, 50, seed["worker"])

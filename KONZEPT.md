@@ -48,7 +48,8 @@ Reihe – Stellplatz – Ebene
 - **Lager**: Name, Anzahl Reihen, Stellplätze pro Reihe, max. Ebenen
 - **Kistentyp**: Name, Gewicht bei voller Kiste (kg)
 - **Sorte**: Name, Farbe (Lagerkarte), Verwendung (Speise / Futter / Pflanzgut / Sonstiges)
-- **Kiste**: Code (QR), Kistentyp, Sorte, Erntedatum, Feld/Schlag, Sortierung/Größe,
+- **Schlag**: Name, Fläche (ha, optional), Notiz, aktiv. Wird beim Befüllen per Dropdown gewählt.
+- **Kiste**: Code (QR), Kistentyp, Sorte, Erntedatum, Schlag, Sortierung/Größe,
   Füllstand, Notiz, aktueller Platz (Lager, Reihe, Platz, Ebene, leer = nicht eingelagert)
 - **Bewegung**: Kiste, Aktion, von, nach, Füllstand vorher/nachher, Benutzer, Zeitpunkt, Notiz,
   Detail (sprachneutrale Systemangabe, wird bei der Anzeige übersetzt)
@@ -74,7 +75,7 @@ Portainer-Stack (docker-compose)
 ### Phase 1 – MVP
 - Ersteinrichtung (erster Admin + erstes Lager)
 - Login, Rollen, Benutzerverwaltung, Passwort ändern
-- Lager, Sorten und Kistentypen verwalten
+- Lager, Sorten, Schläge und Kistentypen verwalten
 - Kisten in Serie anlegen (K-0001 … K-0750), QR-Etiketten als PDF
 - Lagerkarte (Draufsicht mit Stapelhöhe und Sorte), Stapelansicht
 - Kisten-Detail: befüllen, einlagern, umlagern, Füllstand, auslagern

@@ -17,7 +17,7 @@
                 <span>{{ fill_bar(box.fill) }} {{ box.fill_label }} · ≈ {{ box.weight_kg|kg }}</span>
                 <span><i class="bi bi-box me-1"></i>{{ box.box_type.name }}</span>
                 {% if box.harvest_date %}<span><i class="bi bi-calendar-event me-1"></i>{{ _("Ernte {date}", date=box.harvest_date|date) }}</span>{% endif %}
-                {% if box.field %}<span><i class="bi bi-map me-1"></i>{{ box.field }}</span>{% endif %}
+                {% if box.plot %}<span><i class="bi bi-map me-1"></i>{{ box.plot.name }}</span>{% endif %}
                 {% if box.grade %}<span><i class="bi bi-rulers me-1"></i>{{ box.grade }}</span>{% endif %}
             </div>
             {% if box.note %}<div class="small mt-2"><i class="bi bi-sticky me-1"></i>{{ box.note }}</div>{% endif %}
@@ -128,9 +128,14 @@
                             </div>
                         </div>
                         <div class="col-sm-6">
-                            <label class="form-label" for="field">{{ _("Feld / Schlag") }}</label>
-                            <input class="form-control" name="field" id="field" value="{{ box.field or '' }}" maxlength="100" list="fieldList">
-                            <datalist id="fieldList">{% for f in fields %}<option value="{{ f }}">{% endfor %}</datalist>
+                            <label class="form-label" for="plot_id">{{ _("Schlag") }}</label>
+                            <select class="form-select" name="plot_id" id="plot_id">
+                                <option value="">– {{ _("keiner") }} –</option>
+                                {% for p in plots %}
+                                <option value="{{ p.id }}" {% if box.plot_id == p.id %}selected{% endif %}>{{ p.name }}{% if not p.active %} ({{ _("inaktiv") }}){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            {% if not plots and current_user.is_admin %}<div class="form-text"><a href="{{ url_for('admin.plots') }}">{{ _("Schläge anlegen") }}</a></div>{% endif %}
                         </div>
                         <div class="col-sm-6">
                             <label class="form-label" for="grade">{{ _("Sortierung / Größe") }}</label>
@@ -159,7 +164,7 @@
                 <dl class="row mb-0">
                     <dt class="col-5">{{ _("Sorte") }}</dt><dd class="col-7">{{ variety_chip(box.variety, box.is_empty) }}</dd>
                     <dt class="col-5">{{ _("Erntedatum") }}</dt><dd class="col-7">{{ box.harvest_date|date }}</dd>
-                    <dt class="col-5">{{ _("Feld") }}</dt><dd class="col-7">{{ box.field or '–' }}</dd>
+                    <dt class="col-5">{{ _("Schlag") }}</dt><dd class="col-7">{{ box.plot.name if box.plot else '–' }}</dd>
                     <dt class="col-5">{{ _("Sortierung") }}</dt><dd class="col-7">{{ box.grade or '–' }}</dd>
                     <dt class="col-5">{{ _("Füllstand") }}</dt><dd class="col-7">{{ box.fill_label }} (≈ {{ box.weight_kg|kg }})</dd>
                     <dt class="col-5">{{ _("Notiz") }}</dt><dd class="col-7">{{ box.note or '–' }}</dd>

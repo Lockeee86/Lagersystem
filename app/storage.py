@@ -195,7 +195,7 @@ def set_fill(box, fill, user, note=None):
     return True
 
 
-def update_contents(box, user, variety_id, harvest_date, field, grade, fill, note, box_type_id=None):
+def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, note, box_type_id=None):
     if fill not in (0, 25, 50, 75, 100):
         raise StorageError(_("Ungültiger Füllstand."))
     box_type_id = box_type_id or box.box_type_id
@@ -206,7 +206,7 @@ def update_contents(box, user, variety_id, harvest_date, field, grade, fill, not
         changes.append("variety")
     if box.harvest_date != harvest_date:
         changes.append("harvest_date")
-    if (box.field or None) != (field or None):
+    if box.plot_id != plot_id:
         changes.append("field")
     if (box.grade or None) != (grade or None):
         changes.append("grade")
@@ -219,7 +219,7 @@ def update_contents(box, user, variety_id, harvest_date, field, grade, fill, not
     box.box_type_id = box_type_id
     box.variety_id = variety_id
     box.harvest_date = harvest_date
-    box.field = field or None
+    box.plot_id = plot_id
     box.grade = grade or None
     box.fill = fill
     box.note = note or None

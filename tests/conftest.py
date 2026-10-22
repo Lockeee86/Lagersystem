@@ -3,7 +3,7 @@ from flask import g
 
 from app import create_app
 from app.extensions import db as _db
-from app.models import BoxType, User, Variety, Warehouse
+from app.models import BoxType, Plot, User, Variety, Warehouse
 
 
 @pytest.fixture
@@ -49,9 +49,10 @@ def seed(app):
     wh = Warehouse(name="Kartoffellager", rows=10, slots=15, max_levels=5)
     bt = BoxType(name="Standardkiste", full_weight_kg=400)
     belana = Variety(name="Belana", color="#e6b422")
-    _db.session.add_all([wh, bt, belana])
+    plot = Plot(name="Acker Nord")
+    _db.session.add_all([wh, bt, belana, plot])
     _db.session.commit()
-    return {"admin": admin, "worker": worker, "viewer": viewer, "wh": wh, "bt": bt, "belana": belana}
+    return {"admin": admin, "worker": worker, "viewer": viewer, "wh": wh, "bt": bt, "belana": belana, "plot": plot}
 
 
 def login(client, username, password="geheim123"):

@@ -146,6 +146,17 @@ class Variety(db.Model):
         return _(SORT_USAGES.get(self.usage, self.usage))
 
 
+class Plot(db.Model):
+    """Schlag (Ackerfläche), von dem die Kartoffeln stammen."""
+    __tablename__ = "plots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    area_ha = db.Column(db.Numeric(7, 2))
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+
+
 class BoxType(db.Model):
     """Kistentyp mit Standardgewicht bei voller Kiste."""
     __tablename__ = "box_types"
@@ -180,7 +191,7 @@ class Box(db.Model):
     box_type_id = db.Column(db.Integer, db.ForeignKey("box_types.id"), nullable=False)
     variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"))
     harvest_date = db.Column(db.Date)
-    field = db.Column(db.String(100))
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id"))
     grade = db.Column(db.String(50))
     fill = db.Column(db.Integer, nullable=False, default=0)
     note = db.Column(db.Text)
@@ -196,6 +207,7 @@ class Box(db.Model):
 
     box_type = db.relationship("BoxType")
     variety = db.relationship("Variety")
+    plot = db.relationship("Plot")
     warehouse = db.relationship("Warehouse", back_populates="boxes")
     movements = db.relationship(
         "Movement", back_populates="box", order_by="Movement.created_at.desc()",
@@ -248,7 +260,7 @@ CONTENT_FIELDS = {
     "box_type": N_("Kistentyp"),
     "variety": N_("Sorte"),
     "harvest_date": N_("Erntedatum"),
-    "field": N_("Feld"),
+    "field": N_("Schlag"),
     "grade": N_("Sortierung"),
     "note": N_("Notiz"),
 }
