@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import machines, sales, storage
+from . import machines, sales, storage, weather
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -95,8 +95,17 @@ def dashboard():
     return render_template("dashboard.html", occupancy=occupancy, varieties=varieties,
                            max_kg=max_kg, stats=stats, recent=recent, open_deliveries=sales.open_deliveries(),
                            due_tasks=machines.due_tasks(), open_faults=machines.open_faults(),
+                           weather=weather.get_weather(), show_blight=weather.blight_in_season(),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
+
+
+# --- Wetter -----------------------------------------------------------------
+
+@bp.route("/wetter")
+@login_required
+def weather_page():
+    return render_template("weather.html", weather=weather.get_weather(), icons=weather.ICONS)
 
 
 # --- Lagerkarte -------------------------------------------------------------

@@ -50,6 +50,8 @@ def create_app(config=None):
         MAX_CONTENT_LENGTH=40 * 1024 * 1024,
         UPLOAD_DIR=os.environ.get("UPLOAD_DIR") or os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data", "uploads"),
+        WEATHER_API_URL=os.environ.get("WEATHER_API_URL", "https://api.brightsky.dev/weather"),
+        WEATHER_TIMEOUT=float(os.environ.get("WEATHER_TIMEOUT", "6")),
     )
     if config:
         app.config.update(config)
@@ -92,6 +94,8 @@ def create_app(config=None):
         date=utils.fmt_date,
         kg=utils.fmt_kg,
         money=utils.fmt_money,
+        num=utils.fmt_num,
+        weekday=utils.fmt_weekday,
         textcolor=utils.text_color_for,
     )
 

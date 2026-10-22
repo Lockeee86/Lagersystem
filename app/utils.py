@@ -173,6 +173,22 @@ def fmt_kg(value):
     return f"{value:,} kg".replace(",", thousands)
 
 
+def fmt_num(value, digits=0):
+    """12.34 → "12" bzw. mit digits=1 → "12,3" (deutsches Komma)"""
+    if value is None:
+        return "–"
+    text = f"{value:.{digits}f}"
+    if float(text) == 0:          # kein „-0“
+        text = f"{0:.{digits}f}"
+    return text.replace(".", ",")
+
+
+def fmt_weekday(value):
+    from .i18n import gettext
+    from .weather import WEEKDAYS
+    return gettext(WEEKDAYS[value.weekday()])
+
+
 def fmt_money(value):
     """Decimal('1234.5') → "1.234,50 €" """
     if value is None:

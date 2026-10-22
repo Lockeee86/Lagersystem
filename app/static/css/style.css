@@ -453,3 +453,15 @@ body:not(.has-tabbar) {
     .app-navbar .navbar-nav .nav-link > .bi { display: none; }
 }
 .app-navbar .navbar-nav .nav-link { white-space: nowrap; }
+
+/* --- Wetter -------------------------------------------------------------------------- */
+.forecast-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(7.5rem, 1fr); gap: .75rem;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: .25rem; }
+.rain-bars { display: flex; align-items: flex-end; gap: 2px; height: 70px; border-bottom: 1px solid var(--line); }
+.rain-bars span { flex: 1; min-height: 1px; background: #3d7ea6; border-radius: 2px 2px 0 0; }
+.blight-dot { display: inline-block; width: .9rem; height: .9rem; border-radius: 50%; }
+.blight-low { background: #3f8f4f; }
+.blight-medium { background: #e0a526; }
+.blight-high { background: #c8553d; }
+.hourly td, .hourly th { white-space: nowrap; min-width: 2.4rem; }
+.weather-card:hover { box-shadow: var(--bs-box-shadow) !important; }

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
+{% block title %}{{ _("Wetter") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Wetter") }}</h1>
+        {% if weather and not weather.error %}
+        <p class="text-body-secondary mb-0">{% if weather.station %}{{ _("Messstation {name}", name=weather.station) }} · {% endif %}{{ _("Stand {time}", time=weather.now|datetime) }}</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if weather is none %}
+<div class="alert alert-info">
+    {{ _("Für das Wetter fehlt noch der Standort des Hofs.") }}
+    {% if current_user.is_admin %}<a href="{{ url_for('admin.settings') }}">{{ _("Jetzt unter Verwaltung → Hof eintragen") }}</a>{% endif %}
+</div>
+{% elif weather.error %}
+<div class="alert alert-warning">{{ _("Die Wetterdaten sind gerade nicht erreichbar. Bitte später noch einmal versuchen.") }}</div>
+{% else %}
+
+{{ frost_alert(weather.frost) }}
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-virus me-1"></i>{{ _("Krautfäule-Risiko") }}</span>
+                {{ blight_badge(weather.blight.level) }}
+            </div>
+            <div class="card-body">
+                <p class="small">{{ blight_text(weather.blight) }}</p>
+                <div class="table-responsive">
+                    <table class="table table-sm small mb-2 text-center align-middle">
+                        <thead><tr><th class="text-start">{{ _("Tag") }}</th>{% for d in weather.blight.days %}<th class="{{ 'table-active' if d.today }}">{{ d.date|weekday }}<br><span class="fw-normal">{{ d.date.strftime("%d.%m.") }}</span></th>{% endfor %}</tr></thead>
+                        <tbody>
+                            <tr><th class="text-start fw-normal">{{ _("Tiefstwert") }}</th>{% for d in weather.blight.days %}<td class="{{ 'fw-semibold' if d.tmin is not none and d.tmin >= 10 }}">{{ d.tmin|num }} °C</td>{% endfor %}</tr>
+                            <tr><th class="text-start fw-normal">{{ _("Stunden ≥ 90 % Feuchte") }}</th>{% for d in weather.blight.days %}<td class="{{ 'fw-semibold' if d.humid_hours >= 6 }}">{{ d.humid_hours }}</td>{% endfor %}</tr>
+                            <tr><th class="text-start fw-normal">{{ _("Bewertung") }}</th>{% for d in weather.blight.days %}<td><span class="blight-dot blight-{{ d.blight }}" title="{{ _('hohes Risiko') if d.blight == 'high' else _('erhöht') if d.blight == 'medium' else _('gering') }}"></span></td>{% endfor %}</tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-body-secondary mb-0">{{ _("Faustregel nach den Hutton-Kriterien (Tiefstwert ≥ 10 °C und ≥ 6 Stunden ≥ 90 % Luftfeuchte, an zwei Tagen hintereinander). Sie ersetzt keine Pflanzenschutzberatung, z. B. ISIP.") }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-droplet me-1"></i>{{ _("Niederschlag") }}</div>
+            <div class="card-body">
+                <div class="row text-center g-2 mb-3">
+                    {% for label, value in [(_("7 Tage"), weather.rain.last7), (_("14 Tage"), weather.rain.last14), (_("30 Tage"), weather.rain.last30), (_("nächste 7 Tage"), weather.rain.next7)] %}
+                    <div class="col-3">
+                        <div class="fs-5 fw-semibold">{{ value|num(1) }}</div>
+                        <div class="small text-body-secondary">{{ label }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="small text-body-secondary mb-1">{{ _("Regen der letzten 30 Tage (mm)") }}</div>
+                {% set max_rain = [weather.past|map(attribute='rain')|reject('none')|max|default(0), 5]|max %}
+                <div class="rain-bars" role="img" aria-label="{{ _('Regen der letzten 30 Tage (mm)') }}">
+                    {% for d in weather.past %}
+                    <span title="{{ d.date|date }}: {{ d.rain|num(1) }} mm" style="height: {{ ((d.rain or 0) / max_rain * 100)|round(1) }}%"></span>
+                    {% endfor %}
+                </div>
+                <div class="d-flex justify-content-between small text-body-tertiary">
+                    <span>{{ weather.past[0].date.strftime("%d.%m.") if weather.past }}</span><span>{{ _("gestern") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h5 mb-3">{{ _("Vorhersage") }}</h2>
+<div class="forecast-row mb-4">
+    {% for d in weather.forecast %}
+    <div class="forecast-day card shadow-sm {{ 'border-primary' if d.today }}">
+        <div class="card-body text-center p-2">
+            <div class="fw-semibold">{{ _("Heute") if d.today else d.date|weekday }}</div>
+            <div class="small text-body-secondary">{{ d.date.strftime("%d.%m.") }}</div>
+            <i class="bi {{ d.bi }} fs-2 d-block my-1"></i>
+            <div><span class="fw-semibold">{{ d.tmax|num }}°</span> <span class="text-body-secondary">{{ d.tmin|num }}°</span></div>
+            <div class="small text-info-emphasis"><i class="bi bi-droplet"></i> {{ d.rain|num(1) }} mm{% if d.rain_prob is not none %} · {{ d.rain_prob }} %{% endif %}</div>
+            <div class="small text-body-secondary"><i class="bi bi-wind"></i> {{ d.wind|num }}{% if d.gust %}/{{ d.gust|num }}{% endif %} km/h</div>
+            {% if d.tmin is not none and d.tmin <= 2 %}<div class="small text-primary-emphasis"><i class="bi bi-snow2"></i> {{ _("Frost") if d.tmin <= 0 else _("Bodenfrost") }}</div>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<h2 class="h5 mb-3">{{ _("Stündlich") }}</h2>
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm small text-center align-middle mb-0 hourly">
+            <tbody>
+                <tr><th class="text-start">{{ _("Uhr") }}</th>{% for h in weather.hourly %}<td class="{{ 'border-start border-2' if h.time.hour == 0 }}">{% if h.time.hour == 0 %}<div class="fw-semibold">{{ h.time|weekday }}</div>{% endif %}{{ h.time.strftime("%H") }}</td>{% endfor %}</tr>
+                <tr><th></th>{% for h in weather.hourly %}<td><i class="bi {{ icons.get(h.icon or '', 'bi-dash') }}"></i></td>{% endfor %}</tr>
+                <tr><th class="text-start">°C</th>{% for h in weather.hourly %}<td class="fw-semibold {{ 'text-primary' if h.temp is not none and h.temp <= 2 }}">{{ h.temp|num }}</td>{% endfor %}</tr>
+                <tr><th class="text-start">mm</th>{% for h in weather.hourly %}<td class="text-info-emphasis">{{ h.rain|num(1) if h.rain else "" }}</td>{% endfor %}</tr>
+                <tr><th class="text-start">%</th>{% for h in weather.hourly %}<td class="{{ 'fw-semibold' if h.rh is not none and h.rh >= 90 }}">{{ h.rh|num }}</td>{% endfor %}</tr>
+                <tr><th class="text-start">km/h</th>{% for h in weather.hourly %}<td class="text-body-secondary">{{ h.wind|num }}</td>{% endfor %}</tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="small text-body-tertiary">{{ _("Daten: Deutscher Wetterdienst, abgerufen über Bright Sky. Luftfeuchte in %.") }}</p>
+{% endif %}
+{% endblock %}

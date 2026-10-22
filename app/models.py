@@ -53,12 +53,16 @@ class Setting(db.Model):
         "farm_phone": (N_("Telefon"), 50, False),
         "farm_email": (N_("E-Mail"), 120, False),
         "farm_passport_reg": (N_("Registriernummer für den Pflanzenpass (z. B. DE-NI1-12345)"), 40, False),
+        "farm_location": (N_("Standort für das Wetter (Breite, Länge)"), 60, False),
+        "blight_from_month": (N_("Krautfäule-Ampel auf der Übersicht ab"), 2, False),
+        "blight_to_month": (N_("bis einschließlich"), 2, False),
     }
+    DEFAULTS = {"blight_from_month": "5", "blight_to_month": "9"}
 
     @classmethod
     def all(cls):
-        values = {key: "" for key in cls.FIELDS}
-        values.update({s.key: s.value or "" for s in cls.query.filter(cls.key.in_(cls.FIELDS))})
+        values = {key: cls.DEFAULTS.get(key, "") for key in cls.FIELDS}
+        values.update({s.key: s.value for s in cls.query.filter(cls.key.in_(cls.FIELDS)) if s.value})
         return values
 
     @classmethod

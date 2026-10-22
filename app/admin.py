@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import transfer
+from . import transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -48,12 +48,23 @@ def _name_taken(model, name, own_id=None):
 @bp.route("/einstellungen", methods=["GET", "POST"])
 def settings():
     if request.method == "POST":
-        for key, (_label, max_len, _multiline) in Setting.FIELDS.items():
-            Setting.put(key, form_str(key, max_len))
-        db.session.commit()
-        flash(_("Einstellungen gespeichert."), "success")
-        return redirect(url_for("admin.settings"))
-    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS)
+        values = {key: form_str(key, max_len) for key, (_label, max_len, _multiline) in Setting.FIELDS.items()}
+        location = weather.parse_location(values["farm_location"])
+        for key in ("blight_from_month", "blight_to_month"):
+            values[key] = str(form_int(key, int(Setting.DEFAULTS[key]), minimum=1, maximum=12))
+        if values["farm_location"] and location is None:
+            flash_error(_("Den Standort bitte als Breite, Länge angeben, z. B. 50.11, 8.68."))
+        else:
+            if location:
+                values["farm_location"] = f"{location[0]:.4f}, {location[1]:.4f}"
+            for key, value in values.items():
+                Setting.put(key, value)
+            db.session.commit()
+            weather.clear_cache()
+            flash(_("Einstellungen gespeichert."), "success")
+            return redirect(url_for("admin.settings"))
+        return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS)
+    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS)
 
 
 # --- Lager ------------------------------------------------------------------

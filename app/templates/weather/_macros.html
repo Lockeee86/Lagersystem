@@ -1,0 +1,32 @@
+{% macro blight_badge(level) -%}
+{%- if level == "high" -%}<span class="badge text-bg-danger">{{ _("hohes Risiko") }}</span>
+{%- elif level == "medium" -%}<span class="badge text-bg-warning">{{ _("erhöht") }}</span>
+{%- else -%}<span class="badge text-bg-success">{{ _("gering") }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro blight_text(blight) -%}
+{%- if blight.level == "high" -%}
+{{ _("Hutton-Periode: zwei Tage hintereinander mit mindestens 10 °C und 6 Stunden über 90 % Luftfeuchte. Spritzabstand prüfen.") }}
+{%- elif blight.level == "medium" -%}
+{{ _("Feucht-warme Tage – die Bedingungen für Krautfäule sind teilweise erfüllt.") }}
+{%- else -%}
+{{ _("Derzeit keine günstigen Bedingungen für Krautfäule.") }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro frost_alert(frost) %}
+{% if frost %}
+<div class="alert {{ 'alert-info' if frost.level == 'frost' else 'alert-secondary' }} d-flex gap-2 align-items-start">
+    <i class="bi bi-snow2"></i>
+    <div class="small">
+        {% if frost.level == "frost" %}
+        <strong>{{ _("Frost erwartet:") }}</strong> {{ _("bis {temp} °C am {day} um {time} Uhr.", temp=frost.min|num(1), day=frost.at|weekday ~ " " ~ frost.at.strftime("%d.%m."), time=frost.at.strftime("%H")) }}
+        {% else %}
+        <strong>{{ _("Bodenfrost möglich:") }}</strong> {{ _("Lufttemperatur bis {temp} °C am {day} um {time} Uhr.", temp=frost.min|num(1), day=frost.at|weekday ~ " " ~ frost.at.strftime("%d.%m."), time=frost.at.strftime("%H")) }}
+        {% endif %}
+        {{ _("Lagerlüftung prüfen.") }}
+    </div>
+</div>
+{% endif %}
+{% endmacro %}

@@ -31,6 +31,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   Lieferschein als PDF mit Hofname und Anschrift. Jede Kiste zeigt, an wen sie geliefert wurde
 - **Maschinen**: QR-Code an der Maschine, Betriebsstunden/km, Wartungsintervalle mit Vorlagen je Art
   (Ölwechsel, TÜV, UVV …) und Ampel, Störungen melden mit Foto, Reparaturbuch mit Kosten
+- **Wetter** vom Deutschen Wetterdienst (über Bright Sky, ohne Anmeldung): Vorhersage 7 Tage und stündlich,
+  Regen der letzten 30 Tage, Frost-Hinweis, Krautfäule-Ampel nach den Hutton-Kriterien
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)

@@ -172,7 +172,14 @@ Offene Störungen und fällige Wartungen stehen auf der Übersicht.
   Welches Programm/Format: noch offen.
 - **Ertrag** automatisch aus den Kisten: t/ha je Schlag, Sorte und Jahr, Jahresvergleich.
 
-### Baustein E – Wetter
+### Baustein E – Wetter (umgesetzt in 0.11.0)
+Umsetzung: Standort (Breite, Länge) und Zeitraum der Krautfäule-Ampel unter Verwaltung → Hof.
+Der Server holt über Bright Sky (DWD) 30 Tage Messwerte + ca. 9 Tage Vorhersage stündlich in einem Aufruf
+und hält sie 30 Minuten im Speicher (Fehler: 5 Minuten, dann neuer Versuch). Wetterseite: Frost-Hinweis
+(nächste 72 h, ≤ 0 °C Frost, ≤ 2 °C Bodenfrost möglich), Krautfäule nach Hutton-Kriterien (vorgestern bis
+in 3 Tagen), Niederschlag 7/14/30 Tage + nächste 7 Tage, Vorhersage 7 Tage, stündlich 36 h.
+Übersicht: Kurzwetter, Frost-Hinweis, Ampel nur im eingestellten Zeitraum.
+
 - Öffentliche Daten des DWD (z. B. über Bright Sky): Vorhersage und Messwerte für den Hof-Standort.
 - **Krautfäule-Ampel** aus Temperatur/Feuchte/Blattnässe (einfaches Modell, nur als Hinweis).
 
@@ -185,12 +192,12 @@ Offene Störungen und fällige Wartungen stehen auf der Übersicht.
 - Warnungen (Klima, fällige Wartung, Krautfäule), offene Aufgaben, Bestand, Wetter, letzte Lieferscheine.
 
 ### Reihenfolge
-1. Verkauf & Lieferscheine (inkl. Hofname-Einstellung)
-2. Lagerklima
-3. Maschinen & Wartung
+1. ✅ Verkauf & Lieferscheine (inkl. Hofname-Einstellung)
+2. ✅ Maschinen & Wartung
+3. ✅ Wetter & Krautfäule
 4. Schlagkartei & Ertrag
-5. Wetter & Krautfäule
-6. Aufgaben und Startseite „Hof heute“ (wächst mit den anderen Bausteinen mit)
+5. Aufgaben und Startseite „Hof heute“ (wächst mit den anderen Bausteinen mit)
+6. Lagerklima (Sensoren) – auf Wunsch zurückgestellt
 
 ## Noch offen
 
