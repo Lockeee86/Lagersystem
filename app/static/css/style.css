@@ -155,6 +155,17 @@ h1, .h1 { font-size: clamp(1.4rem, 1.1rem + 1vw, 1.9rem); font-weight: 700; lett
 }
 .tabbar a i { font-size: 1.3rem; line-height: 1; }
 .tabbar a.active { color: var(--brand); }
+.tabbar a { position: relative; }
+.tab-badge { position: absolute; top: .1rem; left: 55%; min-width: 1.1rem; padding: 0 .3rem; border-radius: 1rem;
+    background: #c8553d; color: #fff; font-size: .65rem; font-weight: 600; line-height: 1.1rem; text-align: center; }
+
+/* Aufgaben */
+.task-check { flex-shrink: 0; width: 1.9rem; height: 1.9rem; border-radius: 50%; border: 2px solid var(--bs-border-color);
+    background: transparent; color: transparent; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+button.task-check:hover { border-color: #3f8f4f; color: #3f8f4f; }
+.task-check.checked { background: #3f8f4f; border-color: #3f8f4f; color: #fff; }
+.task-meta > span + span::before { content: " · "; }
+.task-item.is-done .task-title { text-decoration: line-through; color: var(--bs-secondary-color); }
 .tabbar .tabbar-scan {
     width: 3.6rem; height: 3.6rem; margin: -1.4rem auto 0; border-radius: 50%;
     background: var(--brand); color: #fff; justify-content: center;

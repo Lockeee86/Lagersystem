@@ -37,9 +37,11 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and user.active and user.check_password(password):
             login_throttle.reset(*keys)
-            if user.last_login is None:
-                # Erste Anmeldung: Sprache der Login-Seite übernehmen
-                user.language = get_locale()
+            chosen = request.cookies.get(LANG_COOKIE)
+            if user.last_login is None and chosen in LANGUAGES:
+                # Erste Anmeldung: auf der Login-Seite ausdrücklich gewählte Sprache übernehmen.
+                # Sonst gilt die Sprache, die der Admin beim Anlegen eingestellt hat.
+                user.language = chosen
             user.last_login = utcnow()
             db.session.commit()
             login_user(user, remember=bool(request.form.get("remember")))

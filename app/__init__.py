@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 
 from flask import Flask, g, redirect, request, url_for
+from flask_login import current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
@@ -77,12 +78,14 @@ def create_app(config=None):
     from .api import bp as api_bp
     from .sales_views import bp as sales_bp
     from .machine_views import bp as machines_bp
+    from .task_views import bp as tasks_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(sales_bp)
     app.register_blueprint(machines_bp)
+    app.register_blueprint(tasks_bp)
 
     from . import cli
     cli.register(app)
@@ -103,8 +106,14 @@ def create_app(config=None):
     def inject_globals():
         if "farm" not in g:
             g.farm = Setting.all()
+        if "my_tasks" not in g:
+            # Zahl am Menüpunkt „Aufgaben“: eigene (und für alle) überfällig/heute/ohne Termin
+            from . import tasks
+            g.my_tasks = (len(tasks.due_now(current_user)) if current_user.is_authenticated
+                          and current_user.can_edit else 0)
         return {
             "farm": g.farm,
+            "my_task_count": g.my_tasks,
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,
             "ROLES": ROLES,

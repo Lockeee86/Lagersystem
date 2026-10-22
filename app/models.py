@@ -641,13 +641,85 @@ class MachineEvent(db.Model):
 
 
 class Photo(db.Model):
-    """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert)."""
+    """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert),
+    gehört zu einem Maschinen-Logbucheintrag oder zu einer Aufgabe."""
     __tablename__ = "photos"
 
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id"), nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id"), index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     event = db.relationship("MachineEvent", back_populates="photos")
+    task = db.relationship("Task", back_populates="photos")
+
+
+# --- Aufgaben ---------------------------------------------------------------
+
+RECURRENCES = {
+    "taeglich": N_("täglich"),
+    "werktags": N_("werktags (Mo–Fr)"),
+    "woechentlich": N_("wöchentlich"),
+    "zweiwoechentlich": N_("alle 2 Wochen"),
+    "monatlich": N_("monatlich"),
+}
+
+task_assignees = db.Table(
+    "task_assignees",
+    db.Column("task_id", db.Integer, db.ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Task(db.Model):
+    """Aufgabe für eine oder mehrere Personen (keine Zuteilung = für alle). Einer hakt für alle ab.
+    Wiederkehrende Aufgaben erzeugen beim Abhaken die nächste (`previous_id` verkettet die Serie)."""
+    __tablename__ = "tasks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    due_on = db.Column(db.Date, index=True)
+    important = db.Column(db.Boolean, nullable=False, default=False)
+    recurrence = db.Column(db.String(20))
+    # Bezug (alles optional)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"))
+    delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id", ondelete="SET NULL"))
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"))
+    row = db.Column(db.Integer)
+    # Erledigt
+    done_at = db.Column(db.DateTime(timezone=True), index=True)
+    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    done_note = db.Column(db.Text)
+    previous_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    assignees = db.relationship("User", secondary=task_assignees, order_by="User.username")
+    machine = db.relationship("Machine")
+    delivery = db.relationship("Delivery")
+    warehouse = db.relationship("Warehouse")
+    done_by = db.relationship("User", foreign_keys=[done_by_id])
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+    photos = db.relationship("Photo", back_populates="task", order_by="Photo.id", cascade="all, delete-orphan")
+
+    @property
+    def is_done(self):
+        return self.done_at is not None
+
+    @property
+    def recurrence_label(self):
+        return _(RECURRENCES.get(self.recurrence, self.recurrence)) if self.recurrence else ""
+
+    @property
+    def location_label(self):
+        if not self.warehouse:
+            return None
+        if self.row:
+            return f"{self.warehouse.name} · {_('Reihe {row}', row=self.warehouse.row_label(self.row))}"
+        return self.warehouse.name
+
+    def is_for(self, user):
+        return not self.assignees or user in self.assignees

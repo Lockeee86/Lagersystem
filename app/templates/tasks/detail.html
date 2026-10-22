@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "tasks/_macros.html" import task_form %}
+{% from "machines/_macros.html" import photo_input %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1 class="d-flex flex-wrap align-items-center gap-2">{{ task.title }}
+            {% if task.is_done %}<span class="badge text-bg-success fs-6">{{ _("erledigt") }}</span>
+            {% elif task.important %}<span class="badge text-bg-danger fs-6">{{ _("wichtig") }}</span>{% endif %}</h1>
+        <p class="text-body-secondary mb-0">
+            {% if task.due_on %}{{ _("Fällig am {date}", date=task.due_on|weekday ~ " " ~ task.due_on|date) }}{% else %}{{ _("Ohne Termin") }}{% endif %}
+            {% if task.recurrence %} · <i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}{% endif %}
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('tasks.task_list') }}"><i class="bi bi-list-check me-1"></i>{{ _("Alle Aufgaben") }}</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                {% if task.description %}<p style="white-space: pre-line">{{ task.description }}</p>{% endif %}
+                <dl class="row small mb-0">
+                    <dt class="col-4 fw-normal text-body-secondary">{{ _("Für") }}</dt>
+                    <dd class="col-8">{{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</dd>
+                    {% if task.machine %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Maschine") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}">{{ task.machine.name }}</a></dd>{% endif %}
+                    {% if task.delivery %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Lieferschein") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('sales.delivery_detail', delivery_id=task.delivery_id) }}">{{ task.delivery.number }} · {{ task.delivery.customer.name }}</a></dd>{% endif %}
+                    {% if task.location_label %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Lagerplatz") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('main.warehouse_map', warehouse_id=task.warehouse_id) }}">{{ task.location_label }}</a></dd>{% endif %}
+                    {% if task.created_by %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Angelegt") }}</dt>
+                    <dd class="col-8">{{ task.created_at|datetime }} · {{ task.created_by.name }}</dd>{% endif %}
+                    {% if task.is_done %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Erledigt") }}</dt>
+                    <dd class="col-8">{{ task.done_at|datetime }}{% if task.done_by %} · {{ task.done_by.name }}{% endif %}</dd>{% endif %}
+                </dl>
+                {% if task.done_note %}<div class="alert alert-light small mt-3 mb-0" style="white-space: pre-line"><i class="bi bi-sticky me-1"></i>{{ task.done_note }}</div>{% endif %}
+                {% if task.photos %}
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    {% for p in task.photos %}<a href="{{ url_for('machines.photo', photo_id=p.id) }}" target="_blank"><img class="photo-thumb" src="{{ url_for('machines.photo', photo_id=p.id) }}" alt="" loading="lazy"></a>{% endfor %}
+                </div>
+                {% endif %}
+                {% if follow_up %}<p class="small text-body-secondary mt-3 mb-0"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Nächster Termin:") }} <a href="{{ url_for('tasks.task_detail', task_id=follow_up.id) }}">{{ follow_up.due_on|date }}</a></p>{% endif %}
+            </div>
+        </div>
+
+        {% if not task.is_done and current_user.can_edit and (current_user.is_admin or task.is_for(current_user)) %}
+        <div class="card shadow-sm mb-4 border-success">
+            <div class="card-header"><i class="bi bi-check2-circle me-1"></i>{{ _("Erledigt melden") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('tasks.task_done', task_id=task.id) }}" enctype="multipart/form-data">
+                    {{ csrf() }}
+                    <input type="hidden" name="back" value="{{ url_for('tasks.task_detail', task_id=task.id) }}">
+                    <label class="form-label" for="d_note">{{ _("Notiz (optional)") }}</label>
+                    <textarea class="form-control mb-2" id="d_note" name="note" rows="2" maxlength="4000"></textarea>
+                    <label class="form-label">{{ _("Fotos (optional)") }}</label>
+                    {{ photo_input() }}
+                    <button class="btn btn-success mt-3"><i class="bi bi-check-lg me-1"></i>{{ _("Erledigt") }}</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if current_user.is_admin %}
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</div>
+            <div class="card-body">
+                {{ task_form(url_for('tasks.task_edit', task_id=task.id), task=task, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses) }}
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            {% if task.is_done %}
+            <form method="post" action="{{ url_for('tasks.task_reopen', task_id=task.id) }}">{{ csrf() }}
+                <button class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Wieder öffnen") }}</button></form>
+            {% endif %}
+            <form method="post" action="{{ url_for('tasks.task_delete', task_id=task.id) }}">{{ csrf() }}
+                <button class="btn btn-outline-danger" data-confirm="{{ _('Aufgabe „{title}“ löschen?', title=task.title) }}"><i class="bi bi-trash me-1"></i>{{ _("Löschen") }}</button></form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

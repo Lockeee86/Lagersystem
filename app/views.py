@@ -1,4 +1,5 @@
 import io
+from datetime import date
 
 import segno
 from flask import (Blueprint, Response, abort, flash, redirect, render_template, request,
@@ -7,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import machines, sales, storage, weather
+from . import machines, sales, storage, tasks, weather
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -96,6 +97,8 @@ def dashboard():
                            max_kg=max_kg, stats=stats, recent=recent, open_deliveries=sales.open_deliveries(),
                            due_tasks=machines.due_tasks(), open_faults=machines.open_faults(),
                            weather=weather.get_weather(), show_blight=weather.blight_in_season(),
+                           due_tasks_now=tasks.due_now(None if current_user.is_admin else current_user),
+                           today=date.today(),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
 

@@ -33,6 +33,9 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   (Ölwechsel, TÜV, UVV …) und Ampel, Störungen melden mit Foto, Reparaturbuch mit Kosten
 - **Wetter** vom Deutschen Wetterdienst (über Bright Sky, ohne Anmeldung): Vorhersage 7 Tage und stündlich,
   Regen der letzten 30 Tage, Frost-Hinweis, Krautfäule-Ampel nach den Hutton-Kriterien
+- **Aufgaben**: der Admin verteilt an eine oder mehrere Personen oder an alle, mit Termin, Priorität,
+  Wiederholung (täglich, werktags, wöchentlich …) und Bezug zu Maschine, Lieferschein oder Lagerplatz;
+  abhaken am Handy mit Notiz und Foto
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)

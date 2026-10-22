@@ -1,0 +1,105 @@
+{% macro task_item(task, today, back="") %}
+{% set can_tick = not task.is_done and current_user.can_edit and (current_user.is_admin or task.is_for(current_user)) %}
+<li class="list-group-item d-flex gap-2 align-items-start task-item {% if task.is_done %}is-done{% endif %}">
+    {% if can_tick %}
+    <form method="post" action="{{ url_for('tasks.task_done', task_id=task.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="back" value="{{ back }}">
+        <button class="task-check" title="{{ _('Erledigt') }}" aria-label="{{ _('Erledigt') }}"><i class="bi bi-check-lg"></i></button>
+    </form>
+    {% else %}
+    <span class="task-check {{ 'checked' if task.is_done }}" aria-hidden="true">{% if task.is_done %}<i class="bi bi-check-lg"></i>{% endif %}</span>
+    {% endif %}
+    <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{{ url_for('tasks.task_detail', task_id=task.id) }}">
+        <div class="d-flex flex-wrap gap-2 align-items-baseline">
+            <span class="fw-semibold task-title">{{ task.title }}</span>
+            {% if task.important and not task.is_done %}<span class="badge text-bg-danger">{{ _("wichtig") }}</span>{% endif %}
+            {% if task.recurrence %}<span class="small text-body-secondary" title="{{ task.recurrence_label }}"><i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}</span>{% endif %}
+        </div>
+        <div class="small text-body-secondary task-meta">
+            {% if task.is_done %}
+            <span>{{ _("erledigt {date}", date=task.done_at|datetime) }}{% if task.done_by %} · {{ task.done_by.name }}{% endif %}</span>
+            {% elif task.due_on %}
+            <span class="{{ 'text-danger fw-semibold' if task.due_on < today }}">{{ _("Heute") if task.due_on == today else task.due_on|weekday ~ " " ~ task.due_on|date }}</span>
+            {% endif %}
+            <span><i class="bi bi-person"></i> {{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</span>
+            {% if task.machine %}<span><i class="bi bi-gear-wide-connected"></i> {{ task.machine.name }}</span>{% endif %}
+            {% if task.delivery %}<span><i class="bi bi-truck"></i> {{ task.delivery.number }}</span>{% endif %}
+            {% if task.location_label %}<span><i class="bi bi-geo-alt"></i> {{ task.location_label }}</span>{% endif %}
+            {% if task.photos %}<span><i class="bi bi-camera"></i> {{ task.photos|length }}</span>{% endif %}
+        </div>
+        {% if task.is_done and task.done_note %}<div class="small">{{ task.done_note }}</div>{% endif %}
+    </a>
+</li>
+{% endmacro %}
+
+{% macro task_form(action, task=none, prefill={}, users=[], recurrences={}, machines=[], deliveries=[], warehouses=[], back="") %}
+<form method="post" action="{{ action }}" class="row g-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="col-12">
+        <label class="form-label" for="t_title">{{ _("Aufgabe") }}</label>
+        <input class="form-control" id="t_title" name="title" required maxlength="200" value="{{ task.title if task else '' }}" placeholder="{{ _('z. B. Reihe 4 umlagern') }}">
+    </div>
+    <div class="col-12">
+        <label class="form-label" for="t_desc">{{ _("Beschreibung") }}</label>
+        <textarea class="form-control" id="t_desc" name="description" rows="2" maxlength="4000">{{ task.description or '' if task else '' }}</textarea>
+    </div>
+    <div class="col-6 col-md-4">
+        <label class="form-label" for="t_due">{{ _("Fällig am") }}</label>
+        <input class="form-control" type="date" id="t_due" name="due_on" value="{{ task.due_on.isoformat() if task and task.due_on else '' }}">
+    </div>
+    <div class="col-6 col-md-4">
+        <label class="form-label" for="t_rec">{{ _("Wiederholen") }}</label>
+        <select class="form-select" id="t_rec" name="recurrence">
+            <option value="">{{ _("nicht") }}</option>
+            {% for key, label in recurrences.items() %}<option value="{{ key }}" {% if task and task.recurrence == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-4 d-flex align-items-end">
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="t_imp" name="important" value="1" {% if task and task.important %}checked{% endif %}>
+            <label class="form-check-label" for="t_imp">{{ _("Wichtig") }}</label>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="form-label">{{ _("Für wen?") }} <span class="small text-body-secondary">{{ _("(niemand gewählt = alle)") }}</span></div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for u in users %}
+            <input type="checkbox" class="btn-check" name="assignee_ids" value="{{ u.id }}" id="t_u{{ u.id }}" {% if task and u in task.assignees %}checked{% endif %}>
+            <label class="btn btn-sm btn-outline-primary" for="t_u{{ u.id }}">{{ u.name }}</label>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-12"><div class="small text-body-secondary mt-1">{{ _("Bezug (optional)") }}</div></div>
+    <div class="col-12 col-md-4">
+        <select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
+            <option value="">{{ _("– keine Maschine –") }}</option>
+            {% set mid = task.machine_id if task else prefill.get('machine_id') %}
+            {% for m in machines %}<option value="{{ m.id }}" {% if m.id == mid %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-4">
+        <select class="form-select form-select-sm" name="delivery_id" aria-label="{{ _('Lieferschein') }}">
+            <option value="">{{ _("– kein Lieferschein –") }}</option>
+            {% set did = task.delivery_id if task else prefill.get('delivery_id') %}
+            {% for d in deliveries %}<option value="{{ d.id }}" {% if d.id == did %}selected{% endif %}>{{ d.number }} · {{ d.customer.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-4">
+        <select class="form-select form-select-sm" name="place" aria-label="{{ _('Lagerplatz') }}">
+            <option value="">{{ _("– kein Lagerplatz –") }}</option>
+            {% set current = (task.warehouse_id ~ ":" ~ (task.row or "")) if task and task.warehouse_id else "" %}
+            {% for w in warehouses %}
+            <optgroup label="{{ w.name }}">
+                <option value="{{ w.id }}:" {% if current == w.id ~ ":" %}selected{% endif %}>{{ w.name }}</option>
+                {% for r, label in w.display_rows() %}<option value="{{ w.id }}:{{ r }}" {% if current == w.id ~ ":" ~ r %}selected{% endif %}>{{ _("Reihe {row}", row=label) }}</option>{% endfor %}
+            </optgroup>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") if task else _("Aufgabe anlegen") }}</button>
+    </div>
+</form>
+{% endmacro %}

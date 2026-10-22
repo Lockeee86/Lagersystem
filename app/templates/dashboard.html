@@ -26,6 +26,19 @@
 </div>
 {% endif %}
 
+{% if due_tasks_now %}
+{% from "tasks/_macros.html" import task_item with context %}
+<div class="card shadow-sm mb-4 border-primary-subtle">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-check me-1"></i>{{ _("Aufgaben für heute") if current_user.is_admin else _("Deine Aufgaben für heute") }}</span>
+        <a class="small" href="{{ url_for('tasks.task_list') }}">{{ _("Alle Aufgaben") }}</a>
+    </div>
+    <ul class="list-group list-group-flush">
+        {% for task in due_tasks_now[:10] %}{{ task_item(task, today, url_for('main.dashboard')) }}{% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 {% if weather and not weather.error %}
 {% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
 {{ frost_alert(weather.frost) }}

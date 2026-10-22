@@ -45,6 +45,7 @@
                     <li><a class="dropdown-item" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck me-2"></i>{{ _("Lieferscheine") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('machines.machine_list') }}"><i class="bi bi-gear-wide-connected me-2"></i>{{ _("Maschinen") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('main.weather_page') }}"><i class="bi bi-cloud-sun me-2"></i>{{ _("Wetter") }}</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('main.history') }}"><i class="bi bi-clock-history me-2"></i>{{ _("Verlauf") }}</a></li>
                     <li>
                         <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-switch-menu px-3 py-1">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -84,10 +85,10 @@
                 <li class="nav-item"><a class="nav-link {% if ep == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}"><i class="bi bi-speedometer2 me-1"></i>{{ _("Übersicht") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep in ('main.warehouse_map', 'main.stack_view') %}active{% endif %}" href="{{ url_for('main.warehouse_map') }}"><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Lagerkarte") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep in ('main.boxes', 'main.box_detail') %}active{% endif %}" href="{{ url_for('main.boxes') }}"><i class="bi bi-boxes me-1"></i>{{ _("Kisten") }}</a></li>
+                <li class="nav-item"><a class="nav-link {% if ep.startswith('tasks.') %}active{% endif %}" href="{{ url_for('tasks.task_list') }}"><i class="bi bi-list-check me-1"></i>{{ _("Aufgaben") }}{% if my_task_count %} <span class="badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep.startswith('sales.') %}active{% endif %}" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck me-1"></i>{{ _("Verkauf") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep.startswith('machines.') %}active{% endif %}" href="{{ url_for('machines.machine_list') }}"><i class="bi bi-gear-wide-connected me-1"></i>{{ _("Maschinen") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep == 'main.weather_page' %}active{% endif %}" href="{{ url_for('main.weather_page') }}"><i class="bi bi-cloud-sun me-1"></i>{{ _("Wetter") }}</a></li>
-                <li class="nav-item"><a class="nav-link {% if ep == 'main.history' %}active{% endif %}" href="{{ url_for('main.history') }}"><i class="bi bi-clock-history me-1"></i>{{ _("Verlauf") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep == 'main.scan' %}active{% endif %}" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-1"></i>{{ _("Scannen") }}</a></li>
             </ul>
         </div>
@@ -117,7 +118,7 @@
     <a href="{{ url_for('main.warehouse_map') }}" class="{% if ep in ('main.warehouse_map', 'main.stack_view') %}active{% endif %}"><i class="bi bi-grid-3x3-gap"></i><span>{{ _("Lager") }}</span></a>
     <a href="{{ url_for('main.scan') }}" class="tabbar-scan {% if ep == 'main.scan' %}active{% endif %}" aria-label="{{ _('Scannen') }}"><i class="bi bi-qr-code-scan"></i></a>
     <a href="{{ url_for('main.boxes') }}" class="{% if ep in ('main.boxes', 'main.box_detail') %}active{% endif %}"><i class="bi bi-boxes"></i><span>{{ _("Kisten") }}</span></a>
-    <a href="{{ url_for('main.history') }}" class="{% if ep == 'main.history' %}active{% endif %}"><i class="bi bi-clock-history"></i><span>{{ _("Verlauf") }}</span></a>
+    <a href="{{ url_for('tasks.task_list') }}" class="{% if ep.startswith('tasks.') %}active{% endif %}"><i class="bi bi-list-check"></i><span>{{ _("Aufgaben") }}</span>{% if my_task_count %}<span class="tab-badge">{{ my_task_count }}</span>{% endif %}</a>
 </nav>
 {% endif %}
 

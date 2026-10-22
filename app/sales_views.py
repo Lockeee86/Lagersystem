@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import extract, func, or_
 from sqlalchemy.exc import IntegrityError
 
-from . import sales, storage
+from . import sales, storage, tasks
 from .delivery_note import render_delivery_note
 from .extensions import db
 from .i18n import gettext as _, ngettext
@@ -77,6 +77,7 @@ def delivery_detail(delivery_id):
     delivery = _get(Delivery, delivery_id)
     return render_template(
         "sales/delivery.html", delivery=delivery, lines=sales.summarize(delivery),
+        open_tasks=tasks.for_delivery(delivery.id), today=date.today(),
         customers=_active_customers(delivery.customer_id),
         varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
         seed_classes=SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),

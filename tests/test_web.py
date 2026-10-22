@@ -152,10 +152,16 @@ def test_login_page_language(app, seed):
     assert User.query.filter_by(username="oma").one().language == "pl"
 
 
-def test_admin_sets_language_for_new_user(as_admin, seed):
+def test_admin_sets_language_for_new_user(app, as_admin, seed):
     as_admin.post("/admin/benutzer", data={"username": "jan", "role": "mitarbeiter", "language": "pl",
                                            "password": "haslo1234", "password2": "haslo1234"})
     assert User.query.filter_by(username="jan").one().language == "pl"
+    # Erste Anmeldung von einem Handy mit deutscher Browsersprache: die Einstellung des Admins bleibt
+    client = app.test_client()
+    client.post("/login", data={"username": "jan", "password": "haslo1234"},
+                headers={"Accept-Language": "de-DE,de;q=0.9"})
+    assert User.query.filter_by(username="jan").one().language == "pl"
+    assert "Zadania" in client.get("/", headers={"Accept-Language": "de-DE"}).get_data(as_text=True)
 
 
 def test_messages_and_history_translated(as_worker, db, seed):

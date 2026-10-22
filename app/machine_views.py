@@ -1,4 +1,5 @@
 """Seiten für Maschinen: Übersicht, Maschinenseite mit Wartungen und Logbuch, Fotos, QR-Etikett."""
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from flask import (Blueprint, Response, abort, flash, redirect, render_template, request, send_from_directory,
@@ -6,7 +7,7 @@ from flask import (Blueprint, Response, abort, flash, redirect, render_template,
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import machines, uploads
+from . import machines, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -113,7 +114,7 @@ def machine_create():
 @login_required
 def machine_detail(machine_id):
     machine = _get(Machine, machine_id)
-    tasks = sorted(((t, machines.task_status(t)) for t in machine.tasks),
+    maintenance = sorted(((t, machines.task_status(t)) for t in machine.tasks),
                    key=lambda r: ({"overdue": 0, "soon": 1, "unknown": 2, "ok": 3}[r[1]["state"]], r[0].name))
     kind = request.args.get("art")
     events = machine.events
@@ -123,8 +124,8 @@ def machine_detail(machine_id):
     total_cost = sum(e.cost or 0 for e in machine.events.filter(MachineEvent.cost.isnot(None)))
     page_args = MultiDict(request.args)
     page_args["machine_id"] = machine.id
-    return render_template("machines/detail.html", machine=machine, tasks=tasks, page=page, kind=kind,
-                           page_args=page_args,
+    return render_template("machines/detail.html", machine=machine, tasks=maintenance, page=page, kind=kind,
+                           page_args=page_args, open_tasks=tasks.for_machine(machine.id), today=date.today(),
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
                            faults=[e for e in machines.open_faults() if e.machine_id == machine.id],
                            total_cost=total_cost, label_formats=LABEL_FORMATS)

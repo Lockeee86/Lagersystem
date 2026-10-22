@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "tasks/_macros.html" import task_item, task_form with context %}
+{% block title %}{{ _("Aufgaben") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Aufgaben") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Meine Aufgaben") if who == "ich" else (_("Aufgaben von {name}", name=person.name) if person else _("Alle Aufgaben")) }}</p>
+    </div>
+    {% if current_user.is_admin %}
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newTask"><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Aufgabe") }}</button>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse {% if show_form %}show{% endif %}" id="newTask">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            {{ task_form(url_for('tasks.task_create'), prefill=prefill, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses, back=request.full_path) }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-sm {{ 'btn-primary' if who == 'ich' else 'btn-outline-secondary' }}" href="{{ url_for('tasks.task_list', wer='ich') }}"><i class="bi bi-person me-1"></i>{{ _("Meine") }}</a>
+    <a class="btn btn-sm {{ 'btn-primary' if who == 'alle' else 'btn-outline-secondary' }}" href="{{ url_for('tasks.task_list', wer='alle') }}"><i class="bi bi-people me-1"></i>{{ _("Alle") }}</a>
+    {% if current_user.is_admin %}
+    {% for u in users if u.id != current_user.id %}
+    <a class="btn btn-sm {{ 'btn-primary' if person and person.id == u.id and who != 'ich' else 'btn-outline-secondary' }}" href="{{ url_for('tasks.task_list', wer=u.id) }}">{{ u.name }}</a>
+    {% endfor %}
+    {% endif %}
+</div>
+
+{% set sections = [("overdue", _("Überfällig"), "border-danger"), ("today", _("Heute"), "border-primary"), ("upcoming", _("Nächste 7 Tage"), ""), ("later", _("Später"), ""), ("undated", _("Ohne Termin"), "")] %}
+{% set ns = namespace(any=false) %}
+{% for key, label, border in sections if groups[key] %}
+{% set ns.any = true %}
+<div class="card shadow-sm mb-3 {{ border }}">
+    <div class="card-header d-flex justify-content-between"><span class="fw-semibold">{{ label }}</span><span class="text-body-secondary small">{{ groups[key]|length }}</span></div>
+    <ul class="list-group list-group-flush">
+        {% for task in groups[key] %}{{ task_item(task, today, request.full_path) }}{% endfor %}
+    </ul>
+</div>
+{% endfor %}
+{% if not ns.any %}
+<div class="card shadow-sm mb-3"><div class="card-body text-body-secondary"><i class="bi bi-emoji-smile me-1"></i>{{ _("Keine offenen Aufgaben.") }}</div></div>
+{% endif %}
+
+{% if done %}
+<details class="mt-4">
+    <summary class="text-body-secondary mb-2">{{ _("Erledigt in den letzten 7 Tagen") }} ({{ done|length }})</summary>
+    <div class="card shadow-sm">
+        <ul class="list-group list-group-flush">
+            {% for task in done %}{{ task_item(task, today) }}{% endfor %}
+        </ul>
+    </div>
+</details>
+{% endif %}
+{% endblock %}

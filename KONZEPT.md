@@ -183,7 +183,15 @@ in 3 Tagen), Niederschlag 7/14/30 Tage + nächste 7 Tage, Vorhersage 7 Tage, st�
 - Öffentliche Daten des DWD (z. B. über Bright Sky): Vorhersage und Messwerte für den Hof-Standort.
 - **Krautfäule-Ampel** aus Temperatur/Feuchte/Blattnässe (einfaches Modell, nur als Hinweis).
 
-### Baustein F – Aufgaben
+### Baustein F – Aufgaben (umgesetzt in 0.12.0)
+Umsetzung: Nur der Admin legt an und verteilt. Zuteilung an mehrere Personen, keine Auswahl = alle;
+einer hakt für alle ab (mit Notiz und Fotos). Fälligkeit, „wichtig“, Wiederholung täglich/werktags/
+wöchentlich/alle 2 Wochen/monatlich – beim Abhaken entsteht die nächste Aufgabe im gleichen Rhythmus
+(z. B. bleibt „montags“ montags, auch wenn zu spät erledigt). Bezug zu Maschine, Lieferschein oder
+Lagerplatz (Lager/Reihe); dort werden offene Aufgaben angezeigt. Liste: Überfällig / Heute / Nächste 7 Tage /
+Später / Ohne Termin, Filter Meine / Alle / je Person. Übersicht: „Deine Aufgaben für heute“, Zähler am
+Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü).
+
 - Heute werden Arbeiten mündlich morgens verteilt → einfache **Tagesliste je Mitarbeiter**
   (Aufgabe, Zuständig, Erledigt-Haken), keine Projektverwaltung.
 - **Keine Zeiterfassung** (bewusst nicht gewünscht).
@@ -195,8 +203,8 @@ in 3 Tagen), Niederschlag 7/14/30 Tage + nächste 7 Tage, Vorhersage 7 Tage, st�
 1. ✅ Verkauf & Lieferscheine (inkl. Hofname-Einstellung)
 2. ✅ Maschinen & Wartung
 3. ✅ Wetter & Krautfäule
-4. Schlagkartei & Ertrag
-5. Aufgaben und Startseite „Hof heute“ (wächst mit den anderen Bausteinen mit)
+4. ✅ Aufgaben (die Übersicht zeigt Aufgaben, Wetter, Maschinen und Lieferscheine – „Hof heute“)
+5. Schlagkartei & Ertrag
 6. Lagerklima (Sensoren) – auf Wunsch zurückgestellt
 
 ## Noch offen

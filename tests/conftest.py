@@ -22,6 +22,8 @@ def app(tmp_path):
         # der vorherigen Anfrage (evtl. eines anderen Test-Clients) wiederverwenden.
         g.pop("_login_user", None)
         g.pop("farm", None)
+        g.pop("my_tasks", None)
+        g.pop("_lang", None)
 
     with app.app_context():
         _db.create_all()
