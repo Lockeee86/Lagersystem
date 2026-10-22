@@ -442,3 +442,54 @@ body:not(.has-tabbar) {
     width: 1.9rem; height: 1.9rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     background: var(--brand-soft); color: var(--brand); font-weight: 800;
 }
+
+/* --- Tafel (Partien je Reihe) ------------------------------------------------------- */
+.tafel { display: flex; flex-direction: column; gap: .5rem; }
+.tafel-row {
+    display: grid; grid-template-columns: 2.2rem minmax(0, 1fr) 4.2rem; gap: .5rem; align-items: stretch;
+    padding: .45rem; border-radius: .9rem; background: var(--surface); border: 1px solid var(--line);
+    transition: opacity .15s ease;
+}
+.tafel-row.is-dimmed { opacity: .3; }
+.tafel-row.is-over { border-color: #c8553d; }
+.tafel-row-label {
+    display: flex; align-items: center; justify-content: center; border-radius: .6rem;
+    background: var(--surface-2); font-size: 1.3rem; font-weight: 800; color: var(--bs-secondary-color);
+}
+.tafel-blocks { display: flex; flex-wrap: wrap; gap: .35rem; min-width: 0; }
+.tafel-lot {
+    flex-basis: 0; min-width: 6.5rem; min-height: 3.6rem; padding: .4rem .55rem; border-radius: .6rem;
+    display: flex; flex-direction: column; justify-content: center; gap: .1rem;
+    background: color-mix(in srgb, var(--c) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 55%, var(--line));
+    border-left: .4rem solid var(--c); color: var(--bs-body-color); text-decoration: none; line-height: 1.2;
+}
+.tafel-lot:hover { background: color-mix(in srgb, var(--c) 34%, var(--surface)); color: var(--bs-body-color); }
+.tafel-line { font-size: .98rem; }
+.tafel-qty { font-weight: 800; font-variant-numeric: tabular-nums; }
+.tafel-name { font-weight: 700; }
+.tafel-meta { font-size: .78rem; color: var(--bs-secondary-color); font-weight: 600; }
+.tafel-free {
+    flex-basis: 0; min-width: 3.2rem; min-height: 3.6rem; border-radius: .6rem; border: 1px dashed var(--line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
+    color: var(--bs-tertiary-color); text-decoration: none; font-size: .78rem;
+}
+a.tafel-free:hover { border-color: var(--brand); color: var(--brand); }
+.tafel-free-n { white-space: nowrap; }
+.tafel-row-sum { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; gap: .25rem; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.tafel-row-bar { width: 100%; height: .35rem; border-radius: 1rem; background: var(--slot-free); overflow: hidden; }
+.tafel-row-bar > span { display: block; height: 100%; background: var(--brand); }
+.tafel-row.is-over .tafel-row-bar > span { background: #c8553d; }
+@media (max-width: 575.98px) {
+    .tafel-row { grid-template-columns: 1.8rem minmax(0, 1fr); }
+    .tafel-row-sum { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
+    .tafel-row-bar { max-width: 8rem; }
+    .tafel-lot { min-width: 5.8rem; }
+}
+
+/* Partie-Detail */
+.lot-qty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 6rem; padding: .5rem .75rem;
+    border-radius: .8rem; background: color-mix(in srgb, var(--c) 20%, var(--surface-2)); }
+.lot-qty-n { font-size: 2.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.lot-qty-unit { font-size: .8rem; color: var(--bs-secondary-color); font-weight: 600; }
+.qty-quick { display: flex; gap: .4rem; flex-wrap: wrap; }
+.qty-quick .btn { min-width: 3rem; }

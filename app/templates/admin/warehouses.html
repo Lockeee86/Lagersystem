@@ -21,7 +21,7 @@
             </div>
             <div class="card-footer d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#whModal"
-                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "note": wh.note or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
+                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "numeric_rows": wh.numeric_rows, "note": wh.note or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
                 <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.warehouse_map', warehouse_id=wh.id) }}"><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Karte") }}</a>
                 {% if not counts.get(wh.id) %}
                 <form method="post" action="{{ url_for('admin.warehouse_delete', wh_id=wh.id) }}" class="ms-auto">
@@ -56,6 +56,10 @@
         <input class="form-control" id="wh_levels" name="max_levels" type="number" min="1" max="20" required>
     </div>
     <div class="col-12 form-text">{{ _("Verkleinern geht nur, wenn außerhalb der neuen Maße keine Kisten stehen.") }}</div>
+</div>
+<div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" id="wh_numeric" name="numeric_rows" value="1">
+    <label class="form-check-label" for="wh_numeric">{{ _("Reihen mit Zahlen beschriften (1, 2, 3 … statt A, B, C …)") }}</label>
 </div>
 <div>
     <label class="form-label" for="wh_note">{{ _("Notiz") }}</label>

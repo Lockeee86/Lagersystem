@@ -57,14 +57,16 @@ def gettext(text, **params):
     return result.format(**params) if params else result
 
 
-def ngettext(singular, plural, n, **params):
-    params.setdefault("n", n)
+def ngettext(singular, plural, count, **params):
+    """Plural nach `count`; der Platzhalter {n} ist `count`, außer er wird ausdrücklich übergeben
+    (z. B. formatiert: ngettext(..., 42, n="41,75"))."""
+    params.setdefault("n", count)
     lang = get_locale()
     forms = CATALOGS.get(lang, {}).get(plural) if lang != DEFAULT_LANGUAGE else None
     if isinstance(forms, tuple):
-        result = forms[_plural_index_pl(n)]
+        result = forms[_plural_index_pl(count)]
     else:
-        result = singular if n == 1 else plural
+        result = singular if count == 1 else plural
     return result.format(**params)
 
 

@@ -25,7 +25,7 @@ from sqlalchemy import extract
 from . import storage
 from .extensions import db
 from .i18n import CATALOGS, N_, gettext as _
-from .models import FILL_LEVELS, Box, BoxType, Movement, Plot, Variety, Warehouse
+from .models import FILL_LEVELS, SORT_USAGES, Box, BoxType, Lot, Movement, Plot, SeedClass, Variety, Warehouse
 from .storage import StorageError
 from .utils import to_local
 
@@ -46,6 +46,27 @@ COLUMNS = [
     ("remove", N_("Auslagern"), ["raus", "entnommen"]),
     ("note", N_("Notiz"), ["bemerkung", "kommentar"]),
 ]
+
+# Tafel-Format: eine Zeile pro Partie (Block an der Tafel)
+LOT_COLUMNS = [
+    ("row", N_("Reihe"), []),
+    ("quantity", N_("Menge"), ["anzahl", "kisten", "stueck", "stück"]),
+    ("variety", N_("Sorte"), []),
+    ("usage", N_("Verwendung"), ["saatspeise", "art"]),
+    ("seed_class", N_("Stufe"), ["kategorie", "klasse"]),
+    ("grade", N_("Kaliber"), ["sortierung", "groesse", "größe"]),
+    ("harvest_date", N_("Datum"), ["erntedatum", "ernte"]),
+    ("plot", N_("Schlag"), ["feld", "acker"]),
+    ("warehouse", N_("Lager"), ["halle"]),
+    ("note", N_("Notiz"), ["bemerkung", "kommentar"]),
+]
+USAGE_WORDS = {
+    "saat": "pflanzgut", "pflanzgut": "pflanzgut", "pfl": "pflanzgut", "sadzeniaki": "pflanzgut",
+    "sp": "speise", "speise": "speise", "jadalne": "speise", "futter": "futter", "paszowe": "futter",
+    "sonstiges": "sonstiges", "inne": "sonstiges",
+}
+NEW_COLORS = ["#e6b422", "#c8553d", "#8e5572", "#3d7ea6", "#2a9d8f", "#6a994e", "#bc6c25", "#7f5539",
+              "#9d4edd", "#ef476f"]
 
 FILL_WORDS = {
     "voll": 100, "1/1": 100, "¾": 75, "3/4": 75, "dreiviertel": 75, "½": 50, "1/2": 50, "halb": 50,
@@ -71,10 +92,10 @@ def _norm(text):
     return re.sub(r"[^0-9a-zäöüßąćęłńóśźż]", "", str(text).casefold())
 
 
-def _header_aliases():
+def _header_aliases(columns):
     """Überschrift (normalisiert) → Spaltenschlüssel, in allen Sprachen."""
     aliases = {}
-    for key, label, extra in COLUMNS:
+    for key, label, extra in columns:
         for text in [label, *extra, *(c.get(label, label) for c in CATALOGS.values())]:
             aliases[_norm(text)] = key
     return aliases
@@ -198,17 +219,25 @@ def _cell(value):
     return value
 
 
-def _rows_from_table(table):
-    """Sucht die Kopfzeile und liefert [(Zeilennummer, {schlüssel: wert})]."""
-    aliases = _header_aliases()
-    mapping, header_line = None, None
+def _find_header(table, columns, required):
+    aliases = _header_aliases(columns)
     for idx, row in enumerate(table[:15]):
         found = {i: aliases[_norm(v)] for i, v in enumerate(row) if v is not None and _norm(v) in aliases}
-        if "code" in found.values() and len(found) >= 2:
-            mapping, header_line = found, idx
-            break
+        if required <= set(found.values()) and len(found) >= 2:
+            return found, idx
+    return None, None
+
+
+def _rows_from_table(table):
+    """Sucht die Kopfzeile und liefert (art, [(Zeilennummer, {schlüssel: wert})]).
+    art = "boxes" (Spalte „Kiste“) oder "lots" (Tafel-Format mit „Reihe“ und „Menge“)."""
+    kind = "boxes"
+    mapping, header_line = _find_header(table, COLUMNS, {"code"})
     if mapping is None:
-        raise TransferError(_("Keine Kopfzeile mit der Spalte „Kiste“ gefunden. Bitte die Vorlage verwenden."))
+        kind = "lots"
+        mapping, header_line = _find_header(table, LOT_COLUMNS, {"row", "quantity"})
+    if mapping is None:
+        raise TransferError(_("Keine passende Kopfzeile gefunden (Spalte „Kiste“ oder „Reihe“ + „Menge“). Bitte eine Vorlage verwenden."))
     rows = []
     for idx, row in enumerate(table[header_line + 1:], start=header_line + 2):
         values = {key: _cell(row[i]) for i, key in mapping.items() if i < len(row)}
@@ -217,7 +246,7 @@ def _rows_from_table(table):
         rows.append((idx, values))
         if len(rows) > MAX_ROWS:
             raise TransferError(_("Zu viele Zeilen (max. {n}).", n=MAX_ROWS))
-    return rows
+    return kind, rows
 
 
 def read_file(filename, data):
@@ -227,7 +256,8 @@ def read_file(filename, data):
             wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         except Exception as e:  # noqa: BLE001 – kaputte/fremde Datei
             raise TransferError(_("Die Excel-Datei konnte nicht gelesen werden.")) from e
-        preferred = {_norm(n) for n in ["Kisten", *(c.get("Kisten", "Kisten") for c in CATALOGS.values())]}
+        preferred = {_norm(n) for name in ("Kisten", "Partien")
+                     for n in [name, *(c.get(name, name) for c in CATALOGS.values())]}
         sheet = next((wb[n] for n in wb.sheetnames if _norm(n) in preferred), wb.worksheets[0])
         table = [list(r) for r in sheet.iter_rows(values_only=True, max_row=MAX_ROWS + 20)]
         wb.close()
@@ -268,15 +298,36 @@ def _parse_fill(value):
     raise RowError(_("Füllstand „{value}“ verstehe ich nicht (voll, ¾, ½, ¼, leer).", value=value))
 
 
+def _season_date(day, month, today=None):
+    """Datum ohne Jahr (wie an der Tafel: „23.9“) → laufende Saison.
+    Liegt es mehr als zwei Monate in der Zukunft, ist das Vorjahr gemeint."""
+    today = today or date.today()
+    candidate = date(today.year, month, day)
+    if (candidate - today).days > 60:
+        candidate = date(today.year - 1, month, day)
+    return candidate
+
+
 def _parse_date(value):
     if value is None or isinstance(value, date):
         return value
-    text = str(value).strip()
+    if isinstance(value, (int, float)):
+        # Excel macht aus „23.9“ eine Zahl; „20.10“ würde zu 20.1 – das ist nicht eindeutig
+        text = f"{value}"
+        if "." in text and len(text.split(".")[1]) == 1 and text.endswith(".1"):
+            raise RowError(_("Datum „{value}“ ist nicht eindeutig. Bitte als 20.10.2026 schreiben.", value=value))
+    text = str(value).strip().rstrip(".")
     for fmt in ("%d.%m.%Y", "%d.%m.%y", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:
             continue
+    m = re.fullmatch(r"(\d{1,2})\.(\d{1,2})", text)
+    if m:
+        try:
+            return _season_date(int(m.group(1)), int(m.group(2)))
+        except ValueError:
+            pass
     raise RowError(_("Datum „{value}“ verstehe ich nicht (z. B. 05.10.2026).", value=value))
 
 
@@ -413,6 +464,150 @@ def _apply_row(raw, user, result, lookup, warehouses, default_type, create_missi
         result["actions"].append(_("keine Änderung"))
 
 
+def run_lot_import(rows, user, create_missing=False):
+    """Tafel-Format: jede Zeile legt eine neue Partie an (in der Reihenfolge der Datei links → rechts).
+    Mit `create_missing` werden unbekannte Sorten, Stufen und Schläge angelegt. Speichert nichts."""
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    lookup = {
+        "variety": {v.name.casefold(): v for v in Variety.query.all()},
+        "plot": {p.name.casefold(): p for p in Plot.query.all()},
+        "seed_class": {c.name.casefold(): c for c in SeedClass.query.all()},
+        "warehouse": {w.name.casefold(): w for w in warehouses},
+    }
+    default_type = BoxType.query.order_by(BoxType.id).first()
+    results = []
+    for line, raw in rows:
+        result = {"line": line, "code": "", "actions": [], "errors": []}
+        results.append(result)
+        try:
+            with db.session.begin_nested():
+                _apply_lot_row(raw, user, result, lookup, warehouses, default_type, create_missing)
+        except (RowError, StorageError) as e:
+            result["errors"].append(str(e))
+    return results
+
+
+def _lookup_or_create(lookup, kind, value, label, create_missing, result):
+    if value is None:
+        return None
+    name = " ".join(str(value).split())
+    found = lookup[kind].get(name.casefold())
+    if found:
+        return found
+    if not create_missing:
+        raise RowError(_("{field} „{value}“ gibt es nicht.", field=_(label), value=name))
+    if kind == "variety":
+        found = Variety(name=name[:100], color=NEW_COLORS[len(lookup[kind]) % len(NEW_COLORS)])
+    elif kind == "plot":
+        found = Plot(name=name[:100])
+    else:
+        found = SeedClass(name=name[:20], position=len(lookup[kind]) + 1)
+    db.session.add(found)
+    db.session.flush()
+    lookup[kind][name.casefold()] = found
+    result["actions"].append(_("{field} „{value}“ neu angelegt", field=_(label), value=name))
+    return found
+
+
+def _apply_lot_row(raw, user, result, lookup, warehouses, default_type, create_missing):
+    warehouse = _lookup(lookup, "warehouse", raw.get("warehouse"), "Lager") or (warehouses[0] if warehouses else None)
+    if warehouse is None:
+        raise RowError(_("Es ist noch kein Lager angelegt."))
+    if default_type is None:
+        raise RowError(_("Es ist noch kein Kistentyp angelegt."))
+    if raw.get("row") is None:
+        raise RowError(_("Bitte eine Reihe wählen."))
+    row = _parse_row_label(raw.get("row"), warehouse)
+    quantity = storage.parse_quantity(raw.get("quantity"))
+    if quantity is None or quantity <= 0:
+        raise RowError(_("Menge „{value}“ verstehe ich nicht (z. B. 40 oder 41,75).", value=raw.get("quantity")))
+    if raw.get("variety") is None:
+        raise RowError(_("Bitte eine Sorte wählen."))
+    usage = None
+    if raw.get("usage") is not None:
+        usage = USAGE_WORDS.get(_norm(raw["usage"]))
+        if usage is None:
+            raise RowError(_("Verwendung „{value}“ verstehe ich nicht (Saat oder SP).", value=raw["usage"]))
+    harvest = _parse_date(raw.get("harvest_date"))
+    variety = _lookup_or_create(lookup, "variety", raw.get("variety"), "Sorte", create_missing, result)
+    seed_class = _lookup_or_create(lookup, "seed_class", raw.get("seed_class"), "Stufe", create_missing, result)
+    plot = _lookup_or_create(lookup, "plot", raw.get("plot"), "Schlag", create_missing, result)
+    lot = storage.create_lot(
+        user, warehouse.id, row, variety.id, quantity, default_type.id,
+        usage=usage or variety.usage, seed_class_id=seed_class.id if seed_class else None,
+        grade=str(raw["grade"]) if raw.get("grade") is not None else None,
+        plot_id=plot.id if plot else None, harvest_date=harvest,
+        note=str(raw["note"]) if raw.get("note") is not None else None)
+    result["code"] = lot.location
+    result["actions"].append(_("Partie {qty}× {title} angelegt", qty=lot.quantity_label, title=lot.title))
+
+
+def build_lot_template():
+    """Excel-Vorlage im Tafel-Format: eine Zeile pro Partie."""
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    first_wh = warehouses[0] if warehouses else None
+    wb = Workbook()
+    ws = wb.active
+    ws.title = _("Partien")
+    ws.append([_(label) for _key, label, _extra in LOT_COLUMNS])
+    _style_header(ws)
+    ws.freeze_panes = "A2"
+    col = {key: get_column_letter(i + 1) for i, (key, _l, _e) in enumerate(LOT_COLUMNS)}
+    for key, width in {"row": 8, "quantity": 9, "variety": 20, "usage": 12, "seed_class": 8, "grade": 10,
+                       "harvest_date": 12, "plot": 20, "warehouse": 16, "note": 36}.items():
+        ws.column_dimensions[col[key]].width = width
+    last = TEMPLATE_ROWS + 1
+    for r in range(2, last + 1):
+        ws[f"{col['harvest_date']}{r}"].number_format = "@"   # „23.9“ bleibt Text
+        ws[f"{col['quantity']}{r}"].number_format = "0.##"
+
+    lists = wb.create_sheet(_("Listen"))
+    columns = [
+        (_("Sorten"), [v.name for v in Variety.query.filter_by(active=True).order_by(Variety.name)]),
+        (_("Verwendung"), [_("Saat"), _("SP"), _("Futter")]),
+        (_("Stufen"), [c.name for c in SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name)]),
+        (_("Schläge"), [p.name for p in Plot.query.filter_by(active=True).order_by(Plot.name)]),
+        (_("Reihen"), [label for _r, label in first_wh.row_labels()] if first_wh else []),
+        (_("Lager"), [w.name for w in warehouses]),
+    ]
+    for c, (title, values) in enumerate(columns, start=1):
+        lists.cell(row=1, column=c, value=title)
+        lists.column_dimensions[get_column_letter(c)].width = 22
+        for r, value in enumerate(values, start=2):
+            lists.cell(row=r, column=c, value=value)
+    _style_header(lists)
+    quoted = lists.title.replace("'", "''")
+    for key, list_col, values, strict in (("variety", 1, columns[0][1], False), ("usage", 2, columns[1][1], False),
+                                          ("seed_class", 3, columns[2][1], False), ("plot", 4, columns[3][1], False),
+                                          ("row", 5, columns[4][1], True), ("warehouse", 6, columns[5][1], True)):
+        if not values:
+            continue
+        letter = get_column_letter(list_col)
+        dv = DataValidation(type="list", formula1=f"='{quoted}'!${letter}$2:${letter}${len(values) + 1}",
+                            allow_blank=True, showErrorMessage=strict)
+        dv.error = _("Bitte einen Wert aus der Liste wählen.")
+        ws.add_data_validation(dv)
+        dv.add(f"{col[key]}2:{col[key]}{last}")
+
+    guide = wb.create_sheet(_("Anleitung"))
+    guide.column_dimensions["A"].width = 110
+    for text, font in [
+        (_("Tafel übertragen"), TITLE_FONT),
+        (_("Eine Zeile pro Block an der Tafel. Pflicht: Reihe, Menge und Sorte."), None),
+        (_("Menge in Kisten, Komma für angebrochene Kisten: 41,75 = 41 volle + eine ¾ Kiste."), None),
+        (_("Verwendung: Saat oder SP (Speise). Stufe z. B. PB, SE, E, BE, Z. Kaliber z. B. 35/50."), None),
+        (_("Datum wie an der Tafel (23.9) oder vollständig (23.09.2026)."), None),
+        (_("Die Zeilen einer Reihe von links nach rechts eintragen – so stehen sie dann auch auf der Tafel."), None),
+        (_("Vor dem Übernehmen zeigt das Lagersystem eine Vorschau. Gibt es Fehler, wird nichts gespeichert."), None),
+    ]:
+        guide.append([text])
+        if font:
+            guide.cell(row=guide.max_row, column=1).font = font
+    wb.move_sheet(guide, offset=-(len(wb.sheetnames) - 1))
+    wb.active = 1
+    return _save(wb)
+
+
 # --- Export -----------------------------------------------------------------
 
 def season_years():
@@ -447,33 +642,57 @@ def _sheet(wb, title, headers, rows, widths=None, formats=None):
 
 
 def season_summary(year=None):
-    """Auswertung je Erntejahr, Sorte und Schlag aus den Momentaufnahmen der Bewegungen.
-    Geschätzte Ernte = höchster Füllstand, den die Kiste in dieser Saison hatte × Gewicht des Kistentyps."""
+    """Auswertung je Erntejahr, Sorte, Verwendung (und Schlag) aus den Momentaufnahmen der Bewegungen.
+    Schlüssel: (jahr, sorte, verwendung, schlag) – schlag None = Summe über alle Schläge.
+    Geschätzte Ernte: Kisten = höchster Füllstand der Saison × Gewicht des Kistentyps,
+    Partien = höchster Bestand der Saison × Gewicht des Kistentyps."""
     query = Movement.query.filter(Movement.harvest_date.isnot(None), Movement.variety_id.isnot(None))
     if year:
         query = query.filter(extract("year", Movement.harvest_date) == year)
-    seasons = {}   # (box_id, erntejahr) → Angaben
+    seasons = {}   # ("box"/"lot", id, erntejahr) → Angaben
     for m in query.order_by(Movement.created_at, Movement.id):
-        key = (m.box_id, m.harvest_date.year)
-        entry = seasons.setdefault(key, {"box": m.box, "year": m.harvest_date.year, "max_fill": 0})
+        if m.box_id:
+            key = ("box", m.box_id, m.harvest_date.year)
+            entry = seasons.setdefault(key, {"item": m.box, "year": m.harvest_date.year, "max": 0})
+            entry["max"] = max(entry["max"], (m.fill or 0) / 100)
+        elif m.lot_id:
+            key = ("lot", m.lot_id, m.harvest_date.year)
+            entry = seasons.setdefault(key, {"item": m.lot, "year": m.harvest_date.year, "max": 0})
+            entry["max"] = max(entry["max"], float(m.quantity_after or 0))
+        else:
+            continue
         entry["variety"] = m.variety
+        entry["usage"] = m.usage or m.variety.usage
         entry["plot"] = m.plot
-        entry["max_fill"] = max(entry["max_fill"], m.fill or 0)
 
     groups = {}
-    for entry in seasons.values():
-        box = entry["box"]
-        full = box.box_type.full_weight_kg if box.box_type else 0
-        current = (box.harvest_date and box.harvest_date.year == entry["year"]
-                   and box.variety_id == entry["variety"].id)
-        for key in ((entry["year"], entry["variety"], None), (entry["year"], entry["variety"], entry["plot"])):
-            g = groups.setdefault(key, {"boxes": 0, "harvest_kg": 0, "stock_kg": 0, "stored": 0})
-            g["boxes"] += 1
-            g["harvest_kg"] += round(full * entry["max_fill"] / 100)
-            if current:
-                g["stock_kg"] += box.weight_kg
-                g["stored"] += 1 if box.is_stored and not box.is_empty else 0
+    for (kind, _id, _year), entry in seasons.items():
+        item = entry["item"]
+        full = item.box_type.full_weight_kg if item.box_type else 0
+        same_season = (item.harvest_date and item.harvest_date.year == entry["year"]
+                       and item.variety_id == entry["variety"].id)
+        if kind == "box":
+            count = 1
+            stock_kg = item.weight_kg if same_season else 0
+            stored = 1 if same_season and item.is_stored and not item.is_empty else 0
+        else:
+            count = entry["max"]
+            stock_kg = item.weight_kg if same_season and not item.closed else 0
+            stored = float(item.quantity) if same_season and not item.closed else 0
+        for plot in (None, entry["plot"] or False):
+            g = groups.setdefault((entry["year"], entry["variety"], entry["usage"], plot),
+                                  {"boxes": 0, "harvest_kg": 0, "stock_kg": 0, "stored": 0})
+            g["boxes"] += count
+            g["harvest_kg"] += round(full * entry["max"])
+            g["stock_kg"] += stock_kg
+            g["stored"] += stored
     return groups
+
+
+def _num(value):
+    """Für Excel: ganze Zahlen als int, sonst auf 2 Stellen gerundet."""
+    value = round(float(value), 2)
+    return int(value) if value.is_integer() else value
 
 
 def build_export(year=None):
@@ -490,6 +709,7 @@ def build_export(year=None):
     ws.append([_("Erstellt am"), _naive_local(datetime.now().astimezone())])
     ws["B2"].number_format = "DD.MM.YYYY HH:MM"
     ws.append([_("Geschätzte Ernte = höchster Füllstand der Kiste in der Saison × Gewicht des Kistentyps.")])
+    ws.append([_("Bei Partien: höchster Bestand der Saison (in Kisten) × Gewicht des Kistentyps.")])
     ws.append([])
     headers = [_("Erntejahr"), _("Sorte"), _("Verwendung"), _("Schlag"), _("Kisten"),
                _("Geschätzte Ernte (kg)"), _("Aktueller Bestand (kg)"), _("Kisten im Lager")]
@@ -499,20 +719,38 @@ def build_export(year=None):
         ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=12)
         ws.append(headers)
         _style_header(ws, ws.max_row)
-        keys = sorted((k for k in groups if (k[2] is not None) == with_plot),
-                      key=lambda k: (-k[0], k[1].name, k[2].name if k[2] else ""))
+        keys = sorted((k for k in groups if (k[3] is not None) == with_plot),
+                      key=lambda k: (-k[0], k[1].name, k[2], k[3].name if k[3] else ""))
         for k in keys:
             g = groups[k]
-            ws.append([k[0], k[1].name, k[1].usage_label, (k[2].name if k[2] else _("ohne Schlag")) if with_plot else "",
-                       g["boxes"], g["harvest_kg"], g["stock_kg"], g["stored"]])
+            ws.append([k[0], k[1].name, _(SORT_USAGES.get(k[2], k[2])),
+                       (k[3].name if k[3] else _("ohne Schlag")) if with_plot else None,
+                       _num(g["boxes"]), g["harvest_kg"], g["stock_kg"], _num(g["stored"])])
         if not keys:
             ws.append([_("Keine Daten für diesen Zeitraum.")])
         ws.append([])
 
-    table(_("Je Sorte"), with_plot=False)
-    table(_("Je Sorte und Schlag"), with_plot=True)
+    table(_("Je Sorte und Verwendung"), with_plot=False)
+    table(_("Je Sorte, Verwendung und Schlag"), with_plot=True)
     for i, width in enumerate([12, 22, 14, 22, 9, 22, 24, 16], start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
+
+    # Partien (aktueller Stand)
+    lots = Lot.query
+    if year:
+        lots = lots.filter(extract("year", Lot.harvest_date) == year)
+    lot_rows = [[
+        lot.warehouse.name, lot.warehouse.row_label(lot.row), lot.position, _num(lot.quantity), lot.variety.name,
+        lot.usage_label, lot.seed_class.name if lot.seed_class else None, lot.grade, lot.harvest_date,
+        lot.plot.name if lot.plot else None, lot.weight_kg, _("abgeschlossen") if lot.closed else _("im Lager"),
+        lot.note, _naive_local(lot.updated_at),
+    ] for lot in lots.order_by(Lot.closed, Lot.warehouse_id, Lot.row, Lot.position)]
+    _sheet(wb, _("Partien"),
+           [_("Lager"), _("Reihe"), _("Position"), _("Menge (Kisten)"), _("Sorte"), _("Verwendung"), _("Stufe"),
+            _("Kaliber"), _("Datum"), _("Schlag"), _("Gewicht geschätzt (kg)"), _("Status"), _("Notiz"),
+            _("Zuletzt geändert")],
+           lot_rows, widths={1: 16, 5: 18, 10: 18, 13: 30, 14: 17},
+           formats={4: "0.##", 9: "DD.MM.YYYY", 14: "DD.MM.YYYY HH:MM"})
 
     # Kisten (aktueller Stand)
     boxes = Box.query
@@ -532,21 +770,24 @@ def build_export(year=None):
            formats={5: "DD.MM.YYYY", 13: "DD.MM.YYYY HH:MM"})
 
     # Bewegungen
-    moves = Movement.query.join(Box)
+    moves = Movement.query
     if year:
         moves = moves.filter(extract("year", Movement.harvest_date) == year)
     move_rows = [[
-        _naive_local(m.created_at), m.box.code, m.action_label, m.from_location or "", m.to_location or "",
+        _naive_local(m.created_at), m.subject, m.action_label, m.from_location or "", m.to_location or "",
         m.fill_before, m.fill_after if m.fill_after is not None else m.fill,
-        m.variety.name if m.variety else "", m.plot.name if m.plot else "", m.harvest_date,
+        _num(m.quantity_delta) if m.quantity_delta is not None else None,
+        _num(m.quantity_after) if m.quantity_after is not None else None,
+        m.variety.name if m.variety else "", _(SORT_USAGES.get(m.usage, m.usage)) if m.usage else "",
+        m.seed_class.name if m.seed_class else "", m.plot.name if m.plot else "", m.harvest_date,
         m.user.name if m.user else "", m.detail_text or "", m.note or "",
     ] for m in moves.order_by(Movement.created_at, Movement.id)]
     _sheet(wb, _("Bewegungen"),
-           [_("Zeitpunkt"), _("Kiste"), _("Aktion"), _("Von"), _("Nach"), _("Füllstand vorher (%)"),
-            _("Füllstand nachher (%)"), _("Sorte"), _("Schlag"), _("Erntedatum"), _("Benutzer"),
-            _("Hinweis"), _("Notiz")],
-           move_rows, widths={1: 17, 4: 24, 5: 24, 12: 30, 13: 30},
-           formats={1: "DD.MM.YYYY HH:MM", 10: "DD.MM.YYYY"})
+           [_("Zeitpunkt"), _("Kiste / Partie"), _("Aktion"), _("Von"), _("Nach"), _("Füllstand vorher (%)"),
+            _("Füllstand nachher (%)"), _("Menge ± (Kisten)"), _("Bestand danach (Kisten)"), _("Sorte"),
+            _("Verwendung"), _("Stufe"), _("Schlag"), _("Erntedatum"), _("Benutzer"), _("Hinweis"), _("Notiz")],
+           move_rows, widths={1: 17, 2: 20, 4: 24, 5: 24, 16: 30, 17: 30},
+           formats={1: "DD.MM.YYYY HH:MM", 8: "0.##", 9: "0.##", 14: "DD.MM.YYYY"})
     return _save(wb)
 
 

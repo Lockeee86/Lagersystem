@@ -44,7 +44,7 @@ def test_template_has_lists_and_reads_back_empty(as_admin, seed):
     assert ws.data_validations.dataValidation  # Auswahllisten vorhanden
     assert wb["Listen"]["A2"].value == "Belana" and wb["Listen"]["B2"].value == "Acker Nord"
     # Leere Vorlage → keine Zeilen
-    assert transfer.read_file("v.xlsx", resp.data) == []
+    assert transfer.read_file("v.xlsx", resp.data) == ("boxes", [])
 
 
 def test_template_in_polish_can_be_read(as_admin, db, seed):
@@ -58,7 +58,8 @@ def test_template_in_polish_can_be_read(as_admin, db, seed):
     ws["E2"] = "pełna"
     buf = io.BytesIO()
     wb.save(buf)
-    rows = transfer.read_file("pl.xlsx", buf.getvalue())
+    kind, rows = transfer.read_file("pl.xlsx", buf.getvalue())
+    assert kind == "boxes"
     assert rows == [(2, {"code": "1", "variety": None, "plot": None, "harvest_date": None, "fill": "pełna",
                          "grade": None, "warehouse": None, "row": None, "slot": None, "remove": None, "note": None})]
 
@@ -138,7 +139,7 @@ def test_import_rejects_wrong_files(as_admin, seed):
     assert "Bitte eine Excel-Datei" in as_admin.get("/admin/daten").get_data(as_text=True)
     resp = upload(as_admin, xlsx([("1", "x")], headers=("Foo", "Bar")))
     assert resp.status_code == 302
-    assert "Keine Kopfzeile" in as_admin.get("/admin/daten").get_data(as_text=True)
+    assert "Keine passende Kopfzeile" in as_admin.get("/admin/daten").get_data(as_text=True)
 
 
 def test_parse_fill_variants():
@@ -174,23 +175,23 @@ def test_snapshot_keeps_old_season_after_refill(as_admin, db, seed):
 
     assert transfer.season_years() == [2027, 2026]
     groups = transfer.season_summary(2026)
-    g = groups[(2026, seed["belana"], None)]
+    g = groups[(2026, seed["belana"], "speise", None)]
     assert (g["boxes"], g["harvest_kg"], g["stock_kg"]) == (1, 400, 0)
-    assert groups[(2026, seed["belana"], seed["plot"])]["harvest_kg"] == 400
-    g = transfer.season_summary(2027)[(2027, linda, None)]
+    assert groups[(2026, seed["belana"], "speise", seed["plot"])]["harvest_kg"] == 400
+    g = transfer.season_summary(2027)[(2027, linda, "speise", None)]
     assert (g["boxes"], g["harvest_kg"], g["stock_kg"]) == (1, 300, 300)
 
     resp = as_admin.get("/admin/daten/export.xlsx?jahr=2026")
     assert resp.status_code == 200
     assert "lager_2026_" in resp.headers["Content-Disposition"]
     wb = load_workbook(io.BytesIO(resp.data))
-    assert wb.sheetnames == ["Auswertung", "Kisten", "Bewegungen"]
+    assert wb.sheetnames == ["Auswertung", "Partien", "Kisten", "Bewegungen"]
     values = [tuple(row[:8]) for row in wb["Auswertung"].iter_rows(values_only=True)]
     assert (2026, "Belana", "Speise", None, 1, 400, 0, 0) in values
     assert (2026, "Belana", "Speise", "Acker Nord", 1, 400, 0, 0) in values
     moves = list(wb["Bewegungen"].iter_rows(values_only=True))
     assert len(moves) == 1 + 4   # Kopfzeile + 4 Bewegungen der Saison 2026
-    assert all(m[7] == "Belana" for m in moves[1:])
+    assert all(m[9] == "Belana" for m in moves[1:])
     # Kistenblatt 2026 ist leer (Kiste gehört jetzt zu 2027)
     assert wb["Kisten"].max_row == 1
 

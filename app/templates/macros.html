@@ -27,12 +27,19 @@
     <span class="timeline-icon act-{{ m.action }}"><i class="bi {{ m.action_icon }}"></i></span>
     <div class="flex-grow-1 min-w-0">
         <div class="d-flex flex-wrap gap-2 align-items-baseline">
-            {% if show_box %}<a class="fw-semibold text-decoration-none" href="{{ url_for('main.box_detail', code=m.box.code) }}">{{ m.box.code }}</a>{% endif %}
+            {% if show_box %}
+            {% if m.box %}<a class="fw-semibold text-decoration-none" href="{{ url_for('main.box_detail', code=m.box.code) }}">{{ m.box.code }}</a>
+            {% elif m.lot %}<a class="fw-semibold text-decoration-none" href="{{ url_for('main.lot_detail', lot_id=m.lot.id) }}">{{ m.lot.title }}</a>{% endif %}
+            {% endif %}
             <span class="fw-medium">{{ m.action_label }}</span>
             {% if m.from_location or m.to_location %}
             <span class="small text-body-secondary">
                 {{ m.from_location or '' }}{% if m.from_location and m.to_location %} <i class="bi bi-arrow-right"></i> {% endif %}{{ m.to_location or '' }}
             </span>
+            {% endif %}
+            {% if m.quantity_delta is not none and m.quantity_delta != 0 %}
+            <span class="small fw-semibold {{ 'text-success' if m.quantity_delta > 0 else 'text-danger' }}">{{ _("{delta} Kisten", delta=m.quantity_delta_label) }}</span>
+            <span class="small text-body-secondary">{{ _("Bestand {n}", n=m.quantity_after|qty) }}</span>
             {% endif %}
             {% if m.fill_before is not none and m.fill_after is not none and m.fill_before != m.fill_after %}
             <span class="small text-body-secondary">{{ m.fill_before }} % <i class="bi bi-arrow-right"></i> {{ m.fill_after }} %</span>

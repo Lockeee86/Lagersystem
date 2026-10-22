@@ -1,4 +1,7 @@
 import io
+import math
+import re
+from decimal import Decimal
 
 import segno
 from flask import (Blueprint, Response, abort, flash, redirect, render_template, request,
@@ -11,7 +14,8 @@ from . import storage
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
-from .models import MAP_VIEWS, Box, BoxType, Movement, Plot, User, Variety, Warehouse
+from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, Lot, Movement, Plot, SeedClass, User, Variety,
+                     Warehouse, format_quantity)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
                     form_str)
@@ -52,16 +56,20 @@ def commit_or_rollback():
 def dashboard():
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     boxes = Box.query.all()
+    lots = Lot.query.filter_by(closed=False).all()
 
     occupancy = []
     for wh in warehouses:
         stored = [b for b in boxes if b.warehouse_id == wh.id]
+        in_lots = sum((lot.quantity for lot in lots if lot.warehouse_id == wh.id), Decimal(0))
+        total = len(stored) + float(in_lots)
         stacks = {(b.row, b.slot) for b in stored}
         occupancy.append({
             "warehouse": wh,
-            "stored": len(stored),
+            "stored": format_quantity(total),
             "capacity": wh.capacity,
-            "percent": round(100 * len(stored) / wh.capacity) if wh.capacity else 0,
+            "percent": round(100 * total / wh.capacity) if wh.capacity else 0,
+            "has_boxes": bool(stored),
             "stacks": len(stacks),
             "stack_capacity": wh.rows * wh.slots,
             "full_stacks": sum(1 for s in stacks
@@ -69,26 +77,39 @@ def dashboard():
         })
 
     per_variety = {}
-    for box in boxes:
-        if box.is_empty or not box.variety:
-            continue
-        entry = per_variety.setdefault(box.variety_id, {
-            "variety": box.variety, "boxes": 0, "kg": 0, "stored": 0, "oldest": None,
+
+    def add(variety, usage, boxes_count, kg, stored, harvest_date):
+        entry = per_variety.setdefault((variety.id, usage), {
+            "variety": variety, "usage": _(SORT_USAGES.get(usage, usage)), "boxes": 0, "kg": 0,
+            "stored": 0, "oldest": None,
         })
-        entry["boxes"] += 1
-        entry["kg"] += box.weight_kg
-        entry["stored"] += 1 if box.is_stored else 0
-        if box.harvest_date and (entry["oldest"] is None or box.harvest_date < entry["oldest"]):
-            entry["oldest"] = box.harvest_date
+        entry["boxes"] += boxes_count
+        entry["kg"] += kg
+        entry["stored"] += stored
+        if harvest_date and (entry["oldest"] is None or harvest_date < entry["oldest"]):
+            entry["oldest"] = harvest_date
+
+    for box in boxes:
+        if not box.is_empty and box.variety:
+            add(box.variety, box.variety.usage, 1, box.weight_kg, 1 if box.is_stored else 0, box.harvest_date)
+    for lot in lots:
+        add(lot.variety, lot.usage, float(lot.quantity), lot.weight_kg, float(lot.quantity), lot.harvest_date)
     varieties = sorted(per_variety.values(), key=lambda e: -e["kg"])
+    for v in varieties:
+        v["not_stored"] = format_quantity(v["boxes"] - v["stored"]) if v["boxes"] > v["stored"] else None
+        v["boxes_label"] = format_quantity(v["boxes"])
+        v["boxes_count"] = math.ceil(v["boxes"])
     max_kg = max((v["kg"] for v in varieties), default=0)
 
+    lot_boxes = float(sum((lot.quantity for lot in lots), Decimal(0)))
     stats = {
         "total": len(boxes),
-        "filled": sum(1 for b in boxes if not b.is_empty),
+        "filled": format_quantity(sum(1 for b in boxes if not b.is_empty) + lot_boxes),
+        "filled_count": math.ceil(sum(1 for b in boxes if not b.is_empty) + lot_boxes),
         "empty": sum(1 for b in boxes if b.is_empty),
-        "kg": sum(b.weight_kg for b in boxes),
+        "kg": sum(b.weight_kg for b in boxes) + sum(lot.weight_kg for lot in lots),
         "filled_not_stored": sum(1 for b in boxes if not b.is_empty and not b.is_stored),
+        "lots": len(lots),
     }
     recent = Movement.query.order_by(Movement.created_at.desc()).limit(12).all()
     return render_template("dashboard.html", occupancy=occupancy, varieties=varieties,
@@ -133,6 +154,8 @@ def warehouse_map(warehouse_id=None):
     stacks = storage.stacks_overview(warehouse)
     varieties = Variety.query.order_by(Variety.name).all()
     used = {b.variety_id for boxes in stacks.values() for b in boxes if b.variety_id and not b.is_empty}
+    used |= {vid for (vid,) in db.session.query(Lot.variety_id)
+             .filter_by(warehouse_id=warehouse.id, closed=False).distinct()}
     shorts = variety_shorts(varieties)
 
     rows = []
@@ -151,6 +174,21 @@ def warehouse_map(warehouse_id=None):
             "mix": sorted(mix.values(), key=lambda e: -e["n"]),
         })
 
+    tafel = None
+    if view == "tafel":
+        lots = (Lot.query.filter_by(warehouse_id=warehouse.id, closed=False)
+                .order_by(Lot.row, Lot.position, Lot.id).all())
+        tafel = []
+        for r, label in reversed(warehouse.row_labels()):   # wie an der Tafel: höchste Reihe oben
+            in_row = [lot for lot in lots if lot.row == r]
+            total = float(sum((lot.quantity for lot in in_row), Decimal(0)))
+            tafel.append({
+                "row": r, "label": label, "lots": in_row, "total": format_quantity(total),
+                "free": format_quantity(max(warehouse.row_capacity - total, 0)),
+                "over": total > warehouse.row_capacity,
+                "percent": min(100, round(100 * total / warehouse.row_capacity)) if warehouse.row_capacity else 0,
+            })
+
     data3d = None
     if view == "3d":
         data3d = {
@@ -162,7 +200,7 @@ def warehouse_map(warehouse_id=None):
         }
 
     return render_template("warehouse_map.html", warehouse=warehouse, warehouses=warehouses,
-                           stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d,
+                           stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d, tafel=tafel,
                            shorts=shorts, varieties=[v for v in varieties if v.id in used])
 
 
@@ -422,17 +460,204 @@ def scan():
     return render_template("scan.html")
 
 
+# --- Partien ----------------------------------------------------------------
+
+def get_lot_or_404(lot_id):
+    lot = db.session.get(Lot, lot_id)
+    if lot is None:
+        abort(404)
+    return lot
+
+
+def _lot_form_choices(lot=None):
+    """Auswahllisten fürs Partie-Formular (inaktive Einträge nur, wenn die Partie sie schon nutzt)."""
+    def active_or_used(model, used_id):
+        return (model.query.filter(or_(model.active.is_(True), model.id == used_id))
+                .order_by(*([model.position, model.name] if model is SeedClass else [model.name])).all())
+    return {
+        "varieties": active_or_used(Variety, lot.variety_id if lot else None),
+        "plots": active_or_used(Plot, lot.plot_id if lot else None),
+        "seed_classes": active_or_used(SeedClass, lot.seed_class_id if lot else None),
+        "box_types": BoxType.query.order_by(BoxType.name).all(),
+        "warehouses": Warehouse.query.order_by(Warehouse.name).all(),
+        "usages": SORT_USAGES,
+    }
+
+
+def _lot_fields_from_form():
+    """Gemeinsame Felder für Anlegen und Bearbeiten; wirft StorageError bei ungültiger Eingabe."""
+    variety = db.session.get(Variety, form_int("variety_id", 0))
+    if variety is None:
+        raise StorageError(_("Bitte eine Sorte wählen."))
+    usage = form_str("usage", 20)
+    seed_class_id = form_int("seed_class_id")
+    if seed_class_id and not db.session.get(SeedClass, seed_class_id):
+        seed_class_id = None
+    plot_id = form_int("plot_id")
+    if plot_id and not db.session.get(Plot, plot_id):
+        plot_id = None
+    box_type = db.session.get(BoxType, form_int("box_type_id", 0)) or BoxType.query.order_by(BoxType.id).first()
+    if box_type is None:
+        raise StorageError(_("Es ist noch kein Kistentyp angelegt."))
+    return {
+        "variety_id": variety.id,
+        "usage": usage if usage in SORT_USAGES else variety.usage,
+        "seed_class_id": seed_class_id,
+        "grade": form_str("grade", 50) or None,
+        "plot_id": plot_id,
+        "harvest_date": form_date("harvest_date"),
+        "note": form_str("note", 2000) or None,
+        "box_type_id": box_type.id,
+    }
+
+
+@bp.route("/partie/<int:lot_id>")
+@login_required
+def lot_detail(lot_id):
+    lot = get_lot_or_404(lot_id)
+    neighbours = storage.row_lots(lot.warehouse_id, lot.row)
+    index = next((i for i, other in enumerate(neighbours) if other.id == lot.id), None)
+    return render_template(
+        "lot_detail.html", lot=lot, movements=lot.movements.limit(50).all(),
+        can_left=index is not None and index > 0,
+        can_right=index is not None and index < len(neighbours) - 1,
+        **_lot_form_choices(lot),
+    )
+
+
+@bp.route("/partie/neu", methods=["GET", "POST"])
+@editor_required
+def lot_create():
+    choices = _lot_form_choices()
+    if not choices["warehouses"]:
+        flash(_("Es ist noch kein Lager angelegt."), "warning")
+        return redirect(url_for("main.dashboard"))
+    if request.method == "POST":
+        try:
+            fields = _lot_fields_from_form()
+            warehouse = db.session.get(Warehouse, form_int("warehouse_id", 0)) or choices["warehouses"][0]
+            row = form_int("row")
+            if row is None:
+                raise StorageError(_("Bitte eine Reihe wählen."))
+            lot = storage.create_lot(current_user, warehouse.id, row,
+                                     quantity=storage.parse_quantity(request.form.get("quantity")), **fields)
+        except StorageError as e:
+            db.session.rollback()
+            flash_error(str(e))
+            return render_template("lot_form.html", lot=None, form=request.form, **choices)
+        db.session.commit()
+        flash(_("Partie {title} in {location} angelegt.", title=lot.title, location=lot.location), "success")
+        return redirect(url_for("main.warehouse_map", warehouse_id=lot.warehouse_id, ansicht="tafel"))
+    form = {"warehouse_id": request.args.get("lager", ""), "row": request.args.get("reihe", "")}
+    return render_template("lot_form.html", lot=None, form=form, **choices)
+
+
+@bp.route("/partie/<int:lot_id>/bearbeiten", methods=["GET", "POST"])
+@editor_required
+def lot_edit(lot_id):
+    lot = get_lot_or_404(lot_id)
+    choices = _lot_form_choices(lot)
+    if request.method == "POST":
+        try:
+            changed = storage.update_lot(lot, current_user, **_lot_fields_from_form())
+        except StorageError as e:
+            db.session.rollback()
+            flash_error(str(e))
+            return render_template("lot_form.html", lot=lot, form=request.form, **choices)
+        db.session.commit()
+        if changed:
+            flash(_("Partie {title} gespeichert.", title=lot.title), "success")
+        return redirect(url_for("main.lot_detail", lot_id=lot.id))
+    form = {
+        "variety_id": lot.variety_id, "usage": lot.usage, "seed_class_id": lot.seed_class_id or "",
+        "grade": lot.grade or "", "plot_id": lot.plot_id or "",
+        "harvest_date": lot.harvest_date.isoformat() if lot.harvest_date else "",
+        "note": lot.note or "", "box_type_id": lot.box_type_id,
+    }
+    return render_template("lot_form.html", lot=lot, form=form, **choices)
+
+
+def _lot_action(lot_id, action):
+    lot = get_lot_or_404(lot_id)
+    quantity = storage.parse_quantity(request.form.get("quantity"))
+    note = form_str("note", 500) or None
+    try:
+        message = action(lot, quantity, note)
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("main.lot_detail", lot_id=lot.id))
+    db.session.commit()
+    if message:
+        flash(message, "success")
+    return redirect(url_for("main.lot_detail", lot_id=lot.id))
+
+
+@bp.route("/partie/<int:lot_id>/entnehmen", methods=["POST"])
+@editor_required
+def lot_take(lot_id):
+    def action(lot, quantity, note):
+        storage.take_from_lot(lot, quantity, current_user, note)
+        return _("{n} Kisten entnommen. Bestand: {left}.", n=format_quantity(quantity), left=lot.quantity_label)
+    return _lot_action(lot_id, action)
+
+
+@bp.route("/partie/<int:lot_id>/zugang", methods=["POST"])
+@editor_required
+def lot_add(lot_id):
+    def action(lot, quantity, note):
+        storage.add_to_lot(lot, quantity, current_user, note)
+        return _("{n} Kisten hinzugefügt. Bestand: {left}.", n=format_quantity(quantity), left=lot.quantity_label)
+    return _lot_action(lot_id, action)
+
+
+@bp.route("/partie/<int:lot_id>/korrektur", methods=["POST"])
+@editor_required
+def lot_correct(lot_id):
+    def action(lot, quantity, note):
+        if storage.correct_lot(lot, quantity, current_user, note):
+            return _("Bestand auf {n} Kisten gesetzt.", n=lot.quantity_label)
+        return None
+    return _lot_action(lot_id, action)
+
+
+@bp.route("/partie/<int:lot_id>/umsetzen", methods=["POST"])
+@editor_required
+def lot_move(lot_id):
+    def action(lot, quantity, note):
+        row = form_int("row")
+        if row is None:
+            raise StorageError(_("Bitte eine Reihe wählen."))
+        target = storage.move_lot(lot, form_int("warehouse_id", lot.warehouse_id), row, current_user,
+                                  quantity=quantity, note=note)
+        return _("{n} Kisten stehen jetzt in {location}.", n=target.quantity_label, location=target.location)
+    return _lot_action(lot_id, action)
+
+
+@bp.route("/partie/<int:lot_id>/verschieben", methods=["POST"])
+@editor_required
+def lot_shift(lot_id):
+    lot = get_lot_or_404(lot_id)
+    if storage.shift_lot(lot, -1 if request.form.get("richtung") == "links" else 1):
+        db.session.commit()
+    return back("main.lot_detail", lot_id=lot.id)
+
+
 # --- Verlauf ----------------------------------------------------------------
 
 @bp.route("/verlauf")
 @login_required
 def history():
-    query = Movement.query.join(Box)
+    query = Movement.query.outerjoin(Box, Movement.box_id == Box.id).outerjoin(Variety, Movement.variety_id == Variety.id)
     q = request.args.get("q", "").strip()
     if q:
-        code = storage.normalize_code(q)
+        code = storage.normalize_code(q) if re.match(r"^[Kk]-?\d+$", q) else None
         query = query.filter(Box.code == code) if code else query.filter(
-            or_(Movement.from_location.ilike(f"%{q}%"), Movement.to_location.ilike(f"%{q}%")))
+            or_(Movement.from_location.ilike(f"%{q}%"), Movement.to_location.ilike(f"%{q}%"),
+                Variety.name.ilike(f"%{q}%")))
+    lot_id = request.args.get("partie", type=int)
+    if lot_id:
+        query = query.filter(Movement.lot_id == lot_id)
     action = request.args.get("aktion")
     if action:
         query = query.filter(Movement.action == action)

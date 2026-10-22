@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% from "macros.html" import movement_item, csrf %}
+{% block title %}{{ lot.title }}{% endblock %}
+{% block content %}
+<nav class="mb-3"><a href="{{ url_for('main.warehouse_map', warehouse_id=lot.warehouse_id, ansicht='tafel') }}" class="text-decoration-none"><i class="bi bi-arrow-left me-1"></i>{{ _("Tafel") }}</a></nav>
+
+<div class="box-hero card shadow-sm mb-4" style="--c: {{ lot.variety.color }}">
+    <div class="card-body d-flex gap-3 align-items-center flex-wrap">
+        <div class="lot-qty">
+            <span class="lot-qty-n">{{ lot.quantity_label }}</span>
+            <span class="lot-qty-unit">{{ _("Kisten") }}</span>
+        </div>
+        <div class="flex-grow-1 min-w-0">
+            <h1 class="box-code mb-1">{{ lot.variety.name }} <span class="text-body-secondary fw-semibold">{{ lot.usage_short }}{% if lot.seed_class %} {{ lot.seed_class.name }}{% endif %}</span></h1>
+            <div class="d-flex flex-wrap gap-3 small text-body-secondary">
+                <span><i class="bi bi-geo-alt me-1"></i>{{ lot.warehouse.name }} · {{ lot.location }}</span>
+                <span><i class="bi bi-basket me-1"></i>≈ {{ lot.weight_kg|kg }}</span>
+                <span><i class="bi bi-tag me-1"></i>{{ lot.usage_label }}</span>
+                {% if lot.harvest_date %}<span><i class="bi bi-calendar-event me-1"></i>{{ _("Ernte {date}", date=lot.harvest_date|date) }}</span>{% endif %}
+                {% if lot.plot %}<span><i class="bi bi-map me-1"></i>{{ lot.plot.name }}</span>{% endif %}
+                {% if lot.grade %}<span><i class="bi bi-rulers me-1"></i>{{ lot.grade }}</span>{% endif %}
+                <span><i class="bi bi-box me-1"></i>{{ lot.box_type.name }}</span>
+            </div>
+            {% if lot.note %}<div class="small mt-2"><i class="bi bi-sticky me-1"></i>{{ lot.note }}</div>{% endif %}
+            {% if lot.closed %}<div class="badge text-bg-secondary mt-2">{{ _("abgeschlossen – leer") }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if current_user.can_edit and not lot.closed %}
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-box-arrow-up me-1"></i>{{ _("Entnehmen") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('main.lot_take', lot_id=lot.id) }}">
+                    {{ csrf() }}
+                    <div class="qty-quick mb-2" data-target="#takeQty">
+                        {% for n in [1, 5, 10] %}<button type="button" class="btn btn-outline-secondary" data-qty="{{ n }}">{{ n }}</button>{% endfor %}
+                        <button type="button" class="btn btn-outline-secondary" data-qty="{{ lot.quantity }}">{{ _("alles") }}</button>
+                    </div>
+                    <div class="input-group input-group-lg mb-2">
+                        <input class="form-control" id="takeQty" name="quantity" inputmode="decimal" placeholder="{{ _('Menge, z. B. 5 oder 0,75') }}" required autocomplete="off" aria-label="{{ _('Menge') }}">
+                        <span class="input-group-text">{{ _("Kisten") }}</span>
+                    </div>
+                    <input class="form-control mb-2" name="note" maxlength="500" placeholder="{{ _('Notiz, z. B. Hofladen, Kunde …') }}" aria-label="{{ _('Notiz') }}">
+                    <button class="btn btn-primary w-100"><i class="bi bi-box-arrow-up me-1"></i>{{ _("Entnehmen") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-arrow-left-right me-1"></i>{{ _("Umsetzen") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('main.lot_move', lot_id=lot.id) }}" id="moveForm">
+                    {{ csrf() }}
+                    <div class="row g-2 mb-2">
+                        <div class="col-12 {% if warehouses|length < 2 %}d-none{% endif %}">
+                            <select class="form-select" name="warehouse_id" id="whSelect" aria-label="{{ _('Lager') }}">
+                                {% for wh in warehouses %}
+                                <option value="{{ wh.id }}" data-rows='{{ wh.row_labels()|tojson }}' {% if wh.id == lot.warehouse_id %}selected{% endif %}>{{ wh.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label small mb-1" for="rowSelect">{{ _("Reihe") }}</label>
+                            <select class="form-select form-select-lg" name="row" id="rowSelect" data-current="{{ lot.row }}"></select>
+                        </div>
+                        <div class="col-7">
+                            <label class="form-label small mb-1" for="moveQty">{{ _("Menge") }}</label>
+                            <input class="form-control form-control-lg" id="moveQty" name="quantity" inputmode="decimal" placeholder="{{ _('alle') }}" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="form-text mb-2">{{ _("Leer lassen = ganze Partie. Mit Menge wird nur ein Teil umgesetzt (es entsteht eine neue Partie).") }}</div>
+                    <button class="btn btn-outline-primary w-100"><i class="bi bi-arrow-left-right me-1"></i>{{ _("Umsetzen") }}</button>
+                </form>
+                <hr>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="small text-body-secondary flex-grow-1">{{ _("Position in der Reihe") }}</span>
+                    <form method="post" action="{{ url_for('main.lot_shift', lot_id=lot.id) }}">
+                        {{ csrf() }}<input type="hidden" name="richtung" value="links">
+                        <button class="btn btn-outline-secondary" {% if not can_left %}disabled{% endif %} aria-label="{{ _('Nach links') }}"><i class="bi bi-arrow-left"></i></button>
+                    </form>
+                    <form method="post" action="{{ url_for('main.lot_shift', lot_id=lot.id) }}">
+                        {{ csrf() }}<input type="hidden" name="richtung" value="rechts">
+                        <button class="btn btn-outline-secondary" {% if not can_right %}disabled{% endif %} aria-label="{{ _('Nach rechts') }}"><i class="bi bi-arrow-right"></i></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if current_user.can_edit %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-plus-slash-minus me-1"></i>{{ _("Zugang / Bestand korrigieren") }}</div>
+    <div class="card-body row g-3">
+        {% if not lot.closed %}
+        <form method="post" action="{{ url_for('main.lot_add', lot_id=lot.id) }}" class="col-md-6">
+            {{ csrf() }}
+            <label class="form-label" for="addQty">{{ _("Kisten hinzufügen") }}</label>
+            <div class="input-group">
+                <input class="form-control" id="addQty" name="quantity" inputmode="decimal" required autocomplete="off">
+                <button class="btn btn-outline-primary"><i class="bi bi-plus-lg"></i> {{ _("Zugang") }}</button>
+            </div>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('main.lot_correct', lot_id=lot.id) }}" class="col-md-6">
+            {{ csrf() }}
+            <label class="form-label" for="fixQty">{{ _("Gezählter Bestand") }}</label>
+            <div class="input-group">
+                <input class="form-control" id="fixQty" name="quantity" inputmode="decimal" value="{{ lot.quantity_label }}" required autocomplete="off">
+                <button class="btn btn-outline-secondary"><i class="bi bi-check-lg"></i> {{ _("Setzen") }}</button>
+            </div>
+        </form>
+        <div class="col-12">
+            <a class="btn btn-sm btn-link px-0" href="{{ url_for('main.lot_edit', lot_id=lot.id) }}"><i class="bi bi-pencil me-1"></i>{{ _("Angaben bearbeiten (Sorte, Stufe, Datum …)") }}</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-clock-history me-1"></i>{{ _("Verlauf") }}</div>
+    <div class="card-body">
+        {% if movements %}
+        <ul class="timeline">{% for m in movements %}{{ movement_item(m, show_box=false) }}{% endfor %}</ul>
+        {% else %}<p class="text-body-secondary mb-0">{{ _("Noch keine Einträge.") }}</p>{% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    document.querySelectorAll(".qty-quick").forEach(function (box) {
+        box.addEventListener("click", function (e) {
+            var btn = e.target.closest("[data-qty]");
+            if (!btn) return;
+            var input = document.querySelector(box.dataset.target);
+            input.value = String(btn.dataset.qty).replace(".", ",");
+            input.focus();
+        });
+    });
+    var wh = document.getElementById("whSelect");
+    if (!wh) return;
+    var rowSel = document.getElementById("rowSelect");
+    function fillRows() {
+        var opt = wh.options[wh.selectedIndex];
+        var current = rowSel.value || rowSel.dataset.current;
+        rowSel.innerHTML = "";
+        JSON.parse(opt.dataset.rows).forEach(function (r) {
+            var o = new Option(r[1], r[0]);
+            if (String(r[0]) === String(current)) o.selected = true;
+            rowSel.add(o);
+        });
+    }
+    wh.addEventListener("change", fillRows);
+    fillRows();
+})();
+</script>
+{% endblock %}

@@ -7,6 +7,10 @@
         <h1>{{ _("Lagerkarte") }}</h1>
         <p class="text-body-secondary mb-0">{{ warehouse.name }} · {{ _("{rows} Reihen × {slots} Plätze, bis {levels} Kisten hoch", rows=warehouse.rows, slots=warehouse.slots, levels=warehouse.max_levels) }}</p>
     </div>
+    <div class="d-flex gap-2 flex-wrap">
+    {% if current_user.can_edit %}
+    <a class="btn btn-primary" href="{{ url_for('main.lot_create', lager=warehouse.id) }}"><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Partie") }}</a>
+    {% endif %}
     {% if warehouses|length > 1 %}
     <div class="dropdown">
         <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-buildings me-1"></i>{{ warehouse.name }}</button>
@@ -17,12 +21,13 @@
         </ul>
     </div>
     {% endif %}
+    </div>
 </div>
 
 <nav class="view-switch mb-3" aria-label="{{ _('Ansicht wählen') }}">
     {% for key, label in views.items() %}
     <a href="{{ url_for('main.warehouse_map', warehouse_id=warehouse.id, ansicht=key) }}" class="{% if view == key %}active{% endif %}"
-       {% if view == key %}aria-current="page"{% endif %}><i class="bi {{ {'karte': 'bi-grid-3x3-gap', '3d': 'bi-box', 'liste': 'bi-list-ul'}[key] }} me-1"></i>{{ _(label) }}</a>
+       {% if view == key %}aria-current="page"{% endif %}><i class="bi {{ {'tafel': 'bi-easel', 'karte': 'bi-grid-3x3-gap', '3d': 'bi-box', 'liste': 'bi-list-ul'}[key] }} me-1"></i>{{ _(label) }}</a>
     {% endfor %}
 </nav>
 
@@ -34,7 +39,41 @@
     {% endfor %}
 </div>
 
-{% if view == "karte" %}
+{% if view == "tafel" %}
+<div class="tafel">
+    {% for tr in tafel %}
+    <div class="tafel-row {% if tr.over %}is-over{% endif %}" data-v="{% for lot in tr.lots %}v{{ lot.variety_id }} {% endfor %}{% if not tr.over and tr.free != '0' %}free{% endif %}">
+        <div class="tafel-row-label">{{ tr.label }}</div>
+        <div class="tafel-blocks">
+            {% for lot in tr.lots %}
+            <a class="tafel-lot" href="{{ url_for('main.lot_detail', lot_id=lot.id) }}"
+               style="flex-grow: {{ lot.quantity }}; --c: {{ lot.variety.color }}">
+                <span class="tafel-line"><span class="tafel-qty">{{ lot.quantity_label }}×</span> <span class="tafel-name">{{ lot.variety.name }}</span></span>
+                <span class="tafel-meta">{{ lot.usage_short }}{% if lot.seed_class %} {{ lot.seed_class.name }}{% endif %}{% if lot.grade %} {{ lot.grade }}{% endif %}{% if lot.harvest_date %} · {{ lot.harvest_date.day }}.{{ lot.harvest_date.month }}.{% endif %}</span>
+            </a>
+            {% endfor %}
+            {% if not tr.over and tr.free != '0' %}
+            {% if current_user.can_edit %}
+            <a class="tafel-free" href="{{ url_for('main.lot_create', lager=warehouse.id, reihe=tr.row) }}" style="flex-grow: {{ tr.free|replace(',', '.') }}"
+               title="{{ _('Neue Partie in Reihe {row}', row=tr.label) }}"><i class="bi bi-plus-lg"></i><span class="tafel-free-n">{{ _("{n} frei", n=tr.free) }}</span></a>
+            {% else %}
+            <span class="tafel-free" style="flex-grow: {{ tr.free|replace(',', '.') }}"><span class="tafel-free-n">{{ _("{n} frei", n=tr.free) }}</span></span>
+            {% endif %}
+            {% endif %}
+        </div>
+        <div class="tafel-row-sum" title="{{ _('Kisten in der Reihe') }}">
+            <span class="fw-bold">{{ tr.total }}</span><span class="text-body-tertiary">/{{ warehouse.row_capacity }}</span>
+            <span class="tafel-row-bar"><span style="width: {{ tr.percent }}%"></span></span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="map-legend small text-body-secondary mt-3">
+    <span>{{ _("Zahl = Kisten (41,75 = 41 volle + eine ¾ Kiste)") }}</span>
+    <span>{{ _("Antippen öffnet die Partie.") }}</span>
+</div>
+
+{% elif view == "karte" %}
 <div class="card shadow-sm">
     <div class="card-body p-2 p-md-3">
         <div class="map-scroll">
@@ -205,7 +244,7 @@
         if (!btn) return;
         filters.querySelectorAll("[data-filter]").forEach(function (b) { b.classList.toggle("active", b === btn); });
         var f = btn.dataset.filter;
-        document.querySelectorAll(".stack-cell, .row-card").forEach(function (el) {
+        document.querySelectorAll(".stack-cell, .row-card, .tafel-row").forEach(function (el) {
             el.classList.toggle("is-dimmed", !!f && el.dataset.v.split(" ").indexOf(f) === -1);
         });
         if (iso) iso.setFilter(f);

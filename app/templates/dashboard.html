@@ -31,7 +31,7 @@
         <div class="stat-card">
             <div class="stat-label"><i class="bi bi-basket"></i>{{ _("Bestand (geschätzt)") }}</div>
             <div class="stat-value">{{ stats.kg|kg }}</div>
-            <div class="stat-sub">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</div>
+            <div class="stat-sub">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled_count, n=stats.filled) }}</div>
         </div>
     </div>
     {% for o in occupancy[:1] %}
@@ -74,13 +74,13 @@
                     <a class="variety-bar" href="{{ url_for('main.boxes', sorte=v.variety.id, status='befuellt') }}">
                         <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
                             <span>{{ variety_chip(v.variety) }}
-                                <span class="small text-body-secondary ms-1">{{ v.variety.usage_label }}</span></span>
+                                <span class="small text-body-secondary ms-1">{{ v.usage }}</span></span>
                             <span class="text-nowrap"><strong>{{ v.kg|kg }}</strong>
-                                <span class="small text-body-secondary">· {{ ngettext("{n} Kiste", "{n} Kisten", v.boxes) }}</span></span>
+                                <span class="small text-body-secondary">· {{ ngettext("{n} Kiste", "{n} Kisten", v.boxes_count, n=v.boxes_label) }}</span></span>
                         </div>
                         <div class="bar-track"><div class="bar-fill" style="width: {{ (100 * v.kg / max_kg)|round(1) if max_kg else 0 }}%; --bar: {{ v.variety.color }}"></div></div>
                         <div class="small text-body-tertiary mt-1">
-                            {% if v.stored < v.boxes %}{{ _("{n} nicht eingelagert", n=v.boxes - v.stored) }} · {% endif %}
+                            {% if v.not_stored %}{{ _("{n} nicht eingelagert", n=v.not_stored) }} · {% endif %}
                             {% if v.oldest %}{{ _("älteste Ernte {date}", date=v.oldest|date) }}{% endif %}
                         </div>
                     </a>
@@ -111,7 +111,7 @@
                 </div>
                 <div class="d-flex justify-content-between small text-body-secondary">
                     <span>{{ _("{n} / {total} Kisten", n=o.stored, total=o.capacity) }}</span>
-                    <span>{{ _("{n} / {total} Stapel belegt · {full} voll", n=o.stacks, total=o.stack_capacity, full=o.full_stacks) }}</span>
+                    {% if o.has_boxes %}<span>{{ _("{n} / {total} Stapel belegt · {full} voll", n=o.stacks, total=o.stack_capacity, full=o.full_stacks) }}</span>{% endif %}
                 </div>
             </div>
         </a>

@@ -22,7 +22,9 @@ docker compose up --build -d
 ## Aufbau
 
 - `app/__init__.py`: `create_app()`, Konfiguration aus Umgebungsvariablen, Security-Header, Setup-Umleitung
-- `app/models.py`: Benutzer (Rollen admin/mitarbeiter/betrachter), Lager, Sorte, Schlag (`Plot`), Kistentyp, Kiste, Bewegung
+- `app/models.py`: Benutzer (Rollen admin/mitarbeiter/betrachter), Lager, Sorte, Schlag (`Plot`), Saatgut-Stufe,
+  Kistentyp, **Partie (`Lot`, Hauptarbeitsweise wie an der Lagertafel)**, Kiste (optional, QR), Bewegung
+  (`Movement` gehört entweder zu einer Kiste oder zu einer Partie)
 - `app/storage.py`: **die gesamte Lagerlogik** (Einlagern oben auf den Stapel, Umlagern,
   Auslagern mit Nachrücken, Füllstand, Kisten anlegen). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
@@ -40,6 +42,8 @@ docker compose up --build -d
 
 - Positionen: `row`, `slot`, `level` sind 1-basiert. Anzeige über `Warehouse.location_label()` → `C-07-3`
 - Kisten-Codes `K-0001`; Benutzereingaben immer über `storage.normalize_code()`
+- Partie-Mengen sind `Decimal` (Kisten, 41,75 = 41 volle + ¾); Eingaben über `storage.parse_quantity()`,
+  Anzeige über `format_quantity()` bzw. Jinja-Filter `|qty`
 - Zeitstempel in UTC speichern, Anzeige über die Jinja-Filter `|datetime` / `|date` (Europe/Berlin)
 - Rechte über `@editor_required` / `@admin_required` aus `app/utils.py`
 - Alle POST-Formulare brauchen `csrf_token`

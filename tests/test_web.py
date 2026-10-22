@@ -256,7 +256,8 @@ def test_map_views_switch_and_are_remembered(as_worker, app, db, seed):
     storage.store_box(b, seed["wh"].id, 3, 7, seed["admin"])
     db.session.commit()
 
-    html = as_worker.get("/lager").get_data(as_text=True)
+    assert 'class="tafel"' in as_worker.get("/lager").get_data(as_text=True)   # Startansicht
+    html = as_worker.get("/lager?ansicht=karte").get_data(as_text=True)
     assert 'class="lager-map"' in html
 
     html = as_worker.get("/lager?ansicht=3d").get_data(as_text=True)

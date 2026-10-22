@@ -27,7 +27,7 @@
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table align-middle mb-0">
-            <thead><tr><th>{{ _("Zeile") }}</th><th>{{ _("Kiste") }}</th><th>{{ _("Ergebnis") }}</th></tr></thead>
+            <thead><tr><th>{{ _("Zeile") }}</th><th>{{ _("Reihe") if kind == "lots" else _("Kiste") }}</th><th>{{ _("Ergebnis") }}</th></tr></thead>
             <tbody>
             {% for r in results %}
             <tr class="{% if r.errors %}table-danger{% endif %}">

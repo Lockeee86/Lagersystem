@@ -49,6 +49,8 @@ Reihe – Stellplatz – Ebene
 - **Kistentyp**: Name, Gewicht bei voller Kiste (kg)
 - **Sorte**: Name, Farbe (Lagerkarte), Verwendung (Speise / Futter / Pflanzgut / Sonstiges)
 - **Schlag**: Name, Fläche (ha, optional), Notiz, aktiv. Wird beim Befüllen per Dropdown gewählt.
+- **Partie**: siehe oben („Umstellung auf Partien“)
+- **Saatgut-Stufe**: Kürzel (PB, S, SE, E, BE, Z …), Beschreibung, Reihenfolge, aktiv
 - **Kiste**: Code (QR), Kistentyp, Sorte, Erntedatum, Schlag, Sortierung/Größe,
   Füllstand, Notiz, aktueller Platz (Lager, Reihe, Platz, Ebene, leer = nicht eingelagert)
 - **Bewegung**: Kiste, Aktion, von, nach, Füllstand vorher/nachher, Benutzer, Zeitpunkt, Notiz,
@@ -89,6 +91,18 @@ Portainer-Stack (docker-compose)
 - Grenzwerte pro Lager (Start: 4–8 °C, Warnung < 3 °C und > 10 °C; 90–95 % rF,
   Warnung < 85 % und > 97 %), Warnung bei Sensor-Ausfall
 - Benachrichtigung (Telegram, ntfy oder E-Mail, noch offen)
+
+### Umstellung auf Partien (nach dem Foto der Lagertafel)
+- Die Tafel im Lager denkt in **Partien**: je Reihe Blöcke wie „41,75× Rumba Saat Z 22.9“.
+  Das ist jetzt die Hauptarbeitsweise; Einzelkisten mit QR-Code bleiben als Option.
+- Partie = Lager, Reihe, Position (links → rechts), Sorte, Verwendung (Saat/Speise), Stufe,
+  Kaliber, Datum (zählt als Erntedatum fürs Kartoffeljahr), Schlag, Menge in Kisten (Dezimal),
+  Kistentyp (für das Gewicht). Menge 0 → Partie abgeschlossen.
+- Buchungen: Entnehmen, Zugang, Bestand korrigieren (Inventur), Umsetzen (ganz oder Teilmenge →
+  neue Partie), Position in der Reihe tauschen, Angaben ändern. Alles im Verlauf mit Momentaufnahme.
+- Ansicht „Tafel“ (Startansicht), Reihen pro Lager wahlweise mit Zahlen beschriftet.
+- Import im Tafel-Format (eine Zeile pro Block); unbekannte Sorten/Stufen/Schläge auf Wunsch anlegen.
+- Offen: Ist die rechte Spalte der Tafel eine eigene Fläche? (derzeit als letzter Block der Reihe)
 
 ### Zwischendurch umgesetzt
 - Import aus einer Excel-Vorlage (Zettel → Lagersystem) mit Vorschau, alles-oder-nichts

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}{{ _("Stufen") }}{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+    <h1>{{ _("Saatgut-Stufen") }}</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#classModal" data-edit='{"active": true, "position": {{ items|length + 1 }}}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Stufe") }}</button>
+</div>
+<p class="text-body-secondary">{{ _("Stufen beim Pflanzgut, z. B. PB, SE, E, BE, Z. Sie stehen bei jeder Partie zur Auswahl; die Reihenfolge bestimmt die Sortierung in der Liste.") }}</p>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>{{ _("Stufe") }}</th><th>{{ _("Beschreibung") }}</th><th class="text-end">{{ _("Partien") }}</th><th></th></tr></thead>
+            <tbody>
+            {% for c in items %}
+            <tr class="{% if not c.active %}opacity-50{% endif %}">
+                <td class="fw-bold">{{ c.name }}{% if not c.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</td>
+                <td class="small text-body-secondary">{{ c.description or '' }}</td>
+                <td class="text-end">{{ counts.get(c.id, 0) }}</td>
+                <td class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#classModal"
+                            data-edit='{{ {"id": c.id, "name": c.name, "description": c.description or "", "position": c.position, "active": c.active}|tojson }}'><i class="bi bi-pencil"></i></button>
+                    <form method="post" action="{{ url_for('admin.seed_class_delete', c_id=c.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('Stufe „{name}“ löschen?', name=c.name) }}"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-body-secondary">{{ _("Noch keine Stufen.") }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% call edit_modal("classModal", _("Neue Stufe"), _("Stufe bearbeiten"), url_for('admin.seed_classes')) %}
+<div class="row g-2 mb-3">
+    <div class="col-8">
+        <label class="form-label" for="c_name">{{ _("Kürzel") }}</label>
+        <input class="form-control" id="c_name" name="name" required maxlength="20" placeholder="BE">
+    </div>
+    <div class="col-4">
+        <label class="form-label" for="c_pos">{{ _("Reihenfolge") }}</label>
+        <input class="form-control" id="c_pos" name="position" type="number" min="0" max="999">
+    </div>
+</div>
+<div class="mb-3">
+    <label class="form-label" for="c_desc">{{ _("Beschreibung") }} <span class="text-body-tertiary">({{ _("optional") }})</span></label>
+    <input class="form-control" id="c_desc" name="description" maxlength="200">
+</div>
+<div class="form-check edit-only">
+    <input class="form-check-input" type="checkbox" id="c_active" name="active" value="1">
+    <label class="form-check-label" for="c_active">{{ _("Aktiv (in Auswahllisten anzeigen)") }}</label>
+</div>
+{% endcall %}
+{% endblock %}

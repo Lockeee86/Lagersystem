@@ -6,7 +6,12 @@ Docker-Stack (z. B. in Portainer) und ist fürs Handy optimiert.
 
 Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 
-## Funktionen (Phase 1)
+## Funktionen
+
+- **Partien wie an der Tafel**: Reihe → Blöcke mit Menge (Kisten, Komma für angebrochene: 41,75),
+  Sorte, Saat/Speise, Saatgut-Stufe (PB, SE, E, BE, Z …), Kaliber, Datum und Schlag. Die Ansicht
+  **Tafel** sieht aus wie die Kreidetafel im Lager; Entnehmen, Zugang, Bestand korrigieren, Umsetzen
+  (auch nur einen Teil) direkt auf dem Handy – ohne QR-Codes
 
 - **Lagerkarte** mit drei umschaltbaren Ansichten (die Wahl wird je Benutzer gemerkt):
   **Karte** (Draufsicht mit Stapelhöhe und Sortenfarbe), **3D** (isometrisch, drehbar, zoombar) und
