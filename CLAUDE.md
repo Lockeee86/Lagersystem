@@ -23,7 +23,8 @@ docker compose up --build -d
 
 - `app/__init__.py`: `create_app()`, Konfiguration aus Umgebungsvariablen, Security-Header, Setup-Umleitung
 - `app/models.py`: Benutzer (Rollen admin/mitarbeiter/betrachter), Lager, Sorte, Schlag (`Plot`), Saatgut-Stufe
-  (`SeedClass`), Kistentyp, Kiste (mit Verwendung Saat/Speise und Stufe), Bewegung
+  (`SeedClass`), Kistentyp, Kiste (mit Verwendung Saat/Speise und Stufe), Bewegung,
+  `Setting` (Schlüssel/Wert: Hofname, Anschrift …; in Templates als `farm` bzw. `app_name`)
 - `app/storage.py`: **die gesamte Lagerlogik** (Einlagern oben auf den Stapel, Umlagern,
   Auslagern mit Nachrücken, Füllstand, Kisten anlegen). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.

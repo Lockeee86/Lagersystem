@@ -20,6 +20,7 @@ def app():
         # Der Test hält einen App-Kontext offen → `g` würde sonst den Benutzer
         # der vorherigen Anfrage (evtl. eines anderen Test-Clients) wiederverwenden.
         g.pop("_login_user", None)
+        g.pop("farm", None)
 
     with app.app_context():
         _db.create_all()

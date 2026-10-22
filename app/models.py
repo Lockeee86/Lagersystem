@@ -39,6 +39,34 @@ MAP_VIEWS = {
 ROLE_LEVEL = {ROLE_BETRACHTER: 1, ROLE_MITARBEITER: 2, ROLE_ADMIN: 3}
 
 
+class Setting(db.Model):
+    """Einstellungen des Betriebs als Schlüssel/Wert (Hofname, Anschrift …)."""
+    __tablename__ = "settings"
+
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.Text)
+
+    # Schlüssel: (Bezeichnung, maximale Länge, mehrzeilig)
+    FIELDS = {
+        "farm_name": (N_("Hofname"), 100, False),
+        "farm_address": (N_("Anschrift"), 500, True),
+        "farm_phone": (N_("Telefon"), 50, False),
+        "farm_email": (N_("E-Mail"), 120, False),
+    }
+
+    @classmethod
+    def all(cls):
+        values = {key: "" for key in cls.FIELDS}
+        values.update({s.key: s.value or "" for s in cls.query.filter(cls.key.in_(cls.FIELDS))})
+        return values
+
+    @classmethod
+    def put(cls, key, value):
+        setting = db.session.get(cls, key) or cls(key=key)
+        setting.value = value or None
+        db.session.add(setting)
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 

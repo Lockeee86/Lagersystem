@@ -14,8 +14,8 @@ from . import transfer
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
-from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, User, Variety,
-                     Warehouse)
+from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, Setting, User,
+                     Variety, Warehouse)
 from .utils import admin_required, flash_error, form_int, form_str
 
 bp = Blueprint("admin", __name__)
@@ -41,6 +41,19 @@ def _name_taken(model, name, own_id=None):
     if own_id:
         query = query.filter(model.id != own_id)
     return query.first() is not None
+
+
+# --- Einstellungen ----------------------------------------------------------
+
+@bp.route("/einstellungen", methods=["GET", "POST"])
+def settings():
+    if request.method == "POST":
+        for key, (_label, max_len, _multiline) in Setting.FIELDS.items():
+            Setting.put(key, form_str(key, max_len))
+        db.session.commit()
+        flash(_("Einstellungen gespeichert."), "success")
+        return redirect(url_for("admin.settings"))
+    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS)
 
 
 # --- Lager ------------------------------------------------------------------

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Hof") }}{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+    <h1>{{ _("Hof") }}</h1>
+</div>
+<p class="text-body-secondary">{{ _("Der Hofname erscheint oben in der App und später auf den Lieferscheinen, zusammen mit der Anschrift.") }}</p>
+<div class="card shadow-sm" style="max-width: 40rem">
+    <form class="card-body" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for key, (label, max_len, multiline) in fields.items() %}
+        <div class="mb-3">
+            <label class="form-label" for="{{ key }}">{{ _(label) }}</label>
+            {% if multiline %}
+            <textarea class="form-control" id="{{ key }}" name="{{ key }}" rows="3" maxlength="{{ max_len }}"
+                      placeholder="{{ _('Straße Nr.') }}&#10;{{ _('PLZ Ort') }}">{{ values[key] }}</textarea>
+            {% else %}
+            <input class="form-control" id="{{ key }}" name="{{ key }}" maxlength="{{ max_len }}" value="{{ values[key] }}"
+                   {% if key == 'farm_email' %}type="email"{% elif key == 'farm_phone' %}type="tel"{% endif %}
+                   {% if key == 'farm_name' %}placeholder="{{ _('Lagersystem') }}"{% endif %}>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+    </form>
+</div>
+{% endblock %}

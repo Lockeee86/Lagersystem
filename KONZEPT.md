@@ -114,8 +114,8 @@ Portainer-Stack (docker-compose)
 
 Aus dem Lagersystem wird schrittweise eine Hof-App. Alle Bausteine nutzen dieselbe Anmeldung, Rollen,
 Sprachen (de/pl) und Datenbank und laufen im selben Portainer-Stack. Bausteine sind einzeln abschaltbar.
-Rahmen: 4–10 Benutzer. Der **Hofname** wird in der Verwaltung einstellbar (Kopfzeile, Lieferscheine);
-bis dahin heißt die App weiter „Lagersystem“.
+Rahmen: 4–10 Benutzer. **Hofname, Anschrift, Telefon, E-Mail** stehen unter Verwaltung → Hof (umgesetzt);
+der Hofname ersetzt „Lagersystem“ in der Kopfzeile und kommt später auf die Lieferscheine.
 
 ### Baustein A – Verkauf & Lieferscheine (zuerst, größter Schmerzpunkt)
 - **Kunden**: vor allem Pflanzgut-Abnehmer und Händler/Abpacker (Name, Anschrift, Kundennummer, Notiz).
@@ -178,11 +178,10 @@ Siehe Phase 2. 3–6 Messpunkte, Warnungen nur in der App, DWD-Außentemperatur 
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.
-2. Hofname und Anschrift für Kopfzeile und Lieferscheine.
-3. Lieferschein: Muss ein Pflanzenpass-Etikett mitgedruckt werden oder reicht die Angabe auf dem Lieferschein?
+2. Lieferschein: Muss ein Pflanzenpass-Etikett mitgedruckt werden oder reicht die Angabe auf dem Lieferschein?
    Gibt es eine Vorlage, wie der Lieferschein aussehen soll?
-4. Werden je Fahrzeug mehrere Kunden beliefert (ein Wiegevorgang, mehrere Lieferscheine)?
-5. Aus welchem Programm kommen Düngung/Pflanzenschutz, und kann es exportieren (Excel/CSV/ISOXML)?
-6. Welche Sensoren genau (Vorschlag folgt mit Baustein B).
+3. Werden je Fahrzeug mehrere Kunden beliefert (ein Wiegevorgang, mehrere Lieferscheine)?
+4. Aus welchem Programm kommen Düngung/Pflanzenschutz, und kann es exportieren (Excel/CSV/ISOXML)?
+5. Welche Sensoren genau (Vorschlag folgt mit Baustein B).
 
 Geklärt: WLAN im Lager ist gut (kein Offline-Modus nötig); Zugriff von unterwegs läuft über die eigene Domain mit HTTPS.

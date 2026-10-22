@@ -1,11 +1,11 @@
 import os
 from datetime import timedelta
 
-from flask import Flask, redirect, request, url_for
+from flask import Flask, g, redirect, request, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
-from .models import FILL_LEVELS, ROLES, SORT_USAGES, User
+from .models import FILL_LEVELS, ROLES, SORT_USAGES, Setting, User
 from . import utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
@@ -89,7 +89,11 @@ def create_app(config=None):
 
     @app.context_processor
     def inject_globals():
+        if "farm" not in g:
+            g.farm = Setting.all()
         return {
+            "farm": g.farm,
+            "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,
             "ROLES": ROLES,
             "SORT_USAGES": SORT_USAGES,

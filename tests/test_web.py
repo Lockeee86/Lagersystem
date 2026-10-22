@@ -296,3 +296,19 @@ def test_variety_shorts_are_unique():
     shorts = variety_shorts(vs)
     assert shorts[1] == "BE" and shorts[3] == "LA" and shorts[4] == "AN"
     assert len(set(shorts.values())) == len(vs)
+
+
+def test_farm_settings(app, db, seed):
+    from app.models import Setting
+    worker = app.test_client()
+    login(worker, "max")
+    assert worker.get("/admin/einstellungen").status_code in (302, 403)
+    client = app.test_client()
+    login(client, "admin")
+    assert "Lagersystem" in client.get("/").get_data(as_text=True)
+    client.post("/admin/einstellungen", data={"farm_name": "Hof Sonnenfeld", "farm_address": "Feldweg 1\n12345 Dorf",
+                                              "farm_phone": "", "farm_email": ""})
+    assert Setting.all()["farm_name"] == "Hof Sonnenfeld"
+    assert Setting.all()["farm_address"] == "Feldweg 1\n12345 Dorf"
+    assert db.session.get(Setting, "farm_phone").value is None
+    assert "Hof Sonnenfeld" in client.get("/").get_data(as_text=True)
