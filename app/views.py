@@ -11,7 +11,7 @@ from . import storage
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
-from .models import Box, BoxType, Movement, Plot, User, Variety, Warehouse
+from .models import MAP_VIEWS, Box, BoxType, Movement, Plot, User, Variety, Warehouse
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
                     form_str)
@@ -99,6 +99,20 @@ def dashboard():
 
 # --- Lagerkarte -------------------------------------------------------------
 
+def variety_shorts(varieties):
+    """Eindeutige Kürzel je Sorte (2–3 Buchstaben), z. B. Belana → BE, Bellarosa → BL."""
+    shorts, taken = {}, set()
+    for v in sorted(varieties, key=lambda v: v.id):
+        letters = [c for c in v.name.upper() if c.isalnum()] or ["?"]
+        candidates = ["".join(letters[:2])]
+        candidates += [letters[0] + c for c in letters[2:]]
+        candidates += ["".join(letters[:3]), f"{letters[0]}{v.id}"]
+        short = next((c for c in candidates if c not in taken), f"S{v.id}")
+        taken.add(short)
+        shorts[v.id] = short
+    return shorts
+
+
 @bp.route("/lager")
 @bp.route("/lager/<int:warehouse_id>")
 @login_required
@@ -108,11 +122,48 @@ def warehouse_map(warehouse_id=None):
         flash(_("Es ist noch kein Lager angelegt."), "warning")
         return redirect(url_for("admin.warehouses") if current_user.is_admin else url_for("main.dashboard"))
     warehouse = get_warehouse_or_404(warehouse_id) if warehouse_id else warehouses[0]
+
+    # Gewählte Ansicht merken (pro Benutzer, auf allen Geräten)
+    view = request.args.get("ansicht")
+    if view in MAP_VIEWS and view != current_user.map_view:
+        current_user.map_view = view
+        db.session.commit()
+    view = current_user.map_view if current_user.map_view in MAP_VIEWS else "karte"
+
     stacks = storage.stacks_overview(warehouse)
     varieties = Variety.query.order_by(Variety.name).all()
     used = {b.variety_id for boxes in stacks.values() for b in boxes if b.variety_id and not b.is_empty}
+    shorts = variety_shorts(varieties)
+
+    rows = []
+    for r, label in warehouse.row_labels():
+        row_stacks = [stacks.get((r, s), []) for s in range(1, warehouse.slots + 1)]
+        mix = {}
+        for boxes in row_stacks:
+            for b in boxes:
+                key = "—" if b.is_empty or not b.variety_id else shorts[b.variety_id]
+                entry = mix.setdefault(key, {"short": key, "n": 0, "color": b.color})
+                entry["n"] += 1
+        count = sum(len(b) for b in row_stacks)
+        rows.append({
+            "row": r, "label": label, "stacks": row_stacks, "count": count,
+            "free": warehouse.slots * warehouse.max_levels - count,
+            "mix": sorted(mix.values(), key=lambda e: -e["n"]),
+        })
+
+    data3d = None
+    if view == "3d":
+        data3d = {
+            "rows": warehouse.rows, "slots": warehouse.slots, "levels": warehouse.max_levels,
+            "rowLabels": [label for _r, label in warehouse.row_labels()],
+            "stackUrl": url_for("main.stack_view", warehouse_id=warehouse.id, row=0, slot=0, partial=1),
+            "stacks": [[r, s, [[b.color or "", b.variety_id if b.variety_id and not b.is_empty else 0] for b in boxes]]
+                       for (r, s), boxes in stacks.items()],
+        }
+
     return render_template("warehouse_map.html", warehouse=warehouse, warehouses=warehouses,
-                           stacks=stacks, varieties=[v for v in varieties if v.id in used])
+                           stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d,
+                           shorts=shorts, varieties=[v for v in varieties if v.id in used])
 
 
 @bp.route("/lager/<int:warehouse_id>/stapel/<int:row>/<int:slot>")

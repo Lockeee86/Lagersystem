@@ -8,8 +8,10 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 
 ## Funktionen (Phase 1)
 
-- **Lagerkarte**: Draufsicht aller Stapel (Reihe × Stellplatz) mit Stapelhöhe und Sortenfarbe,
-  Filter nach Sorte oder freien Plätzen, Klick öffnet die Stapelansicht
+- **Lagerkarte** mit drei umschaltbaren Ansichten (die Wahl wird je Benutzer gemerkt):
+  **Karte** (Draufsicht mit Stapelhöhe und Sortenfarbe), **3D** (isometrisch, drehbar, zoombar) und
+  **Liste** (Reihen mit Zahlen und Sortenkürzeln, auch ohne Farben lesbar). Filter nach Sorte oder
+  freien Plätzen, Antippen öffnet die Stapelansicht
 - **Kisten** mit fester Nummer (`K-0001` …) und QR-Code; Sorte, Erntedatum, Schlag (Auswahlliste), Sortierung,
   Füllstand (voll / ¾ / ½ / ¼ / leer), Notiz
 - **Einlagern, Umlagern, Auslagern**. Kisten kommen immer oben auf den Stapel (max. Höhe einstellbar).

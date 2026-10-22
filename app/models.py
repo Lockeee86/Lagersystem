@@ -28,6 +28,13 @@ ROLES = {
     ROLE_MITARBEITER: N_("Mitarbeiter"),
     ROLE_BETRACHTER: N_("Betrachter"),
 }
+# Ansichten der Lagerkarte
+MAP_VIEWS = {
+    "karte": N_("Karte"),
+    "3d": N_("3D"),
+    "liste": N_("Liste"),
+}
+
 # Höherer Wert = mehr Rechte
 ROLE_LEVEL = {ROLE_BETRACHTER: 1, ROLE_MITARBEITER: 2, ROLE_ADMIN: 3}
 
@@ -45,6 +52,8 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime(timezone=True))
     language = db.Column(db.String(5), nullable=False, default=DEFAULT_LANGUAGE,
                          server_default=DEFAULT_LANGUAGE)
+    # Zuletzt gewählte Ansicht der Lagerkarte (siehe MAP_VIEWS)
+    map_view = db.Column(db.String(10), nullable=False, default="karte", server_default="karte")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))

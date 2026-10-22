@@ -370,3 +370,66 @@ body:not(.has-tabbar) {
 .lang-flag { font-size: 1.6rem; line-height: 1; }
 .lang-switch-menu { display: flex; gap: .4rem; }
 .lang-switch-menu .btn, .lang-switch .btn { flex: 1; white-space: nowrap; }
+
+/* --- Lagerkarte: Ansichten ------------------------------------------------------------- */
+.view-switch {
+    display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .25rem;
+    padding: .25rem; border-radius: .8rem; background: var(--surface); border: 1px solid var(--line);
+    width: 100%; max-width: 420px;
+}
+.view-switch a {
+    display: flex; align-items: center; justify-content: center; min-height: 2.6rem; padding: 0 .75rem;
+    border-radius: .6rem; color: var(--bs-secondary-color); font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.view-switch a:hover { color: var(--bs-body-color); background: var(--surface-2); }
+.view-switch a.active { background: var(--brand-soft); color: var(--brand); }
+
+/* 3D */
+.iso-scroll {
+    overflow: auto; -webkit-overflow-scrolling: touch; min-height: 260px; max-height: 70vh;
+    border-radius: .8rem; background: radial-gradient(circle at 50% 30%, var(--surface-2), var(--surface) 75%);
+}
+.iso-scroll svg { display: block; margin: 0 auto; }
+.iso-floor { fill: var(--slot-free); stroke: var(--line); stroke-width: .6; cursor: pointer; }
+.iso-floor.is-selected { fill: var(--brand-soft); stroke: var(--brand); stroke-width: 1.5; }
+.iso-label { fill: var(--bs-body-color); font-size: 13px; font-weight: 800; pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.iso-stack { cursor: pointer; }
+.iso-stack polygon { stroke: rgba(0, 0, 0, .3); stroke-width: .5; stroke-linejoin: round; }
+.iso-stack.is-selected polygon { stroke: var(--bs-body-color); stroke-width: 1.4; }
+
+/* Reihenliste */
+.row-list { display: flex; flex-direction: column; gap: .6rem; }
+.row-card { overflow: hidden; transition: opacity .15s ease; }
+.row-card.is-dimmed { opacity: .3; }
+.row-card > summary { list-style: none; cursor: pointer; padding: .8rem 1rem .7rem; display: flex; flex-direction: column; gap: .6rem; }
+.row-card > summary::-webkit-details-marker { display: none; }
+.row-card[open] { border-color: var(--brand); }
+.row-card-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.row-card-title { font-size: 1.1rem; font-weight: 800; }
+.row-card-chevron { transition: transform .15s ease; color: var(--bs-secondary-color); }
+.row-card[open] .row-card-chevron { transform: rotate(180deg); }
+.row-mix { display: inline-flex; align-items: center; gap: .25rem; }
+.row-mix-n { font-size: .8rem; font-weight: 700; margin-right: .35rem; }
+.row-bars { display: grid; grid-template-columns: repeat(var(--slots), minmax(0, 1fr)); gap: 3px; max-width: 640px; }
+.row-bar { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.row-bar-segs { display: flex; flex-direction: column-reverse; gap: 1px; width: 100%; }
+.row-seg { display: block; height: 6px; border-radius: 2px; background: var(--slot-free); }
+.row-seg.has-box { background: var(--c); }
+.row-bar-num { font-size: .72rem; font-weight: 800; color: var(--bs-secondary-color); }
+.row-bar-num.is-full { color: var(--bs-body-color); }
+.row-slots { border-top: 1px solid var(--line); padding: .25rem 1rem .6rem; }
+.row-slot {
+    display: flex; align-items: center; gap: .75rem; min-height: 2.6rem; color: inherit; text-decoration: none;
+    border-bottom: 1px dashed var(--line);
+}
+.row-slot:last-child { border-bottom: 0; }
+.row-slot:hover { background: var(--surface-2); color: inherit; }
+.row-slot-label { width: 3.5rem; font-weight: 700; color: var(--bs-secondary-color); font-variant-numeric: tabular-nums; }
+.row-slot-boxes { flex-grow: 1; display: flex; gap: 3px; flex-wrap: wrap; }
+.row-slot-count { font-weight: 700; font-size: .85rem; }
+.short-chip {
+    --chip: var(--box-blank); --chip-text: #2c2a24;
+    display: inline-block; min-width: 1.8rem; padding: .1rem .3rem; border-radius: .3rem; text-align: center;
+    background: var(--chip); color: var(--chip-text); font-size: .72rem; font-weight: 800; line-height: 1.4;
+}
+.short-chip.chip-blank { background: var(--box-blank); color: #2c2a24; }

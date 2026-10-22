@@ -245,3 +245,54 @@ def test_unknown_plot_id_is_ignored(as_worker, db, seed):
 
 def test_worker_cannot_manage_plots(as_worker, seed):
     assert as_worker.get("/admin/schlaege").status_code == 403
+
+
+# --- Ansichten der Lagerkarte -----------------------------------------------
+
+def test_map_views_switch_and_are_remembered(as_worker, app, db, seed):
+    a, b = storage.create_boxes(2, seed["bt"].id, seed["admin"])
+    storage.update_contents(a, seed["admin"], seed["belana"].id, None, None, None, 100, None)
+    storage.store_box(a, seed["wh"].id, 3, 7, seed["admin"])
+    storage.store_box(b, seed["wh"].id, 3, 7, seed["admin"])
+    db.session.commit()
+
+    html = as_worker.get("/lager").get_data(as_text=True)
+    assert 'class="lager-map"' in html
+
+    html = as_worker.get("/lager?ansicht=3d").get_data(as_text=True)
+    assert 'id="iso3d"' in html and "lager3d.js" in html
+    assert User.query.filter_by(username="max").one().map_view == "3d"
+    # Ohne Parameter bleibt die zuletzt gewählte Ansicht – auch auf einem anderen Gerät
+    other = app.test_client()
+    login(other, "max")
+    assert 'id="iso3d"' in other.get("/lager").get_data(as_text=True)
+
+    html = as_worker.get("/lager?ansicht=liste").get_data(as_text=True)
+    assert 'class="row-list"' in html and "Reihe C" in html and ">BE<" in html
+    assert "/lager/1/stapel/3/7?partial=1" in html
+
+    as_worker.get("/lager?ansicht=quatsch")
+    assert User.query.filter_by(username="max").one().map_view == "liste"
+
+
+def test_3d_data(as_worker, db, seed):
+    (box,) = storage.create_boxes(1, seed["bt"].id, seed["admin"])
+    storage.update_contents(box, seed["admin"], seed["belana"].id, None, None, None, 100, None)
+    storage.store_box(box, seed["wh"].id, 2, 4, seed["admin"])
+    db.session.commit()
+    html = as_worker.get("/lager?ansicht=3d").get_data(as_text=True)
+    import json, re
+    data = json.loads(re.search(r'<script type="application/json" id="iso3dData">(.*?)</script>', html, re.S).group(1))
+    assert data["rows"] == 10 and data["slots"] == 15 and data["levels"] == 5
+    assert data["stacks"] == [[2, 4, [["#e6b422", seed["belana"].id]]]]
+    assert data["stackUrl"] == "/lager/1/stapel/0/0?partial=1"
+
+
+def test_variety_shorts_are_unique():
+    from app.models import Variety
+    from app.views import variety_shorts
+    vs = [Variety(id=1, name="Belana (Pflanz)"), Variety(id=2, name="Bellarosa"), Variety(id=3, name="Laura (Speise)"),
+          Variety(id=4, name="Anuschka"), Variety(id=5, name="Be")]
+    shorts = variety_shorts(vs)
+    assert shorts[1] == "BE" and shorts[3] == "LA" and shorts[4] == "AN"
+    assert len(set(shorts.values())) == len(vs)

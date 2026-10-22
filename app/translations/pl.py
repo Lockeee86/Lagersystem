@@ -143,6 +143,21 @@ MESSAGES = {
     "z. B. K-0012": "np. K-0012",
     "Steht die Kiste woanders, wird sie hierher umgelagert.": "Jeśli skrzynia stoi gdzie indziej, zostanie tu przeniesiona.",
 
+    "Ansicht wählen": "Wybierz widok",
+    "3D": "3D",
+    "Liste": "Lista",
+    "Drehen": "Obróć",
+    "Verkleinern": "Pomniejsz",
+    "Vergrößern": "Powiększ",
+    "Blick vom Tor": "Widok od bramy",
+    "Blick von rechts": "Widok z prawej",
+    "Blick von hinten": "Widok od tyłu",
+    "Blick von links": "Widok z lewej",
+    "3D-Ansicht des Lagers": "Widok 3D magazynu",
+    "Antippen eines Stapels zeigt die Kisten darin.": "Dotknij stosu, aby zobaczyć skrzynie.",
+    "Reihe {row}": "Rząd {row}",
+    "{n} Kisten · {free} frei": "Skrzynie: {n} · wolne: {free}",
+
     # --- Kisten -----------------------------------------------------------------
     "{n} Kisten": ("{n} skrzynia", "{n} skrzynie", "{n} skrzyń"),
     "Anzahl": "Liczba",

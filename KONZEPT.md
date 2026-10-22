@@ -53,7 +53,7 @@ Reihe – Stellplatz – Ebene
   Füllstand, Notiz, aktueller Platz (Lager, Reihe, Platz, Ebene, leer = nicht eingelagert)
 - **Bewegung**: Kiste, Aktion, von, nach, Füllstand vorher/nachher, Benutzer, Zeitpunkt, Notiz,
   Detail (sprachneutrale Systemangabe, wird bei der Anzeige übersetzt)
-- **Benutzer**: Benutzername, Passwort-Hash, Rolle, Sprache, aktiv
+- **Benutzer**: Benutzername, Passwort-Hash, Rolle, Sprache, gewählte Kartenansicht, aktiv
 - *(Phase 2)* **Sensor**: Name, MQTT-Topic, Lager, Reihe (optional)
 - *(Phase 2)* **Messwert**: Sensor, Messgröße, Wert, Zeitpunkt. Das Schema ist allgemein gehalten, damit später z. B. CO₂ ergänzt werden kann.
 
@@ -77,7 +77,7 @@ Portainer-Stack (docker-compose)
 - Login, Rollen, Benutzerverwaltung, Passwort ändern
 - Lager, Sorten, Schläge und Kistentypen verwalten
 - Kisten in Serie anlegen (K-0001 … K-0750), QR-Etiketten als PDF
-- Lagerkarte (Draufsicht mit Stapelhöhe und Sorte), Stapelansicht
+- Lagerkarte mit drei Ansichten: Karte (Draufsicht), 3D (isometrisch, drehbar) und Liste (Reihen mit Zahlen/Sortenkürzeln), Stapelansicht
 - Kisten-Detail: befüllen, einlagern, umlagern, Füllstand, auslagern
 - Handy-Scan der QR-Codes mit der Kamera (benötigt HTTPS)
 - Dashboard: Belegung, Bestand je Sorte (Kisten + geschätzte kg), letzte Bewegungen
