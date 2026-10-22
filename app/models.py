@@ -520,3 +520,130 @@ class DeliveryItem(db.Model):
     @property
     def fill_label(self):
         return _(FILL_LABELS.get(self.fill, f"{self.fill} %")) if self.fill is not None else ""
+
+
+# --- Maschinen --------------------------------------------------------------
+
+MACHINE_CATEGORIES = {
+    "schlepper": N_("Schlepper"),
+    "fahrzeug": N_("Fahrzeug"),
+    "roder": N_("Roder"),
+    "legemaschine": N_("Legemaschine"),
+    "sortieranlage": N_("Sortieranlage / Band"),
+    "anhaenger": N_("Anhänger"),
+    "stapler": N_("Stapler / Lader"),
+    "lagertechnik": N_("Lagertechnik"),
+    "sonstiges": N_("Sonstiges"),
+}
+COUNTER_UNITS = {"h": N_("Betriebsstunden"), "km": N_("Kilometer")}
+
+
+class Machine(db.Model):
+    """Maschine oder Fahrzeug mit QR-Code (`M-001`), Zählerstand und Wartungsintervallen."""
+    __tablename__ = "machines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(30), nullable=False, default="sonstiges")
+    manufacturer = db.Column(db.String(100))
+    model = db.Column(db.String(100))
+    year = db.Column(db.Integer)
+    plate = db.Column(db.String(30))             # Kennzeichen
+    serial_no = db.Column(db.String(100))
+    counter_unit = db.Column(db.String(5))       # "h", "km" oder leer (ohne Zähler)
+    counter = db.Column(db.Integer)              # aktueller Stand
+    counter_at = db.Column(db.DateTime(timezone=True))
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    tasks = db.relationship("MaintenanceTask", back_populates="machine", order_by="MaintenanceTask.name",
+                            cascade="all, delete-orphan")
+    events = db.relationship("MachineEvent", back_populates="machine", lazy="dynamic",
+                             order_by=lambda: (MachineEvent.date.desc(), MachineEvent.id.desc()),
+                             cascade="all, delete-orphan")
+
+    @property
+    def category_label(self):
+        return _(MACHINE_CATEGORIES.get(self.category, self.category))
+
+    @property
+    def unit_short(self):
+        return {"h": "h", "km": "km"}.get(self.counter_unit, "")
+
+
+class MaintenanceTask(db.Model):
+    """Wiederkehrende Wartung: fällig alle `interval_hours` (Zähler) und/oder `interval_months`."""
+    __tablename__ = "maintenance_tasks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id"), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)
+    interval_hours = db.Column(db.Integer)       # in der Einheit des Zählers (h oder km)
+    interval_months = db.Column(db.Integer)
+    last_done_on = db.Column(db.Date)
+    last_done_counter = db.Column(db.Integer)
+    note = db.Column(db.String(200))
+
+    machine = db.relationship("Machine", back_populates="tasks")
+
+
+MACHINE_EVENT_KINDS = {
+    "zaehler": (N_("Zählerstand"), "bi-speedometer2"),
+    "wartung": (N_("Wartung"), "bi-wrench-adjustable"),
+    "reparatur": (N_("Reparatur"), "bi-tools"),
+    "stoerung": (N_("Störung"), "bi-exclamation-triangle"),
+    "notiz": (N_("Notiz"), "bi-sticky"),
+}
+
+
+class MachineEvent(db.Model):
+    """Logbuch-Eintrag einer Maschine."""
+    __tablename__ = "machine_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id"), nullable=False, index=True)
+    kind = db.Column(db.String(20), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    counter = db.Column(db.Integer)
+    task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"))
+    task_name = db.Column(db.String(100))        # bleibt lesbar, auch wenn das Intervall gelöscht wird
+    text = db.Column(db.Text)
+    cost = db.Column(db.Numeric(10, 2))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # nur Störungen: erledigt?
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    resolved_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    machine = db.relationship("Machine", back_populates="events")
+    task = db.relationship("MaintenanceTask")
+    user = db.relationship("User", foreign_keys=[user_id])
+    resolved_by = db.relationship("User", foreign_keys=[resolved_by_id])
+    photos = db.relationship("Photo", back_populates="event", order_by="Photo.id", cascade="all, delete-orphan")
+
+    @property
+    def kind_label(self):
+        return _(MACHINE_EVENT_KINDS.get(self.kind, (self.kind, ""))[0])
+
+    @property
+    def kind_icon(self):
+        return MACHINE_EVENT_KINDS.get(self.kind, ("", "bi-dot"))[1]
+
+    @property
+    def is_open_fault(self):
+        return self.kind == "stoerung" and self.resolved_at is None
+
+
+class Photo(db.Model):
+    """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert)."""
+    __tablename__ = "photos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id"), nullable=False, index=True)
+    filename = db.Column(db.String(80), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    event = db.relationship("MachineEvent", back_populates="photos")

@@ -238,6 +238,11 @@ a.loc-badge:hover { filter: brightness(.95); }
 .act-ausgelagert { background: rgba(200, 85, 61, .14); color: #c8553d; }
 .act-befuellt, .act-fuellstand { background: rgba(200, 162, 74, .18); color: #a07d2a; }
 [data-bs-theme="dark"] .act-befuellt, [data-bs-theme="dark"] .act-fuellstand { color: var(--accent); }
+.act-verladen { background: rgba(61, 126, 166, .15); color: #3d7ea6; }
+.act-stoerung { background: rgba(200, 85, 61, .14); color: #c8553d; }
+
+/* Fotos im Maschinen-Logbuch */
+.photo-thumb { width: 88px; height: 88px; object-fit: cover; border-radius: .5rem; border: 1px solid var(--line); }
 
 /* --- Lagerkarte ---------------------------------------------------------------------- */
 .map-filters { display: flex; gap: .4rem; flex-wrap: wrap; }
@@ -442,3 +447,9 @@ body:not(.has-tabbar) {
     width: 1.9rem; height: 1.9rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     background: var(--brand-soft); color: var(--brand); font-weight: 800;
 }
+
+/* Obere Navigation: auf mittelbreiten Bildschirmen nur Text, damit alle Punkte in eine Zeile passen */
+@media (max-width: 1399.98px) {
+    .app-navbar .navbar-nav .nav-link > .bi { display: none; }
+}
+.app-navbar .navbar-nav .nav-link { white-space: nowrap; }

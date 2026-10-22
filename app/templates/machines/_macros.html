@@ -1,0 +1,29 @@
+{% macro state_badge(state) -%}
+{%- if state == "overdue" -%}<span class="badge text-bg-danger">{{ _("überfällig") }}</span>
+{%- elif state == "soon" -%}<span class="badge text-bg-warning">{{ _("bald fällig") }}</span>
+{%- elif state == "unknown" -%}<span class="badge text-bg-secondary">{{ _("letzte Wartung fehlt") }}</span>
+{%- else -%}<span class="badge text-bg-success">{{ _("ok") }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro due_text(task, status, machine) -%}
+{%- set parts = [] -%}
+{%- if status.due_counter is not none -%}
+{%- set _unused = parts.append(_("bei {counter} {unit} (noch {left})", counter=status.due_counter, unit=machine.unit_short, left=status.left_counter ~ " " ~ machine.unit_short) if status.left_counter > 0 else _("bei {counter} {unit}", counter=status.due_counter, unit=machine.unit_short)) -%}
+{%- endif -%}
+{%- if status.due_on -%}
+{%- set _unused = parts.append(_("am {date} ({left})", date=status.due_on|date, left=ngettext("noch {n} Tag", "noch {n} Tage", status.left_days)) if status.left_days > 0 else _("am {date}", date=status.due_on|date)) -%}
+{%- endif -%}
+{%- if parts -%}{{ _("Fällig {when}", when=parts|join(" " ~ _("oder") ~ " ")) }}{%- endif -%}
+{%- endmacro %}
+
+{% macro interval_text(task, machine) -%}
+{%- set parts = [] -%}
+{%- if task.interval_hours and machine.counter_unit -%}{%- set _unused = parts.append(task.interval_hours ~ " " ~ machine.unit_short) -%}{%- endif -%}
+{%- if task.interval_months -%}{%- set _unused = parts.append(ngettext("{n} Monat", "{n} Monate", task.interval_months)) -%}{%- endif -%}
+{{ _("alle {interval}", interval=parts|join(" / ")) }}
+{%- endmacro %}
+
+{% macro photo_input() %}
+<input class="form-control" type="file" name="photos" accept="image/*" multiple>
+{% endmacro %}

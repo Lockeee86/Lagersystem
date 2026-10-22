@@ -149,7 +149,14 @@ nicht löschen, Kunden mit Lieferscheinen nur deaktivieren.
 ### Baustein B – Lagerklima (= Phase 2)
 Siehe Phase 2. 3–6 Messpunkte, Warnungen nur in der App, DWD-Außentemperatur als Vergleich möglich.
 
-### Baustein C – Maschinen & Wartung
+### Baustein C – Maschinen & Wartung (umgesetzt in 0.10.0)
+Umsetzung: Maschinen mit QR-Code `M-001` (der normale Scanner erkennt ihn), Arten mit Vorschlägen für
+Wartungsintervalle (nach Zähler und/oder Monaten, „was zuerst kommt“), Ampel überfällig / bald fällig
+(≤ 30 Tage bzw. ≤ 10 % des Intervalls) / letzte Wartung fehlt. Mitarbeiter: Zählerstand, Störung melden,
+Wartung abhaken, Fotos; Kosten nur Admin. Logbuch mit Fotos (Pillow verkleinert auf 1600 px, entfernt
+Metadaten). Fotos liegen in `UPLOAD_DIR` – im Stack ein eigenes Volume `uploads`.
+Offene Störungen und fällige Wartungen stehen auf der Übersicht.
+
 - Maschinen mit Typ, Kennzeichen, Baujahr, Betriebsstunden.
 - **Wartungserinnerung** nach Betriebsstunden oder Datum (Ölwechsel, TÜV, UVV) – Anzeige in der App.
 - **Reparaturbuch**: was, wann, wer, Kosten, Fotos.

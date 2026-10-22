@@ -7,11 +7,12 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import sales, storage
+from . import machines, sales, storage
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
-from .models import MAP_VIEWS, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, User, Variety, Warehouse
+from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, Machine, Movement, Plot, SeedClass, User, Variety,
+                     Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
                     form_str)
@@ -93,6 +94,7 @@ def dashboard():
     recent = Movement.query.order_by(Movement.created_at.desc()).limit(12).all()
     return render_template("dashboard.html", occupancy=occupancy, varieties=varieties,
                            max_kg=max_kg, stats=stats, recent=recent, open_deliveries=sales.open_deliveries(),
+                           due_tasks=machines.due_tasks(), open_faults=machines.open_faults(),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
 
@@ -427,6 +429,10 @@ def box_qr(code):
 def scan():
     raw = request.args.get("code")
     if raw:
+        machine_code = machines.normalize_code(raw)
+        machine = Machine.query.filter_by(code=machine_code).first() if machine_code else None
+        if machine:
+            return redirect(url_for("machines.machine_detail", machine_id=machine.id))
         code = storage.normalize_code(raw)
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))

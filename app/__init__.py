@@ -46,7 +46,10 @@ def create_app(config=None):
         REMEMBER_COOKIE_DURATION=timedelta(days=90),
         PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
         WTF_CSRF_TIME_LIMIT=None,
-        MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+        # Handyfotos sind groß; sie werden beim Speichern verkleinert
+        MAX_CONTENT_LENGTH=40 * 1024 * 1024,
+        UPLOAD_DIR=os.environ.get("UPLOAD_DIR") or os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "data", "uploads"),
     )
     if config:
         app.config.update(config)
@@ -71,11 +74,13 @@ def create_app(config=None):
     from .admin import bp as admin_bp
     from .api import bp as api_bp
     from .sales_views import bp as sales_bp
+    from .machine_views import bp as machines_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(sales_bp)
+    app.register_blueprint(machines_bp)
 
     from . import cli
     cli.register(app)
@@ -86,6 +91,7 @@ def create_app(config=None):
         datetime=utils.fmt_datetime,
         date=utils.fmt_date,
         kg=utils.fmt_kg,
+        money=utils.fmt_money,
         textcolor=utils.text_color_for,
     )
 
@@ -133,6 +139,11 @@ def create_app(config=None):
     @app.errorhandler(403)
     def forbidden(_e):
         return render_template("error.html", code=403, message=gettext("Dafür fehlen dir die Rechte.")), 403
+
+    @app.errorhandler(413)
+    def too_large(_e):
+        return render_template("error.html", code=413,
+                               message=gettext("Die Datei ist zu groß (höchstens 40 MB).")), 413
 
     @app.errorhandler(404)
     def not_found(_e):

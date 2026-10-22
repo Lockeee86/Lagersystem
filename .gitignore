@@ -6,3 +6,4 @@ instance/
 .venv/
 venv/
 .pytest_cache/
+data/

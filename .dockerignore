@@ -8,3 +8,4 @@ instance
 venv
 .pytest_cache
 tests
+data

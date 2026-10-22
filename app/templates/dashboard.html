@@ -26,6 +26,27 @@
 </div>
 {% endif %}
 
+{% if open_faults or due_tasks %}
+{% from "machines/_macros.html" import state_badge, due_text %}
+<div class="card shadow-sm mb-4 border-danger-subtle">
+    <div class="card-header"><i class="bi bi-gear-wide-connected me-1"></i>{{ _("Maschinen") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for e in open_faults %}
+        <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}#logbuch">
+            <span class="badge text-bg-danger">{{ _("Störung") }}</span> <span class="fw-semibold">{{ e.machine.name }}</span>
+            <span class="text-body-secondary">· {{ e.text|truncate(80) if e.text else "" }}</span>
+        </a>
+        {% endfor %}
+        {% for task, status in due_tasks[:8] %}
+        <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}#wartungen">
+            {{ state_badge(status.state) }} <span class="fw-semibold">{{ task.machine.name }}</span>: {{ task.name }}
+            <span class="text-body-secondary">· {{ due_text(task, status, task.machine) }}</span>
+        </a>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 {% if open_deliveries %}
 <div class="card shadow-sm mb-4 border-warning">
     <div class="card-header"><i class="bi bi-truck me-1"></i>{{ _("Offene Lieferscheine") }}</div>

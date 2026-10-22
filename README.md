@@ -29,6 +29,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Verkauf**: Kunden, Lieferscheine mit Dauer-Scanner beim Verladen, abgepackte Ware (Säcke, Big Bags),
   Fuhrwerkswaage (brutto/tara/netto), Anerkennungsnummern je Sorte/Stufe/Erntejahr, Pflanzenpass-Angaben,
   Lieferschein als PDF mit Hofname und Anschrift. Jede Kiste zeigt, an wen sie geliefert wurde
+- **Maschinen**: QR-Code an der Maschine, Betriebsstunden/km, Wartungsintervalle mit Vorlagen je Art
+  (Ölwechsel, TÜV, UVV …) und Ampel, Störungen melden mit Foto, Reparaturbuch mit Kosten
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)
@@ -58,7 +60,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
    (Reihen lassen sich pro Lager mit Zahlen statt Buchstaben beschriften: Verwaltung → Lager)
 
 Beim Start spielt der Container automatisch alle Datenbank-Migrationen ein. Updates gehen
-deshalb einfach per **Pull and redeploy**, die Daten bleiben im Volume `postgres_data` erhalten.
+deshalb einfach per **Pull and redeploy**, die Daten bleiben in den Volumes `postgres_data` (Datenbank) und `uploads` (Fotos) erhalten.
 
 ### Zugriff von unterwegs / Kamera-Scan
 

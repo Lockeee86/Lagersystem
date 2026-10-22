@@ -173,6 +173,13 @@ def fmt_kg(value):
     return f"{value:,} kg".replace(",", thousands)
 
 
+def fmt_money(value):
+    """Decimal('1234.5') → "1.234,50 €" """
+    if value is None:
+        return "–"
+    return f"{value:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def text_color_for(hex_color):
     """Schwarz oder Weiß – je nachdem, was auf der Hintergrundfarbe besser lesbar ist."""
     try:

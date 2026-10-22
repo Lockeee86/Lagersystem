@@ -7,8 +7,9 @@ from app.models import BoxType, Plot, User, Variety, Warehouse
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     app = create_app({
+        "UPLOAD_DIR": str(tmp_path / "uploads"),
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "WTF_CSRF_ENABLED": False,

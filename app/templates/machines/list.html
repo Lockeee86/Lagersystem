@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "machines/_macros.html" import state_badge, due_text %}
+{% block title %}{{ _("Maschinen") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Maschinen") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Maschine", "{n} Maschinen", count) }}
+            · <a href="{{ url_for('machines.machine_list', alle='0' if show_all else '1') }}">{{ _("nur aktive") if show_all else _("auch ausgemusterte zeigen") }}</a></p>
+    </div>
+    {% if current_user.is_admin %}
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newMachine"><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Maschine") }}</button>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse {% if not count and not show_all %}show{% endif %}" id="newMachine">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('machines.machine_create') }}" class="row g-2 align-items-end" id="machineForm">
+                {{ csrf() }}
+                <div class="col-md-4">
+                    <label class="form-label" for="m_name">{{ _("Name") }}</label>
+                    <input class="form-control" id="m_name" name="name" required maxlength="100" placeholder="{{ _('z. B. Fendt 724') }}">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="m_category">{{ _("Art") }}</label>
+                    <select class="form-select" id="m_category" name="category" required>
+                        {% for key, label in categories.items() %}<option value="{{ key }}" data-unit="{{ default_units.get(key, '') }}">{{ _(label) }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="m_unit">{{ _("Zähler") }}</label>
+                    <select class="form-select" id="m_unit" name="counter_unit">
+                        <option value="">{{ _("keiner") }}</option>
+                        {% for key, label in units.items() %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="m_counter">{{ _("Aktueller Stand") }}</label>
+                    <input class="form-control" type="number" inputmode="numeric" id="m_counter" name="counter" min="0">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="m_plate">{{ _("Kennzeichen") }}</label>
+                    <input class="form-control" id="m_plate" name="plate" maxlength="30">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="m_manufacturer">{{ _("Hersteller") }}</label>
+                    <input class="form-control" id="m_manufacturer" name="manufacturer" maxlength="100">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="m_year">{{ _("Baujahr") }}</label>
+                    <input class="form-control" type="number" id="m_year" name="year" min="1900" max="2100">
+                </div>
+                <div class="col-12 col-md-3">
+                    <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="m_templates" name="templates" value="1" checked>
+                        <label class="form-check-label" for="m_templates">{{ _("Übliche Wartungen für diese Art vorschlagen (z. B. Ölwechsel, TÜV, UVV) – lassen sich danach ändern") }}</label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if faults or due %}
+<div class="row g-3 mb-4">
+    {% if faults %}
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-danger h-100">
+            <div class="card-header text-danger-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Offene Störungen") }}</div>
+            <ul class="list-group list-group-flush">
+                {% for e in faults %}
+                <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}#logbuch">
+                    <span class="fw-semibold">{{ e.machine.name }}</span> · {{ e.date|date }}
+                    <div class="text-body-secondary text-truncate">{{ e.text or "" }}</div>
+                </a>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {% if due %}
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-warning h-100">
+            <div class="card-header"><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Fällige Wartungen") }}</div>
+            <ul class="list-group list-group-flush">
+                {% for task, status in due %}
+                <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}#wartungen">
+                    {{ state_badge(status.state) }} <span class="fw-semibold">{{ task.machine.name }}</span>: {{ task.name }}
+                    <div class="text-body-secondary">{{ due_text(task, status, task.machine) }}</div>
+                </a>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% for key, label, rows in groups %}
+<h2 class="h6 text-body-secondary text-uppercase mt-4 mb-2">{{ label }}</h2>
+<div class="card shadow-sm">
+    <div class="list-group list-group-flush">
+        {% for m, state, faults_count in rows %}
+        <a class="list-group-item list-group-item-action d-flex gap-3 align-items-center {% if not m.active %}text-body-tertiary{% endif %}" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}">
+            <div class="flex-grow-1 min-w-0">
+                <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                    <span class="fw-semibold">{{ m.name }}</span>
+                    <span class="small text-body-secondary">{{ m.code }}{% if m.plate %} · {{ m.plate }}{% endif %}</span>
+                    {% if not m.active %}<span class="badge text-bg-secondary">{{ _("ausgemustert") }}</span>{% endif %}
+                </div>
+                <div class="small text-body-secondary">
+                    {% if m.counter_unit %}{{ m.counter if m.counter is not none else "–" }} {{ m.unit_short }}{% endif %}
+                    {% if m.manufacturer or m.model %}{% if m.counter_unit %} · {% endif %}{{ m.manufacturer or "" }} {{ m.model or "" }}{% endif %}
+                </div>
+            </div>
+            {% if faults_count %}<span class="badge text-bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ faults_count }}</span>{% endif %}
+            {% if m.tasks %}{{ state_badge(state) }}{% endif %}
+            <i class="bi bi-chevron-right text-body-tertiary"></i>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<p class="text-body-secondary">{{ _("Noch keine Maschinen.") }}</p>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    // Zähler passend zur Art vorbelegen (Schlepper: Stunden, Fahrzeug: km …)
+    var cat = document.getElementById("m_category");
+    var unit = document.getElementById("m_unit");
+    if (!cat) return;
+    function sync() { unit.value = cat.options[cat.selectedIndex].dataset.unit || ""; }
+    cat.addEventListener("change", sync);
+    sync();
+})();
+</script>
+{% endblock %}

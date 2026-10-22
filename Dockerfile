@@ -10,7 +10,8 @@ RUN pip install --no-cache-dir --retries 5 --timeout 60 -r requirements.txt
 
 COPY . .
 
-RUN useradd --system --uid 1000 lager && chown -R lager /app
+# /app/data: Volume für Fotos (gehört dem App-Benutzer, damit das leere Volume beschreibbar ist)
+RUN useradd --system --uid 1000 lager && mkdir -p /app/data/uploads && chown -R lager /app
 USER lager
 
 EXPOSE 5000

@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, pagination %}
+{% from "machines/_macros.html" import state_badge, due_text, interval_text, photo_input %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}{{ machine.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1 class="d-flex flex-wrap align-items-center gap-2">{{ machine.name }}
+            {% if not machine.active %}<span class="badge text-bg-secondary fs-6">{{ _("ausgemustert") }}</span>{% endif %}</h1>
+        <p class="text-body-secondary mb-0">{{ machine.code }} · {{ machine.category_label }}{% if machine.plate %} · {{ machine.plate }}{% endif %}</p>
+    </div>
+    {% if current_user.can_edit %}
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#newEvent" data-kind="stoerung"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Störung melden") }}</button>
+        <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#newEvent" data-kind="reparatur"><i class="bi bi-journal-plus me-1"></i>{{ _("Eintrag") }}</button>
+    </div>
+    {% endif %}
+</div>
+
+{% if current_user.can_edit %}
+<div class="collapse" id="newEvent">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('machines.machine_event', machine_id=machine.id) }}" enctype="multipart/form-data" class="row g-2">
+                {{ csrf() }}
+                <div class="col-12">
+                    <div class="btn-group w-100" role="group">
+                        {% for key in ("stoerung", "reparatur", "notiz") %}
+                        <input type="radio" class="btn-check" name="kind" id="kind_{{ key }}" value="{{ key }}" {% if loop.first %}checked{% endif %}>
+                        <label class="btn btn-outline-secondary" for="kind_{{ key }}"><i class="bi {{ kinds[key][1] }} me-1"></i>{{ _(kinds[key][0]) }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="e_text">{{ _("Was ist los / was wurde gemacht?") }}</label>
+                    <textarea class="form-control" id="e_text" name="text" rows="3" maxlength="4000"></textarea>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="e_date">{{ _("Datum") }}</label>
+                    <input class="form-control" type="date" id="e_date" name="date">
+                </div>
+                {% if machine.counter_unit %}
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="e_counter">{{ _("Stand ({unit})", unit=machine.unit_short) }}</label>
+                    <input class="form-control" type="number" inputmode="numeric" id="e_counter" name="counter" min="0" placeholder="{{ machine.counter if machine.counter is not none else '' }}">
+                </div>
+                {% endif %}
+                {% if current_user.is_admin %}
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="e_cost">{{ _("Kosten (€)") }}</label>
+                    <input class="form-control" id="e_cost" name="cost" inputmode="decimal" maxlength="20">
+                </div>
+                {% endif %}
+                <div class="col-12 col-md">
+                    <label class="form-label">{{ _("Fotos") }}</label>
+                    {{ photo_input() }}
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% for e in faults %}
+<div class="alert alert-danger d-flex gap-2 align-items-start">
+    <i class="bi bi-exclamation-triangle"></i>
+    <div class="flex-grow-1 small">
+        <strong>{{ _("Störung vom {date}", date=e.date|date) }}</strong>{% if e.user %} ({{ e.user.name }}){% endif %}: {{ e.text or "" }}
+    </div>
+    {% if current_user.can_edit %}
+    <form method="post" action="{{ url_for('machines.fault_resolved', machine_id=machine.id, event_id=e.id) }}">
+        {{ csrf() }}
+        <button class="btn btn-sm btn-outline-success text-nowrap"><i class="bi bi-check2 me-1"></i>{{ _("Behoben") }}</button>
+    </form>
+    {% endif %}
+</div>
+{% endfor %}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        {% if machine.counter_unit %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+                <div>
+                    <div class="small text-body-secondary">{{ _(units[machine.counter_unit]) }}</div>
+                    <div class="fs-3 fw-semibold">{{ machine.counter if machine.counter is not none else "–" }} {{ machine.unit_short }}</div>
+                    {% if machine.counter_at %}<div class="small text-body-tertiary">{{ _("Stand vom {date}", date=machine.counter_at|date) }}</div>{% endif %}
+                </div>
+                {% if current_user.can_edit %}
+                <form method="post" action="{{ url_for('machines.machine_counter', machine_id=machine.id) }}" class="ms-auto d-flex gap-2">
+                    {{ csrf() }}
+                    <input class="form-control" type="number" inputmode="numeric" name="counter" min="{{ machine.counter or 0 }}" required
+                           placeholder="{{ _('Neuer Stand') }}" style="max-width: 10rem">
+                    <button class="btn btn-primary text-nowrap"><i class="bi bi-check-lg me-1"></i>{{ _("Eintragen") }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm mb-4" id="wartungen">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Wartungen") }}</span>
+                {% if current_user.is_admin %}
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#taskModal" data-edit='{}'><i class="bi bi-plus-lg me-1"></i>{{ _("Wartung hinzufügen") }}</button>
+                {% endif %}
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for task, status in tasks %}
+                <li class="list-group-item">
+                    <div class="d-flex gap-2 align-items-start">
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                                <span class="fw-semibold">{{ task.name }}</span>
+                                {{ state_badge(status.state) }}
+                                <span class="small text-body-secondary">{{ interval_text(task, machine) }}</span>
+                            </div>
+                            <div class="small text-body-secondary">
+                                {% if status.state != "unknown" %}{{ due_text(task, status, machine) }}{% endif %}
+                                {% if task.last_done_on or task.last_done_counter is not none %}
+                                <br>{{ _("Zuletzt:") }} {{ task.last_done_on|date if task.last_done_on else "" }}{% if task.last_done_counter is not none and machine.counter_unit %} · {{ task.last_done_counter }} {{ machine.unit_short }}{% endif %}
+                                {% else %}{{ _("Noch nicht erfasst, wann sie zuletzt gemacht wurde.") }}{% endif %}
+                                {% if task.note %}<br><i class="bi bi-sticky me-1"></i>{{ task.note }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex gap-1">
+                            {% if current_user.can_edit %}
+                            <button class="btn btn-sm btn-success text-nowrap" data-bs-toggle="collapse" data-bs-target="#done{{ task.id }}"><i class="bi bi-check2 me-1"></i>{{ _("Erledigt") }}</button>
+                            {% endif %}
+                            {% if current_user.is_admin %}
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#taskModal" title="{{ _('Bearbeiten') }}"
+                                    data-edit='{{ {"id": task.id, "name": task.name, "interval_hours": task.interval_hours or "", "interval_months": task.interval_months or "", "last_done_on": task.last_done_on.isoformat() if task.last_done_on else "", "last_done_counter": task.last_done_counter if task.last_done_counter is not none else "", "note": task.note or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if current_user.can_edit %}
+                    <form class="collapse mt-2" id="done{{ task.id }}" method="post" enctype="multipart/form-data"
+                          action="{{ url_for('machines.task_done', machine_id=machine.id, task_id=task.id) }}">
+                        {{ csrf() }}
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small" for="d_date{{ task.id }}">{{ _("Datum") }}</label>
+                                <input class="form-control form-control-sm" type="date" id="d_date{{ task.id }}" name="date">
+                            </div>
+                            {% if machine.counter_unit %}
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small" for="d_counter{{ task.id }}">{{ _("Stand ({unit})", unit=machine.unit_short) }}</label>
+                                <input class="form-control form-control-sm" type="number" inputmode="numeric" id="d_counter{{ task.id }}" name="counter" min="0" value="{{ machine.counter if machine.counter is not none else '' }}">
+                            </div>
+                            {% endif %}
+                            {% if current_user.is_admin %}
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small" for="d_cost{{ task.id }}">{{ _("Kosten (€)") }}</label>
+                                <input class="form-control form-control-sm" id="d_cost{{ task.id }}" name="cost" inputmode="decimal" maxlength="20">
+                            </div>
+                            {% endif %}
+                            <div class="col-12">
+                                <input class="form-control form-control-sm" name="text" maxlength="2000" placeholder="{{ _('Notiz, z. B. verwendetes Öl') }}">
+                            </div>
+                            <div class="col-12 col-md">
+                                <input class="form-control form-control-sm" type="file" name="photos" accept="image/*" multiple>
+                            </div>
+                            <div class="col-12 col-md-auto">
+                                <button class="btn btn-sm btn-success w-100">{{ _("Als erledigt speichern") }}</button>
+                            </div>
+                        </div>
+                    </form>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-body-secondary small">{{ _("Keine Wartungen hinterlegt.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card shadow-sm mb-4" id="logbuch">
+            <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <span><i class="bi bi-journal-text me-1"></i>{{ _("Logbuch") }}</span>
+                <div class="d-flex flex-wrap gap-1">
+                    <a class="btn btn-sm {{ 'btn-secondary' if not kind else 'btn-outline-secondary' }}" href="{{ url_for('machines.machine_detail', machine_id=machine.id) }}#logbuch">{{ _("Alle") }}</a>
+                    {% for key, (label, icon) in kinds.items() %}
+                    <a class="btn btn-sm {{ 'btn-secondary' if kind == key else 'btn-outline-secondary' }}" href="{{ url_for('machines.machine_detail', machine_id=machine.id, art=key) }}#logbuch" title="{{ _(label) }}"><i class="bi {{ icon }}"></i></a>
+                    {% endfor %}
+                </div>
+            </div>
+            <ul class="timeline list-unstyled mb-0 p-3">
+                {% for e in page.items %}
+                <li class="timeline-item">
+                    <span class="timeline-icon {% if e.is_open_fault %}act-stoerung{% endif %}"><i class="bi {{ e.kind_icon }}"></i></span>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                            <span class="fw-semibold">{{ e.kind_label }}{% if e.task_name %}: {{ e.task_name }}{% endif %}</span>
+                            {% if e.kind == "stoerung" %}
+                            {% if e.resolved_at %}<span class="badge text-bg-success">{{ _("behoben") }}</span>{% else %}<span class="badge text-bg-danger">{{ _("offen") }}</span>{% endif %}
+                            {% endif %}
+                            {% if e.counter is not none %}<span class="small text-body-secondary">{{ e.counter }} {{ machine.unit_short }}</span>{% endif %}
+                            {% if e.cost is not none %}<span class="small text-body-secondary">{{ e.cost|money }}</span>{% endif %}
+                        </div>
+                        {% if e.text %}<div class="small" style="white-space: pre-line">{{ e.text }}</div>{% endif %}
+                        {% if e.photos %}
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            {% for p in e.photos %}
+                            <a href="{{ url_for('machines.photo', photo_id=p.id) }}" target="_blank"><img class="photo-thumb" src="{{ url_for('machines.photo', photo_id=p.id) }}" alt="" loading="lazy"></a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="small text-body-tertiary">
+                            {{ e.date|date }}{% if e.user %} · {{ e.user.name }}{% endif %}
+                            {% if e.resolved_at %} · {{ _("behoben am {date}", date=e.resolved_at|date) }}{% if e.resolved_by %} ({{ e.resolved_by.name }}){% endif %}{% endif %}
+                            {% if current_user.is_admin %}
+                            <form method="post" action="{{ url_for('machines.event_delete', machine_id=machine.id, event_id=e.id) }}" class="d-inline">
+                                {{ csrf() }}
+                                <button class="btn btn-link btn-sm p-0 text-danger align-baseline ms-1" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </li>
+                {% else %}
+                <li class="text-body-secondary small">{{ _("Noch keine Einträge.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {{ pagination(page, 'machines.machine_detail', page_args) }}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ _("Daten") }}</div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    {% for label, value in [(_("Hersteller"), machine.manufacturer), (_("Modell"), machine.model), (_("Baujahr"), machine.year), (_("Kennzeichen"), machine.plate), (_("Seriennummer"), machine.serial_no)] %}
+                    {% if value %}<dt class="col-5 fw-normal text-body-secondary">{{ label }}</dt><dd class="col-7">{{ value }}</dd>{% endif %}
+                    {% endfor %}
+                    {% if total_cost %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Kosten gesamt") }}</dt><dd class="col-7">{{ total_cost|money }}</dd>{% endif %}
+                </dl>
+                {% if machine.note %}<div class="mt-2" style="white-space: pre-line">{{ machine.note }}</div>{% endif %}
+                {% if current_user.is_admin %}
+                <button class="btn btn-sm btn-outline-secondary mt-3" data-bs-toggle="collapse" data-bs-target="#editMachine"><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
+                <form class="collapse mt-3" id="editMachine" method="post" action="{{ url_for('machines.machine_edit', machine_id=machine.id) }}">
+                    {{ csrf() }}
+                    <label class="form-label" for="x_name">{{ _("Name") }}</label>
+                    <input class="form-control form-control-sm mb-2" id="x_name" name="name" required maxlength="100" value="{{ machine.name }}">
+                    <label class="form-label" for="x_category">{{ _("Art") }}</label>
+                    <select class="form-select form-select-sm mb-2" id="x_category" name="category">
+                        {% for key, label in categories.items() %}<option value="{{ key }}" {% if key == machine.category %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+                    </select>
+                    <label class="form-label" for="x_unit">{{ _("Zähler") }}</label>
+                    <select class="form-select form-select-sm mb-2" id="x_unit" name="counter_unit">
+                        <option value="">{{ _("keiner") }}</option>
+                        {% for key, label in units.items() %}<option value="{{ key }}" {% if key == machine.counter_unit %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+                    </select>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label" for="x_manufacturer">{{ _("Hersteller") }}</label><input class="form-control form-control-sm" id="x_manufacturer" name="manufacturer" maxlength="100" value="{{ machine.manufacturer or '' }}"></div>
+                        <div class="col-6"><label class="form-label" for="x_model">{{ _("Modell") }}</label><input class="form-control form-control-sm" id="x_model" name="model" maxlength="100" value="{{ machine.model or '' }}"></div>
+                        <div class="col-6"><label class="form-label" for="x_year">{{ _("Baujahr") }}</label><input class="form-control form-control-sm" type="number" id="x_year" name="year" min="1900" max="2100" value="{{ machine.year or '' }}"></div>
+                        <div class="col-6"><label class="form-label" for="x_plate">{{ _("Kennzeichen") }}</label><input class="form-control form-control-sm" id="x_plate" name="plate" maxlength="30" value="{{ machine.plate or '' }}"></div>
+                        <div class="col-12"><label class="form-label" for="x_serial">{{ _("Seriennummer") }}</label><input class="form-control form-control-sm" id="x_serial" name="serial_no" maxlength="100" value="{{ machine.serial_no or '' }}"></div>
+                    </div>
+                    <label class="form-label" for="x_note">{{ _("Notiz") }}</label>
+                    <textarea class="form-control form-control-sm mb-2" id="x_note" name="note" rows="2">{{ machine.note or '' }}</textarea>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="x_inactive" name="inactive" value="1" {% if not machine.active %}checked{% endif %}>
+                        <label class="form-check-label" for="x_inactive">{{ _("Ausgemustert (verkauft/verschrottet)") }}</label>
+                    </div>
+                    <button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if current_user.is_admin %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-qr-code me-1"></i>{{ _("QR-Etikett") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Etikett an die Maschine kleben. Beim Scannen öffnet sich diese Seite.") }}</p>
+                <form method="post" action="{{ url_for('machines.machine_label', machine_id=machine.id) }}" target="_blank" class="row g-2 align-items-end">
+                    {{ csrf() }}
+                    <div class="col-12">
+                        <select class="form-select form-select-sm" name="format">
+                            {% for key, (cols, rows, w, h, desc) in label_formats.items() %}<option value="{{ key }}" {% if key == '2x4' %}selected{% endif %}>{{ _(desc) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small" for="l_count">{{ _("Anzahl") }}</label>
+                        <input class="form-control form-control-sm" type="number" id="l_count" name="count" min="1" max="24" value="1">
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-printer me-1"></i>{{ _("PDF") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if current_user.is_admin %}
+{% call edit_modal("taskModal", _("Wartung hinzufügen"), _("Wartung bearbeiten"), url_for('machines.task_save', machine_id=machine.id)) %}
+<div class="mb-3">
+    <label class="form-label" for="t_name">{{ _("Name") }}</label>
+    <input class="form-control" id="t_name" name="name" required maxlength="100" placeholder="{{ _('z. B. Motoröl und Filter') }}">
+</div>
+<div class="row g-2 mb-1">
+    {% if machine.counter_unit %}
+    <div class="col-6">
+        <label class="form-label" for="t_hours">{{ _("Alle … {unit}", unit=machine.unit_short) }}</label>
+        <input class="form-control" type="number" id="t_hours" name="interval_hours" min="1">
+    </div>
+    {% endif %}
+    <div class="col-6">
+        <label class="form-label" for="t_months">{{ _("Alle … Monate") }}</label>
+        <input class="form-control" type="number" id="t_months" name="interval_months" min="1" max="240">
+    </div>
+</div>
+<div class="form-text mb-3">{{ _("Was zuerst erreicht wird, macht die Wartung fällig.") }}</div>
+<div class="row g-2 mb-3">
+    <div class="col-6">
+        <label class="form-label" for="t_last">{{ _("Zuletzt erledigt am") }}</label>
+        <input class="form-control" type="date" id="t_last" name="last_done_on">
+    </div>
+    {% if machine.counter_unit %}
+    <div class="col-6">
+        <label class="form-label" for="t_last_counter">{{ _("bei Stand ({unit})", unit=machine.unit_short) }}</label>
+        <input class="form-control" type="number" id="t_last_counter" name="last_done_counter" min="0">
+    </div>
+    {% endif %}
+</div>
+<div class="mb-3">
+    <label class="form-label" for="t_note">{{ _("Notiz") }}</label>
+    <input class="form-control" id="t_note" name="note" maxlength="200" placeholder="{{ _('z. B. 15W-40, 12 Liter') }}">
+</div>
+<div class="edit-only d-none">
+    <button type="submit" class="btn btn-sm btn-link text-danger p-0" formaction="" id="taskDelete" data-confirm="{{ _('Diese Wartung löschen?') }}"><i class="bi bi-trash me-1"></i>{{ _("Wartung löschen") }}</button>
+</div>
+{% endcall %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    // „Störung melden“ / „Eintrag“ wählen die passende Art vor
+    document.querySelectorAll("[data-kind]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var radio = document.getElementById("kind_" + btn.dataset.kind);
+            if (radio) radio.checked = true;
+        });
+    });
+    // Datumsfelder mit heute vorbelegen
+    var d = new Date(), today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    document.querySelectorAll("input[type=date][name=date]").forEach(function (el) { if (!el.value) el.value = today; });
+    // Löschen im Bearbeiten-Dialog: Ziel-URL aus der ID
+    var del = document.getElementById("taskDelete");
+    if (del) {
+        var base = "{{ url_for('machines.task_delete', machine_id=machine.id, task_id=0) }}";
+        del.addEventListener("click", function () {
+            del.formAction = base.replace("/0/", "/" + del.form.elements.id.value + "/");
+        });
+    }
+})();
+</script>
+{% endblock %}
