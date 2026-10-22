@@ -31,7 +31,7 @@
             <tbody>
             {% for r in results %}
             <tr class="{% if r.errors %}table-danger{% endif %}">
-                <td class="text-body-secondary">{{ r.line }}</td>
+                <td class="{% if not r.errors %}text-body-secondary{% endif %}">{{ r.line }}</td>
                 <td class="fw-semibold text-nowrap">{{ r.code or '–' }}</td>
                 <td>
                     {% for e in r.errors %}<div class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ e }}</div>{% endfor %}

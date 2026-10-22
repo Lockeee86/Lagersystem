@@ -28,6 +28,11 @@
                                 <input class="form-check-input" type="checkbox" name="create_missing" value="1" id="createMissing">
                                 <label class="form-check-label" for="createMissing">{{ _("Unbekannte Kistennummern neu anlegen") }}</label>
                             </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" name="clear_first" value="1" id="clearFirst">
+                                <label class="form-check-label" for="clearFirst">{{ _("Vorher alle Kisten auslagern (Lager neu befüllen)") }}</label>
+                                <div class="form-text">{{ _("Für das erste Befüllen: alte Testkisten blockieren dann keine Stapel. Inhalt und Verlauf der Kisten bleiben erhalten.") }}</div>
+                            </div>
                             <button class="btn btn-primary"><i class="bi bi-search me-1"></i>{{ _("Prüfen") }}</button>
                         </form>
                     </li>

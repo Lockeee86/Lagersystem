@@ -520,4 +520,12 @@ MESSAGES = {
     "Verwendung „{value}“ verstehe ich nicht (Saat oder SP).": "Nie rozumiem przeznaczenia „{value}“ (Saat lub SP).",
     "Je Sorte und Verwendung": "Według odmian i przeznaczenia",
     "Je Sorte, Verwendung und Schlag": "Według odmian, przeznaczenia i pól",
+
+    # --- Import: Lager neu befüllen ---------------------------------------------------
+    "{n} Kisten vorher ausgelagert": ("Wcześniej wydano {n} skrzynię", "Wcześniej wydano {n} skrzynie", "Wcześniej wydano {n} skrzyń"),
+    "Stapel {stack} ist voll – dort stehen schon: {codes}. Tipp: „Vorher alle Kisten auslagern“ ankreuzen.":
+        "Stos {stack} jest pełny – stoją tam już: {codes}. Wskazówka: zaznacz „Najpierw wydaj wszystkie skrzynie“.",
+    "Vorher alle Kisten auslagern (Lager neu befüllen)": "Najpierw wydaj wszystkie skrzynie (napełnij magazyn od nowa)",
+    "Für das erste Befüllen: alte Testkisten blockieren dann keine Stapel. Inhalt und Verlauf der Kisten bleiben erhalten.":
+        "Przy pierwszym napełnianiu: stare skrzynie testowe nie blokują stosów. Zawartość i historia skrzyń zostają zachowane.",
 }

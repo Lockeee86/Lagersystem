@@ -276,3 +276,24 @@ def test_seed_class_admin_and_numeric_rows(as_admin, db, seed):
 def test_season_date_guess():
     assert transfer._season_date(23, 9, today=date(2026, 10, 22)) == date(2026, 9, 23)
     assert transfer._season_date(23, 9, today=date(2027, 3, 1)) == date(2026, 9, 23)
+
+
+def test_import_blocked_by_old_box_and_clear_first(as_admin, db, seed):
+    """Nachgestellt: eine alte Testkiste steht auf A-04 und blockiert den Stapel."""
+    old = storage.create_boxes(30, seed["bt"].id, seed["admin"])[-1]   # K-0030
+    storage.update_contents(old, seed["admin"], seed["belana"].id, None, None, None, 100, None)
+    storage.store_box(old, seed["wh"].id, 1, 4, seed["admin"])
+    db.session.commit()
+    rows = [(f"K-{n:04d}", "Belana", None, None, "voll", "A", (n - 1) // 5 + 1, None, None) for n in range(1, 21)]
+
+    html = upload(as_admin, xlsx(rows)).get_data(as_text=True)
+    assert "Stapel A-04 ist voll – dort stehen schon: K-0030" in html and "Import übernehmen" not in html
+
+    html = as_admin.post("/admin/daten/import", data={"file": (io.BytesIO(xlsx(rows)), "z.xlsx"), "clear_first": "1"},
+                         content_type="multipart/form-data").get_data(as_text=True)
+    assert "1 Kiste vorher ausgelagert" in html and "Import übernehmen" in html
+    assert old.is_stored   # Vorschau ändert nichts
+    as_admin.post("/admin/daten/import/uebernehmen")
+    assert not old.is_stored and old.variety_id == seed["belana"].id   # Inhalt bleibt
+    assert Box.query.filter_by(code="K-0020").one().location == "A-04-5"
+    assert Movement.query.filter_by(box_id=old.id, action="ausgelagert").count() == 1

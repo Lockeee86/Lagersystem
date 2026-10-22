@@ -191,6 +191,18 @@ def remove_box(box, user, empty=False, note=None):
     return shifted
 
 
+def clear_all(user, note=None):
+    """Nimmt alle Kisten aus allen Lagern (z. B. vor dem Neubefüllen per Import).
+    Inhalt und Verlauf bleiben erhalten. Liefert die Anzahl der ausgelagerten Kisten."""
+    boxes = Box.query.filter(Box.warehouse_id.isnot(None)).all()
+    for box in boxes:
+        old = location_text(box.warehouse, box.row, box.slot, box.level)
+        box.warehouse_id = box.row = box.slot = box.level = None
+        _log(box, "ausgelagert", user, from_location=old, fill_before=box.fill, fill_after=box.fill, note=note)
+    db.session.flush()
+    return len(boxes)
+
+
 def set_fill(box, fill, user, note=None):
     if fill not in (0, 25, 50, 75, 100):
         raise StorageError(_("Ungültiger Füllstand."))

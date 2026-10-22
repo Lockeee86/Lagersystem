@@ -24,7 +24,7 @@ from sqlalchemy import extract
 
 from . import storage
 from .extensions import db
-from .i18n import CATALOGS, N_, gettext as _
+from .i18n import CATALOGS, N_, gettext as _, ngettext
 from .models import FILL_LEVELS, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, Variety, Warehouse
 from .storage import StorageError
 from .utils import to_local
@@ -338,8 +338,9 @@ def _is_yes(value):
 
 # --- Import -----------------------------------------------------------------
 
-def run_import(rows, user, create_missing=False):
+def run_import(rows, user, create_missing=False, clear_first=False):
     """Führt alle Zeilen aus und liefert je Zeile {line, code, actions, errors}.
+    Mit `clear_first` werden vorher alle Kisten ausgelagert (Lager neu befüllen).
     Speichert nichts – Commit/Rollback macht der Aufrufer."""
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     lookup = {
@@ -350,6 +351,10 @@ def run_import(rows, user, create_missing=False):
     }
     default_type = BoxType.query.order_by(BoxType.id).first()
     results = []
+    if clear_first:
+        cleared = storage.clear_all(user)
+        results.append({"line": "–", "code": "", "errors": [],
+                        "actions": [ngettext("{n} Kiste vorher ausgelagert", "{n} Kisten vorher ausgelagert", cleared)]})
     for line, raw in rows:
         result = {"line": line, "code": str(raw.get("code") or ""), "actions": [], "errors": []}
         results.append(result)
@@ -391,6 +396,16 @@ def _lookup_or_create(lookup, kind, value, label, create, result):
     lookup[kind][name.casefold()] = found
     result["actions"].append(_("{field} „{value}“ neu angelegt", field=_(label), value=name))
     return found
+
+
+def _check_room(warehouse, row, slot, box):
+    """Verständliche Meldung, wenn der Zielstapel schon voll ist – mit den Kisten, die dort stehen."""
+    if not (1 <= slot <= warehouse.slots) or not (1 <= row <= warehouse.rows):
+        return   # die Lagerlogik meldet ungültige Plätze selbst
+    occupants = [b for b in storage.stack(warehouse.id, row, slot) if b.id != box.id]
+    if len(occupants) >= warehouse.max_levels:
+        raise RowError(_("Stapel {stack} ist voll – dort stehen schon: {codes}. Tipp: „Vorher alle Kisten auslagern“ ankreuzen.",
+                         stack=warehouse.location_label(row, slot), codes=", ".join(b.code for b in occupants)))
 
 
 def _apply_row(raw, user, result, lookup, warehouses, default_type, create_missing):
@@ -471,9 +486,11 @@ def _apply_row(raw, user, result, lookup, warehouses, default_type, create_missi
         if box.is_stored and (box.warehouse_id, box.row, box.slot) == (target_wh.id, row, slot):
             result["actions"].append(_("steht schon auf {location}", location=box.location))
         elif box.is_stored:
+            _check_room(target_wh, row, slot, box)
             storage.move_box(box, target_wh.id, row, slot, user)
             result["actions"].append(_("umgelagert nach {location}", location=box.location))
         else:
+            _check_room(target_wh, row, slot, box)
             storage.store_box(box, target_wh.id, row, slot, user)
             result["actions"].append(_("eingelagert auf {location}", location=box.location))
 
