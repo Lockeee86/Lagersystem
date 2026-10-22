@@ -6,18 +6,14 @@ Docker-Stack (z. B. in Portainer) und ist fürs Handy optimiert.
 
 Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 
-## Funktionen
-
-- **Partien wie an der Tafel**: Reihe → Blöcke mit Menge (Kisten, Komma für angebrochene: 41,75),
-  Sorte, Saat/Speise, Saatgut-Stufe (PB, SE, E, BE, Z …), Kaliber, Datum und Schlag. Die Ansicht
-  **Tafel** sieht aus wie die Kreidetafel im Lager; Entnehmen, Zugang, Bestand korrigieren, Umsetzen
-  (auch nur einen Teil) direkt auf dem Handy – ohne QR-Codes
+## Funktionen (Phase 1)
 
 - **Lagerkarte** mit drei umschaltbaren Ansichten (die Wahl wird je Benutzer gemerkt):
   **Karte** (Draufsicht mit Stapelhöhe und Sortenfarbe), **3D** (isometrisch, drehbar, zoombar) und
   **Liste** (Reihen mit Zahlen und Sortenkürzeln, auch ohne Farben lesbar). Filter nach Sorte oder
   freien Plätzen, Antippen öffnet die Stapelansicht
-- **Kisten** mit fester Nummer (`K-0001` …) und QR-Code; Sorte, Erntedatum, Schlag (Auswahlliste), Sortierung,
+- **Kisten** mit fester Nummer (`K-0001` …) und QR-Code; Sorte, Verwendung (Saat/Speise), Saatgut-Stufe
+  (PB, SE, E, BE, Z …), Erntedatum, Schlag (Auswahlliste), Sortierung,
   Füllstand (voll / ¾ / ½ / ¼ / leer), Notiz
 - **Einlagern, Umlagern, Auslagern**. Kisten kommen immer oben auf den Stapel (max. Höhe einstellbar).
   Wird eine Kiste aus der Mitte genommen, zeigt das System „blockiert durch …“, und die
@@ -56,6 +52,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 4. Die **Ersteinrichtung** startet automatisch: erstes Admin-Konto und Lagermaße angeben
    (Vorgabe: 10 Reihen × 15 Plätze × 5 Ebenen) und das Gewicht einer vollen Kiste.
 5. Danach: **Sorten und Schläge anlegen → Kisten anlegen → Etiketten drucken → loslegen**
+   (Reihen lassen sich pro Lager mit Zahlen statt Buchstaben beschriften: Verwaltung → Lager)
 
 Beim Start spielt der Container automatisch alle Datenbank-Migrationen ein. Updates gehen
 deshalb einfach per **Pull and redeploy**, die Daten bleiben im Volume `postgres_data` erhalten.

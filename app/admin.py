@@ -14,7 +14,7 @@ from . import transfer
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
-from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Lot, Movement, Plot, SeedClass, User, Variety,
+from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, User, Variety,
                      Warehouse)
 from .utils import admin_required, flash_error, form_int, form_str
 
@@ -58,8 +58,7 @@ def warehouses():
             flash_error(_("Bitte Name, Reihen (1–100), Stellplätze (1–100) und Ebenen (1–20) angeben."))
         elif _name_taken(Warehouse, name, wh.id):
             flash_error(_("Ein Lager „{name}“ gibt es schon.", name=name))
-        elif wh.id and (wh.boxes.filter(or_(Box.row > rows, Box.slot > slots, Box.level > levels)).first()
-                        or wh.lots.filter(Lot.row > rows, Lot.closed.is_(False)).first()):
+        elif wh.id and wh.boxes.filter(or_(Box.row > rows, Box.slot > slots, Box.level > levels)).first():
             flash_error(_("Es stehen noch Kisten außerhalb der neuen Maße. Bitte zuerst umlagern."))
         else:
             wh.name, wh.rows, wh.slots, wh.max_levels = name, rows, slots, levels
@@ -78,7 +77,7 @@ def warehouses():
 @bp.route("/lager/<int:wh_id>/loeschen", methods=["POST"])
 def warehouse_delete(wh_id):
     wh = _get(Warehouse, wh_id)
-    if wh.boxes.first() or wh.lots.first():
+    if wh.boxes.first():
         flash_error(_("Im Lager stehen noch Kisten. Bitte zuerst auslagern."))
     else:
         db.session.delete(wh)
@@ -121,8 +120,7 @@ def varieties():
 @bp.route("/sorten/<int:v_id>/loeschen", methods=["POST"])
 def variety_delete(v_id):
     variety = _get(Variety, v_id)
-    if Box.query.filter_by(variety_id=variety.id).first() or Lot.query.filter_by(variety_id=variety.id).first() \
-            or Movement.query.filter_by(variety_id=variety.id).first():
+    if Box.query.filter_by(variety_id=variety.id).first() or Movement.query.filter_by(variety_id=variety.id).first():
         variety.active = False
         db.session.commit()
         flash(_("„{name}“ wird in Kisten oder im Verlauf verwendet und wurde deshalb nur deaktiviert.", name=variety.name), "warning")
@@ -174,8 +172,7 @@ def plots():
 @bp.route("/schlaege/<int:p_id>/loeschen", methods=["POST"])
 def plot_delete(p_id):
     plot = _get(Plot, p_id)
-    if Box.query.filter_by(plot_id=plot.id).first() or Lot.query.filter_by(plot_id=plot.id).first() \
-            or Movement.query.filter_by(plot_id=plot.id).first():
+    if Box.query.filter_by(plot_id=plot.id).first() or Movement.query.filter_by(plot_id=plot.id).first():
         plot.active = False
         db.session.commit()
         flash(_("„{name}“ wird in Kisten oder im Verlauf verwendet und wurde deshalb nur deaktiviert.", name=plot.name), "warning")
@@ -209,15 +206,15 @@ def seed_classes():
         return redirect(url_for("admin.seed_classes"))
 
     items = SeedClass.query.order_by(SeedClass.active.desc(), SeedClass.position, SeedClass.name).all()
-    counts = dict(db.session.query(Lot.seed_class_id, func.count(Lot.id))
-                  .filter(Lot.closed.is_(False)).group_by(Lot.seed_class_id))
+    counts = dict(db.session.query(Box.seed_class_id, func.count(Box.id))
+                  .filter(Box.fill > 0).group_by(Box.seed_class_id))
     return render_template("admin/seed_classes.html", items=items, counts=counts)
 
 
 @bp.route("/stufen/<int:c_id>/loeschen", methods=["POST"])
 def seed_class_delete(c_id):
     seed_class = _get(SeedClass, c_id)
-    if Lot.query.filter_by(seed_class_id=seed_class.id).first() \
+    if Box.query.filter_by(seed_class_id=seed_class.id).first() \
             or Movement.query.filter_by(seed_class_id=seed_class.id).first():
         seed_class.active = False
         db.session.commit()
@@ -253,15 +250,13 @@ def box_types():
 
     items = BoxType.query.order_by(BoxType.name).all()
     counts = dict(db.session.query(Box.box_type_id, func.count(Box.id)).group_by(Box.box_type_id))
-    for type_id, n in db.session.query(Lot.box_type_id, func.count(Lot.id)).group_by(Lot.box_type_id):
-        counts[type_id] = counts.get(type_id, 0) + n
     return render_template("admin/box_types.html", items=items, counts=counts)
 
 
 @bp.route("/kistentypen/<int:t_id>/loeschen", methods=["POST"])
 def box_type_delete(t_id):
     box_type = _get(BoxType, t_id)
-    if Box.query.filter_by(box_type_id=box_type.id).first() or Lot.query.filter_by(box_type_id=box_type.id).first():
+    if Box.query.filter_by(box_type_id=box_type.id).first():
         flash_error(_("Dieser Kistentyp wird noch verwendet."))
     else:
         db.session.delete(box_type)
@@ -372,18 +367,6 @@ def import_template():
         "Content-Disposition": 'attachment; filename="lager_import_vorlage.xlsx"'})
 
 
-@bp.route("/daten/tafel-vorlage.xlsx")
-def lot_template():
-    return Response(transfer.build_lot_template(), mimetype=XLSX, headers={
-        "Content-Disposition": 'attachment; filename="lager_tafel_vorlage.xlsx"'})
-
-
-def _run(kind, rows, create_missing):
-    if kind == "lots":
-        return transfer.run_lot_import(rows, current_user, create_missing)
-    return transfer.run_import(rows, current_user, create_missing)
-
-
 @bp.route("/daten/export.xlsx")
 def export():
     year = request.args.get("jahr", type=int)
@@ -399,7 +382,7 @@ def import_preview():
         return redirect(url_for("admin.data"))
     data_bytes = upload.read()
     try:
-        kind, rows = transfer.read_file(upload.filename, data_bytes)
+        rows = transfer.read_file(upload.filename, data_bytes)
     except transfer.TransferError as e:
         flash_error(str(e))
         return redirect(url_for("admin.data"))
@@ -408,7 +391,7 @@ def import_preview():
         return redirect(url_for("admin.data"))
 
     create_missing = bool(request.form.get("create_missing"))
-    results = _run(kind, rows, create_missing)
+    results = transfer.run_import(rows, current_user, create_missing)
     db.session.rollback()   # nur Vorschau
 
     _cleanup_imports()
@@ -417,7 +400,7 @@ def import_preview():
         f.write(data_bytes)
     session["import"] = {"token": token, "name": upload.filename[:200], "create": create_missing}
     errors = sum(1 for r in results if r["errors"])
-    return render_template("admin/import_preview.html", results=results, errors=errors, kind=kind,
+    return render_template("admin/import_preview.html", results=results, errors=errors,
                            filename=upload.filename, create_missing=create_missing)
 
 
@@ -430,8 +413,8 @@ def import_apply():
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
-        kind, rows = transfer.read_file(info["name"], data_bytes)
-        results = _run(kind, rows, info["create"])
+        rows = transfer.read_file(info["name"], data_bytes)
+        results = transfer.run_import(rows, current_user, info["create"])
     except transfer.TransferError as e:
         db.session.rollback()
         flash_error(str(e))
@@ -440,7 +423,7 @@ def import_apply():
     if errors:
         # Zwischen Vorschau und Übernehmen hat sich etwas geändert (z. B. jemand hat gebucht)
         db.session.rollback()
-        return render_template("admin/import_preview.html", results=results, errors=errors, kind=kind,
+        return render_template("admin/import_preview.html", results=results, errors=errors,
                                filename=info["name"], create_missing=info["create"])
     db.session.commit()
     os.remove(path)

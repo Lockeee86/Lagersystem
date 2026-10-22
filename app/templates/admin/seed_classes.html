@@ -7,11 +7,11 @@
     <h1>{{ _("Saatgut-Stufen") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#classModal" data-edit='{"active": true, "position": {{ items|length + 1 }}}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Stufe") }}</button>
 </div>
-<p class="text-body-secondary">{{ _("Stufen beim Pflanzgut, z. B. PB, SE, E, BE, Z. Sie stehen bei jeder Partie zur Auswahl; die Reihenfolge bestimmt die Sortierung in der Liste.") }}</p>
+<p class="text-body-secondary">{{ _("Stufen beim Pflanzgut, z. B. PB, SE, E, BE, Z. Sie stehen bei jeder Kiste zur Auswahl; die Reihenfolge bestimmt die Sortierung in der Liste.") }}</p>
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead><tr><th>{{ _("Stufe") }}</th><th>{{ _("Beschreibung") }}</th><th class="text-end">{{ _("Partien") }}</th><th></th></tr></thead>
+            <thead><tr><th>{{ _("Stufe") }}</th><th>{{ _("Beschreibung") }}</th><th class="text-end">{{ _("Befüllte Kisten") }}</th><th></th></tr></thead>
             <tbody>
             {% for c in items %}
             <tr class="{% if not c.active %}opacity-50{% endif %}">

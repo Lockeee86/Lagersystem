@@ -5,7 +5,7 @@ from flask import Flask, redirect, request, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
-from .models import FILL_LEVELS, ROLES, SORT_USAGES, User, format_quantity
+from .models import FILL_LEVELS, ROLES, SORT_USAGES, User
 from . import utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
@@ -85,7 +85,6 @@ def create_app(config=None):
         date=utils.fmt_date,
         kg=utils.fmt_kg,
         textcolor=utils.text_color_for,
-        qty=format_quantity,
     )
 
     @app.context_processor

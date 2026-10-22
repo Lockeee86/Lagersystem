@@ -49,9 +49,8 @@ Reihe – Stellplatz – Ebene
 - **Kistentyp**: Name, Gewicht bei voller Kiste (kg)
 - **Sorte**: Name, Farbe (Lagerkarte), Verwendung (Speise / Futter / Pflanzgut / Sonstiges)
 - **Schlag**: Name, Fläche (ha, optional), Notiz, aktiv. Wird beim Befüllen per Dropdown gewählt.
-- **Partie**: siehe oben („Umstellung auf Partien“)
 - **Saatgut-Stufe**: Kürzel (PB, S, SE, E, BE, Z …), Beschreibung, Reihenfolge, aktiv
-- **Kiste**: Code (QR), Kistentyp, Sorte, Erntedatum, Schlag, Sortierung/Größe,
+- **Kiste**: Code (QR), Kistentyp, Sorte, Verwendung, Stufe, Erntedatum, Schlag, Sortierung/Größe,
   Füllstand, Notiz, aktueller Platz (Lager, Reihe, Platz, Ebene, leer = nicht eingelagert)
 - **Bewegung**: Kiste, Aktion, von, nach, Füllstand vorher/nachher, Benutzer, Zeitpunkt, Notiz,
   Detail (sprachneutrale Systemangabe, wird bei der Anzeige übersetzt)
@@ -92,17 +91,13 @@ Portainer-Stack (docker-compose)
   Warnung < 85 % und > 97 %), Warnung bei Sensor-Ausfall
 - Benachrichtigung (Telegram, ntfy oder E-Mail, noch offen)
 
-### Umstellung auf Partien (nach dem Foto der Lagertafel)
-- Die Tafel im Lager denkt in **Partien**: je Reihe Blöcke wie „41,75× Rumba Saat Z 22.9“.
-  Das ist jetzt die Hauptarbeitsweise; Einzelkisten mit QR-Code bleiben als Option.
-- Partie = Lager, Reihe, Position (links → rechts), Sorte, Verwendung (Saat/Speise), Stufe,
-  Kaliber, Datum (zählt als Erntedatum fürs Kartoffeljahr), Schlag, Menge in Kisten (Dezimal),
-  Kistentyp (für das Gewicht). Menge 0 → Partie abgeschlossen.
-- Buchungen: Entnehmen, Zugang, Bestand korrigieren (Inventur), Umsetzen (ganz oder Teilmenge →
-  neue Partie), Position in der Reihe tauschen, Angaben ändern. Alles im Verlauf mit Momentaufnahme.
-- Ansicht „Tafel“ (Startansicht), Reihen pro Lager wahlweise mit Zahlen beschriftet.
-- Import im Tafel-Format (eine Zeile pro Block); unbekannte Sorten/Stufen/Schläge auf Wunsch anlegen.
-- Offen: Ist die rechte Spalte der Tafel eine eigene Fläche? (derzeit als letzter Block der Reihe)
+### Bestand von der Lagertafel übernommen
+- Eine Partien-/Tafel-Arbeitsweise wurde ausprobiert und wieder verworfen: Es bleibt bei **Einzelkisten**.
+- Kisten haben zusätzlich **Verwendung** (Saat / Speise, leer = wie bei der Sorte) und **Saatgut-Stufe**
+  (verwaltbar, Start: PB, S, SE, E, BE, Z). Reihen pro Lager wahlweise mit Zahlen beschriftet.
+- Der Bestand der Kreidetafel wurde in eine Kistenliste umgerechnet (K-0001 fortlaufend ab Reihe 1,
+  Blöcke links → rechts, je Platz max. 5 Kisten, jeder Block auf einem neuen Platz, angebrochene
+  Kiste oben) und kann über den Kisten-Import übernommen werden.
 
 ### Zwischendurch umgesetzt
 - Import aus einer Excel-Vorlage (Zettel → Lagersystem) mit Vorschau, alles-oder-nichts

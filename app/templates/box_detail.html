@@ -11,6 +11,7 @@
             <h1 class="box-code mb-1">{{ box.code }}</h1>
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 {{ variety_chip(box.variety, box.is_empty) }}
+                {% if not box.is_empty and box.variety %}<span class="fw-semibold small">{{ box.usage_label }}{% if box.seed_class %} {{ box.seed_class.name }}{% endif %}</span>{% endif %}
                 {{ location_badge(box) }}
             </div>
             <div class="d-flex flex-wrap gap-3 mt-2 small text-body-secondary">
@@ -121,6 +122,24 @@
                             </select>
                         </div>
                         <div class="col-sm-6">
+                            <label class="form-label d-block">{{ _("Verwendung") }}</label>
+                            <div class="btn-group w-100" role="group" aria-label="{{ _('Verwendung') }}">
+                                <input type="radio" class="btn-check" name="usage" id="usage_none" value="" autocomplete="off" {% if not box.usage %}checked{% endif %}>
+                                <label class="btn btn-outline-primary" for="usage_none" title="{{ _('wie bei der Sorte') }}">{{ _("Standard") }}</label>
+                                {% for key in ["pflanzgut", "speise"] %}
+                                <input type="radio" class="btn-check" name="usage" id="usage_{{ key }}" value="{{ key }}" autocomplete="off" {% if box.usage == key %}checked{% endif %}>
+                                <label class="btn btn-outline-primary" for="usage_{{ key }}">{{ _(usages[key]) }}</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="seed_class_id">{{ _("Stufe") }}</label>
+                            <select class="form-select" name="seed_class_id" id="seed_class_id">
+                                <option value="">–</option>
+                                {% for c in seed_classes %}<option value="{{ c.id }}" {% if box.seed_class_id == c.id %}selected{% endif %}>{{ c.name }}{% if c.description %} – {{ c.description }}{% endif %}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
                             <label class="form-label" for="harvest_date">{{ _("Erntedatum") }}</label>
                             <div class="input-group">
                                 <input class="form-control" type="date" name="harvest_date" id="harvest_date" value="{{ box.harvest_date.isoformat() if box.harvest_date else '' }}">
@@ -163,6 +182,7 @@
                 {% else %}
                 <dl class="row mb-0">
                     <dt class="col-5">{{ _("Sorte") }}</dt><dd class="col-7">{{ variety_chip(box.variety, box.is_empty) }}</dd>
+                    <dt class="col-5">{{ _("Verwendung") }}</dt><dd class="col-7">{{ box.usage_label or '–' }}{% if box.seed_class %} · {{ box.seed_class.name }}{% endif %}</dd>
                     <dt class="col-5">{{ _("Erntedatum") }}</dt><dd class="col-7">{{ box.harvest_date|date }}</dd>
                     <dt class="col-5">{{ _("Schlag") }}</dt><dd class="col-7">{{ box.plot.name if box.plot else '–' }}</dd>
                     <dt class="col-5">{{ _("Sortierung") }}</dt><dd class="col-7">{{ box.grade or '–' }}</dd>

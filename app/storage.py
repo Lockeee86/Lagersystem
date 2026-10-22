@@ -6,13 +6,12 @@ Regeln:
 - Wird eine Kiste aus der Mitte genommen, rutschen die darüber liegenden nach.
 """
 import re
-from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func
 
 from .extensions import db
 from .i18n import gettext as _
-from .models import Box, Lot, Movement, Warehouse, format_quantity
+from .models import Box, Movement, Warehouse
 
 CODE_PREFIX = "K-"
 CODE_RE = re.compile(r"^K-(\d+)$")
@@ -98,6 +97,7 @@ def _log(box, action, user, **kwargs):
     db.session.add(Movement(
         box=box, action=action, user_id=user.id if user else None,
         variety_id=box.variety_id, plot_id=box.plot_id, harvest_date=box.harvest_date, fill=box.fill,
+        usage=box.effective_usage, seed_class_id=box.seed_class_id,
         **kwargs))
 
 
@@ -202,7 +202,8 @@ def set_fill(box, fill, user, note=None):
     return True
 
 
-def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, note, box_type_id=None):
+def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, note, box_type_id=None,
+                    usage=None, seed_class_id=None):
     if fill not in (0, 25, 50, 75, 100):
         raise StorageError(_("Ungültiger Füllstand."))
     box_type_id = box_type_id or box.box_type_id
@@ -215,6 +216,10 @@ def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, n
         changes.append("harvest_date")
     if box.plot_id != plot_id:
         changes.append("field")
+    if (box.usage or None) != (usage or None):
+        changes.append("usage")
+    if box.seed_class_id != seed_class_id:
+        changes.append("seed_class")
     if (box.grade or None) != (grade or None):
         changes.append("grade")
     if (box.note or None) != (note or None):
@@ -226,6 +231,8 @@ def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, n
     box.variety_id = variety_id
     box.harvest_date = harvest_date
     box.plot_id = plot_id
+    box.usage = usage or None
+    box.seed_class_id = seed_class_id
     box.grade = grade or None
     box.fill = fill
     box.note = note or None
@@ -266,192 +273,3 @@ def create_boxes(count, box_type_id, user):
     for box in boxes:
         _log(box, "angelegt", user)
     return boxes
-
-
-# --- Partien ----------------------------------------------------------------
-# Eine Partie ist ein Block gleicher Kartoffeln in einer Reihe (wie ein Eintrag an der Tafel).
-# Mengen sind Kisten mit Nachkommastellen (41,75 = 41 volle + eine ¾ Kiste).
-
-QUANTITY_MAX = Decimal("100000")
-
-
-def parse_quantity(value):
-    """'41,75' / '41.75' / 41.75 → Decimal('41.75'); None bei leer/ungültig."""
-    if value is None:
-        return None
-    if isinstance(value, (int, float, Decimal)):
-        number = Decimal(str(value))
-    else:
-        text = str(value).strip().replace(" ", "").replace(",", ".")
-        text = text.rstrip("xX×")
-        try:
-            number = Decimal(text)
-        except InvalidOperation:
-            return None
-    if not number.is_finite():
-        return None
-    return number.quantize(Decimal("0.01"))
-
-
-def _check_quantity(qty, allow_zero=False):
-    if qty is None or qty < 0 or (qty == 0 and not allow_zero) or qty >= QUANTITY_MAX:
-        raise StorageError(_("Bitte eine gültige Menge angeben (z. B. 12 oder 41,75)."))
-    return qty
-
-
-def _log_lot(lot, action, user, quantity_delta=None, **kwargs):
-    """Verlaufseintrag für eine Partie mit Momentaufnahme *nach* der Änderung."""
-    db.session.add(Movement(
-        lot=lot, action=action, user_id=user.id if user else None,
-        variety_id=lot.variety_id, plot_id=lot.plot_id, harvest_date=lot.harvest_date,
-        usage=lot.usage, seed_class_id=lot.seed_class_id,
-        quantity_delta=quantity_delta, quantity_after=lot.quantity, **kwargs))
-
-
-def lot_location_text(warehouse, row):
-    return f"{warehouse.name} {_('Reihe {row}', row=warehouse.row_label(row))}"
-
-
-def row_lots(warehouse_id, row):
-    return (Lot.query.filter_by(warehouse_id=warehouse_id, row=row, closed=False)
-            .order_by(Lot.position, Lot.id).all())
-
-
-def row_quantity(warehouse_id, row):
-    total = (db.session.query(func.coalesce(func.sum(Lot.quantity), 0))
-             .filter_by(warehouse_id=warehouse_id, row=row, closed=False).scalar())
-    return Decimal(str(total))
-
-
-def _next_position(warehouse_id, row):
-    current = (db.session.query(func.max(Lot.position))
-               .filter_by(warehouse_id=warehouse_id, row=row, closed=False).scalar())
-    return (current or 0) + 1
-
-
-def _check_row(warehouse, row):
-    if not (1 <= row <= warehouse.rows):
-        raise StorageError(_("Reihe muss zwischen {first} und {last} liegen.",
-                             first=warehouse.row_label(1), last=warehouse.row_label(warehouse.rows)))
-
-
-def create_lot(user, warehouse_id, row, variety_id, quantity, box_type_id, usage="pflanzgut",
-               seed_class_id=None, grade=None, plot_id=None, harvest_date=None, note=None):
-    warehouse = _lock_warehouse(warehouse_id)
-    _check_row(warehouse, row)
-    _check_quantity(quantity)
-    lot = Lot(warehouse_id=warehouse.id, row=row, position=_next_position(warehouse.id, row),
-              variety_id=variety_id, usage=usage, seed_class_id=seed_class_id, grade=grade or None,
-              plot_id=plot_id, harvest_date=harvest_date, quantity=quantity, box_type_id=box_type_id,
-              note=note or None)
-    db.session.add(lot)
-    db.session.flush()
-    _log_lot(lot, "partie_angelegt", user, quantity_delta=quantity,
-             to_location=lot_location_text(warehouse, row))
-    return lot
-
-
-def _close_if_empty(lot):
-    if lot.quantity <= 0:
-        lot.quantity = Decimal("0")
-        lot.closed = True
-
-
-def take_from_lot(lot, quantity, user, note=None):
-    _check_quantity(quantity)
-    if lot.closed or quantity > lot.quantity:
-        raise StorageError(_("Es sind nur {n} Kisten vorhanden.", n=format_quantity(lot.quantity)))
-    _lock_warehouse(lot.warehouse_id)
-    lot.quantity -= quantity
-    _close_if_empty(lot)
-    _log_lot(lot, "entnommen", user, quantity_delta=-quantity,
-             from_location=lot_location_text(lot.warehouse, lot.row), note=note)
-
-
-def add_to_lot(lot, quantity, user, note=None):
-    _check_quantity(quantity)
-    if lot.closed:
-        raise StorageError(_("Diese Partie ist abgeschlossen."))
-    lot.quantity += quantity
-    _log_lot(lot, "zugang", user, quantity_delta=quantity,
-             to_location=lot_location_text(lot.warehouse, lot.row), note=note)
-
-
-def correct_lot(lot, quantity, user, note=None):
-    """Bestand auf einen gezählten Wert setzen (Inventur)."""
-    _check_quantity(quantity, allow_zero=True)
-    if quantity == lot.quantity:
-        return False
-    delta = quantity - lot.quantity
-    lot.quantity = quantity
-    lot.closed = False
-    _close_if_empty(lot)
-    _log_lot(lot, "korrektur", user, quantity_delta=delta, note=note)
-    return True
-
-
-def move_lot(lot, warehouse_id, row, user, quantity=None, note=None):
-    """Partie (oder einen Teil davon) in eine andere Reihe setzen.
-    Mit Teilmenge entsteht dort eine neue Partie mit denselben Angaben."""
-    if lot.closed:
-        raise StorageError(_("Diese Partie ist abgeschlossen."))
-    target = _lock_warehouse(warehouse_id)
-    _check_row(target, row)
-    if quantity is not None:
-        _check_quantity(quantity)
-        if quantity > lot.quantity:
-            raise StorageError(_("Es sind nur {n} Kisten vorhanden.", n=format_quantity(lot.quantity)))
-    old = lot_location_text(lot.warehouse, lot.row)
-    new = lot_location_text(target, row)
-    if quantity is None or quantity == lot.quantity:
-        if (lot.warehouse_id, lot.row) == (target.id, row):
-            raise StorageError(_("Die Partie steht bereits in dieser Reihe."))
-        lot.warehouse_id, lot.row = target.id, row
-        lot.position = _next_position(target.id, row)
-        db.session.flush()
-        _log_lot(lot, "umgesetzt", user, from_location=old, to_location=new, note=note)
-        return lot
-    part = Lot(warehouse_id=target.id, row=row, position=_next_position(target.id, row),
-               variety_id=lot.variety_id, usage=lot.usage, seed_class_id=lot.seed_class_id, grade=lot.grade,
-               plot_id=lot.plot_id, harvest_date=lot.harvest_date, quantity=quantity,
-               box_type_id=lot.box_type_id, note=lot.note)
-    db.session.add(part)
-    lot.quantity -= quantity
-    db.session.flush()
-    _log_lot(lot, "geteilt", user, quantity_delta=-quantity, from_location=old, to_location=new,
-             detail=str(part.id), note=note)
-    _log_lot(part, "partie_angelegt", user, quantity_delta=quantity, from_location=old, to_location=new,
-             note=note)
-    return part
-
-
-def shift_lot(lot, direction):
-    """Innerhalb der Reihe nach links (-1) oder rechts (+1) tauschen. Kein Verlaufseintrag."""
-    lots = row_lots(lot.warehouse_id, lot.row)
-    idx = next((i for i, other in enumerate(lots) if other.id == lot.id), None)
-    if idx is None:
-        return False
-    j = idx + direction
-    if not 0 <= j < len(lots):
-        return False
-    lots[idx], lots[j] = lots[j], lots[idx]
-    for pos, other in enumerate(lots, start=1):
-        other.position = pos
-    return True
-
-
-def update_lot(lot, user, variety_id, usage, seed_class_id, grade, plot_id, harvest_date, note, box_type_id):
-    fields = {
-        "variety": ("variety_id", variety_id), "usage": ("usage", usage),
-        "seed_class": ("seed_class_id", seed_class_id), "grade": ("grade", grade or None),
-        "field": ("plot_id", plot_id), "harvest_date": ("harvest_date", harvest_date),
-        "note": ("note", note or None), "box_type": ("box_type_id", box_type_id),
-    }
-    changes = [key for key, (attr, value) in fields.items() if getattr(lot, attr) != value]
-    if not changes:
-        return False
-    for key in changes:
-        attr, value = fields[key]
-        setattr(lot, attr, value)
-    _log_lot(lot, "partie_geaendert", user, detail=",".join(changes))
-    return True

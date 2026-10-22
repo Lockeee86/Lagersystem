@@ -58,8 +58,7 @@ def gettext(text, **params):
 
 
 def ngettext(singular, plural, count, **params):
-    """Plural nach `count`; der Platzhalter {n} ist `count`, außer er wird ausdrücklich übergeben
-    (z. B. formatiert: ngettext(..., 42, n="41,75"))."""
+    """Plural nach `count`; der Platzhalter {n} ist `count`, außer er wird ausdrücklich übergeben."""
     params.setdefault("n", count)
     lang = get_locale()
     forms = CATALOGS.get(lang, {}).get(plural) if lang != DEFAULT_LANGUAGE else None

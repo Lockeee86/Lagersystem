@@ -5,7 +5,6 @@ in die lokale Zeitzone umgerechnet.
 """
 import secrets
 from datetime import datetime, timezone
-from decimal import Decimal
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -31,7 +30,6 @@ ROLES = {
 }
 # Ansichten der Lagerkarte
 MAP_VIEWS = {
-    "tafel": N_("Tafel"),
     "karte": N_("Karte"),
     "3d": N_("3D"),
     "liste": N_("Liste"),
@@ -55,7 +53,7 @@ class User(UserMixin, db.Model):
     language = db.Column(db.String(5), nullable=False, default=DEFAULT_LANGUAGE,
                          server_default=DEFAULT_LANGUAGE)
     # Zuletzt gewählte Ansicht der Lagerkarte (siehe MAP_VIEWS)
-    map_view = db.Column(db.String(10), nullable=False, default="tafel", server_default="tafel")
+    map_view = db.Column(db.String(10), nullable=False, default="karte", server_default="karte")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -114,16 +112,10 @@ class Warehouse(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     boxes = db.relationship("Box", back_populates="warehouse", lazy="dynamic")
-    lots = db.relationship("Lot", back_populates="warehouse", lazy="dynamic")
 
     @property
     def capacity(self):
         return self.rows * self.slots * self.max_levels
-
-    @property
-    def row_capacity(self):
-        """Kisten pro Reihe (Stellplätze × Ebenen)."""
-        return self.slots * self.max_levels
 
     def row_label(self, row):
         """Reihe 1 → "A" (oder "1" bei Zahlen). Bei mehr als 26 Reihen immer numerisch."""
@@ -220,6 +212,8 @@ class Box(db.Model):
     code = db.Column(db.String(20), unique=True, nullable=False)
     box_type_id = db.Column(db.Integer, db.ForeignKey("box_types.id"), nullable=False)
     variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"))
+    usage = db.Column(db.String(20))            # Saat / Speise …; leer = wie bei der Sorte
+    seed_class_id = db.Column(db.Integer, db.ForeignKey("seed_classes.id"))
     harvest_date = db.Column(db.Date)
     plot_id = db.Column(db.Integer, db.ForeignKey("plots.id"))
     grade = db.Column(db.String(50))
@@ -238,11 +232,21 @@ class Box(db.Model):
     box_type = db.relationship("BoxType")
     variety = db.relationship("Variety")
     plot = db.relationship("Plot")
+    seed_class = db.relationship("SeedClass")
     warehouse = db.relationship("Warehouse", back_populates="boxes")
     movements = db.relationship(
         "Movement", back_populates="box", order_by="Movement.created_at.desc()",
         lazy="dynamic", cascade="all, delete-orphan",
     )
+
+    @property
+    def effective_usage(self):
+        return self.usage or (self.variety.usage if self.variety else None)
+
+    @property
+    def usage_label(self):
+        usage = self.effective_usage
+        return _(SORT_USAGES.get(usage, usage)) if usage else ""
 
     @property
     def is_stored(self):
@@ -275,85 +279,6 @@ class Box(db.Model):
         return self.variety.color
 
 
-# Kurzzeichen für die Verwendung auf der Tafel
-USAGE_SHORT = {"pflanzgut": N_("Saat"), "speise": N_("SP"), "futter": N_("Futter"), "sonstiges": ""}
-
-
-def format_quantity(value):
-    """Kistenmenge wie an der Tafel: 40 / 41,75 / 57,1."""
-    if value is None:
-        return "–"
-    text = f"{Decimal(str(round(float(value), 2))).normalize():f}"
-    if "." in text:
-        text = text.rstrip("0").rstrip(".")
-    return text.replace(".", ",")
-
-
-class Lot(db.Model):
-    """Partie: zusammenhängender Block gleicher Kartoffeln in einer Reihe – wie ein Eintrag an der Tafel.
-    Die Menge zählt Kisten, Nachkommastellen sind angebrochene Kisten (41,75 = 41 volle + eine ¾)."""
-    __tablename__ = "lots"
-    __table_args__ = (db.Index("ix_lot_place", "warehouse_id", "row", "position"),)
-
-    id = db.Column(db.Integer, primary_key=True)
-    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=False)
-    row = db.Column(db.Integer, nullable=False)
-    position = db.Column(db.Integer, nullable=False, default=1)   # Reihenfolge in der Reihe, links → rechts
-    variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"), nullable=False)
-    usage = db.Column(db.String(20), nullable=False, default="pflanzgut")
-    seed_class_id = db.Column(db.Integer, db.ForeignKey("seed_classes.id"))
-    grade = db.Column(db.String(50))
-    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id"))
-    harvest_date = db.Column(db.Date)
-    quantity = db.Column(db.Numeric(9, 2), nullable=False, default=0)
-    box_type_id = db.Column(db.Integer, db.ForeignKey("box_types.id"), nullable=False)
-    note = db.Column(db.Text)
-    closed = db.Column(db.Boolean, nullable=False, default=False)   # leer / komplett ausgelagert
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
-
-    warehouse = db.relationship("Warehouse", back_populates="lots")
-    variety = db.relationship("Variety")
-    seed_class = db.relationship("SeedClass")
-    plot = db.relationship("Plot")
-    box_type = db.relationship("BoxType")
-    movements = db.relationship("Movement", back_populates="lot", order_by="Movement.created_at.desc()",
-                                lazy="dynamic", cascade="all, delete-orphan")
-
-    @property
-    def quantity_label(self):
-        return format_quantity(self.quantity)
-
-    @property
-    def usage_label(self):
-        return _(SORT_USAGES.get(self.usage, self.usage))
-
-    @property
-    def usage_short(self):
-        short = USAGE_SHORT.get(self.usage, "")
-        return _(short) if short else ""
-
-    @property
-    def weight_kg(self):
-        if not self.box_type:
-            return 0
-        return round(float(self.quantity) * self.box_type.full_weight_kg)
-
-    @property
-    def location(self):
-        return _("Reihe {row}", row=self.warehouse.row_label(self.row)) if self.warehouse else ""
-
-    @property
-    def title(self):
-        """Kurzbezeichnung wie an der Tafel: "Rumba Saat BE"."""
-        parts = [self.variety.name if self.variety else "?", self.usage_short]
-        if self.seed_class:
-            parts.append(self.seed_class.name)
-        if self.grade:
-            parts.append(self.grade)
-        return " ".join(p for p in parts if p)
-
-
 MOVEMENT_ACTIONS = {
     "angelegt": (N_("Angelegt"), "bi-plus-circle"),
     "befuellt": (N_("Inhalt geändert"), "bi-basket"),
@@ -362,14 +287,6 @@ MOVEMENT_ACTIONS = {
     "nachgerueckt": (N_("Nachgerückt"), "bi-arrow-down"),
     "fuellstand": (N_("Füllstand"), "bi-speedometer2"),
     "ausgelagert": (N_("Ausgelagert"), "bi-box-arrow-up"),
-    # Partien
-    "partie_angelegt": (N_("Partie angelegt"), "bi-plus-square"),
-    "entnommen": (N_("Entnommen"), "bi-box-arrow-up"),
-    "zugang": (N_("Zugang"), "bi-box-arrow-in-down"),
-    "korrektur": (N_("Bestand korrigiert"), "bi-pencil-square"),
-    "umgesetzt": (N_("Umgesetzt"), "bi-arrow-left-right"),
-    "geteilt": (N_("Geteilt"), "bi-scissors"),
-    "partie_geaendert": (N_("Partie geändert"), "bi-pencil"),
 }
 
 # Felder, deren Änderung bei "befuellt" in Movement.detail vermerkt wird
@@ -386,12 +303,11 @@ CONTENT_FIELDS = {
 
 
 class Movement(db.Model):
-    """Protokolleintrag zu einer Kiste oder einer Partie."""
+    """Protokolleintrag zu einer Kiste."""
     __tablename__ = "movements"
 
     id = db.Column(db.Integer, primary_key=True)
-    box_id = db.Column(db.Integer, db.ForeignKey("boxes.id"), index=True)
-    lot_id = db.Column(db.Integer, db.ForeignKey("lots.id"), index=True)
+    box_id = db.Column(db.Integer, db.ForeignKey("boxes.id"), nullable=False, index=True)
     action = db.Column(db.String(20), nullable=False)
     from_location = db.Column(db.String(150))
     to_location = db.Column(db.String(150))
@@ -408,18 +324,14 @@ class Movement(db.Model):
     fill = db.Column(db.Integer)
     usage = db.Column(db.String(20))
     seed_class_id = db.Column(db.Integer, db.ForeignKey("seed_classes.id"))
-    # Partien: Mengenänderung und Bestand danach (in Kisten)
-    quantity_delta = db.Column(db.Numeric(9, 2))
-    quantity_after = db.Column(db.Numeric(9, 2))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
 
     box = db.relationship("Box", back_populates="movements")
-    lot = db.relationship("Lot", back_populates="movements")
-    seed_class = db.relationship("SeedClass")
     user = db.relationship("User")
     variety = db.relationship("Variety")
     plot = db.relationship("Plot")
+    seed_class = db.relationship("SeedClass")
 
     @property
     def action_label(self):
@@ -435,25 +347,7 @@ class Movement(db.Model):
             return None
         if self.action == "nachgerueckt":
             return _("{code} wurde darunter entnommen", code=self.detail)
-        if self.action == "geteilt":
-            return _("Abgeteilt in Partie {id}", id=self.detail)
-        if self.action in ("befuellt", "partie_geaendert"):
+        if self.action == "befuellt":
             fields = ", ".join(_(CONTENT_FIELDS.get(key, key)) for key in self.detail.split(","))
             return _("Geändert: {fields}", fields=fields)
         return self.detail
-
-    @property
-    def subject(self):
-        """Bezeichnung im Verlauf: Kistencode oder Partie."""
-        if self.box:
-            return self.box.code
-        if self.lot:
-            return self.lot.title
-        return "–"
-
-    @property
-    def quantity_delta_label(self):
-        if self.quantity_delta is None:
-            return None
-        sign = "+" if self.quantity_delta > 0 else "−" if self.quantity_delta < 0 else "±"
-        return sign + format_quantity(abs(self.quantity_delta))
