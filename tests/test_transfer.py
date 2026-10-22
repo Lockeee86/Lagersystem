@@ -187,7 +187,7 @@ def test_snapshot_keeps_old_season_after_refill(as_admin, db, seed):
     assert resp.status_code == 200
     assert "lager_2026_" in resp.headers["Content-Disposition"]
     wb = load_workbook(io.BytesIO(resp.data))
-    assert wb.sheetnames == ["Auswertung", "Kisten", "Bewegungen"]
+    assert wb.sheetnames == ["Auswertung", "Kisten", "Bewegungen", "Lieferscheine"]
     values = [tuple(row[:8]) for row in wb["Auswertung"].iter_rows(values_only=True)]
     assert (2026, "Belana", "Speise", None, 1, 400, 0, 0) in values
     assert (2026, "Belana", "Speise", "Acker Nord", 1, 400, 0, 0) in values

@@ -25,7 +25,8 @@ from sqlalchemy import extract
 from . import storage
 from .extensions import db
 from .i18n import CATALOGS, N_, gettext as _, ngettext
-from .models import FILL_LEVELS, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, Variety, Warehouse
+from .models import (FILL_LEVELS, SORT_USAGES, Box, BoxType, Delivery, DeliveryItem, Movement, Plot, SeedClass,
+                     Variety, Warehouse)
 from .storage import StorageError
 from .utils import to_local
 
@@ -639,6 +640,22 @@ def build_export(year=None):
             _("Benutzer"), _("Hinweis"), _("Notiz")],
            move_rows, widths={1: 17, 4: 24, 5: 24, 14: 30, 15: 30},
            formats={1: "DD.MM.YYYY HH:MM", 12: "DD.MM.YYYY"})
+
+    # Lieferscheine (je Position; Kartoffeljahr = Erntejahr, ohne Erntedatum zählt das Lieferdatum)
+    items = DeliveryItem.query.join(Delivery).order_by(Delivery.date, Delivery.number, DeliveryItem.id)
+    delivery_rows = [[
+        i.delivery.number, i.delivery.date, i.delivery.customer.name, i.delivery.status_label,
+        i.box.code if i.box else "", i.variety.name if i.variety else "", i.usage_label,
+        i.seed_class.name if i.seed_class else "", i.grade or "", i.plot.name if i.plot else "", i.harvest_date,
+        i.fill if i.box_id else None, i.packaging or "", i.quantity, i.weight_kg, i.delivery.net_kg,
+    ] for i in items
+        if not year or (i.harvest_date.year if i.harvest_date else i.delivery.date.year) == year]
+    _sheet(wb, _("Lieferscheine"),
+           [_("Lieferschein"), _("Datum"), _("Kunde"), _("Status"), _("Kiste"), _("Sorte"), _("Verwendung"),
+            _("Stufe"), _("Sortierung"), _("Schlag"), _("Erntedatum"), _("Füllstand (%)"), _("Gebinde"),
+            _("Anzahl"), _("Gewicht geschätzt (kg)"), _("Netto gewogen (kg, ganzer Lieferschein)")],
+           delivery_rows, widths={1: 14, 2: 12, 3: 24, 11: 12, 16: 22},
+           formats={2: "DD.MM.YYYY", 11: "DD.MM.YYYY"})
     return _save(wb)
 
 

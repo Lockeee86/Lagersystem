@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}{{ _("Kunden") }}{% endblock %}
+{% block content %}
+{% include "sales/_nav.html" %}
+<div class="page-head">
+    <h1>{{ _("Kunden") }}</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#customerModal" data-edit='{}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Kunde") }}</button>
+</div>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>{{ _("Name") }}</th><th class="d-none d-md-table-cell">{{ _("Anschrift") }}</th><th class="text-end">{{ _("Lieferscheine") }}</th><th></th></tr></thead>
+            <tbody>
+            {% for c in items %}
+            <tr class="{% if not c.active %}text-body-tertiary{% endif %}">
+                <td>
+                    <div class="fw-medium">{{ c.name }}{% if not c.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</div>
+                    <div class="small text-body-secondary">{% if c.number %}{{ c.number }}{% endif %}{% if c.phone %} · {{ c.phone }}{% endif %}</div>
+                </td>
+                <td class="d-none d-md-table-cell small" style="white-space: pre-line">{{ c.address or '' }}</td>
+                <td class="text-end">
+                    {% if counts.get(c.id) %}<a href="{{ url_for('sales.deliveries', kunde=c.id) }}">{{ counts.get(c.id) }}</a>{% else %}0{% endif %}
+                </td>
+                <td class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#customerModal"
+                            data-edit='{{ {"id": c.id, "name": c.name, "number": c.number or "", "address": c.address or "", "phone": c.phone or "", "email": c.email or "", "note": c.note or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
+                    {% if c.active %}
+                    <form method="post" action="{{ url_for('sales.customer_delete', c_id=c.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('Kunde „{name}“ löschen?', name=c.name) }}"><i class="bi bi-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-body-secondary">{{ _("Noch keine Kunden.") }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% call edit_modal("customerModal", _("Neuer Kunde"), _("Kunde bearbeiten"), url_for('sales.customers')) %}
+<div class="mb-3">
+    <label class="form-label" for="c_name">{{ _("Name") }}</label>
+    <input class="form-control" id="c_name" name="name" required maxlength="150">
+</div>
+<div class="mb-3">
+    <label class="form-label" for="c_address">{{ _("Anschrift") }}</label>
+    <textarea class="form-control" id="c_address" name="address" rows="3" maxlength="500"></textarea>
+</div>
+<div class="row g-2 mb-3">
+    <div class="col-sm-4">
+        <label class="form-label" for="c_number">{{ _("Kundennummer") }}</label>
+        <input class="form-control" id="c_number" name="number" maxlength="30">
+    </div>
+    <div class="col-sm-4">
+        <label class="form-label" for="c_phone">{{ _("Telefon") }}</label>
+        <input class="form-control" id="c_phone" name="phone" type="tel" maxlength="50">
+    </div>
+    <div class="col-sm-4">
+        <label class="form-label" for="c_email">{{ _("E-Mail") }}</label>
+        <input class="form-control" id="c_email" name="email" type="email" maxlength="120">
+    </div>
+</div>
+<div>
+    <label class="form-label" for="c_note">{{ _("Notiz") }}</label>
+    <textarea class="form-control" id="c_note" name="note" rows="2"></textarea>
+</div>
+{% endcall %}
+{% endblock %}

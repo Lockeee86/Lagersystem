@@ -117,11 +117,21 @@ Sprachen (de/pl) und Datenbank und laufen im selben Portainer-Stack. Bausteine s
 Rahmen: 4–10 Benutzer. **Hofname, Anschrift, Telefon, E-Mail** stehen unter Verwaltung → Hof (umgesetzt);
 der Hofname ersetzt „Lagersystem“ in der Kopfzeile und kommt später auf die Lieferscheine.
 
-### Baustein A – Verkauf & Lieferscheine (zuerst, größter Schmerzpunkt)
+### Baustein A – Verkauf & Lieferscheine (umgesetzt in 0.9.0)
+Umsetzung: Lieferschein `LS-JJJJ-NNNN` (fortlaufend je Jahr) mit Status offen/abgeschlossen.
+Mitarbeiter verladen auf der Seite „Verladen“ mit Dauer-Scanner (Kamera bleibt an, jede Kiste wird sofort
+gebucht). Eine verladene Kiste wird vom Stapel genommen (Nachrücken wie beim Auslagern) und ist danach
+**leer** und nicht eingelagert (Bewegung „Verladen“ mit Lieferscheinnummer); Sorte/Stufe/Füllstand stehen
+als Momentaufnahme an der Position. Entfernen vom offenen Lieferschein stellt den Füllstand wieder her
+(Kiste muss neu eingelagert werden). Abgeschlossene Lieferscheine sind gesperrt, der Admin kann sie wieder
+öffnen. Pflanzenpass-Angaben (A–D) erscheinen nur, wenn unter Verwaltung → Hof eine Registriernummer
+eingetragen ist; C = Anerkennungsnummer, sonst Lieferscheinnummer. Kisten auf Lieferscheinen lassen sich
+nicht löschen, Kunden mit Lieferscheinen nur deaktivieren.
+
 - **Kunden**: vor allem Pflanzgut-Abnehmer und Händler/Abpacker (Name, Anschrift, Kundennummer, Notiz).
 - **Lieferschein** anlegen (nur Admin/Büro): Kunde, Datum, Fahrzeug/Kennzeichen.
 - **Verladen per QR-Scan**: Mitarbeiter scannen jede Kiste beim Verladen → Kiste wird ausgelagert
-  (Bewegung „verkauft“ mit Bezug zum Lieferschein) und erscheint auf dem Lieferschein.
+  (Bewegung „Verladen“ mit Bezug zum Lieferschein) und erscheint auf dem Lieferschein.
 - Ware geht als **ganze Kisten und als Säcke/kg** raus: Positionen sind entweder Kisten (gescannt) oder
   freie Mengen (Sorte, Stufe, Kaliber, Gebinde z. B. 25-kg-Sack/Big Bag, Anzahl). Abgepackte Ware wird aus
   angebrochenen Kisten entnommen (Füllstand der Kiste senken).

@@ -70,10 +70,12 @@ def create_app(config=None):
     from .views import bp as main_bp
     from .admin import bp as admin_bp
     from .api import bp as api_bp
+    from .sales_views import bp as sales_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(api_bp, url_prefix="/api")
+    app.register_blueprint(sales_bp)
 
     from . import cli
     cli.register(app)

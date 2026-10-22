@@ -26,6 +26,9 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Export je Kartoffeljahr** als Excel: Auswertung je Sorte und Schlag (geschätzte Ernte, Bestand),
   alle Kisten und alle Bewegungen. Jede Bewegung speichert den Kisteninhalt mit, daher bleiben
   frühere Jahre auswertbar, auch wenn die Kisten neu befüllt werden
+- **Verkauf**: Kunden, Lieferscheine mit Dauer-Scanner beim Verladen, abgepackte Ware (Säcke, Big Bags),
+  Fuhrwerkswaage (brutto/tara/netto), Anerkennungsnummern je Sorte/Stufe/Erntejahr, Pflanzenpass-Angaben,
+  Lieferschein als PDF mit Hofname und Anschrift. Jede Kiste zeigt, an wen sie geliefert wurde
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)

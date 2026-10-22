@@ -52,6 +52,7 @@ class Setting(db.Model):
         "farm_address": (N_("Anschrift"), 500, True),
         "farm_phone": (N_("Telefon"), 50, False),
         "farm_email": (N_("E-Mail"), 120, False),
+        "farm_passport_reg": (N_("Registriernummer für den Pflanzenpass (z. B. DE-NI1-12345)"), 40, False),
     }
 
     @classmethod
@@ -273,6 +274,8 @@ class Box(db.Model):
         "Movement", back_populates="box", order_by="Movement.created_at.desc()",
         lazy="dynamic", cascade="all, delete-orphan",
     )
+    delivery_items = db.relationship("DeliveryItem", back_populates="box", lazy="dynamic",
+                                     order_by="DeliveryItem.id.desc()")
 
     @property
     def effective_usage(self):
@@ -322,6 +325,8 @@ MOVEMENT_ACTIONS = {
     "nachgerueckt": (N_("Nachgerückt"), "bi-arrow-down"),
     "fuellstand": (N_("Füllstand"), "bi-speedometer2"),
     "ausgelagert": (N_("Ausgelagert"), "bi-box-arrow-up"),
+    "verladen": (N_("Verladen"), "bi-truck"),
+    "zurueckgenommen": (N_("Verladen zurückgenommen"), "bi-arrow-counterclockwise"),
 }
 
 # Felder, deren Änderung bei "befuellt" in Movement.detail vermerkt wird
@@ -382,7 +387,136 @@ class Movement(db.Model):
             return None
         if self.action == "nachgerueckt":
             return _("{code} wurde darunter entnommen", code=self.detail)
+        if self.action in ("verladen", "zurueckgenommen"):
+            return _("Lieferschein {number}", number=self.detail)
         if self.action == "befuellt":
             fields = ", ".join(_(CONTENT_FIELDS.get(key, key)) for key in self.detail.split(","))
             return _("Geändert: {fields}", fields=fields)
         return self.detail
+
+
+# --- Verkauf ----------------------------------------------------------------
+
+class Customer(db.Model):
+    """Kunde (Pflanzgut-Abnehmer, Händler …)."""
+    __tablename__ = "customers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    number = db.Column(db.String(30))
+    address = db.Column(db.Text)
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(120))
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    deliveries = db.relationship("Delivery", back_populates="customer", lazy="dynamic")
+
+
+class Certification(db.Model):
+    """Anerkennungsnummer einer Pflanzgut-Partie (Sorte + Stufe + Erntejahr)."""
+    __tablename__ = "certifications"
+    __table_args__ = (db.UniqueConstraint("variety_id", "seed_class_id", "year", name="uq_certification"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"), nullable=False)
+    seed_class_id = db.Column(db.Integer, db.ForeignKey("seed_classes.id"), nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    number = db.Column(db.String(60), nullable=False)
+    note = db.Column(db.String(200))
+
+    variety = db.relationship("Variety")
+    seed_class = db.relationship("SeedClass")
+
+
+DELIVERY_OPEN = "offen"
+DELIVERY_CLOSED = "abgeschlossen"
+DELIVERY_STATUSES = {
+    DELIVERY_OPEN: N_("Offen"),
+    DELIVERY_CLOSED: N_("Abgeschlossen"),
+}
+
+
+class Delivery(db.Model):
+    """Lieferschein. Kisten werden beim Verladen gescannt, abgepackte Ware als Menge erfasst."""
+    __tablename__ = "deliveries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.String(30), unique=True, nullable=False)   # LS-2026-0001
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    vehicle = db.Column(db.String(50))
+    # Fuhrwerkswaage: Fahrzeug voll (brutto) und leer (tara)
+    gross_kg = db.Column(db.Integer)
+    tare_kg = db.Column(db.Integer)
+    note = db.Column(db.Text)
+    status = db.Column(db.String(20), nullable=False, default=DELIVERY_OPEN)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    closed_at = db.Column(db.DateTime(timezone=True))
+
+    customer = db.relationship("Customer", back_populates="deliveries")
+    created_by = db.relationship("User")
+    items = db.relationship("DeliveryItem", back_populates="delivery", order_by="DeliveryItem.id",
+                            cascade="all, delete-orphan")
+
+    @property
+    def is_open(self):
+        return self.status == DELIVERY_OPEN
+
+    @property
+    def status_label(self):
+        return _(DELIVERY_STATUSES.get(self.status, self.status))
+
+    @property
+    def net_kg(self):
+        if self.gross_kg is None or self.tare_kg is None:
+            return None
+        return self.gross_kg - self.tare_kg
+
+    @property
+    def estimated_kg(self):
+        return sum(item.weight_kg or 0 for item in self.items)
+
+    @property
+    def box_count(self):
+        return sum(1 for item in self.items if item.box_id)
+
+
+class DeliveryItem(db.Model):
+    """Position eines Lieferscheins: eine gescannte Kiste oder eine Menge abgepackter Ware.
+    Sorte, Stufe usw. werden beim Verladen kopiert, damit der Lieferschein unverändert bleibt."""
+    __tablename__ = "delivery_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id"), nullable=False, index=True)
+    box_id = db.Column(db.Integer, db.ForeignKey("boxes.id"), index=True)
+    variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"))
+    usage = db.Column(db.String(20))
+    seed_class_id = db.Column(db.Integer, db.ForeignKey("seed_classes.id"))
+    grade = db.Column(db.String(50))
+    harvest_date = db.Column(db.Date)
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id"))
+    fill = db.Column(db.Integer)            # nur Kisten: Füllstand beim Verladen
+    packaging = db.Column(db.String(60))    # nur Menge: z. B. „25-kg-Sack“, „Big Bag“
+    quantity = db.Column(db.Integer)        # nur Menge: Anzahl Gebinde
+    weight_kg = db.Column(db.Integer)       # Kiste: geschätzt; Menge: Anzahl × Gewicht je Gebinde
+    from_location = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    delivery = db.relationship("Delivery", back_populates="items")
+    box = db.relationship("Box", back_populates="delivery_items")
+    variety = db.relationship("Variety")
+    seed_class = db.relationship("SeedClass")
+    plot = db.relationship("Plot")
+    user = db.relationship("User")
+
+    @property
+    def usage_label(self):
+        return _(SORT_USAGES.get(self.usage, self.usage)) if self.usage else ""
+
+    @property
+    def fill_label(self):
+        return _(FILL_LABELS.get(self.fill, f"{self.fill} %")) if self.fill is not None else ""

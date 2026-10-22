@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import storage
+from . import sales, storage
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -92,7 +92,7 @@ def dashboard():
     }
     recent = Movement.query.order_by(Movement.created_at.desc()).limit(12).all()
     return render_template("dashboard.html", occupancy=occupancy, varieties=varieties,
-                           max_kg=max_kg, stats=stats, recent=recent,
+                           max_kg=max_kg, stats=stats, recent=recent, open_deliveries=sales.open_deliveries(),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
 
@@ -400,6 +400,9 @@ def box_delete(code):
     box = get_box_or_404(code)
     if box.is_stored:
         flash_error(_("Eingelagerte Kisten können nicht gelöscht werden. Bitte zuerst auslagern."))
+        return redirect(url_for("main.box_detail", code=box.code))
+    if box.delivery_items.first():
+        flash_error(_("{code} steht auf einem Lieferschein und kann nicht gelöscht werden.", code=box.code))
         return redirect(url_for("main.box_detail", code=box.code))
     db.session.delete(box)
     db.session.commit()

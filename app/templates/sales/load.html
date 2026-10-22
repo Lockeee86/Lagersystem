@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Verladen") }} · {{ delivery.number }}{% endblock %}
+{% block content %}
+<div class="scan-page mx-auto">
+    <div class="page-head">
+        <div class="min-w-0">
+            <h1>{{ _("Verladen") }}</h1>
+            <p class="text-body-secondary mb-0 text-truncate">{{ delivery.number }} · {{ delivery.customer.name }}</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('sales.delivery_detail', delivery_id=delivery.id) }}"><i class="bi bi-check-lg me-1"></i>{{ _("Fertig") }}</a>
+    </div>
+
+    <div class="card shadow-sm mb-3 overflow-hidden">
+        <div class="scan-viewport">
+            <div id="reader"></div>
+            <div class="scan-placeholder" id="scanPlaceholder">
+                <i class="bi bi-camera"></i>
+                <p class="mb-3">{{ _("Scanne jede Kiste, die auf den Wagen kommt. Die Kamera bleibt an.") }}</p>
+                <button class="btn btn-primary btn-lg" id="startScan"><i class="bi bi-camera-video me-2"></i>{{ _("Kamera starten") }}</button>
+            </div>
+        </div>
+        <div class="card-body py-2 d-flex justify-content-between align-items-center small">
+            <span class="text-body-secondary" id="scanStatus">{{ _("Kamera aus") }}</span>
+            <button class="btn btn-sm btn-outline-secondary d-none" id="stopScan"><i class="bi bi-stop-circle me-1"></i>{{ _("Stopp") }}</button>
+        </div>
+    </div>
+
+    <div class="alert d-none" id="loadResult" role="status"></div>
+
+    <div class="alert alert-warning small d-none" id="insecureHint">
+        <i class="bi bi-shield-exclamation me-1"></i>
+        {{ _("Die Kamera funktioniert im Browser nur über HTTPS (oder auf localhost). Gib den Code bis dahin unten von Hand ein.") }}
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('sales.delivery_add_box', delivery_id=delivery.id) }}" id="manualForm">
+                {{ csrf() }}
+                <label class="form-label" for="manualCode">{{ _("Oder Code eingeben") }}</label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text">K-</span>
+                    <input class="form-control" id="manualCode" name="code" inputmode="numeric" placeholder="0012" autocomplete="off" required>
+                    <button class="btn btn-primary"><i class="bi bi-truck"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between">
+            <span><i class="bi bi-truck me-1"></i>{{ _("Verladen") }}</span>
+            <span class="fw-semibold" id="loadCount">{{ ngettext("{n} Kiste", "{n} Kisten", boxes|length) }}</span>
+        </div>
+        <ul class="list-group list-group-flush" id="loadedList">
+            {% for item in boxes %}
+            <li class="list-group-item d-flex gap-2 align-items-center small">
+                <span class="fw-semibold">{{ item.box.code }}</span>
+                <span class="flex-grow-1 text-body-secondary">{{ item.variety.name if item.variety else "" }} {{ item.seed_class.name if item.seed_class else "" }} · {{ item.fill_label }}</span>
+                <form method="post" action="{{ url_for('sales.delivery_remove_item', delivery_id=delivery.id, item_id=item.id) }}">
+                    {{ csrf() }}<input type="hidden" name="back" value="verladen">
+                    <button class="btn btn-sm btn-link text-danger p-0" title="{{ _('Entfernen') }}"
+                            data-confirm="{{ _('{code} wieder vom Lieferschein nehmen?', code=item.box.code) }}"><i class="bi bi-x-circle"></i></button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/html5-qrcode/html5-qrcode.min.js') }}"></script>
+<script>
+(function () {
+    var startBtn = document.getElementById("startScan");
+    var stopBtn = document.getElementById("stopScan");
+    var placeholder = document.getElementById("scanPlaceholder");
+    var status = document.getElementById("scanStatus");
+    var result = document.getElementById("loadResult");
+    var list = document.getElementById("loadedList");
+    var count = document.getElementById("loadCount");
+    var form = document.getElementById("manualForm");
+    var csrfToken = form.querySelector("[name=csrf_token]").value;
+    var T = {{ {
+        "off": _("Kamera aus"), "starting": _("Kamera wird gestartet …"), "searching": _("Bereit – nächste Kiste scannen"),
+        "error": _("Kamera nicht verfügbar:"), "failed": _("Verbindung fehlgeschlagen. Bitte erneut scannen.")
+    }|tojson }};
+    var scanner = null, busy = false, last = {code: null, time: 0};
+
+    function show(ok, message) {
+        result.className = "alert " + (ok ? "alert-success" : "alert-danger");
+        result.textContent = message;
+        if (navigator.vibrate) navigator.vibrate(ok ? 80 : [60, 60, 60]);
+    }
+
+    function addRow(data) {
+        var li = document.createElement("li");
+        li.className = "list-group-item d-flex gap-2 align-items-center small";
+        var code = document.createElement("span");
+        code.className = "fw-semibold";
+        code.textContent = data.code;
+        var text = document.createElement("span");
+        text.className = "flex-grow-1 text-body-secondary";
+        text.textContent = data.text;
+        li.appendChild(code);
+        li.appendChild(text);
+        list.insertBefore(li, list.firstChild);
+        count.textContent = data.count_text;
+    }
+
+    function load(code) {
+        busy = true;
+        var body = new FormData();
+        body.append("csrf_token", csrfToken);
+        body.append("code", code);
+        return fetch(form.action, {method: "POST", body: body, headers: {"Accept": "application/json"}, credentials: "same-origin"})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                show(data.ok, data.message);
+                if (data.ok) addRow(data);
+            })
+            .catch(function () { show(false, T.failed); })
+            .then(function () { busy = false; });
+    }
+
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var input = document.getElementById("manualCode");
+        if (!input.value.trim() || busy) return;
+        load(input.value.trim()).then(function () { input.value = ""; input.focus(); });
+    });
+
+    if (!window.isSecureContext) {
+        document.getElementById("insecureHint").classList.remove("d-none");
+        startBtn.disabled = true;
+        return;
+    }
+
+    function stop() {
+        if (!scanner) return Promise.resolve();
+        return scanner.stop().catch(function () {}).then(function () {
+            scanner = null;
+            placeholder.classList.remove("d-none");
+            stopBtn.classList.add("d-none");
+            status.textContent = T.off;
+        });
+    }
+
+    function start() {
+        scanner = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
+        placeholder.classList.add("d-none");
+        status.textContent = T.starting;
+        scanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
+            function (text) {
+                var now = Date.now();
+                // dieselbe Kiste nicht mehrfach buchen, solange sie noch vor der Kamera ist
+                if (busy || (text === last.code && now - last.time < 5000)) return;
+                last = {code: text, time: now};
+                load(text);
+            },
+            function () {}
+        ).then(function () {
+            status.textContent = T.searching;
+            stopBtn.classList.remove("d-none");
+            try { localStorage.setItem("scanAutoStart", "1"); } catch (e) {}
+        }).catch(function (err) {
+            scanner = null;
+            placeholder.classList.remove("d-none");
+            status.textContent = T.error + " " + err;
+        });
+    }
+
+    startBtn.addEventListener("click", start);
+    stopBtn.addEventListener("click", stop);
+    var auto = null;
+    try { auto = localStorage.getItem("scanAutoStart"); } catch (e) {}
+    if (auto) start();
+    window.addEventListener("pagehide", stop);
+})();
+</script>
+{% endblock %}

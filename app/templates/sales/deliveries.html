@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% from "macros.html" import pagination, csrf %}
+{% block title %}{{ _("Lieferscheine") }}{% endblock %}
+{% block content %}
+{% include "sales/_nav.html" %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Lieferscheine") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Lieferschein", "{n} Lieferscheine", page.total) }}</p>
+    </div>
+    {% if current_user.is_admin %}
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newDelivery"><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Lieferschein") }}</button>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse" id="newDelivery">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            {% if active_customers %}
+            <form method="post" action="{{ url_for('sales.delivery_create') }}" class="row g-2 align-items-end">
+                {{ csrf() }}
+                <div class="col-md-4">
+                    <label class="form-label" for="customer_id">{{ _("Kunde") }}</label>
+                    <select class="form-select" id="customer_id" name="customer_id" required>
+                        <option value="">{{ _("Bitte wählen …") }}</option>
+                        {% for c in active_customers %}<option value="{{ c.id }}">{{ c.name }}{% if c.number %} ({{ c.number }}){% endif %}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="date">{{ _("Datum") }}</label>
+                    <input class="form-control" type="date" id="date" name="date" value="{{ today }}" required>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="vehicle">{{ _("Fahrzeug / Kennzeichen") }}</label>
+                    <input class="form-control" id="vehicle" name="vehicle" maxlength="50">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
+                </div>
+            </form>
+            {% else %}
+            <p class="mb-0">{{ _("Lege zuerst einen Kunden an.") }} <a href="{{ url_for('sales.customers') }}">{{ _("Zu den Kunden") }}</a></p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<form class="filter-bar card shadow-sm mb-3" method="get">
+    <div class="card-body row g-2">
+        <div class="col-12 col-md">
+            <select class="form-select" name="kunde" onchange="this.form.submit()">
+                <option value="">{{ _("Alle Kunden") }}</option>
+                {% for c in customers %}<option value="{{ c.id }}" {% if args.get('kunde')|int == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <select class="form-select" name="status" onchange="this.form.submit()">
+                <option value="">{{ _("Alle") }}</option>
+                {% for key, label in statuses.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <select class="form-select" name="jahr" onchange="this.form.submit()">
+                <option value="">{{ _("Alle Jahre") }}</option>
+                {% for y in years %}<option value="{{ y }}" {% if args.get('jahr')|int == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="list-group list-group-flush">
+        {% for d in page.items %}
+        <a class="list-group-item list-group-item-action d-flex gap-3 align-items-center" href="{{ url_for('sales.delivery_detail', delivery_id=d.id) }}">
+            <i class="bi {{ 'bi-truck' if d.is_open else 'bi-check2-circle' }} fs-4 {{ 'text-warning' if d.is_open else 'text-success' }}"></i>
+            <div class="flex-grow-1 min-w-0">
+                <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                    <span class="fw-semibold">{{ d.number }}</span>
+                    <span class="text-truncate">{{ d.customer.name }}</span>
+                    <span class="badge {{ 'text-bg-warning' if d.is_open else 'text-bg-success' }}">{{ d.status_label }}</span>
+                </div>
+                <div class="small text-body-secondary">
+                    {{ d.date|date }}{% if d.vehicle %} · {{ d.vehicle }}{% endif %}
+                    · {{ ngettext("{n} Kiste", "{n} Kisten", d.box_count) }}
+                    · {% if d.net_kg is not none %}{{ _("netto {kg}", kg=d.net_kg|kg) }}{% else %}≈ {{ d.estimated_kg|kg }}{% endif %}
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-body-tertiary"></i>
+        </a>
+        {% else %}
+        <div class="list-group-item text-body-secondary">{{ _("Noch keine Lieferscheine.") }}</div>
+        {% endfor %}
+    </div>
+</div>
+{{ pagination(page, 'sales.deliveries', args) }}
+{% endblock %}

@@ -26,6 +26,19 @@
     </div>
 </div>
 
+{% set shipped = box.delivery_items.limit(3).all() %}
+{% if shipped %}
+<div class="alert alert-info d-flex gap-2 align-items-start">
+    <i class="bi bi-truck"></i>
+    <div class="small">
+        {% for item in shipped %}
+        <div>{{ _("Verladen auf {number} an {customer} ({date})", number=item.delivery.number, customer=item.delivery.customer.name, date=item.delivery.date|date) }}
+            · <a href="{{ url_for('sales.delivery_detail', delivery_id=item.delivery_id) }}">{{ _("Lieferschein öffnen") }}</a></div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 {% if current_user.can_edit %}
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-speedometer2 me-1"></i>{{ _("Füllstand") }}</div>

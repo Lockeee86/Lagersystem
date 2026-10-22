@@ -26,6 +26,25 @@
 </div>
 {% endif %}
 
+{% if open_deliveries %}
+<div class="card shadow-sm mb-4 border-warning">
+    <div class="card-header"><i class="bi bi-truck me-1"></i>{{ _("Offene Lieferscheine") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for d in open_deliveries %}
+        <li class="list-group-item d-flex gap-2 align-items-center">
+            <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{{ url_for('sales.delivery_detail', delivery_id=d.id) }}">
+                <span class="fw-semibold">{{ d.number }}</span> {{ d.customer.name }}
+                <div class="small text-body-secondary">{{ d.date|date }} · {{ ngettext("{n} Kiste", "{n} Kisten", d.box_count) }}</div>
+            </a>
+            {% if current_user.can_edit %}
+            <a class="btn btn-sm btn-primary" href="{{ url_for('sales.delivery_load', delivery_id=d.id) }}"><i class="bi bi-qr-code-scan me-1"></i>{{ _("Verladen") }}</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
         <div class="stat-card">

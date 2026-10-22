@@ -206,6 +206,32 @@ def clear_all(user, warehouse_id=None, note=None):
     return len(boxes)
 
 
+def ship_box(box, user, reference):
+    """Verlädt eine volle oder angebrochene Kiste (Verkauf): vom Stapel nehmen, Inhalt geht an den Kunden,
+    die Kiste ist danach leer. `reference` = Lieferscheinnummer. Liefert (alter Platz, nachgerückte Kisten)."""
+    if box.is_empty:
+        raise StorageError(_("{code} ist leer und kann nicht verladen werden.", code=box.code))
+    old, shifted = None, []
+    if box.is_stored:
+        _lock_warehouse(box.warehouse_id)
+        old = location_text(box.warehouse, box.row, box.slot, box.level)
+        shifted = _take_out(box, user)
+    fill_before = box.fill
+    box.fill = 0
+    _log(box, "verladen", user, from_location=old, fill_before=fill_before, fill_after=0, detail=reference)
+    return old, shifted
+
+
+def unship_box(box, fill, user, reference):
+    """Nimmt das Verladen zurück (Kiste kam doch nicht mit): Füllstand wiederherstellen.
+    Die Kiste ist danach nicht eingelagert und muss wieder auf einen Stapel gestellt werden."""
+    if not box.is_empty:
+        raise StorageError(_("{code} wurde inzwischen neu befüllt und kann nicht zurückgenommen werden.",
+                             code=box.code))
+    box.fill = fill
+    _log(box, "zurueckgenommen", user, fill_before=0, fill_after=fill, detail=reference)
+
+
 def set_fill(box, fill, user, note=None):
     if fill not in (0, 25, 50, 75, 100):
         raise StorageError(_("Ungültiger Füllstand."))

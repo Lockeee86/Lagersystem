@@ -42,6 +42,7 @@
                 <ul class="dropdown-menu dropdown-menu-end shadow">
                     <li><h6 class="dropdown-header">{{ current_user.name }} · {{ current_user.role_label }}</h6></li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}"><i class="bi bi-gear me-2"></i>{{ _("Einstellungen") }}</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck me-2"></i>{{ _("Lieferscheine") }}</a></li>
                     <li>
                         <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-switch-menu px-3 py-1">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -63,6 +64,8 @@
                     <li><a class="dropdown-item" href="{{ url_for('admin.users') }}"><i class="bi bi-people me-2"></i>{{ _("Benutzer") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('main.labels') }}"><i class="bi bi-qr-code me-2"></i>{{ _("Etiketten drucken") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('admin.data') }}"><i class="bi bi-arrow-down-up me-2"></i>{{ _("Import / Export") }}</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('sales.customers') }}"><i class="bi bi-person-vcard me-2"></i>{{ _("Kunden") }}</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('sales.certifications') }}"><i class="bi bi-patch-check me-2"></i>{{ _("Anerkennungen") }}</a></li>
                     {% endif %}
                     <li><hr class="dropdown-divider"></li>
                     <li>
@@ -79,6 +82,7 @@
                 <li class="nav-item"><a class="nav-link {% if ep == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}"><i class="bi bi-speedometer2 me-1"></i>{{ _("Übersicht") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep in ('main.warehouse_map', 'main.stack_view') %}active{% endif %}" href="{{ url_for('main.warehouse_map') }}"><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Lagerkarte") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep in ('main.boxes', 'main.box_detail') %}active{% endif %}" href="{{ url_for('main.boxes') }}"><i class="bi bi-boxes me-1"></i>{{ _("Kisten") }}</a></li>
+                <li class="nav-item"><a class="nav-link {% if ep.startswith('sales.') %}active{% endif %}" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck me-1"></i>{{ _("Verkauf") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep == 'main.history' %}active{% endif %}" href="{{ url_for('main.history') }}"><i class="bi bi-clock-history me-1"></i>{{ _("Verlauf") }}</a></li>
                 <li class="nav-item"><a class="nav-link {% if ep == 'main.scan' %}active{% endif %}" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-1"></i>{{ _("Scannen") }}</a></li>
             </ul>

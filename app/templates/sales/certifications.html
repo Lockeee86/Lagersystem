@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}{{ _("Anerkennungen") }}{% endblock %}
+{% block content %}
+{% include "sales/_nav.html" %}
+<div class="page-head">
+    <h1>{{ _("Anerkennungen") }}</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#certModal" data-edit='{{ {"year": this_year}|tojson }}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Anerkennungsnummer") }}</button>
+</div>
+<p class="text-body-secondary">{{ _("Anerkennungsnummer je Sorte, Stufe und Erntejahr. Sie wird automatisch auf jeden Lieferschein mit passendem Pflanzgut gedruckt.") }}</p>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>{{ _("Erntejahr") }}</th><th>{{ _("Sorte") }}</th><th>{{ _("Stufe") }}</th><th>{{ _("Anerkennungsnummer") }}</th><th></th></tr></thead>
+            <tbody>
+            {% for c in items %}
+            <tr>
+                <td>{{ c.year }}</td>
+                <td>{{ c.variety.name }}</td>
+                <td>{{ c.seed_class.name }}</td>
+                <td><span class="fw-medium">{{ c.number }}</span>{% if c.note %}<div class="small text-body-secondary">{{ c.note }}</div>{% endif %}</td>
+                <td class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#certModal"
+                            data-edit='{{ {"id": c.id, "year": c.year, "variety_id": c.variety_id, "seed_class_id": c.seed_class_id, "number": c.number, "note": c.note or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
+                    <form method="post" action="{{ url_for('sales.certification_delete', c_id=c.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('Anerkennungsnummer {number} löschen?', number=c.number) }}"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-body-secondary">{{ _("Noch keine Anerkennungsnummern.") }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% call edit_modal("certModal", _("Neue Anerkennungsnummer"), _("Anerkennungsnummer bearbeiten"), url_for('sales.certifications')) %}
+<div class="row g-2 mb-3">
+    <div class="col-sm-5">
+        <label class="form-label" for="ce_variety">{{ _("Sorte") }}</label>
+        <select class="form-select" id="ce_variety" name="variety_id" required>
+            <option value=""></option>
+            {% for v in varieties %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-sm-4">
+        <label class="form-label" for="ce_class">{{ _("Stufe") }}</label>
+        <select class="form-select" id="ce_class" name="seed_class_id" required>
+            <option value=""></option>
+            {% for c in seed_classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-sm-3">
+        <label class="form-label" for="ce_year">{{ _("Erntejahr") }}</label>
+        <input class="form-control" id="ce_year" name="year" type="number" min="2000" max="2100" required>
+    </div>
+</div>
+<div class="mb-3">
+    <label class="form-label" for="ce_number">{{ _("Anerkennungsnummer") }}</label>
+    <input class="form-control" id="ce_number" name="number" required maxlength="60">
+</div>
+<div>
+    <label class="form-label" for="ce_note">{{ _("Notiz") }}</label>
+    <input class="form-control" id="ce_note" name="note" maxlength="200">
+</div>
+{% endcall %}
+{% endblock %}

@@ -28,6 +28,10 @@ docker compose up --build -d
 - `app/storage.py`: **die gesamte Lagerlogik** (Einlagern oben auf den Stapel, Umlagern,
   Auslagern mit Nachrücken, Füllstand, Kisten anlegen). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
+- `app/sales.py`: Lieferscheinlogik (anlegen, Kisten verladen über `storage.ship_box`, Mengen, Waage,
+  abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
+  `app/sales_views.py` (Blueprint `sales`: Lieferscheine, Verladen per Dauer-Scanner, Kunden, Anerkennungen),
+  `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,
