@@ -20,6 +20,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Verlauf** aller Buchungen mit Benutzer und Zeitpunkt
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
+- **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)
 - Hell/Dunkel-Modus, Seiten aktualisieren sich automatisch, wenn jemand anderes bucht
 
 ## Installation in Portainer

@@ -7,6 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .extensions import csrf, db, login_manager, migrate
 from .models import FILL_LEVELS, ROLES, SORT_USAGES, User
 from . import utils
+from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
 
 def _env_bool(name, default=False):
@@ -74,6 +75,8 @@ def create_app(config=None):
     from . import cli
     cli.register(app)
 
+    app.jinja_env.globals.update(_=gettext, ngettext=ngettext, get_locale=get_locale)
+    login_manager.localize_callback = gettext
     app.jinja_env.filters.update(
         datetime=utils.fmt_datetime,
         date=utils.fmt_date,
@@ -88,6 +91,8 @@ def create_app(config=None):
             "ROLES": ROLES,
             "SORT_USAGES": SORT_USAGES,
             "app_version": app.config["APP_VERSION"],
+            "LANGUAGES": LANGUAGES,
+            "LANGUAGE_FLAGS": LANGUAGE_FLAGS,
         }
 
     @app.before_request
@@ -118,11 +123,11 @@ def create_app(config=None):
 
     @app.errorhandler(403)
     def forbidden(_e):
-        return render_template("error.html", code=403, message="Dafür fehlen dir die Rechte."), 403
+        return render_template("error.html", code=403, message=gettext("Dafür fehlen dir die Rechte.")), 403
 
     @app.errorhandler(404)
     def not_found(_e):
-        return render_template("error.html", code=404, message="Diese Seite gibt es nicht."), 404
+        return render_template("error.html", code=404, message=gettext("Diese Seite gibt es nicht.")), 404
 
     return app
 

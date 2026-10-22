@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 {% from "macros.html" import movement_item, variety_chip %}
-{% block title %}Übersicht{% endblock %}
+{% block title %}{{ _("Übersicht") }}{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>Übersicht</h1>
-        <p class="text-body-secondary mb-0">Hallo {{ current_user.name }}!</p>
+        <h1>{{ _("Übersicht") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Hallo {name}!", name=current_user.name) }}</p>
     </div>
     {% if current_user.can_edit %}
-    <a class="btn btn-primary d-none d-lg-inline-flex" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>Kiste scannen</a>
+    <a class="btn btn-primary d-none d-lg-inline-flex" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>{{ _("Kiste scannen") }}</a>
     {% endif %}
 </div>
 
 {% if current_user.is_admin and (not has_varieties or stats.total == 0) %}
 <div class="card setup-card shadow-sm mb-4">
     <div class="card-body">
-        <h2 class="h6 mb-3"><i class="bi bi-flag me-1"></i>Erste Schritte</h2>
+        <h2 class="h6 mb-3"><i class="bi bi-flag me-1"></i>{{ _("Erste Schritte") }}</h2>
         <ol class="steps mb-0">
-            <li class="{% if has_varieties %}done{% endif %}"><a href="{{ url_for('admin.varieties') }}">Sorten anlegen</a> (z. B. Belana, Linda, Agria)</li>
-            <li class="{% if stats.total %}done{% endif %}"><a href="{{ url_for('main.boxes') }}">Kisten anlegen</a> und QR-Etiketten drucken</li>
-            <li>Kisten scannen, befüllen und einlagern</li>
+            <li class="{% if has_varieties %}done{% endif %}"><a href="{{ url_for('admin.varieties') }}">{{ _("Sorten anlegen") }}</a> ({{ _("z. B. Belana, Linda, Agria") }})</li>
+            <li class="{% if stats.total %}done{% endif %}"><a href="{{ url_for('main.boxes') }}">{{ _("Kisten anlegen") }}</a> {{ _("und QR-Etiketten drucken") }}</li>
+            <li>{{ _("Kisten scannen, befüllen und einlagern") }}</li>
         </ol>
     </div>
 </div>
@@ -28,33 +28,33 @@
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
         <div class="stat-card">
-            <div class="stat-label"><i class="bi bi-basket"></i>Bestand (geschätzt)</div>
+            <div class="stat-label"><i class="bi bi-basket"></i>{{ _("Bestand (geschätzt)") }}</div>
             <div class="stat-value">{{ stats.kg|kg }}</div>
-            <div class="stat-sub">{{ stats.filled }} befüllte Kisten</div>
+            <div class="stat-sub">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</div>
         </div>
     </div>
     {% for o in occupancy[:1] %}
     <div class="col-6 col-lg-3">
         <div class="stat-card">
-            <div class="stat-label"><i class="bi bi-grid-3x3-gap"></i>Belegung</div>
+            <div class="stat-label"><i class="bi bi-grid-3x3-gap"></i>{{ _("Belegung") }}</div>
             <div class="stat-value">{{ o.percent }} %</div>
-            <div class="stat-sub">{{ o.stored }} von {{ o.capacity }} Plätzen</div>
+            <div class="stat-sub">{{ _("{n} von {total} Plätzen", n=o.stored, total=o.capacity) }}</div>
         </div>
     </div>
     {% endfor %}
     <div class="col-6 col-lg-3">
         <div class="stat-card">
-            <div class="stat-label"><i class="bi bi-box"></i>Leere Kisten</div>
+            <div class="stat-label"><i class="bi bi-box"></i>{{ _("Leere Kisten") }}</div>
             <div class="stat-value">{{ stats.empty }}</div>
-            <div class="stat-sub">von {{ stats.total }} Kisten gesamt</div>
+            <div class="stat-sub">{{ _("von {n} Kisten gesamt", n=stats.total) }}</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
         <a class="stat-card stat-link {% if stats.filled_not_stored %}stat-warn{% endif %}"
            href="{{ url_for('main.boxes', status='befuellt_nicht_eingelagert') }}">
-            <div class="stat-label"><i class="bi bi-truck"></i>Befüllt, nicht eingelagert</div>
+            <div class="stat-label"><i class="bi bi-truck"></i>{{ _("Befüllt, nicht eingelagert") }}</div>
             <div class="stat-value">{{ stats.filled_not_stored }}</div>
-            <div class="stat-sub">Kisten <i class="bi bi-chevron-right"></i></div>
+            <div class="stat-sub">{{ _("Kisten") }} <i class="bi bi-chevron-right"></i></div>
         </a>
     </div>
 </div>
@@ -63,8 +63,8 @@
     <div class="col-lg-7">
         <div class="card shadow-sm h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bar-chart me-1"></i>Bestand je Sorte</span>
-                <span class="small text-body-secondary">geschätzt aus Füllstand</span>
+                <span><i class="bi bi-bar-chart me-1"></i>{{ _("Bestand je Sorte") }}</span>
+                <span class="small text-body-secondary">{{ _("geschätzt aus Füllstand") }}</span>
             </div>
             <div class="card-body">
                 {% if varieties %}
@@ -75,12 +75,12 @@
                             <span>{{ variety_chip(v.variety) }}
                                 <span class="small text-body-secondary ms-1">{{ v.variety.usage_label }}</span></span>
                             <span class="text-nowrap"><strong>{{ v.kg|kg }}</strong>
-                                <span class="small text-body-secondary">· {{ v.boxes }} Kisten</span></span>
+                                <span class="small text-body-secondary">· {{ ngettext("{n} Kiste", "{n} Kisten", v.boxes) }}</span></span>
                         </div>
                         <div class="bar-track"><div class="bar-fill" style="width: {{ (100 * v.kg / max_kg)|round(1) if max_kg else 0 }}%; --bar: {{ v.variety.color }}"></div></div>
                         <div class="small text-body-tertiary mt-1">
-                            {% if v.stored < v.boxes %}{{ v.boxes - v.stored }} nicht eingelagert · {% endif %}
-                            {% if v.oldest %}älteste Ernte {{ v.oldest|date }}{% endif %}
+                            {% if v.stored < v.boxes %}{{ _("{n} nicht eingelagert", n=v.boxes - v.stored) }} · {% endif %}
+                            {% if v.oldest %}{{ _("älteste Ernte {date}", date=v.oldest|date) }}{% endif %}
                         </div>
                     </a>
                     {% endfor %}
@@ -88,7 +88,7 @@
                 {% else %}
                 <div class="empty-state">
                     <i class="bi bi-basket"></i>
-                    <p>Noch keine befüllten Kisten.</p>
+                    <p>{{ _("Noch keine befüllten Kisten.") }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -101,7 +101,7 @@
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
                         <div class="fw-semibold">{{ o.warehouse.name }}</div>
-                        <div class="small text-body-secondary">{{ o.warehouse.rows }} Reihen × {{ o.warehouse.slots }} Plätze × {{ o.warehouse.max_levels }} Ebenen</div>
+                        <div class="small text-body-secondary">{{ _("{rows} Reihen × {slots} Plätze × {levels} Ebenen", rows=o.warehouse.rows, slots=o.warehouse.slots, levels=o.warehouse.max_levels) }}</div>
                     </div>
                     <span class="badge rounded-pill text-bg-light border">{{ o.percent }} %</span>
                 </div>
@@ -109,22 +109,22 @@
                     <div class="progress-bar" style="width: {{ o.percent }}%"></div>
                 </div>
                 <div class="d-flex justify-content-between small text-body-secondary">
-                    <span>{{ o.stored }} / {{ o.capacity }} Kisten</span>
-                    <span>{{ o.stacks }} / {{ o.stack_capacity }} Stapel belegt · {{ o.full_stacks }} voll</span>
+                    <span>{{ _("{n} / {total} Kisten", n=o.stored, total=o.capacity) }}</span>
+                    <span>{{ _("{n} / {total} Stapel belegt · {full} voll", n=o.stacks, total=o.stack_capacity, full=o.full_stacks) }}</span>
                 </div>
             </div>
         </a>
         {% endfor %}
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-clock-history me-1"></i>Letzte Bewegungen</span>
-                <a class="small" href="{{ url_for('main.history') }}">alle</a>
+                <span><i class="bi bi-clock-history me-1"></i>{{ _("Letzte Bewegungen") }}</span>
+                <a class="small" href="{{ url_for('main.history') }}">{{ _("alle") }}</a>
             </div>
             <div class="card-body">
                 {% if recent %}
                 <ul class="timeline">{% for m in recent %}{{ movement_item(m) }}{% endfor %}</ul>
                 {% else %}
-                <p class="text-body-secondary mb-0">Noch keine Bewegungen.</p>
+                <p class="text-body-secondary mb-0">{{ _("Noch keine Bewegungen.") }}</p>
                 {% endif %}
             </div>
         </div>

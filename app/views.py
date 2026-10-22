@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from . import storage
 from .extensions import db
+from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
 from .models import Box, BoxType, Movement, User, Variety, Warehouse
 from .storage import StorageError
@@ -40,7 +41,7 @@ def commit_or_rollback():
         return True
     except IntegrityError:
         db.session.rollback()
-        flash_error("Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen.")
+        flash_error(_("Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen."))
         return False
 
 
@@ -103,7 +104,7 @@ def dashboard():
 def warehouse_map(warehouse_id=None):
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     if not warehouses:
-        flash("Es ist noch kein Lager angelegt.", "warning")
+        flash(_("Es ist noch kein Lager angelegt."), "warning")
         return redirect(url_for("admin.warehouses") if current_user.is_admin else url_for("main.dashboard"))
     warehouse = get_warehouse_or_404(warehouse_id) if warehouse_id else warehouses[0]
     stacks = storage.stacks_overview(warehouse)
@@ -132,7 +133,7 @@ def stack_add(warehouse_id, row, slot):
     code = storage.normalize_code(request.form.get("code"))
     box = Box.query.filter_by(code=code).first() if code else None
     if box is None:
-        flash_error("Kiste nicht gefunden.")
+        flash_error(_("Kiste nicht gefunden."))
         return back("main.stack_view", warehouse_id=warehouse.id, row=row, slot=slot)
     try:
         if box.is_stored:
@@ -144,18 +145,18 @@ def stack_add(warehouse_id, row, slot):
         flash_error(str(e))
         return back("main.stack_view", warehouse_id=warehouse.id, row=row, slot=slot)
     if commit_or_rollback():
-        flash(f"{box.code} steht jetzt auf {box.location}.", "success")
+        flash(_("{code} steht jetzt auf {location}.", code=box.code, location=box.location), "success")
     return back("main.stack_view", warehouse_id=warehouse.id, row=row, slot=slot)
 
 
 # --- Kisten -----------------------------------------------------------------
 
 BOX_FILTERS = {
-    "eingelagert": ("Eingelagert", Box.warehouse_id.isnot(None)),
-    "nicht_eingelagert": ("Nicht eingelagert", Box.warehouse_id.is_(None)),
-    "befuellt": ("Befüllt", Box.fill > 0),
-    "leer": ("Leer", Box.fill == 0),
-    "befuellt_nicht_eingelagert": ("Befüllt, nicht eingelagert",
+    "eingelagert": (N_("Eingelagert"), Box.warehouse_id.isnot(None)),
+    "nicht_eingelagert": (N_("Nicht eingelagert"), Box.warehouse_id.is_(None)),
+    "befuellt": (N_("Befüllt"), Box.fill > 0),
+    "leer": (N_("Leer"), Box.fill == 0),
+    "befuellt_nicht_eingelagert": (N_("Befüllt, nicht eingelagert"),
                                    (Box.fill > 0) & Box.warehouse_id.is_(None)),
 }
 
@@ -202,7 +203,7 @@ def boxes_create():
     count = form_int("count", minimum=1, maximum=1000)
     box_type = db.session.get(BoxType, form_int("box_type_id", 0))
     if not count or not box_type:
-        flash_error("Bitte Anzahl (1–1000) und Kistentyp angeben.")
+        flash_error(_("Bitte Anzahl (1–1000) und Kistentyp angeben."))
         return redirect(url_for("main.boxes"))
     try:
         created = storage.create_boxes(count, box_type.id, current_user)
@@ -212,7 +213,7 @@ def boxes_create():
         return redirect(url_for("main.boxes"))
     db.session.commit()
     first, last = created[0].code, created[-1].code
-    flash(f"{count} Kisten angelegt ({first} bis {last}).", "success")
+    flash(_("{n} Kisten angelegt ({first} bis {last}).", n=count, first=first, last=last), "success")
     return redirect(url_for("main.labels", von=first, bis=last))
 
 
@@ -261,7 +262,7 @@ def box_contents(code):
         return redirect(url_for("main.box_detail", code=box.code))
     db.session.commit()
     if changed:
-        flash(f"{box.code} gespeichert.", "success")
+        flash(_("{code} gespeichert.", code=box.code), "success")
     return redirect(url_for("main.box_detail", code=box.code))
 
 
@@ -272,7 +273,7 @@ def box_fill(code):
     try:
         if storage.set_fill(box, form_int("fill", -1), current_user):
             db.session.commit()
-            flash(f"{box.code}: Füllstand {box.fill_label}.", "success")
+            flash(_("{code}: Füllstand {fill}.", code=box.code, fill=box.fill_label), "success")
     except StorageError as e:
         flash_error(str(e))
     return redirect(url_for("main.box_detail", code=box.code))
@@ -302,7 +303,7 @@ def box_store(code):
         flash_error(str(e))
         return redirect(url_for("main.box_detail", code=box.code))
     if commit_or_rollback():
-        flash(f"{box.code} steht jetzt auf {box.location}.", "success")
+        flash(_("{code} steht jetzt auf {location}.", code=box.code, location=box.location), "success")
     return redirect(url_for("main.box_detail", code=box.code))
 
 
@@ -318,9 +319,9 @@ def box_remove(code):
         flash_error(str(e))
         return redirect(url_for("main.box_detail", code=box.code))
     if commit_or_rollback():
-        msg = f"{box.code} ausgelagert."
+        msg = _("{code} ausgelagert.", code=box.code)
         if shifted:
-            msg += " Nachgerückt: " + ", ".join(b.code for b in shifted) + "."
+            msg += " " + _("Nachgerückt: {codes}.", codes=", ".join(b.code for b in shifted))
         flash(msg, "success")
     return redirect(url_for("main.box_detail", code=box.code))
 
@@ -330,11 +331,11 @@ def box_remove(code):
 def box_delete(code):
     box = get_box_or_404(code)
     if box.is_stored:
-        flash_error("Eingelagerte Kisten können nicht gelöscht werden. Bitte zuerst auslagern.")
+        flash_error(_("Eingelagerte Kisten können nicht gelöscht werden. Bitte zuerst auslagern."))
         return redirect(url_for("main.box_detail", code=box.code))
     db.session.delete(box)
     db.session.commit()
-    flash(f"{box.code} wurde gelöscht.", "success")
+    flash(_("{code} wurde gelöscht.", code=box.code), "success")
     return redirect(url_for("main.boxes"))
 
 
@@ -358,7 +359,7 @@ def scan():
         code = storage.normalize_code(raw)
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))
-        flash_error(f"Keine Kiste mit dem Code „{raw[:40]}“ gefunden.")
+        flash_error(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
     return render_template("scan.html")
 
 
@@ -408,7 +409,7 @@ def labels_pdf():
         query = query.filter(Box.code <= end)
     codes = [b.code for b in query.order_by(Box.code).limit(2000)]
     if not codes:
-        flash_error("Im gewählten Bereich gibt es keine Kisten.")
+        flash_error(_("Im gewählten Bereich gibt es keine Kisten."))
         return redirect(url_for("main.labels"))
     fmt = request.form.get("format", "3x8")
     if fmt not in LABEL_FORMATS:

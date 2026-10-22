@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Etiketten drucken{% endblock %}
+{% block title %}{{ _("Etiketten drucken") }}{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>QR-Etiketten drucken</h1>
-        <p class="text-body-secondary mb-0">{{ total }} Kisten vorhanden</p>
+        <h1>{{ _("QR-Etiketten drucken") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("{n} Kisten vorhanden", n=total) }}</p>
     </div>
 </div>
 <div class="card shadow-sm" style="max-width: 720px">
@@ -13,34 +13,34 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label" for="von">Von Kiste</label>
+                    <label class="form-label" for="von">{{ _("Von Kiste") }}</label>
                     <input class="form-control" name="von" id="von" value="{{ von }}" placeholder="K-0001">
                 </div>
                 <div class="col-6">
-                    <label class="form-label" for="bis">Bis Kiste</label>
+                    <label class="form-label" for="bis">{{ _("Bis Kiste") }}</label>
                     <input class="form-control" name="bis" id="bis" value="{{ bis }}" placeholder="K-0750">
                 </div>
-                <div class="col-12 form-text mt-1">Leer lassen = alle Kisten.</div>
+                <div class="col-12 form-text mt-1">{{ _("Leer lassen = alle Kisten.") }}</div>
                 <div class="col-12">
-                    <label class="form-label">Format (A4)</label>
+                    <label class="form-label">{{ _("Format (A4)") }}</label>
                     {% for key, f in formats.items() %}
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="format" id="fmt{{ key }}" value="{{ key }}" {% if loop.first %}checked{% endif %}>
-                        <label class="form-check-label" for="fmt{{ key }}"><strong>{{ f[0] }} × {{ f[1] }}</strong> – {{ f[4] }}</label>
+                        <label class="form-check-label" for="fmt{{ key }}"><strong>{{ f[0] }} × {{ f[1] }}</strong> – {{ _(f[4]) }}</label>
                     </div>
                     {% endfor %}
                 </div>
                 <div class="col-sm-6">
-                    <label class="form-label" for="skip">Bereits benutzte Etiketten überspringen</label>
+                    <label class="form-label" for="skip">{{ _("Bereits benutzte Etiketten überspringen") }}</label>
                     <input class="form-control" type="number" name="skip" id="skip" min="0" max="100" value="0">
-                    <div class="form-text">Für angebrochene Etikettenbögen.</div>
+                    <div class="form-text">{{ _("Für angebrochene Etikettenbögen.") }}</div>
                 </div>
             </div>
-            <button class="btn btn-primary mt-4"><i class="bi bi-file-earmark-pdf me-1"></i>PDF erzeugen</button>
+            <button class="btn btn-primary mt-4"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF erzeugen") }}</button>
         </form>
         <hr>
         <p class="small text-body-secondary mb-0"><i class="bi bi-info-circle me-1"></i>
-            Tipp: Für Kisten im Lager eignen sich wetterfeste Folienetiketten. Beim Drucken „Tatsächliche Größe / 100 %“ wählen, nicht „An Seite anpassen“.</p>
+            {{ _("Tipp: Für Kisten im Lager eignen sich wetterfeste Folienetiketten. Beim Drucken „Tatsächliche Größe / 100 %“ wählen, nicht „An Seite anpassen“.") }}</p>
     </div>
 </div>
 {% endblock %}

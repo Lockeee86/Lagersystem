@@ -1,61 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Ersteinrichtung{% endblock %}
+{% block title %}{{ _("Ersteinrichtung") }}{% endblock %}
 {% block content %}
 <div class="auth-wrap">
     <div class="card auth-card auth-card-wide shadow-sm">
         <div class="card-body p-4 p-md-5">
             <div class="text-center mb-4">
                 <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="" width="64" height="64">
-                <h1 class="h4 mt-3 mb-1">Willkommen!</h1>
-                <p class="text-body-secondary">Lege den ersten Admin und dein Lager an. Alles lässt sich später ändern.</p>
+                <h1 class="h4 mt-3 mb-1">{{ _("Willkommen!") }}</h1>
+                <p class="text-body-secondary">{{ _("Lege den ersten Admin und dein Lager an. Alles lässt sich später ändern.") }}</p>
             </div>
             <form method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <h2 class="h6 section-title"><i class="bi bi-person-gear me-1"></i>Admin-Konto</h2>
+                <h2 class="h6 section-title"><i class="bi bi-person-gear me-1"></i>{{ _("Admin-Konto") }}</h2>
                 <div class="row g-3 mb-4">
                     <div class="col-sm-6">
-                        <label class="form-label" for="username">Benutzername</label>
+                        <label class="form-label" for="username">{{ _("Benutzername") }}</label>
                         <input class="form-control" id="username" name="username" value="{{ form.get('username', '') }}" required autocapitalize="none" autocomplete="username">
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="display_name">Anzeigename <span class="text-body-tertiary">(optional)</span></label>
+                        <label class="form-label" for="display_name">{{ _("Anzeigename") }} <span class="text-body-tertiary">({{ _("optional") }})</span></label>
                         <input class="form-control" id="display_name" name="display_name" value="{{ form.get('display_name', '') }}">
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="password">Passwort <span class="text-body-tertiary">(min. 8 Zeichen)</span></label>
+                        <label class="form-label" for="password">{{ _("Passwort") }} <span class="text-body-tertiary">({{ _("min. 8 Zeichen") }})</span></label>
                         <input class="form-control" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="password2">Passwort wiederholen</label>
+                        <label class="form-label" for="password2">{{ _("Passwort wiederholen") }}</label>
                         <input class="form-control" id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
                     </div>
                 </div>
-                <h2 class="h6 section-title"><i class="bi bi-buildings me-1"></i>Lager</h2>
+                <h2 class="h6 section-title"><i class="bi bi-buildings me-1"></i>{{ _("Lager") }}</h2>
                 <div class="row g-3 mb-4">
                     <div class="col-12">
-                        <label class="form-label" for="warehouse_name">Name</label>
-                        <input class="form-control" id="warehouse_name" name="warehouse_name" value="{{ form.get('warehouse_name', 'Kartoffellager') }}" required>
+                        <label class="form-label" for="warehouse_name">{{ _("Name") }}</label>
+                        <input class="form-control" id="warehouse_name" name="warehouse_name" value="{{ form.get('warehouse_name', _('Kartoffellager')) }}" required>
                     </div>
                     <div class="col-4">
-                        <label class="form-label" for="rows">Reihen</label>
+                        <label class="form-label" for="rows">{{ _("Reihen") }}</label>
                         <input class="form-control" id="rows" name="rows" type="number" min="1" max="100" value="{{ form.get('rows', 10) }}" required>
                     </div>
                     <div class="col-4">
-                        <label class="form-label" for="slots">Plätze je Reihe</label>
+                        <label class="form-label" for="slots">{{ _("Plätze je Reihe") }}</label>
                         <input class="form-control" id="slots" name="slots" type="number" min="1" max="100" value="{{ form.get('slots', 15) }}" required>
                     </div>
                     <div class="col-4">
-                        <label class="form-label" for="max_levels">Max. Stapelhöhe</label>
+                        <label class="form-label" for="max_levels">{{ _("Max. Stapelhöhe") }}</label>
                         <input class="form-control" id="max_levels" name="max_levels" type="number" min="1" max="20" value="{{ form.get('max_levels', 5) }}" required>
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="full_weight_kg">Gewicht einer vollen Kiste (kg)</label>
+                        <label class="form-label" for="full_weight_kg">{{ _("Gewicht einer vollen Kiste (kg)") }}</label>
                         <input class="form-control" id="full_weight_kg" name="full_weight_kg" type="number" min="1" max="5000" value="{{ form.get('full_weight_kg', 400) }}" required>
-                        <div class="form-text">Wird als Kistentyp „Standardkiste“ angelegt.</div>
+                        <div class="form-text">{{ _("Wird als Kistentyp „Standardkiste“ angelegt.") }}</div>
                     </div>
                 </div>
-                <button class="btn btn-primary btn-lg w-100">Einrichtung abschließen</button>
+                <button class="btn btn-primary btn-lg w-100">{{ _("Einrichtung abschließen") }}</button>
             </form>
+            {% include "auth/_lang_switch.html" %}
         </div>
     </div>
 </div>

@@ -4,21 +4,21 @@
 {%- if variety and not empty -%}
 <span class="chip" style="--chip: {{ variety.color }}; --chip-text: {{ variety.color|textcolor }}">{{ variety.name }}</span>
 {%- elif empty -%}
-<span class="chip chip-empty">leer</span>
+<span class="chip chip-empty">{{ _("leer") }}</span>
 {%- else -%}
 <span class="text-body-tertiary">–</span>
 {%- endif -%}
 {%- endmacro %}
 
 {% macro fill_bar(fill) -%}
-<span class="fill-bar" title="Füllstand {{ fill }} %"><span style="width: {{ fill }}%"></span></span>
+<span class="fill-bar" title="{{ _('Füllstand') }} {{ fill }} %"><span style="width: {{ fill }}%"></span></span>
 {%- endmacro %}
 
 {% macro location_badge(box) -%}
 {%- if box.is_stored -%}
 <a class="loc-badge" href="{{ url_for('main.stack_view', warehouse_id=box.warehouse_id, row=box.row, slot=box.slot) }}"><i class="bi bi-geo-alt"></i>{{ box.location }}</a>
 {%- else -%}
-<span class="loc-badge loc-none"><i class="bi bi-dash-circle"></i>nicht eingelagert</span>
+<span class="loc-badge loc-none"><i class="bi bi-dash-circle"></i>{{ _("nicht eingelagert") }}</span>
 {%- endif -%}
 {%- endmacro %}
 
@@ -38,7 +38,8 @@
             <span class="small text-body-secondary">{{ m.fill_before }} % <i class="bi bi-arrow-right"></i> {{ m.fill_after }} %</span>
             {% endif %}
         </div>
-        {% if m.note %}<div class="small text-body-secondary">{{ m.note }}</div>{% endif %}
+        {% if m.detail_text %}<div class="small text-body-secondary">{{ m.detail_text }}</div>{% endif %}
+        {% if m.note %}<div class="small text-body-secondary"><i class="bi bi-sticky me-1"></i>{{ m.note }}</div>{% endif %}
         <div class="small text-body-tertiary">{{ m.created_at|datetime }}{% if m.user %} · {{ m.user.name }}{% endif %}</div>
     </div>
 </li>
@@ -51,7 +52,7 @@
         {% set params = args.to_dict() %}
         {% for p in page.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
             {% if p %}
-            {% set _ = params.update(page=p) %}
+            {% set _unused = params.update(page=p) %}
             <li class="page-item {% if p == page.page %}active{% endif %}"><a class="page-link" href="{{ url_for(endpoint, **params) }}">{{ p }}</a></li>
             {% else %}
             <li class="page-item disabled"><span class="page-link">…</span></li>

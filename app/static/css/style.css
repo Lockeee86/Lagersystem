@@ -357,3 +357,16 @@ body:not(.has-tabbar) {
 .color-presets { display: flex; gap: .4rem; flex-wrap: wrap; }
 .color-preset { width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .color-preset:hover { transform: scale(1.1); }
+
+/* --- Sprache ------------------------------------------------------------------------- */
+.lang-picker { display: flex; flex-direction: column; gap: .6rem; }
+.lang-option {
+    display: flex; align-items: center; gap: .8rem; width: 100%;
+    padding: .85rem 1rem; border-radius: .8rem; border: 2px solid var(--line);
+    background: var(--surface); color: var(--bs-body-color); font-weight: 600; font-size: 1.05rem; text-align: left;
+}
+.lang-option:hover { border-color: var(--accent); }
+.lang-option.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.lang-flag { font-size: 1.6rem; line-height: 1; }
+.lang-switch-menu { display: flex; gap: .4rem; }
+.lang-switch-menu .btn, .lang-switch .btn { flex: 1; white-space: nowrap; }

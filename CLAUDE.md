@@ -41,3 +41,8 @@ docker compose up --build -d
 - Rechte über `@editor_required` / `@admin_required` aus `app/utils.py`
 - Alle POST-Formulare brauchen `csrf_token`
 - Login-Sperre liegt im Speicher, daher Gunicorn mit **einem** Worker (Threads sind ok)
+- **Mehrsprachig (de/pl)** über `app/i18n.py`: jeder sichtbare Text als `_("Deutscher Text", platzhalter=...)`
+  (in Python und Jinja), Plural mit `ngettext(...)`, Konstanten mit `N_()` markieren und bei der Anzeige
+  mit `_()` übersetzen. Polnisch in `app/translations/pl.py` ergänzen; `tests/test_i18n.py` schlägt fehl,
+  wenn eine Übersetzung fehlt. Keine fertigen Sätze in der DB speichern (siehe `Movement.detail`).
+  In Jinja nie `_` als Variablennamen verwenden (überdeckt die Übersetzungsfunktion).

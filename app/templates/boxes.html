@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% from "macros.html" import variety_chip, fill_bar, location_badge, pagination, csrf %}
-{% block title %}Kisten{% endblock %}
+{% block title %}{{ _("Kisten") }}{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>Kisten</h1>
-        <p class="text-body-secondary mb-0">{{ page.total }} {{ "Kiste" if page.total == 1 else "Kisten" }}</p>
+        <h1>{{ _("Kisten") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Kiste", "{n} Kisten", page.total) }}</p>
     </div>
     {% if current_user.is_admin %}
-    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#createBoxes"><i class="bi bi-plus-lg me-1"></i>Kisten anlegen</button>
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#createBoxes"><i class="bi bi-plus-lg me-1"></i>{{ _("Kisten anlegen") }}</button>
     {% endif %}
 </div>
 
@@ -19,19 +19,19 @@
             <form method="post" action="{{ url_for('main.boxes_create') }}" class="row g-2 align-items-end">
                 {{ csrf() }}
                 <div class="col-sm-3">
-                    <label class="form-label" for="count">Anzahl</label>
+                    <label class="form-label" for="count">{{ _("Anzahl") }}</label>
                     <input class="form-control" type="number" name="count" id="count" min="1" max="1000" value="{{ 150 if page.total == 0 else 10 }}" required>
                 </div>
                 <div class="col-sm-5">
-                    <label class="form-label" for="box_type_id">Kistentyp</label>
+                    <label class="form-label" for="box_type_id">{{ _("Kistentyp") }}</label>
                     <select class="form-select" name="box_type_id" id="box_type_id" required>
                         {% for t in box_types %}<option value="{{ t.id }}">{{ t.name }} ({{ t.full_weight_kg }} kg)</option>{% endfor %}
                     </select>
                 </div>
                 <div class="col-sm-4">
-                    <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Anlegen</button>
+                    <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
                 </div>
-                <div class="col-12 form-text">Die Kisten werden fortlaufend nummeriert (K-0001, K-0002 …). Danach kannst du direkt die QR-Etiketten drucken.</div>
+                <div class="col-12 form-text">{{ _("Die Kisten werden fortlaufend nummeriert (K-0001, K-0002 …). Danach kannst du direkt die QR-Etiketten drucken.") }}</div>
             </form>
         </div>
     </div>
@@ -43,32 +43,32 @@
         <div class="col-12 col-md-4">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="Code, Feld, Notiz …">
+                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="{{ _('Code, Feld, Notiz …') }}">
             </div>
         </div>
         <div class="col-6 col-md-2">
             <select class="form-select" name="sorte" onchange="this.form.submit()">
-                <option value="">Alle Sorten</option>
+                <option value="">{{ _("Alle Sorten") }}</option>
                 {% for v in varieties %}<option value="{{ v.id }}" {% if args.get('sorte')|int == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
             </select>
         </div>
         <div class="col-6 col-md-2">
             <select class="form-select" name="status" onchange="this.form.submit()">
-                <option value="">Alle Status</option>
-                {% for key, (label, _) in filters.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                <option value="">{{ _("Alle Status") }}</option>
+                {% for key, (label, _filter) in filters.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         {% if warehouses|length > 1 %}
         <div class="col-6 col-md-2">
             <select class="form-select" name="lager" onchange="this.form.submit()">
-                <option value="">Alle Lager</option>
+                <option value="">{{ _("Alle Lager") }}</option>
                 {% for wh in warehouses %}<option value="{{ wh.id }}" {% if args.get('lager')|int == wh.id %}selected{% endif %}>{{ wh.name }}</option>{% endfor %}
             </select>
         </div>
         {% endif %}
         <div class="col-6 col-md-2">
             <select class="form-select" name="sort" onchange="this.form.submit()">
-                {% for key, label in [('code', 'nach Code'), ('ernte', 'nach Ernte'), ('platz', 'nach Platz'), ('geaendert', 'zuletzt geändert')] %}
+                {% for key, label in [('code', _('nach Code')), ('ernte', _('nach Ernte')), ('platz', _('nach Platz')), ('geaendert', _('zuletzt geändert'))] %}
                 <option value="{{ key }}" {% if args.get('sort', 'code') == key %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
@@ -96,7 +96,7 @@
 {% else %}
 <div class="empty-state">
     <i class="bi bi-boxes"></i>
-    <p>{% if args %}Keine Kisten für diesen Filter.{% else %}Noch keine Kisten angelegt.{% endif %}</p>
+    <p>{% if args %}{{ _("Keine Kisten für diesen Filter.") }}{% else %}{{ _("Noch keine Kisten angelegt.") }}{% endif %}</p>
 </div>
 {% endif %}
 {% endblock %}

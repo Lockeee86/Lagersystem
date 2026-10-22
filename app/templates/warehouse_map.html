@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "macros.html" import variety_chip %}
-{% block title %}Lagerkarte{% endblock %}
+{% block title %}{{ _("Lagerkarte") }}{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>Lagerkarte</h1>
-        <p class="text-body-secondary mb-0">{{ warehouse.name }} · {{ warehouse.rows }} Reihen × {{ warehouse.slots }} Plätze, bis {{ warehouse.max_levels }} Kisten hoch</p>
+        <h1>{{ _("Lagerkarte") }}</h1>
+        <p class="text-body-secondary mb-0">{{ warehouse.name }} · {{ _("{rows} Reihen × {slots} Plätze, bis {levels} Kisten hoch", rows=warehouse.rows, slots=warehouse.slots, levels=warehouse.max_levels) }}</p>
     </div>
     {% if warehouses|length > 1 %}
     <div class="dropdown">
@@ -20,8 +20,8 @@
 </div>
 
 <div class="map-filters mb-3" id="mapFilters">
-    <button class="chip chip-filter active" data-filter="">Alle</button>
-    <button class="chip chip-filter" data-filter="free"><i class="bi bi-plus-square me-1"></i>Platz frei</button>
+    <button class="chip chip-filter active" data-filter="">{{ _("Alle") }}</button>
+    <button class="chip chip-filter" data-filter="free"><i class="bi bi-plus-square me-1"></i>{{ _("Platz frei") }}</button>
     {% for v in varieties %}
     <button class="chip chip-filter" data-filter="v{{ v.id }}" style="--chip: {{ v.color }}; --chip-text: {{ v.color|textcolor }}">{{ v.name }}</button>
     {% endfor %}
@@ -67,10 +67,10 @@
             </table>
         </div>
         <div class="map-legend small text-body-secondary mt-3">
-            <span><span class="legend-swatch is-blank"></span>leere Kiste</span>
-            <span><span class="legend-swatch is-free"></span>freie Ebene</span>
-            <span><span class="legend-swatch is-full"></span>Stapel voll</span>
-            <span class="d-none d-md-inline">Klick auf einen Stapel zeigt die Kisten darin.</span>
+            <span><span class="legend-swatch is-blank"></span>{{ _("leere Kiste") }}</span>
+            <span><span class="legend-swatch is-free"></span>{{ _("freie Ebene") }}</span>
+            <span><span class="legend-swatch is-full"></span>{{ _("Stapel voll") }}</span>
+            <span class="d-none d-md-inline">{{ _("Klick auf einen Stapel zeigt die Kisten darin.") }}</span>
         </div>
     </div>
 </div>

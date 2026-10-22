@@ -13,7 +13,8 @@ Später kommen Temperatur- und Luftfeuchtesensoren dazu.
 | 4 | Zugriff | Auch von unterwegs: Betrieb hinter Reverse Proxy, VPN oder Tunnel mit HTTPS. Oberfläche optimiert fürs Handy. |
 | 5 | Lager | Mehrere Lager möglich, am Anfang eins. Struktur **Lager → Reihe → Stellplatz → Ebene** (Start: 10 × 15 × 5 = 750 Plätze). |
 | 6 | Sensoren | Temperatur + Luftfeuchte per MQTT, Diagramme, Grenzwert-Warnungen, Warnung bei ausgefallenem Sensor. |
-| 7 | Repo | `github.com/Lockeee86/Lagersystem`, Portainer baut den Stack direkt aus dem Repo. |
+| 7 | Sprache | Deutsch und Polnisch, je Benutzer einstellbar. Der Admin legt die Sprache beim Anlegen fest, der Benutzer kann sie in den Einstellungen ändern. |
+| 8 | Repo | `github.com/Lockeee86/Lagersystem`, Portainer baut den Stack direkt aus dem Repo. |
 
 ## Rollen
 
@@ -49,8 +50,9 @@ Reihe – Stellplatz – Ebene
 - **Sorte**: Name, Farbe (Lagerkarte), Verwendung (Speise / Futter / Pflanzgut / Sonstiges)
 - **Kiste**: Code (QR), Kistentyp, Sorte, Erntedatum, Feld/Schlag, Sortierung/Größe,
   Füllstand, Notiz, aktueller Platz (Lager, Reihe, Platz, Ebene, leer = nicht eingelagert)
-- **Bewegung**: Kiste, Aktion, von, nach, Füllstand vorher/nachher, Benutzer, Zeitpunkt, Notiz
-- **Benutzer**: Benutzername, Passwort-Hash, Rolle, aktiv
+- **Bewegung**: Kiste, Aktion, von, nach, Füllstand vorher/nachher, Benutzer, Zeitpunkt, Notiz,
+  Detail (sprachneutrale Systemangabe, wird bei der Anzeige übersetzt)
+- **Benutzer**: Benutzername, Passwort-Hash, Rolle, Sprache, aktiv
 - *(Phase 2)* **Sensor**: Name, MQTT-Topic, Lager, Reihe (optional)
 - *(Phase 2)* **Messwert**: Sensor, Messgröße, Wert, Zeitpunkt. Das Schema ist allgemein gehalten, damit später z. B. CO₂ ergänzt werden kann.
 

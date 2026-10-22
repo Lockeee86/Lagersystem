@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required, login_user, logout_user
 
 from .extensions import db
+from .i18n import LANGUAGE_FLAGS, LANG_COOKIE, LANGUAGES, get_locale, gettext as _, set_request_locale
 from .models import ROLE_ADMIN, BoxType, User, Warehouse, utcnow
 from .utils import flash_error, form_int, form_str, login_throttle, safe_next
 
@@ -12,9 +13,9 @@ MIN_PASSWORD_LENGTH = 8
 
 def validate_password(password, repeat):
     if len(password) < MIN_PASSWORD_LENGTH:
-        return f"Das Passwort muss mindestens {MIN_PASSWORD_LENGTH} Zeichen lang sein."
+        return _("Das Passwort muss mindestens {n} Zeichen lang sein.", n=MIN_PASSWORD_LENGTH)
     if password != repeat:
-        return "Die Passwörter stimmen nicht überein."
+        return _("Die Passwörter stimmen nicht überein.")
     return None
 
 
@@ -30,12 +31,15 @@ def login():
 
         wait = login_throttle.blocked_for(*keys)
         if wait:
-            flash_error(f"Zu viele Fehlversuche. Bitte in {wait // 60 + 1} Minuten erneut versuchen.")
+            flash_error(_("Zu viele Fehlversuche. Bitte in {n} Minuten erneut versuchen.", n=wait // 60 + 1))
             return render_template("auth/login.html", username=username), 429
 
         user = User.query.filter_by(username=username).first()
         if user and user.active and user.check_password(password):
             login_throttle.reset(*keys)
+            if user.last_login is None:
+                # Erste Anmeldung: Sprache der Login-Seite übernehmen
+                user.language = get_locale()
             user.last_login = utcnow()
             db.session.commit()
             login_user(user, remember=bool(request.form.get("remember")))
@@ -43,7 +47,7 @@ def login():
 
         login_throttle.fail(*keys)
         current_app.logger.warning("Fehlgeschlagener Login für '%s' von %s", username, request.remote_addr)
-        flash_error("Benutzername oder Passwort falsch.")
+        flash_error(_("Benutzername oder Passwort falsch."))
         return render_template("auth/login.html", username=username), 401
 
     return render_template("auth/login.html")
@@ -53,7 +57,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash("Du wurdest abgemeldet.", "info")
+    flash(_("Du wurdest abgemeldet."), "info")
     return redirect(url_for("auth.login"))
 
 
@@ -68,7 +72,7 @@ def setup():
         password = request.form.get("password", "")
         error = None
         if not username:
-            error = "Bitte einen Benutzernamen angeben."
+            error = _("Bitte einen Benutzernamen angeben.")
         else:
             error = validate_password(password, request.form.get("password2", ""))
         rows = form_int("rows", minimum=1, maximum=100)
@@ -76,12 +80,13 @@ def setup():
         levels = form_int("max_levels", minimum=1, maximum=20)
         weight = form_int("full_weight_kg", minimum=1, maximum=5000)
         if not error and None in (rows, slots, levels, weight):
-            error = "Bitte gültige Werte für das Lager angeben."
+            error = _("Bitte gültige Werte für das Lager angeben.")
         if error:
             flash_error(error)
             return render_template("auth/setup.html", form=request.form)
 
-        user = User(username=username, display_name=form_str("display_name", 100) or None, role=ROLE_ADMIN)
+        user = User(username=username, display_name=form_str("display_name", 100) or None, role=ROLE_ADMIN,
+                    language=get_locale())
         user.set_password(password)
         db.session.add(user)
         db.session.add(Warehouse(name=form_str("warehouse_name", 100) or "Kartoffellager",
@@ -90,7 +95,7 @@ def setup():
         db.session.commit()
         current_app.config["_setup_done"] = True
         login_user(user, remember=True)
-        flash("Einrichtung abgeschlossen. Als Nächstes: Sorten anlegen und Kisten erzeugen.", "success")
+        flash(_("Einrichtung abgeschlossen. Als Nächstes: Sorten anlegen und Kisten erzeugen."), "success")
         return redirect(url_for("main.dashboard"))
 
     return render_template("auth/setup.html", form={})
@@ -99,9 +104,10 @@ def setup():
 @bp.route("/konto", methods=["GET", "POST"])
 @login_required
 def account():
+    """Einstellungen des eigenen Kontos: Sprache und Passwort."""
     if request.method == "POST":
         if not current_user.check_password(request.form.get("current_password", "")):
-            flash_error("Das aktuelle Passwort ist falsch.")
+            flash_error(_("Das aktuelle Passwort ist falsch."))
         else:
             error = validate_password(request.form.get("password", ""), request.form.get("password2", ""))
             if error:
@@ -111,6 +117,24 @@ def account():
                 db.session.commit()
                 # Neues Token → diese Sitzung neu anmelden, alle anderen Geräte sind abgemeldet
                 login_user(current_user._get_current_object(), remember=True)
-                flash("Passwort geändert. Andere Geräte wurden abgemeldet.", "success")
+                flash(_("Passwort geändert. Andere Geräte wurden abgemeldet."), "success")
                 return redirect(url_for("auth.account"))
-    return render_template("auth/account.html")
+    return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS)
+
+
+@bp.route("/sprache", methods=["POST"])
+def set_language():
+    """Sprache umschalten – angemeldet dauerhaft am Benutzer, sonst per Cookie (z. B. auf der Login-Seite)."""
+    lang = request.form.get("lang")
+    if lang not in LANGUAGES:
+        return redirect(safe_next())
+    if current_user.is_authenticated:
+        current_user.language = lang
+        db.session.commit()
+    set_request_locale(lang)
+    if current_user.is_authenticated:
+        flash(_("Sprache gespeichert."), "success")
+    response = redirect(safe_next())
+    response.set_cookie(LANG_COOKIE, lang, max_age=365 * 24 * 3600, samesite="Lax",
+                        secure=current_app.config["SESSION_COOKIE_SECURE"], httponly=True)
+    return response

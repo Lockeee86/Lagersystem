@@ -10,6 +10,7 @@ import re
 from sqlalchemy import func
 
 from .extensions import db
+from .i18n import gettext as _
 from .models import Box, Movement, Warehouse
 
 CODE_PREFIX = "K-"
@@ -99,25 +100,24 @@ def _lock_warehouse(warehouse_id):
     gleichzeitige Buchungen nicht dieselbe Ebene belegen."""
     wh = db.session.get(Warehouse, warehouse_id, with_for_update=True)
     if wh is None:
-        raise StorageError("Lager nicht gefunden.")
+        raise StorageError(_("Lager nicht gefunden."))
     return wh
 
 
 def _check_position(warehouse, row, slot):
     if not (1 <= row <= warehouse.rows):
-        raise StorageError(f"Reihe muss zwischen {warehouse.row_label(1)} und {warehouse.row_label(warehouse.rows)} liegen.")
+        raise StorageError(_("Reihe muss zwischen {first} und {last} liegen.",
+                             first=warehouse.row_label(1), last=warehouse.row_label(warehouse.rows)))
     if not (1 <= slot <= warehouse.slots):
-        raise StorageError(f"Stellplatz muss zwischen 1 und {warehouse.slots} liegen.")
+        raise StorageError(_("Stellplatz muss zwischen 1 und {n} liegen.", n=warehouse.slots))
 
 
 def _place_on_top(box, warehouse, row, slot):
     _check_position(warehouse, row, slot)
     height = stack_height(warehouse.id, row, slot)
     if height >= warehouse.max_levels:
-        raise StorageError(
-            f"Stapel {warehouse.location_label(row, slot)} ist voll "
-            f"({warehouse.max_levels} von {warehouse.max_levels} Kisten)."
-        )
+        raise StorageError(_("Stapel {stack} ist voll ({n} von {n} Kisten).",
+                             stack=warehouse.location_label(row, slot), n=warehouse.max_levels))
     box.warehouse_id = warehouse.id
     box.row = row
     box.slot = slot
@@ -138,13 +138,14 @@ def _take_out(box, user):
         _log(other, "nachgerueckt", user,
              from_location=old,
              to_location=location_text(warehouse, row, slot, other.level),
-             note=f"{box.code} wurde darunter entnommen")
+             detail=box.code)
     return above
 
 
 def store_box(box, warehouse_id, row, slot, user, note=None):
     if box.is_stored:
-        raise StorageError(f"{box.code} ist bereits eingelagert ({box.location}).")
+        raise StorageError(_("{code} ist bereits eingelagert ({location}).",
+                             code=box.code, location=box.location))
     warehouse = _lock_warehouse(warehouse_id)
     _place_on_top(box, warehouse, row, slot)
     _log(box, "eingelagert", user,
@@ -153,15 +154,15 @@ def store_box(box, warehouse_id, row, slot, user, note=None):
 
 def move_box(box, warehouse_id, row, slot, user, note=None):
     if not box.is_stored:
-        raise StorageError(f"{box.code} ist nicht eingelagert.")
+        raise StorageError(_("{code} ist nicht eingelagert.", code=box.code))
     if (box.warehouse_id, box.row, box.slot) == (warehouse_id, row, slot):
-        raise StorageError("Die Kiste steht bereits auf diesem Stapel.")
+        raise StorageError(_("Die Kiste steht bereits auf diesem Stapel."))
     target = _lock_warehouse(warehouse_id)
     if box.warehouse_id != warehouse_id:
         _lock_warehouse(box.warehouse_id)
     _check_position(target, row, slot)
     if stack_height(target.id, row, slot) >= target.max_levels:
-        raise StorageError(f"Stapel {target.location_label(row, slot)} ist voll.")
+        raise StorageError(_("Stapel {stack} ist voll.", stack=target.location_label(row, slot)))
     old = box.location and location_text(box.warehouse, box.row, box.slot, box.level)
     shifted = _take_out(box, user)
     _place_on_top(box, target, row, slot)
@@ -172,7 +173,7 @@ def move_box(box, warehouse_id, row, slot, user, note=None):
 
 def remove_box(box, user, empty=False, note=None):
     if not box.is_stored:
-        raise StorageError(f"{box.code} ist nicht eingelagert.")
+        raise StorageError(_("{code} ist nicht eingelagert.", code=box.code))
     _lock_warehouse(box.warehouse_id)
     old = location_text(box.warehouse, box.row, box.slot, box.level)
     fill_before = box.fill
@@ -186,7 +187,7 @@ def remove_box(box, user, empty=False, note=None):
 
 def set_fill(box, fill, user, note=None):
     if fill not in (0, 25, 50, 75, 100):
-        raise StorageError("Ungültiger Füllstand.")
+        raise StorageError(_("Ungültiger Füllstand."))
     if fill == box.fill:
         return False
     _log(box, "fuellstand", user, fill_before=box.fill, fill_after=fill, note=note)
@@ -196,25 +197,25 @@ def set_fill(box, fill, user, note=None):
 
 def update_contents(box, user, variety_id, harvest_date, field, grade, fill, note, box_type_id=None):
     if fill not in (0, 25, 50, 75, 100):
-        raise StorageError("Ungültiger Füllstand.")
+        raise StorageError(_("Ungültiger Füllstand."))
     box_type_id = box_type_id or box.box_type_id
     changes = []
     if box.box_type_id != box_type_id:
-        changes.append("Kistentyp")
+        changes.append("box_type")
     if box.variety_id != variety_id:
-        changes.append("Sorte")
+        changes.append("variety")
     if box.harvest_date != harvest_date:
-        changes.append("Erntedatum")
+        changes.append("harvest_date")
     if (box.field or None) != (field or None):
-        changes.append("Feld")
+        changes.append("field")
     if (box.grade or None) != (grade or None):
-        changes.append("Sortierung")
+        changes.append("grade")
     if (box.note or None) != (note or None):
-        changes.append("Notiz")
+        changes.append("note")
     if not changes and box.fill == fill:
         return False
     _log(box, "befuellt", user, fill_before=box.fill, fill_after=fill,
-         note=", ".join(changes) + " geändert" if changes else None)
+         detail=",".join(changes) or None)
     box.box_type_id = box_type_id
     box.variety_id = variety_id
     box.harvest_date = harvest_date
@@ -232,7 +233,7 @@ def next_code_number():
 
 def create_boxes(count, box_type_id, user):
     if not (1 <= count <= 1000):
-        raise StorageError("Es können 1 bis 1000 Kisten auf einmal angelegt werden.")
+        raise StorageError(_("Es können 1 bis 1000 Kisten auf einmal angelegt werden."))
     start = next_code_number()
     boxes = []
     for n in range(start, start + count):

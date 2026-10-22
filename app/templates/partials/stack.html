@@ -3,10 +3,10 @@
 {% set back_url = url_for('main.warehouse_map', warehouse_id=warehouse.id) if in_modal else url_for('main.stack_view', warehouse_id=warehouse.id, row=row, slot=slot) %}
 <div class="modal-header">
     <div>
-        <h2 class="modal-title h5 mb-0"><i class="bi bi-stack me-1"></i>Stapel {{ warehouse.location_label(row, slot) }}</h2>
-        <div class="small text-body-secondary">{{ warehouse.name }} · Reihe {{ warehouse.row_label(row) }}, Platz {{ slot }} · {{ boxes|length }} / {{ warehouse.max_levels }} Kisten</div>
+        <h2 class="modal-title h5 mb-0"><i class="bi bi-stack me-1"></i>{{ _("Stapel {stack}", stack=warehouse.location_label(row, slot)) }}</h2>
+        <div class="small text-body-secondary">{{ warehouse.name }} · {{ _("Reihe {row}, Platz {slot}", row=warehouse.row_label(row), slot=slot) }} · {{ _("{n} / {total} Kisten", n=boxes|length, total=warehouse.max_levels) }}</div>
     </div>
-    {% if in_modal %}<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>{% endif %}
+    {% if in_modal %}<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Schließen') }}"></button>{% endif %}
 </div>
 <div class="modal-body">
     <div class="stack-tower">
@@ -19,7 +19,7 @@
             <span class="tower-main">
                 <span class="fw-semibold">{{ b.code }}</span>
                 {{ variety_chip(b.variety, b.is_empty) }}
-                {% if b.harvest_date %}<span class="small text-body-secondary">Ernte {{ b.harvest_date|date }}</span>{% endif %}
+                {% if b.harvest_date %}<span class="small text-body-secondary">{{ _("Ernte {date}", date=b.harvest_date|date) }}</span>{% endif %}
             </span>
             <span class="tower-fill">{{ fill_bar(b.fill) }}<span class="small">{{ b.fill_label }}</span></span>
             <i class="bi bi-chevron-right text-body-tertiary"></i>
@@ -27,7 +27,7 @@
         {% else %}
         <div class="tower-box is-free">
             <span class="tower-level">{{ lvl }}</span>
-            <span class="tower-main text-body-tertiary">frei</span>
+            <span class="tower-main text-body-tertiary">{{ _("frei") }}</span>
         </div>
         {% endif %}
         {% endfor %}
@@ -39,12 +39,12 @@
     <form method="post" action="{{ url_for('main.stack_add', warehouse_id=warehouse.id, row=row, slot=slot) }}" class="w-100">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="back" value="{{ back_url }}">
-        <label class="form-label small mb-1" for="stackAddCode">Kiste oben auf diesen Stapel setzen (Ebene {{ boxes|length + 1 }})</label>
+        <label class="form-label small mb-1" for="stackAddCode">{{ _("Kiste oben auf diesen Stapel setzen (Ebene {level})", level=boxes|length + 1) }}</label>
         <div class="input-group">
-            <input class="form-control" id="stackAddCode" name="code" placeholder="z. B. K-0012" required autocapitalize="characters" autocomplete="off">
-            <button class="btn btn-primary"><i class="bi bi-box-arrow-in-down me-1"></i>Einlagern</button>
+            <input class="form-control" id="stackAddCode" name="code" placeholder="{{ _('z. B. K-0012') }}" required autocapitalize="characters" autocomplete="off">
+            <button class="btn btn-primary"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Einlagern") }}</button>
         </div>
-        <div class="form-text">Steht die Kiste woanders, wird sie hierher umgelagert.</div>
+        <div class="form-text">{{ _("Steht die Kiste woanders, wird sie hierher umgelagert.") }}</div>
     </form>
 </div>
 {% endif %}

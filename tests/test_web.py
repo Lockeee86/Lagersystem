@@ -119,3 +119,75 @@ def test_warehouse_shrink_blocked(as_admin, db, seed):
     db.session.commit()
     as_admin.post("/admin/lager", data={"id": seed["wh"].id, "name": "Kartoffellager", "rows": 5, "slots": 15, "max_levels": 5})
     assert seed["wh"].rows == 10
+
+
+# --- Sprache ----------------------------------------------------------------
+
+def test_language_switch_is_saved_per_user(as_worker, app, seed):
+    assert "Übersicht" in as_worker.get("/").get_data(as_text=True)
+    resp = as_worker.post("/sprache", data={"lang": "pl", "next": "/konto"})
+    assert resp.headers["Location"] == "/konto"
+    assert User.query.filter_by(username="max").one().language == "pl"
+    html = as_worker.get("/").get_data(as_text=True)
+    assert 'lang="pl"' in html and "Przegląd" in html and "Übersicht" not in html
+    # Gilt auch auf einem anderen Gerät
+    other = app.test_client()
+    login(other, "max")
+    assert "Przegląd" in other.get("/").get_data(as_text=True)
+
+
+def test_invalid_language_ignored(as_worker, seed):
+    as_worker.post("/sprache", data={"lang": "xx"})
+    assert User.query.filter_by(username="max").one().language == "de"
+
+
+def test_login_page_language(app, seed):
+    client = app.test_client()
+    assert "Zaloguj się" in client.get("/login", headers={"Accept-Language": "pl-PL,pl;q=0.9"}).get_data(as_text=True)
+    client.post("/sprache", data={"lang": "pl", "next": "/login"})
+    assert "Zaloguj się" in client.get("/login").get_data(as_text=True)
+    # Erste Anmeldung übernimmt die Sprache der Login-Seite
+    login(client, "oma")
+    assert User.query.filter_by(username="oma").one().language == "pl"
+
+
+def test_admin_sets_language_for_new_user(as_admin, seed):
+    as_admin.post("/admin/benutzer", data={"username": "jan", "role": "mitarbeiter", "language": "pl",
+                                           "password": "haslo1234", "password2": "haslo1234"})
+    assert User.query.filter_by(username="jan").one().language == "pl"
+
+
+def test_messages_and_history_translated(as_worker, db, seed):
+    as_worker.post("/sprache", data={"lang": "pl"})
+    a, b = storage.create_boxes(2, seed["bt"].id, seed["admin"])
+    storage.update_contents(a, seed["admin"], seed["belana"].id, None, "Pole", None, 100, None)
+    storage.store_box(a, seed["wh"].id, 1, 1, seed["admin"])
+    storage.store_box(b, seed["wh"].id, 1, 1, seed["admin"])
+    db.session.commit()
+    resp = as_worker.post("/kiste/K-0001/auslagern", data={}, follow_redirects=True)
+    html = resp.get_data(as_text=True)
+    assert "Wydano K-0001." in html and "Przesunięto w dół: K-0002." in html
+    html = as_worker.get("/kiste/K-0002").get_data(as_text=True)
+    assert "K-0001 wyjęto spod spodu" in html
+    html = as_worker.get("/kiste/K-0001").get_data(as_text=True)
+    assert "Zmieniono: Odmiana, Pole" in html
+    # Fehlermeldung aus der Lagerlogik
+    for _ in range(4):
+        storage.store_box(storage.create_boxes(1, seed["bt"].id, seed["admin"])[0], seed["wh"].id, 2, 2, seed["admin"])
+    storage.store_box(storage.create_boxes(1, seed["bt"].id, seed["admin"])[0], seed["wh"].id, 2, 2, seed["admin"])
+    db.session.commit()
+    html = as_worker.post("/kiste/K-0001/einlagern", data={"warehouse_id": seed["wh"].id, "row": 2, "slot": 2},
+                          follow_redirects=True).get_data(as_text=True)
+    assert "Stos B-02 jest pełny" in html
+
+
+def test_all_pages_render_in_polish(as_admin, db, seed):
+    as_admin.post("/sprache", data={"lang": "pl"})
+    storage.create_boxes(1, seed["bt"].id, seed["admin"])
+    db.session.commit()
+    for url in ["/", "/lager", f"/lager/{seed['wh'].id}/stapel/1/1", "/kisten", "/kiste/K-0001", "/scan",
+                "/verlauf", "/etiketten", "/konto", "/admin/lager", "/admin/sorten", "/admin/kistentypen",
+                "/admin/benutzer"]:
+        resp = as_admin.get(url)
+        assert resp.status_code == 200, url
+        assert 'lang="pl"' in resp.get_data(as_text=True), url

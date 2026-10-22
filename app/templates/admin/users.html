@@ -1,36 +1,37 @@
 {% extends "base.html" %}
 {% from "admin/_macros.html" import edit_modal %}
-{% block title %}Benutzer{% endblock %}
+{% block title %}{{ _("Benutzer") }}{% endblock %}
 {% block content %}
 {% include "admin/_nav.html" %}
 <div class="page-head">
-    <h1>Benutzer</h1>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-edit='{"role": "mitarbeiter", "active": true}'><i class="bi bi-person-plus me-1"></i>Neuer Benutzer</button>
+    <h1>{{ _("Benutzer") }}</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-edit='{"role": "mitarbeiter", "active": true, "language": "de"}'><i class="bi bi-person-plus me-1"></i>{{ _("Neuer Benutzer") }}</button>
 </div>
 <div class="row g-3 mb-4 small">
-    <div class="col-md-4"><div class="role-card"><strong>Admin</strong><br>Alles, inkl. Lager, Sorten, Benutzer, Kisten anlegen und Etiketten.</div></div>
-    <div class="col-md-4"><div class="role-card"><strong>Mitarbeiter</strong><br>Scannen, befüllen, ein-, um- und auslagern, Füllstand ändern.</div></div>
-    <div class="col-md-4"><div class="role-card"><strong>Betrachter</strong><br>Nur ansehen: Übersicht, Lagerkarte, Kisten, Verlauf.</div></div>
+    <div class="col-md-4"><div class="role-card"><strong>{{ _("Admin") }}</strong><br>{{ _("Alles, inkl. Lager, Sorten, Benutzer, Kisten anlegen und Etiketten.") }}</div></div>
+    <div class="col-md-4"><div class="role-card"><strong>{{ _("Mitarbeiter") }}</strong><br>{{ _("Scannen, befüllen, ein-, um- und auslagern, Füllstand ändern.") }}</div></div>
+    <div class="col-md-4"><div class="role-card"><strong>{{ _("Betrachter") }}</strong><br>{{ _("Nur ansehen: Übersicht, Lagerkarte, Kisten, Verlauf.") }}</div></div>
 </div>
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead><tr><th>Benutzer</th><th>Rolle</th><th class="d-none d-md-table-cell">Letzte Anmeldung</th><th></th></tr></thead>
+            <thead><tr><th>{{ _("Benutzer") }}</th><th>{{ _("Rolle") }}</th><th>{{ _("Sprache") }}</th><th class="d-none d-md-table-cell">{{ _("Letzte Anmeldung") }}</th><th></th></tr></thead>
             <tbody>
             {% for u in items %}
             <tr class="{% if not u.active %}opacity-50{% endif %}">
                 <td>
                     <div class="d-flex align-items-center gap-2">
                         <span class="avatar">{{ u.name[:1]|upper }}</span>
-                        <div><div class="fw-medium">{{ u.name }}{% if u.id == current_user.id %} <span class="text-body-tertiary small">(du)</span>{% endif %}</div>
+                        <div><div class="fw-medium">{{ u.name }}{% if u.id == current_user.id %} <span class="text-body-tertiary small">({{ _("du") }})</span>{% endif %}</div>
                             <div class="small text-body-secondary">{{ u.username }}</div></div>
                     </div>
                 </td>
-                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if not u.active %} <span class="badge text-bg-secondary">gesperrt</span>{% endif %}</td>
+                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
+                <td title="{{ languages.get(u.language, u.language) }}">{{ LANGUAGE_FLAGS.get(u.language, '') }} {{ u.language|upper }}</td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ u.last_login|datetime }}</td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal"
-                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "active": u.active}|tojson }}'><i class="bi bi-pencil"></i></button>
+                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active}|tojson }}'><i class="bi bi-pencil"></i></button>
                 </td>
             </tr>
             {% endfor %}
@@ -39,37 +40,45 @@
     </div>
 </div>
 
-{% call edit_modal("userModal", "Neuer Benutzer", "Benutzer bearbeiten", url_for('admin.users')) %}
+{% call edit_modal("userModal", _("Neuer Benutzer"), _("Benutzer bearbeiten"), url_for('admin.users')) %}
 <div class="row g-2 mb-3">
     <div class="col-sm-6">
-        <label class="form-label" for="u_username">Benutzername</label>
+        <label class="form-label" for="u_username">{{ _("Benutzername") }}</label>
         <input class="form-control" id="u_username" name="username" required maxlength="64" autocapitalize="none" pattern="[a-zA-Z0-9._\-]{2,64}">
     </div>
     <div class="col-sm-6">
-        <label class="form-label" for="u_display">Anzeigename</label>
+        <label class="form-label" for="u_display">{{ _("Anzeigename") }}</label>
         <input class="form-control" id="u_display" name="display_name" maxlength="100">
     </div>
 </div>
-<div class="mb-3">
-    <label class="form-label" for="u_role">Rolle</label>
-    <select class="form-select" id="u_role" name="role">
-        {% for key, label in ROLES.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
-    </select>
+<div class="row g-2 mb-3">
+    <div class="col-sm-6">
+        <label class="form-label" for="u_role">{{ _("Rolle") }}</label>
+        <select class="form-select" id="u_role" name="role">
+            {% for key, label in ROLES.items() %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-sm-6">
+        <label class="form-label" for="u_lang">{{ _("Sprache") }}</label>
+        <select class="form-select" id="u_lang" name="language">
+            {% for code, label in languages.items() %}<option value="{{ code }}">{{ LANGUAGE_FLAGS[code] }} {{ label }}</option>{% endfor %}
+        </select>
+    </div>
 </div>
 <div class="row g-2 mb-1">
     <div class="col-sm-6">
-        <label class="form-label" for="u_pw">Passwort</label>
+        <label class="form-label" for="u_pw">{{ _("Passwort") }}</label>
         <input class="form-control" id="u_pw" name="password" type="password" minlength="8" autocomplete="new-password" data-required-new>
     </div>
     <div class="col-sm-6">
-        <label class="form-label" for="u_pw2">Wiederholen</label>
+        <label class="form-label" for="u_pw2">{{ _("Wiederholen") }}</label>
         <input class="form-control" id="u_pw2" name="password2" type="password" minlength="8" autocomplete="new-password" data-required-new>
     </div>
 </div>
-<div class="form-text mb-3 edit-only">Leer lassen, um das Passwort nicht zu ändern. Ein neues Passwort meldet den Benutzer auf allen Geräten ab.</div>
+<div class="form-text mb-3 edit-only">{{ _("Leer lassen, um das Passwort nicht zu ändern. Ein neues Passwort meldet den Benutzer auf allen Geräten ab.") }}</div>
 <div class="form-check edit-only">
     <input class="form-check-input" type="checkbox" id="u_active" name="active" value="1">
-    <label class="form-check-label" for="u_active">Aktiv (gesperrte Benutzer werden sofort abgemeldet)</label>
+    <label class="form-check-label" for="u_active">{{ _("Aktiv (gesperrte Benutzer werden sofort abgemeldet)") }}</label>
 </div>
 {% endcall %}
 {% endblock %}

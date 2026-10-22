@@ -1,0 +1,8 @@
+{# Sprachumschalter für Seiten ohne Anmeldung (Login, Ersteinrichtung) #}
+<form method="post" action="{{ url_for('auth.set_language') }}" class="lang-switch d-flex justify-content-center gap-2 mt-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.full_path }}">
+    {% for code, label in LANGUAGES.items() %}
+    <button name="lang" value="{{ code }}" class="btn btn-sm {% if get_locale() == code %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ LANGUAGE_FLAGS[code] }} {{ label }}</button>
+    {% endfor %}
+</form>

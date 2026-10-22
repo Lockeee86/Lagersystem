@@ -8,11 +8,13 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
+from .i18n import N_
+
 # Name: (Spalten, Zeilen, Breite mm, Höhe mm, Beschreibung)
 LABEL_FORMATS = {
-    "3x8": (3, 8, 70, 37, "24 Etiketten pro Blatt, 70 × 37 mm (z. B. Avery Zweckform 3474)"),
-    "2x4": (2, 4, 105, 74, "8 Etiketten pro Blatt, 105 × 74 mm (z. B. Avery Zweckform 3427)"),
-    "2x2": (2, 2, 105, 148, "4 große Schilder pro Blatt, 105 × 148 mm (A6) – gut lesbar aus Entfernung"),
+    "3x8": (3, 8, 70, 37, N_("24 Etiketten pro Blatt, 70 × 37 mm (z. B. Avery Zweckform 3474)")),
+    "2x4": (2, 4, 105, 74, N_("8 Etiketten pro Blatt, 105 × 74 mm (z. B. Avery Zweckform 3427)")),
+    "2x2": (2, 2, 105, 148, N_("4 große Schilder pro Blatt, 105 × 148 mm (A6) – gut lesbar aus Entfernung")),
 }
 
 
@@ -64,7 +66,7 @@ def render_labels(codes, fmt="3x8", skip=0):
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
-    c.setTitle("Kisten-Etiketten")
+    c.setTitle("Etiketten")
     positions = [None] * (skip % per_page) + list(codes)
     for i, code in enumerate(positions):
         if i and i % per_page == 0:

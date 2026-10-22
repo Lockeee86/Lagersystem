@@ -1,34 +1,33 @@
 {% extends "base.html" %}
-{% block title %}Scannen{% endblock %}
+{% block title %}{{ _("Scannen") }}{% endblock %}
 {% block content %}
 <div class="scan-page mx-auto">
-    <div class="page-head"><h1>Kiste scannen</h1></div>
+    <div class="page-head"><h1>{{ _("Kiste scannen") }}</h1></div>
 
     <div class="card shadow-sm mb-3 overflow-hidden">
         <div class="scan-viewport">
             <div id="reader"></div>
             <div class="scan-placeholder" id="scanPlaceholder">
                 <i class="bi bi-camera"></i>
-                <p class="mb-3">Halte die Kamera auf den QR-Code der Kiste.</p>
-                <button class="btn btn-primary btn-lg" id="startScan"><i class="bi bi-camera-video me-2"></i>Kamera starten</button>
+                <p class="mb-3">{{ _("Halte die Kamera auf den QR-Code der Kiste.") }}</p>
+                <button class="btn btn-primary btn-lg" id="startScan"><i class="bi bi-camera-video me-2"></i>{{ _("Kamera starten") }}</button>
             </div>
         </div>
         <div class="card-body py-2 d-flex justify-content-between align-items-center small">
-            <span class="text-body-secondary" id="scanStatus">Kamera aus</span>
-            <button class="btn btn-sm btn-outline-secondary d-none" id="stopScan"><i class="bi bi-stop-circle me-1"></i>Stopp</button>
+            <span class="text-body-secondary" id="scanStatus">{{ _("Kamera aus") }}</span>
+            <button class="btn btn-sm btn-outline-secondary d-none" id="stopScan"><i class="bi bi-stop-circle me-1"></i>{{ _("Stopp") }}</button>
         </div>
     </div>
 
     <div class="alert alert-warning small d-none" id="insecureHint">
         <i class="bi bi-shield-exclamation me-1"></i>
-        Die Kamera funktioniert im Browser nur über <strong>HTTPS</strong> (oder auf localhost).
-        Gib den Code bis dahin unten von Hand ein.
+        {{ _("Die Kamera funktioniert im Browser nur über HTTPS (oder auf localhost). Gib den Code bis dahin unten von Hand ein.") }}
     </div>
 
     <div class="card shadow-sm">
         <div class="card-body">
             <form method="get" action="{{ url_for('main.scan') }}">
-                <label class="form-label" for="manualCode">Oder Code eingeben</label>
+                <label class="form-label" for="manualCode">{{ _("Oder Code eingeben") }}</label>
                 <div class="input-group input-group-lg">
                     <span class="input-group-text">K-</span>
                     <input class="form-control" id="manualCode" name="code" inputmode="numeric" placeholder="0012" autocomplete="off" required>
@@ -48,6 +47,10 @@
     var placeholder = document.getElementById("scanPlaceholder");
     var status = document.getElementById("scanStatus");
     var target = "{{ url_for('main.scan') }}?code=";
+    var T = {{ {
+        "off": _("Kamera aus"), "starting": _("Kamera wird gestartet …"), "found": _("Erkannt:"),
+        "searching": _("Suche QR-Code …"), "error": _("Kamera nicht verfügbar:")
+    }|tojson }};
     var scanner = null, done = false;
 
     if (!window.isSecureContext) {
@@ -62,7 +65,7 @@
             scanner = null;
             placeholder.classList.remove("d-none");
             stopBtn.classList.add("d-none");
-            status.textContent = "Kamera aus";
+            status.textContent = T.off;
         });
     }
 
@@ -70,7 +73,7 @@
         done = false;
         scanner = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
         placeholder.classList.add("d-none");
-        status.textContent = "Kamera wird gestartet …";
+        status.textContent = T.starting;
         scanner.start(
             { facingMode: "environment" },
             { fps: 10, qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
@@ -78,18 +81,18 @@
                 if (done) return;
                 done = true;
                 if (navigator.vibrate) navigator.vibrate(80);
-                status.textContent = "Erkannt: " + text;
+                status.textContent = T.found + " " + text;
                 stop().then(function () { window.location = target + encodeURIComponent(text); });
             },
             function () {}
         ).then(function () {
-            status.textContent = "Suche QR-Code …";
+            status.textContent = T.searching;
             stopBtn.classList.remove("d-none");
             try { localStorage.setItem("scanAutoStart", "1"); } catch (e) {}
         }).catch(function (err) {
             scanner = null;
             placeholder.classList.remove("d-none");
-            status.textContent = "Kamera nicht verfügbar: " + err;
+            status.textContent = T.error + " " + err;
         });
     }
 

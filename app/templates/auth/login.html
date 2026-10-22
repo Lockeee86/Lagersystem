@@ -1,33 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Anmelden{% endblock %}
+{% block title %}{{ _("Anmelden") }}{% endblock %}
 {% block content %}
 <div class="auth-wrap">
     <div class="card auth-card shadow-sm">
         <div class="card-body p-4 p-md-5">
             <div class="text-center mb-4">
                 <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="" width="64" height="64">
-                <h1 class="h4 mt-3 mb-0">Lagersystem</h1>
-                <p class="text-body-secondary small">Bitte melde dich an</p>
+                <h1 class="h4 mt-3 mb-0">{{ _("Lagersystem") }}</h1>
+                <p class="text-body-secondary small">{{ _("Bitte melde dich an") }}</p>
             </div>
             <form method="post" autocomplete="on">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
                 <div class="form-floating mb-3">
                     <input class="form-control" id="username" name="username" value="{{ username or '' }}"
-                           autocomplete="username" autocapitalize="none" required autofocus placeholder="Benutzername">
-                    <label for="username">Benutzername</label>
+                           autocomplete="username" autocapitalize="none" required autofocus placeholder="{{ _('Benutzername') }}">
+                    <label for="username">{{ _("Benutzername") }}</label>
                 </div>
                 <div class="form-floating mb-3">
                     <input class="form-control" id="password" name="password" type="password"
-                           autocomplete="current-password" required placeholder="Passwort">
-                    <label for="password">Passwort</label>
+                           autocomplete="current-password" required placeholder="{{ _('Passwort') }}">
+                    <label for="password">{{ _("Passwort") }}</label>
                 </div>
                 <div class="form-check mb-4">
                     <input class="form-check-input" type="checkbox" name="remember" id="remember" value="1" checked>
-                    <label class="form-check-label" for="remember">Angemeldet bleiben (90 Tage)</label>
+                    <label class="form-check-label" for="remember">{{ _("Angemeldet bleiben (90 Tage)") }}</label>
                 </div>
-                <button class="btn btn-primary btn-lg w-100">Anmelden</button>
+                <button class="btn btn-primary btn-lg w-100">{{ _("Anmelden") }}</button>
             </form>
+            {% include "auth/_lang_switch.html" %}
         </div>
     </div>
 </div>

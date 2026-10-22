@@ -1,27 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Passwort ändern{% endblock %}
+{% block title %}{{ _("Einstellungen") }}{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Passwort ändern</h1></div>
-<div class="card shadow-sm" style="max-width: 520px">
-    <div class="card-body">
-        <p class="text-body-secondary small">Angemeldet als <strong>{{ current_user.username }}</strong> ({{ current_user.role_label }}).
-            Nach der Änderung werden alle anderen Geräte abgemeldet.</p>
-        <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="mb-3">
-                <label class="form-label" for="current_password">Aktuelles Passwort</label>
-                <input class="form-control" id="current_password" name="current_password" type="password" required autocomplete="current-password">
+<div class="page-head"><h1>{{ _("Einstellungen") }}</h1></div>
+<div class="row g-4" style="max-width: 1040px">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-translate me-1"></i>{{ _("Sprache") }}</div>
+            <div class="card-body">
+                <p class="text-body-secondary small">{{ _("Die Sprache gilt für dein Konto auf allen Geräten.") }}</p>
+                <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-picker">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ url_for('auth.account') }}">
+                    {% for code, label in languages.items() %}
+                    <button name="lang" value="{{ code }}" class="lang-option {% if current_user.language == code %}active{% endif %}">
+                        <span class="lang-flag">{{ flags[code] }}</span>
+                        <span>{{ label }}</span>
+                        {% if current_user.language == code %}<i class="bi bi-check-circle-fill ms-auto"></i>{% endif %}
+                    </button>
+                    {% endfor %}
+                </form>
             </div>
-            <div class="mb-3">
-                <label class="form-label" for="password">Neues Passwort <span class="text-body-tertiary">(min. 8 Zeichen)</span></label>
-                <input class="form-control" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-key me-1"></i>{{ _("Passwort ändern") }}</div>
+            <div class="card-body">
+                <p class="text-body-secondary small">{{ _("Angemeldet als {name} ({role}). Nach der Änderung werden alle anderen Geräte abgemeldet.", name=current_user.username, role=current_user.role_label) }}</p>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="current_password">{{ _("Aktuelles Passwort") }}</label>
+                        <input class="form-control" id="current_password" name="current_password" type="password" required autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password">{{ _("Neues Passwort") }} <span class="text-body-tertiary">({{ _("min. 8 Zeichen") }})</span></label>
+                        <input class="form-control" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" for="password2">{{ _("Neues Passwort wiederholen") }}</label>
+                        <input class="form-control" id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
+                    </div>
+                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                </form>
             </div>
-            <div class="mb-4">
-                <label class="form-label" for="password2">Neues Passwort wiederholen</label>
-                <input class="form-control" id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
-            </div>
-            <button class="btn btn-primary">Speichern</button>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}

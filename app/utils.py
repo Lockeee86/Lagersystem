@@ -163,11 +163,14 @@ def fmt_date(value):
 
 
 def fmt_kg(value):
+    """1234 → "1,2 t"; Tausendertrennzeichen: Punkt (de) bzw. geschütztes Leerzeichen (pl)."""
     if value is None:
         return "–"
+    from .i18n import get_locale
+    thousands = "\u00a0" if get_locale() == "pl" else "."
     if value >= 1000:
-        return f"{value / 1000:,.1f} t".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"{value:,} kg".replace(",", ".")
+        return f"{value / 1000:,.1f} t".replace(",", "X").replace(".", ",").replace("X", thousands)
+    return f"{value:,} kg".replace(",", thousands)
 
 
 def text_color_for(hex_color):

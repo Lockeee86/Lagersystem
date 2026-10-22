@@ -3,10 +3,12 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 
+from .i18n import N_
+
 db = SQLAlchemy()
 migrate = Migrate()
 csrf = CSRFProtect()
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
-login_manager.login_message = "Bitte melde dich an."
+login_manager.login_message = N_("Bitte melde dich an.")
 login_manager.login_message_category = "warning"

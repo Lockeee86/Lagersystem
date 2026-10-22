@@ -10,6 +10,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
+from .i18n import DEFAULT_LANGUAGE, N_, gettext as _
 
 
 def utcnow():
@@ -23,9 +24,9 @@ ROLE_MITARBEITER = "mitarbeiter"
 ROLE_BETRACHTER = "betrachter"
 
 ROLES = {
-    ROLE_ADMIN: "Admin",
-    ROLE_MITARBEITER: "Mitarbeiter",
-    ROLE_BETRACHTER: "Betrachter",
+    ROLE_ADMIN: N_("Admin"),
+    ROLE_MITARBEITER: N_("Mitarbeiter"),
+    ROLE_BETRACHTER: N_("Betrachter"),
 }
 # Höherer Wert = mehr Rechte
 ROLE_LEVEL = {ROLE_BETRACHTER: 1, ROLE_MITARBEITER: 2, ROLE_ADMIN: 3}
@@ -42,6 +43,8 @@ class User(UserMixin, db.Model):
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     last_login = db.Column(db.DateTime(timezone=True))
+    language = db.Column(db.String(5), nullable=False, default=DEFAULT_LANGUAGE,
+                         server_default=DEFAULT_LANGUAGE)
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -69,7 +72,7 @@ class User(UserMixin, db.Model):
 
     @property
     def role_label(self):
-        return ROLES.get(self.role, self.role)
+        return _(ROLES.get(self.role, self.role))
 
     def has_role(self, role):
         return ROLE_LEVEL.get(self.role, 0) >= ROLE_LEVEL[role]
@@ -120,10 +123,10 @@ class Warehouse(db.Model):
 
 
 SORT_USAGES = {
-    "speise": "Speise",
-    "futter": "Futter",
-    "pflanzgut": "Pflanzgut",
-    "sonstiges": "Sonstiges",
+    "speise": N_("Speise"),
+    "futter": N_("Futter"),
+    "pflanzgut": N_("Pflanzgut"),
+    "sonstiges": N_("Sonstiges"),
 }
 
 
@@ -140,7 +143,7 @@ class Variety(db.Model):
 
     @property
     def usage_label(self):
-        return SORT_USAGES.get(self.usage, self.usage)
+        return _(SORT_USAGES.get(self.usage, self.usage))
 
 
 class BoxType(db.Model):
@@ -156,11 +159,11 @@ class BoxType(db.Model):
 # --- Kisten -----------------------------------------------------------------
 
 FILL_LEVELS = [
-    (100, "voll"),
+    (100, N_("voll")),
     (75, "¾"),
     (50, "½"),
     (25, "¼"),
-    (0, "leer"),
+    (0, N_("leer")),
 ]
 FILL_LABELS = dict(FILL_LEVELS)
 
@@ -209,7 +212,7 @@ class Box(db.Model):
 
     @property
     def fill_label(self):
-        return FILL_LABELS.get(self.fill, f"{self.fill} %")
+        return _(FILL_LABELS.get(self.fill, f"{self.fill} %"))
 
     @property
     def weight_kg(self):
@@ -231,13 +234,23 @@ class Box(db.Model):
 
 
 MOVEMENT_ACTIONS = {
-    "angelegt": ("Angelegt", "bi-plus-circle"),
-    "befuellt": ("Inhalt geändert", "bi-basket"),
-    "eingelagert": ("Eingelagert", "bi-box-arrow-in-down"),
-    "umgelagert": ("Umgelagert", "bi-arrow-left-right"),
-    "nachgerueckt": ("Nachgerückt", "bi-arrow-down"),
-    "fuellstand": ("Füllstand", "bi-speedometer2"),
-    "ausgelagert": ("Ausgelagert", "bi-box-arrow-up"),
+    "angelegt": (N_("Angelegt"), "bi-plus-circle"),
+    "befuellt": (N_("Inhalt geändert"), "bi-basket"),
+    "eingelagert": (N_("Eingelagert"), "bi-box-arrow-in-down"),
+    "umgelagert": (N_("Umgelagert"), "bi-arrow-left-right"),
+    "nachgerueckt": (N_("Nachgerückt"), "bi-arrow-down"),
+    "fuellstand": (N_("Füllstand"), "bi-speedometer2"),
+    "ausgelagert": (N_("Ausgelagert"), "bi-box-arrow-up"),
+}
+
+# Felder, deren Änderung bei "befuellt" in Movement.detail vermerkt wird
+CONTENT_FIELDS = {
+    "box_type": N_("Kistentyp"),
+    "variety": N_("Sorte"),
+    "harvest_date": N_("Erntedatum"),
+    "field": N_("Feld"),
+    "grade": N_("Sortierung"),
+    "note": N_("Notiz"),
 }
 
 
@@ -252,7 +265,10 @@ class Movement(db.Model):
     to_location = db.Column(db.String(150))
     fill_before = db.Column(db.Integer)
     fill_after = db.Column(db.Integer)
-    note = db.Column(db.Text)
+    note = db.Column(db.Text)  # Notiz des Benutzers
+    # Systemangabe, sprachneutral: bei "nachgerueckt" der Code der entnommenen Kiste,
+    # bei "befuellt" die geänderten Felder (Schlüssel aus CONTENT_FIELDS, kommagetrennt)
+    detail = db.Column(db.String(200))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
 
@@ -261,8 +277,19 @@ class Movement(db.Model):
 
     @property
     def action_label(self):
-        return MOVEMENT_ACTIONS.get(self.action, (self.action, "bi-dot"))[0]
+        return _(MOVEMENT_ACTIONS.get(self.action, (self.action, "bi-dot"))[0])
 
     @property
     def action_icon(self):
         return MOVEMENT_ACTIONS.get(self.action, (self.action, "bi-dot"))[1]
+
+    @property
+    def detail_text(self):
+        if not self.detail:
+            return None
+        if self.action == "nachgerueckt":
+            return _("{code} wurde darunter entnommen", code=self.detail)
+        if self.action == "befuellt":
+            fields = ", ".join(_(CONTENT_FIELDS.get(key, key)) for key in self.detail.split(","))
+            return _("Geändert: {fields}", fields=fields)
+        return self.detail

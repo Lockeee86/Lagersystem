@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Fehler {{ code }}{% endblock %}
+{% block title %}{{ _("Fehler") }} {{ code }}{% endblock %}
 {% block content %}
 <div class="empty-state my-5">
     <div class="display-3 fw-bold text-body-tertiary">{{ code }}</div>
     <p class="lead">{{ message }}</p>
-    <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}"><i class="bi bi-house me-1"></i>Zur Übersicht</a>
+    <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}"><i class="bi bi-house me-1"></i>{{ _("Zur Übersicht") }}</a>
 </div>
 {% endblock %}
