@@ -320,6 +320,22 @@ prüfen“ misst DNS, Verbindung, Capabilities und Testbild einzeln mit Dauer un
 0.27.6: Antwortet der Dienst mit einer Webseite (z. B. Wartungsseite des LGLN), meldet die App deren Titel
 („Der Dienst antwortet mit einer Webseite statt mit Daten: „Wartungsarbeiten““) und fragt 2 Minuten nicht erneut.
 
+### Schüttgut-Lager (0.29.0)
+Für Getreide, Raps u. Ä. (Lager → Schüttgut). Entscheidungen: Lagerarten **Flachlager-Box**, **Haufen in der Halle**
+und **Big Bags** (nur als Anzahl und Menge, ohne einzelne Codes); **eine Ware je Lagerort** (Kultur, optional Sorte –
+wird beim ersten Einlagern in den leeren Lagerort gesetzt, danach passt nur dieselbe Ware). Lagerorte legt der Admin
+an (Name, Standort, Kapazität t, bei Big Bags kg je Bag), Mitarbeiter buchen.
+- **Einlagern** je Fuhre: Datum, Ware, Schlag, Waage (brutto/tara oder netto, kg; „38.000“ = 38 000), bei Big Bags
+  die Anzahl, freiwillig Feuchte, Protein, Hektolitergewicht, Fallzahl, Besatz, Fahrzeug, Notiz.
+- **Auslagern**: Eigenverbrauch (Fütterung, Biogas, Saatgut eigene Flächen, Sonstiges) am Lagerort; **Verkauf
+  über den bestehenden Lieferschein** („Schüttgut verladen“, Brutto/Tara aus der Waage des Lieferscheins vorbelegt).
+  Die Position bucht die Auslagerung, Entfernen nimmt sie zurück; PDF-Zeile „Schüttgut, gewogen“.
+- **Anzeige**: Bestand, Füllgrad, Qualität der aktuellen Füllung (Mittel nach Menge, seit der Lagerort zuletzt
+  leer war), Herkunft je Schlag in %, Buchungen. Der eingelagerte Getreide-Ertrag zählt beim Schlag (t/ha).
+  Lager-Übersicht und Bereichsseite zeigen die Summe je Ware.
+- Nicht gewählt (später möglich): Silos, Umlagern zwischen Lagerorten, Bestandskorrektur/Inventur.
+- Technik: `BulkStore`, `BulkEntry` (ein/aus), `app/bulk.py`, `app/bulk_views.py`, `DeliveryItem.bulk_entry_id`/`crop`.
+
 ### Handy-Ansicht aufgeräumt (0.28.0)
 Ausgangslage: Die Startseite war am Handy über 6 Bildschirmhöhen lang, vieles stand doppelt (Kachel + Karte), dazu
 drei Navigationswege (Kacheln, Reiterleiste oben, Leiste unten). Entscheidungen (Entwürfe A–D besprochen):

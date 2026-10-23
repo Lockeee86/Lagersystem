@@ -33,6 +33,7 @@
                     {% for line in lines %}
                     <tr>
                         <td>
+                            {% if line.is_bulk %}<span class="fw-semibold"><i class="bi bi-minecart-loaded me-1"></i>{{ line.crop or _("Schüttgut") }}</span>{% else %}
                             {{ variety_chip(line.variety) }}
                             <span class="small fw-semibold ms-1">{{ line.usage_label }}{% if line.seed_class %} {{ line.seed_class.name }}{% endif %}</span>
                             <div class="small text-body-secondary">
@@ -41,10 +42,11 @@
                                 {% if line.certification %}<br><i class="bi bi-patch-check me-1"></i>{{ _("Anerkennungsnummer: {number}", number=line.certification.number) }}
                                 {% elif line.usage == 'pflanzgut' and line.seed_class and current_user.is_admin %}<br><a href="{{ url_for('sales.certifications') }}" class="text-warning-emphasis"><i class="bi bi-exclamation-circle me-1"></i>{{ _("Keine Anerkennungsnummer hinterlegt") }}</a>{% endif %}
                                 {% if line.code_ranges %}<br>{{ line.code_ranges }}{% endif %}
-                            </div>
+                            </div>{% endif %}
                         </td>
                         <td class="text-nowrap">
-                            {% if line.is_box %}{{ ngettext("{n} Kiste", "{n} Kisten", line.boxes) }}
+                            {% if line.is_bulk %}{% if line.quantity %}{{ ngettext("{n} Big Bag", "{n} Big Bags", line.quantity) }}{% else %}{{ _("lose") }}{% endif %}
+                            {% elif line.is_box %}{{ ngettext("{n} Kiste", "{n} Kisten", line.boxes) }}
                             {% else %}{{ line.quantity }} × {{ line.packaging or _("Gebinde") }}{% endif %}
                         </td>
                         <td class="text-end text-nowrap">{{ line.weight_kg|kg }}</td>
@@ -69,22 +71,61 @@
                         <a class="fw-semibold" href="{{ url_for('main.box_detail', code=item.box.code) }}">{{ item.box.code }}</a>
                         {{ item.variety.name if item.variety else "" }} {{ item.seed_class.name if item.seed_class else "" }} · {{ item.fill_label }}
                         {% if item.from_location %}<span class="text-body-secondary">· {{ _("von {location}", location=item.from_location) }}</span>{% endif %}
+                        {% elif item.bulk_entry_id or item.crop %}
+                        <span class="fw-semibold">{{ item.crop or _("Schüttgut") }}</span>{% if item.quantity %} · {{ ngettext("{n} Big Bag", "{n} Big Bags", item.quantity) }}{% endif %}
+                        {% if item.bulk_entry %}<span class="text-body-secondary">· {{ _("aus") }} <a href="{{ url_for('bulk.store_detail', store_id=item.bulk_entry.store_id) }}">{{ item.bulk_entry.store.name }}</a></span>{% elif item.from_location %}<span class="text-body-secondary">· {{ _("aus {location}", location=item.from_location) }}</span>{% endif %}
                         {% else %}
                         <span class="fw-semibold">{{ item.quantity }} × {{ item.packaging or _("Gebinde") }}</span>
                         {{ item.variety.name if item.variety else "" }} {{ item.seed_class.name if item.seed_class else "" }}{% if item.grade %} · {{ item.grade }}{% endif %}
                         {% endif %}
                         <span class="text-body-secondary">· {{ item.weight_kg|kg }}</span>
                     </div>
-                    {% if delivery.is_open and (current_user.is_admin or (item.box and current_user.can_edit)) %}
+                    {% if delivery.is_open and (current_user.is_admin or ((item.box or item.bulk_entry_id) and current_user.can_edit)) %}
                     <form method="post" action="{{ url_for('sales.delivery_remove_item', delivery_id=delivery.id, item_id=item.id) }}">
                         {{ csrf() }}
                         <button class="btn btn-sm btn-link text-danger" title="{{ _('Entfernen') }}"
-                                data-confirm="{{ _('{code} wieder vom Lieferschein nehmen?', code=item.box.code if item.box else (item.packaging or _('Position'))) }}"><i class="bi bi-x-circle"></i></button>
+                                data-confirm="{{ _('{code} wieder vom Lieferschein nehmen?', code=item.box.code if item.box else (item.crop or item.packaging or _('Position'))) }}"><i class="bi bi-x-circle"></i></button>
                     </form>
                     {% endif %}
                 </li>
                 {% endfor %}
             </ul>
+        </div>
+        {% endif %}
+
+        {% if delivery.is_open and current_user.can_edit and bulk_stores %}
+        <div class="card shadow-sm mb-4" id="schuettgut">
+            <div class="card-header"><i class="bi bi-minecart-loaded me-1"></i>{{ _("Schüttgut verladen") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('sales.delivery_add_bulk', delivery_id=delivery.id) }}" class="row g-2 align-items-end">
+                    {{ csrf() }}
+                    <div class="col-md-5">
+                        <label class="form-label" for="b_store">{{ _("Lagerort") }}</label>
+                        <select class="form-select" id="b_store" name="store_id" required>
+                            <option value=""></option>
+                            {% for r in bulk_stores %}<option value="{{ r.store.id }}">{{ r.store.name }} – {{ r.store.ware }} ({{ r.stock.kg|kg }}{% if r.stock.bags is not none %}, {{ ngettext("{n} Big Bag", "{n} Big Bags", r.stock.bags) }}{% endif %})</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label class="form-label" for="b_gross">{{ _("Brutto") }}</label>
+                        <div class="input-group"><input class="form-control" id="b_gross" name="gross_kg" inputmode="numeric" value="{{ delivery.gross_kg or '' }}"><span class="input-group-text">kg</span></div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label class="form-label" for="b_tare">{{ _("Tara") }}</label>
+                        <div class="input-group"><input class="form-control" id="b_tare" name="tare_kg" inputmode="numeric" value="{{ delivery.tare_kg or '' }}"><span class="input-group-text">kg</span></div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label class="form-label" for="b_net">{{ _("oder Netto") }}</label>
+                        <div class="input-group"><input class="form-control" id="b_net" name="net_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label" for="b_bags">{{ _("Bags") }}</label>
+                        <input class="form-control" type="number" id="b_bags" name="bags" min="1" title="{{ _('nur bei Big Bags') }}">
+                    </div>
+                    <div class="col-12 form-text">{{ _("Brutto/Tara sind aus der Waage des Lieferscheins vorbelegt. Bei Big Bags die Anzahl angeben.") }}</div>
+                    <div class="col-md-3"><button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Verladen") }}</button></div>
+                </form>
+            </div>
         </div>
         {% endif %}
 

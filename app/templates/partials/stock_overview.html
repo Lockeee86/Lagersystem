@@ -1,5 +1,5 @@
 {# Lagerzahlen: Kennzahlen, Bestand je Sorte, Belegung je Lager, letzte Bewegungen.
-   Braucht occupancy, varieties, max_kg, stats, recent (views._stock_overview) #}
+   Braucht occupancy, varieties, max_kg, stats, recent, bulk_wares (views._stock_overview) #}
 {% from "macros.html" import movement_item, variety_chip %}
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
@@ -71,6 +71,16 @@
         </div>
     </div>
     <div class="col-lg-5">
+        {% if bulk_wares %}
+        <a class="card shadow-sm mb-4 card-link" href="{{ url_for('bulk.store_list') }}">
+            <div class="card-body">
+                <div class="fw-semibold mb-2"><i class="bi bi-minecart-loaded me-1"></i>{{ _("Schüttgut") }}</div>
+                {% for ware, kg in bulk_wares.items() %}
+                <div class="d-flex justify-content-between small"><span>{{ ware }}</span><span class="fw-semibold">{{ kg|kg }}</span></div>
+                {% endfor %}
+            </div>
+        </a>
+        {% endif %}
         {% for o in occupancy %}
         <a class="card shadow-sm mb-4 card-link" href="{{ url_for('main.warehouse_map', warehouse_id=o.warehouse.id) }}">
             <div class="card-body">

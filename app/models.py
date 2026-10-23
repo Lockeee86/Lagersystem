@@ -686,6 +686,8 @@ class DeliveryItem(db.Model):
     grade = db.Column(db.String(50))
     harvest_date = db.Column(db.Date)
     plot_id = db.Column(db.Integer, db.ForeignKey("plots.id"))
+    bulk_entry_id = db.Column(db.Integer, db.ForeignKey("bulk_entries.id", ondelete="SET NULL"), index=True)
+    crop = db.Column(db.String(100))        # nur Schüttgut: Ware (Kultur, ggf. Sorte) beim Verladen
     fill = db.Column(db.Integer)            # nur Kisten: Füllstand beim Verladen
     packaging = db.Column(db.String(60))    # nur Menge: z. B. „25-kg-Sack“, „Big Bag“
     quantity = db.Column(db.Integer)        # nur Menge: Anzahl Gebinde
@@ -696,6 +698,7 @@ class DeliveryItem(db.Model):
 
     delivery = db.relationship("Delivery", back_populates="items")
     box = db.relationship("Box", back_populates="delivery_items")
+    bulk_entry = db.relationship("BulkEntry")
     variety = db.relationship("Variety")
     seed_class = db.relationship("SeedClass")
     plot = db.relationship("Plot")
@@ -708,6 +711,89 @@ class DeliveryItem(db.Model):
     @property
     def fill_label(self):
         return _(FILL_LABELS.get(self.fill, f"{self.fill} %")) if self.fill is not None else ""
+
+
+# --- Schüttgut (Getreide u. Ä.) ----------------------------------------------
+
+BULK_KINDS = {
+    "box": N_("Flachlager-Box"),
+    "haufen": N_("Haufen in der Halle"),
+    "bigbag": N_("Big Bags"),
+}
+BULK_PURPOSES = {
+    "verkauf": N_("Verkauf"),
+    "futter": N_("Fütterung"),
+    "biogas": N_("Biogas"),
+    "saatgut": N_("Saatgut (eigene Flächen)"),
+    "sonstiges": N_("Sonstiges"),
+}
+BULK_QUALITY = ("moisture", "protein", "hl_weight", "falling_number", "admixture")
+
+
+class BulkStore(db.Model):
+    """Lagerort für Schüttgut: Flachlager-Box, Haufen in einer Halle oder Big Bags (nur als Anzahl und Menge).
+    Enthält immer nur eine Ware (Kultur, optional Sorte); Bestand und Qualität ergeben sich aus den Buchungen."""
+    __tablename__ = "bulk_stores"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    kind = db.Column(db.String(20), nullable=False, default="box")
+    location = db.Column(db.String(100))          # z. B. „Halle 2“
+    capacity_t = db.Column(db.Numeric(10, 2))
+    bag_kg = db.Column(db.Integer)                # nur Big Bags: übliches Gewicht je Bag
+    crop = db.Column(db.String(100))              # aktuelle Ware; wird beim ersten Einlagern in die leere Zelle gesetzt
+    variety_name = db.Column(db.String(100))
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+
+    entries = db.relationship("BulkEntry", back_populates="store", cascade="all, delete-orphan",
+                              order_by=lambda: (BulkEntry.date.desc(), BulkEntry.id.desc()))
+
+    @property
+    def kind_label(self):
+        return _(BULK_KINDS.get(self.kind, self.kind))
+
+    @property
+    def ware(self):
+        return " · ".join(v for v in (self.crop, self.variety_name) if v)
+
+
+class BulkEntry(db.Model):
+    """Buchung am Schüttgut-Lager: „ein“ (Fuhre mit Schlag, Gewicht und Qualität) oder „aus“ (Verkauf über
+    Lieferschein oder Eigenverbrauch). Gewichte in kg; netto = brutto − tara, wenn beide angegeben sind."""
+    __tablename__ = "bulk_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    store_id = db.Column(db.Integer, db.ForeignKey("bulk_stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = db.Column(db.String(10), nullable=False)                  # ein | aus
+    date = db.Column(db.Date, nullable=False)
+    crop = db.Column(db.String(100))
+    variety_name = db.Column(db.String(100))
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id", ondelete="SET NULL"), index=True)
+    gross_kg = db.Column(db.Integer)
+    tare_kg = db.Column(db.Integer)
+    net_kg = db.Column(db.Integer, nullable=False)
+    bags = db.Column(db.Integer)
+    moisture = db.Column(db.Numeric(4, 1))         # Feuchte %
+    protein = db.Column(db.Numeric(4, 1))          # Protein %
+    hl_weight = db.Column(db.Numeric(4, 1))        # Hektolitergewicht kg/hl
+    falling_number = db.Column(db.Integer)         # Fallzahl s
+    admixture = db.Column(db.Numeric(4, 1))        # Besatz %
+    purpose = db.Column(db.String(20))             # nur „aus“: BULK_PURPOSES
+    delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id", ondelete="SET NULL"), index=True)
+    vehicle = db.Column(db.String(50))
+    note = db.Column(db.String(300))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    store = db.relationship("BulkStore", back_populates="entries")
+    plot = db.relationship("Plot")
+    delivery = db.relationship("Delivery")
+    user = db.relationship("User")
+
+    @property
+    def purpose_label(self):
+        return _(BULK_PURPOSES.get(self.purpose, self.purpose)) if self.purpose else ""
 
 
 # --- Maschinen --------------------------------------------------------------

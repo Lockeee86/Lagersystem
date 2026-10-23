@@ -273,7 +273,9 @@ def crop_color(crop, eppo):
 
 
 def yields(year):
-    """{plot_id: {"kg": geschätzte Ernte, "boxes": n, "varieties": {Sorte: kg}}} aus den Kisten (Momentaufnahmen)."""
+    """{plot_id: {"kg": Ernte, "boxes": n, "varieties": {Sorte: kg}, "bulk_kg": kg}} – Kartoffeln aus den Kisten
+    (Momentaufnahmen, geschätzt), Getreide u. Ä. aus den Schüttgut-Fuhren (gewogen)."""
+    from .bulk import yields as bulk_yields
     from .transfer import season_summary
     result = {}
     for (y, variety, _usage, plot), g in season_summary(year).items():
@@ -283,6 +285,10 @@ def yields(year):
         entry["kg"] += g["harvest_kg"]
         entry["boxes"] += g["boxes"]
         entry["varieties"][variety.name] = entry["varieties"].get(variety.name, 0) + g["harvest_kg"]
+    for plot_id, kg in bulk_yields(year).items():
+        entry = result.setdefault(plot_id, {"kg": 0, "boxes": 0, "varieties": {}})
+        entry["kg"] += kg
+        entry["bulk_kg"] = kg
     return result
 
 

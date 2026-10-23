@@ -6,12 +6,12 @@ from flask_login import current_user, login_required
 from sqlalchemy import extract, func, or_
 from sqlalchemy.exc import IntegrityError
 
-from . import sales, storage, tasks
+from . import bulk, sales, storage, tasks
 from .delivery_note import render_delivery_note
 from .extensions import db
 from .i18n import gettext as _, ngettext
-from .models import (DELIVERY_STATUSES, SORT_USAGES, Box, Certification, Customer, Delivery, DeliveryItem,
-                     SeedClass, Setting, Variety)
+from .models import (DELIVERY_STATUSES, SORT_USAGES, Box, BulkStore, Certification, Customer, Delivery,
+                     DeliveryItem, SeedClass, Setting, Variety)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
@@ -82,7 +82,30 @@ def delivery_detail(delivery_id):
         varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
         seed_classes=SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),
         usages=SORT_USAGES,
+        bulk_stores=[r for r in bulk.overview()[0] if r["stock"]["kg"] > 0] if delivery.is_open else [],
     )
+
+
+@bp.route("/lieferschein/<int:delivery_id>/schuettgut", methods=["POST"])
+@editor_required
+def delivery_add_bulk(delivery_id):
+    """Schüttgut auf den Lieferschein (bucht die Auslagerung am Lagerort)."""
+    delivery = _get(Delivery, delivery_id)
+    store = db.session.get(BulkStore, form_int("store_id", 0))
+    try:
+        if store is None:
+            raise StorageError(_("Bitte einen Lagerort wählen."))
+        sales.add_bulk(delivery, current_user, store,
+                       net_kg=bulk.parse_number(request.form.get("net_kg"), 1, 10_000_000, integer=True),
+                       gross_kg=bulk.parse_number(request.form.get("gross_kg"), 1, 10_000_000, integer=True),
+                       tare_kg=bulk.parse_number(request.form.get("tare_kg"), 1, 10_000_000, integer=True),
+                       bags=form_int("bags", minimum=1, maximum=10000))
+        db.session.commit()
+        flash(_("Schüttgut aus „{name}“ verladen.", name=store.name), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _to_delivery(delivery, "positionen")
 
 
 @bp.route("/lieferschein/<int:delivery_id>/kopf", methods=["POST"])
@@ -203,7 +226,7 @@ def delivery_remove_item(delivery_id, item_id):
     item = _get(DeliveryItem, item_id)
     if item.delivery_id != delivery.id:
         abort(404)
-    label = item.box.code if item.box else (item.packaging or _("Position"))
+    label = item.box.code if item.box else (item.crop or item.packaging or _("Position"))
     try:
         sales.remove_item(item, current_user)
         db.session.commit()

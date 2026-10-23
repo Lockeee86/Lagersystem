@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import agenda, backup, fuel, machines, navigation, purchases, sales, search, storage, tasks, tiles, weather
+from . import agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, storage, tasks, tiles, weather
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
@@ -16,7 +16,7 @@ from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, Machine, Movement, Pl
                      Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
-                    fmt_date, fmt_num, form_str)
+                    fmt_date, fmt_kg, fmt_num, form_str)
 
 bp = Blueprint("main", __name__)
 
@@ -174,7 +174,8 @@ def _stock_overview(recent_limit=12):
         "filled_not_stored": sum(1 for b in boxes if not b.is_empty and not b.is_stored),
     }
     recent = Movement.query.order_by(Movement.created_at.desc()).limit(recent_limit).all()
-    return {"occupancy": occupancy, "varieties": varieties, "max_kg": max_kg, "stats": stats, "recent": recent}
+    return {"occupancy": occupancy, "varieties": varieties, "max_kg": max_kg, "stats": stats, "recent": recent,
+            "bulk_wares": bulk.overview()[1]}
 
 
 @bp.route("/")
@@ -215,6 +216,11 @@ def _status(endpoint):
     if endpoint == "main.boxes":
         n = Box.query.filter(Box.fill > 0).count()
         return ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", n), False
+    if endpoint == "bulk.store_list":
+        rows, per_ware = bulk.overview()
+        if not rows:
+            return _("Getreide, Raps … in Boxen und Big Bags"), False
+        return (" · ".join(f"{ware} {fmt_kg(kg)}" for ware, kg in list(per_ware.items())[:2]) or _("leer")), False
     if endpoint == "main.history":
         return _("Ein- und Auslagern, Änderungen"), False
     if endpoint == "main.labels":

@@ -32,6 +32,9 @@ docker compose up --build -d
   abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
   `app/sales_views.py` (Blueprint `sales`: Lieferscheine, Verladen per Dauer-Scanner, Kunden, Anerkennungen),
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
+- `app/bulk.py`: Schüttgut-Lager (`BulkStore` = Box/Haufen/Big Bags, eine Ware je Lagerort; `BulkEntry` ein/aus mit
+  Waage und Qualität; Bestand `stock()`, Qualität `quality()`, Herkunft `plot_shares()`), committet nicht;
+  `app/bulk_views.py` (Blueprint `bulk`). Verkauf über `sales.add_bulk` (Lieferschein-Position mit `bulk_entry`)
 - `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen), committet nicht.
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`)
 - `app/weather.py`: Wetter über Bright Sky (DWD), Zwischenspeicher im Speicher, Frost und Krautfäule (Hutton),

@@ -66,6 +66,7 @@ def field_detail(plot_id):
         entry = plot.year(y)
         kg = fields.yields(y).get(plot.id, {})
         history.append({"year": y, "entry": entry, "kg": kg.get("kg"), "boxes": kg.get("boxes"),
+                        "bulk_kg": kg.get("bulk_kg"),
                         "varieties": kg.get("varieties", {}), "t_ha": fields.t_per_ha(kg.get("kg"), plot.area_ha),
                         "doc": fielddoc.summary(entry), "protection": fielddoc.protection(entry, known)})
     outline_ha = sum(fields.ring_area_ha(r) for r in plot.rings) if plot.rings else None

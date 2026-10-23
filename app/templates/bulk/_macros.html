@@ -1,0 +1,50 @@
+{# Formular für einen Schüttgut-Lagerort (neu oder bearbeiten, nur Admin) #}
+{% macro store_form(kinds, store=none) %}
+<form method="post" action="{{ url_for('bulk.store_save') }}" class="row g-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if store %}<input type="hidden" name="id" value="{{ store.id }}">{% endif %}
+    <div class="col-md-4">
+        <label class="form-label" for="b_name{{ store.id if store }}">{{ _("Name") }}</label>
+        <input class="form-control" id="b_name{{ store.id if store }}" name="name" maxlength="100" required value="{{ store.name if store else '' }}" placeholder="{{ _('z. B. Box 3') }}">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label" for="b_kind{{ store.id if store }}">{{ _("Art") }}</label>
+        <select class="form-select" id="b_kind{{ store.id if store }}" name="kind">
+            {% for key, label in kinds.items() %}<option value="{{ key }}" {% if store and store.kind == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-md-5">
+        <label class="form-label" for="b_loc{{ store.id if store }}">{{ _("Standort") }} <span class="text-body-tertiary">({{ _("optional") }})</span></label>
+        <input class="form-control" id="b_loc{{ store.id if store }}" name="location" maxlength="100" value="{{ store.location or '' if store else '' }}" placeholder="{{ _('z. B. Getreidehalle') }}">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label" for="b_cap{{ store.id if store }}">{{ _("Kapazität") }}</label>
+        <div class="input-group"><input class="form-control" id="b_cap{{ store.id if store }}" name="capacity_t" inputmode="decimal" value="{{ store.capacity_t|qty(2) if store and store.capacity_t else '' }}"><span class="input-group-text">t</span></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label" for="b_bag{{ store.id if store }}">{{ _("Gewicht je Big Bag") }}</label>
+        <div class="input-group"><input class="form-control" id="b_bag{{ store.id if store }}" name="bag_kg" inputmode="numeric" value="{{ store.bag_kg or '' if store else '' }}" placeholder="1000"><span class="input-group-text">kg</span></div>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="b_note{{ store.id if store }}">{{ _("Notiz") }}</label>
+        <input class="form-control" id="b_note{{ store.id if store }}" name="note" maxlength="2000" value="{{ store.note or '' if store else '' }}">
+    </div>
+    {% if store %}
+    <div class="col-12 form-check ms-1">
+        <input class="form-check-input" type="checkbox" id="b_active{{ store.id }}" name="active" value="1" {% if store.active %}checked{% endif %}>
+        <label class="form-check-label" for="b_active{{ store.id }}">{{ _("Aktiv") }}</label>
+    </div>
+    {% endif %}
+    <div class="col-12"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button></div>
+</form>
+{% endmacro %}
+
+{% macro quality_text(q) -%}
+{%- set parts = [] -%}
+{%- if q.moisture is not none %}{% set _x = parts.append(_("Feuchte {v} %", v=q.moisture|qty(1))) %}{% endif -%}
+{%- if q.protein is not none %}{% set _x = parts.append(_("Protein {v} %", v=q.protein|qty(1))) %}{% endif -%}
+{%- if q.hl_weight is not none %}{% set _x = parts.append(_("{v} kg/hl", v=q.hl_weight|qty(1))) %}{% endif -%}
+{%- if q.falling_number is not none %}{% set _x = parts.append(_("Fallzahl {v} s", v=q.falling_number)) %}{% endif -%}
+{%- if q.admixture is not none %}{% set _x = parts.append(_("Besatz {v} %", v=q.admixture|qty(1))) %}{% endif -%}
+{{ parts|join(" · ") }}
+{%- endmacro %}

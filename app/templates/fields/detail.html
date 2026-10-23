@@ -76,8 +76,9 @@
                     {% if e.note %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Notiz") }}</dt><dd class="col-8" style="white-space: pre-line">{{ e.note }}</dd>{% endif %}
                 </dl>
                 {% endif %}
-                {% if h.kg %}
-                <div class="mb-2">{{ _("Ernte geschätzt: {kg} aus {n} Kisten", kg=h.kg|kg, n=h.boxes) }}
+                {% if h.bulk_kg %}<div class="mb-2">{{ _("Eingelagert (Schüttgut, gewogen): {kg}", kg=h.bulk_kg|kg) }}</div>{% endif %}
+                {% if h.boxes %}
+                <div class="mb-2">{{ _("Ernte geschätzt: {kg} aus {n} Kisten", kg=(h.kg - (h.bulk_kg or 0))|kg, n=h.boxes) }}
                     {% if h.varieties|length > 1 %}<span class="text-body-secondary">({% for name, kg in h.varieties.items() %}{{ name }} {{ kg|kg }}{{ ", " if not loop.last }}{% endfor %})</span>{% endif %}
                 </div>
                 {% endif %}

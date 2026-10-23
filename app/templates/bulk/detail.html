@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% from "bulk/_macros.html" import store_form, quality_text %}
+{% block title %}{{ store.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1>{{ store.name }}</h1>
+        <p class="text-body-secondary mb-0">{{ store.kind_label }}{% if store.location %} · {{ store.location }}{% endif %}{% if not store.active %} · <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</p>
+    </div>
+    {% if current_user.can_edit %}
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#formIn" aria-expanded="{{ 'true' if open_in else 'false' }}"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Einlagern") }}</button>
+        {% if stock.kg > 0 %}<button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#formOut"><i class="bi bi-box-arrow-up me-1"></i>{{ _("Auslagern") }}</button>{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label"><i class="bi bi-minecart-loaded"></i>{{ _("Bestand") }}</div>
+            <div class="stat-value">{{ stock.kg|kg }}</div>
+            <div class="stat-sub">{% if stock.bags is not none %}{{ ngettext("{n} Big Bag", "{n} Big Bags", stock.bags) }}{% elif store.capacity_t %}{{ _("{n} % von {cap} t", n=stock.percent, cap=store.capacity_t|qty(2)) }}{% else %}&nbsp;{% endif %}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label"><i class="bi bi-flower1"></i>{{ _("Ware") }}</div>
+            <div class="stat-value fs-5">{{ store.ware if stock.kg > 0 and store.ware else "–" }}</div>
+            <div class="stat-sub">{{ quality_text(quality) if stock.kg > 0 else _("leer") }}</div>
+        </div>
+    </div>
+    {% if shares and stock.kg > 0 %}
+    <div class="col-lg-6">
+        <div class="stat-card">
+            <div class="stat-label"><i class="bi bi-map"></i>{{ _("Herkunft") }}</div>
+            <div class="small d-flex flex-wrap gap-2 mt-1">
+                {% for s in shares %}<span>{% if s.plot %}<a href="{{ url_for('fields.field_detail', plot_id=s.plot.id) }}">{{ s.plot.name }}</a>{% else %}{{ _("ohne Schlag") }}{% endif %} <span class="text-body-secondary">{{ s.percent }} % ({{ s.kg|kg }})</span></span>{% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if current_user.can_edit %}
+<div class="collapse {% if open_in %}show{% endif %}" id="formIn">
+    <div class="card shadow-sm mb-3"><div class="card-body">
+        <h2 class="h6"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Fuhre einlagern") }}</h2>
+        <form method="post" action="{{ url_for('bulk.take_in', store_id=store.id) }}" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="in_date">{{ _("Datum") }}</label>
+                <input class="form-control" type="date" id="in_date" name="date" value="{{ today.isoformat() }}" required>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="in_crop">{{ _("Ware (Kultur)") }}</label>
+                <input class="form-control" id="in_crop" name="crop" list="cropList" maxlength="100" value="{{ store.crop if stock.kg > 0 and store.crop else '' }}" {% if stock.kg > 0 %}readonly{% endif %} required placeholder="{{ _('z. B. Winterweizen') }}">
+                <datalist id="cropList">{% for c in crops %}<option value="{{ c }}">{% endfor %}</datalist>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="in_variety">{{ _("Sorte") }} <span class="text-body-tertiary">({{ _("optional") }})</span></label>
+                <input class="form-control" id="in_variety" name="variety_name" maxlength="100" value="{{ store.variety_name or '' if stock.kg > 0 else '' }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="in_plot">{{ _("Schlag") }}</label>
+                <select class="form-select" id="in_plot" name="plot_id">
+                    <option value="">–</option>
+                    {% for p in plots %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="in_gross">{{ _("Brutto") }}</label>
+                <div class="input-group"><input class="form-control" id="in_gross" name="gross_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="in_tare">{{ _("Tara") }}</label>
+                <div class="input-group"><input class="form-control" id="in_tare" name="tare_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="in_net">{{ _("oder Netto") }}</label>
+                <div class="input-group"><input class="form-control" id="in_net" name="net_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+            </div>
+            {% if store.kind == "bigbag" %}
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="in_bags">{{ _("Big Bags") }}</label>
+                <input class="form-control" type="number" id="in_bags" name="bags" min="1" max="10000" required>
+            </div>
+            {% endif %}
+            <div class="col-8 col-md-4">
+                <label class="form-label" for="in_vehicle">{{ _("Fahrzeug") }} <span class="text-body-tertiary">({{ _("optional") }})</span></label>
+                <input class="form-control" id="in_vehicle" name="vehicle" maxlength="50">
+            </div>
+            <div class="col-12">
+                <button class="btn btn-sm btn-link px-0" type="button" data-bs-toggle="collapse" data-bs-target="#inQuality" aria-expanded="false"><i class="bi bi-clipboard-data me-1"></i>{{ _("Qualität erfassen") }}</button>
+            </div>
+            <div class="collapse col-12" id="inQuality"><div class="row g-2">
+                {% for field, label, unit in [("moisture", _("Feuchte"), "%"), ("protein", _("Protein"), "%"), ("hl_weight", _("Hektolitergewicht"), "kg/hl"), ("falling_number", _("Fallzahl"), "s"), ("admixture", _("Besatz"), "%")] %}
+                <div class="col-6 col-md">
+                    <label class="form-label" for="in_{{ field }}">{{ label }}</label>
+                    <div class="input-group"><input class="form-control" id="in_{{ field }}" name="{{ field }}" inputmode="decimal"><span class="input-group-text">{{ unit }}</span></div>
+                </div>
+                {% endfor %}
+            </div></div>
+            <div class="col-12">
+                <label class="form-label" for="in_note">{{ _("Notiz") }}</label>
+                <input class="form-control" id="in_note" name="note" maxlength="300">
+            </div>
+            <div class="col-12"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Einlagern") }}</button></div>
+        </form>
+    </div></div>
+</div>
+
+{% if stock.kg > 0 %}
+<div class="collapse" id="formOut">
+    <div class="card shadow-sm mb-3"><div class="card-body">
+        <h2 class="h6"><i class="bi bi-box-arrow-up me-1"></i>{{ _("Auslagern (Eigenverbrauch)") }}</h2>
+        <p class="small text-body-secondary">{{ _("Verkauf bitte über einen Lieferschein buchen – dort als Schüttgut-Position.") }} <a href="{{ url_for('sales.deliveries') }}">{{ _("Zu den Lieferscheinen") }}</a></p>
+        <form method="post" action="{{ url_for('bulk.take_out', store_id=store.id) }}" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="out_date">{{ _("Datum") }}</label>
+                <input class="form-control" type="date" id="out_date" name="date" value="{{ today.isoformat() }}" required>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="out_purpose">{{ _("Zweck") }}</label>
+                <select class="form-select" id="out_purpose" name="purpose">
+                    {% for key, label in purposes.items() if key != "verkauf" %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="out_gross">{{ _("Brutto") }}</label>
+                <div class="input-group"><input class="form-control" id="out_gross" name="gross_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="out_tare">{{ _("Tara") }}</label>
+                <div class="input-group"><input class="form-control" id="out_tare" name="tare_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="out_net">{{ _("oder Netto") }}</label>
+                <div class="input-group"><input class="form-control" id="out_net" name="net_kg" inputmode="numeric"><span class="input-group-text">kg</span></div>
+            </div>
+            {% if store.kind == "bigbag" %}
+            <div class="col-4 col-md-2">
+                <label class="form-label" for="out_bags">{{ _("Big Bags") }}</label>
+                <input class="form-control" type="number" id="out_bags" name="bags" min="1" max="{{ stock.bags }}" required>
+            </div>
+            {% endif %}
+            <div class="col-12">
+                <label class="form-label" for="out_note">{{ _("Notiz") }}</label>
+                <input class="form-control" id="out_note" name="note" maxlength="300">
+            </div>
+            <div class="col-12"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Auslagern") }}</button></div>
+        </form>
+    </div></div>
+</div>
+{% endif %}
+{% endif %}
+
+<h2 class="h5 mt-4">{{ _("Buchungen") }}</h2>
+{% if entries %}
+<div class="hub-list mb-4">
+    {% for e in entries %}
+    <div class="hub-row">
+        <span class="hub-icon {{ '' if e.kind == 'ein' else 'warn' }}"><i class="bi {{ 'bi-box-arrow-in-down' if e.kind == 'ein' else 'bi-box-arrow-up' }}"></i></span>
+        <span class="hub-text">
+            <span class="hub-title">{{ "+" if e.kind == "ein" else "−" }} {{ e.net_kg|kg }}{% if e.bags %} <span class="fw-normal text-body-secondary">({{ ngettext("{n} Big Bag", "{n} Big Bags", e.bags) }})</span>{% endif %}</span>
+            <span class="hub-status">{{ e.date|date }} ·
+                {% if e.kind == "ein" %}{{ e.plot.name if e.plot else _("ohne Schlag") }}{% set q = quality_text(e) %}{% if q|trim %} · {{ q }}{% endif %}
+                {% elif e.delivery %}<a href="{{ url_for('sales.delivery_detail', delivery_id=e.delivery_id) }}">{{ _("Lieferschein {number}", number=e.delivery.number) }}</a> · {{ e.delivery.customer.name }}
+                {% else %}{{ e.purpose_label }}{% endif %}
+                {% if e.gross_kg and e.tare_kg %} · {{ _("Waage {gross} − {tare} kg", gross=e.gross_kg, tare=e.tare_kg) }}{% endif %}
+                {% if e.note %} · {{ e.note }}{% endif %}{% if e.user %} · {{ e.user.name }}{% endif %}</span>
+        </span>
+        {% if current_user.is_admin and not e.delivery_id %}
+        <form method="post" action="{{ url_for('bulk.entry_delete', entry_id=e.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('Buchung löschen?') }}" aria-label="{{ _('Buchung löschen') }}"><i class="bi bi-trash"></i></button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-body-secondary">{{ _("Noch keine Buchungen.") }}</p>
+{% endif %}
+
+{% if current_user.is_admin %}
+<details class="mb-4">
+    <summary class="text-body-secondary"><i class="bi bi-pencil me-1"></i>{{ _("Lagerort bearbeiten") }}</summary>
+    <div class="card shadow-sm mt-2"><div class="card-body">{{ store_form(kinds, store) }}</div></div>
+</details>
+{% endif %}
+{% endblock %}

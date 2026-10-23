@@ -47,6 +47,10 @@ def _date(value):
 
 
 def _quantity(line):
+    if line.get("is_bulk"):
+        if line["quantity"]:
+            return f"{line['quantity']} Big Bag" + ("s" if line["quantity"] != 1 else "")
+        return "lose (Schüttgut)"
     if line["is_box"]:
         text = f"{line['boxes']} Kiste" if line["boxes"] == 1 else f"{line['boxes']} Kisten"
         if abs(line["box_units"] - line["boxes"]) > 0.001:
@@ -103,11 +107,16 @@ def render_delivery_note(delivery, lines, farm):
     story += recipient + [Spacer(1, 8 * mm)]
 
     # Positionen
-    rows = [[_p("Pos.", HEAD), _p("Ware", HEAD), _p("Menge", HEAD), _p("Gewicht (geschätzt)", HEAD_R)]]
+    rows = [[_p("Pos.", HEAD), _p("Ware", HEAD), _p("Menge", HEAD), _p("Gewicht (Kisten geschätzt)" if any(ln["is_box"] for ln in lines) else "Gewicht", HEAD_R)]]
     style = [("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"),
              ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3),
              ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]
     for pos, line in enumerate(lines, start=1):
+        if line.get("is_bulk"):
+            rows.append([_p(str(pos)), _p(f"<b>{escape(line['crop'] or 'Schüttgut')}</b><br/>Schüttgut, gewogen"),
+                         _p(_quantity(line)), _p(_kg(line["weight_kg"]), RIGHT)])
+            style.append(("LINEBELOW", (0, pos), (-1, pos), 0.4, LINE))
+            continue
         variety = escape(line["variety"].name) if line["variety"] else "–"
         details = [USAGE_TEXT.get(line["usage"], line["usage"] or "")]
         if line["seed_class"]:

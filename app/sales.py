@@ -1,4 +1,4 @@
-"""Verkauf: Lieferscheine anlegen, Kisten verladen, abgepackte Ware erfassen.
+"""Verkauf: Lieferscheine anlegen, Kisten verladen, abgepackte Ware und Schüttgut erfassen.
 
 Wie in `storage.py` verändern alle Funktionen nur die Session, committen muss der Aufrufer.
 Kisten werden über `storage.ship_box` gebucht, damit jede Änderung eine Bewegung erzeugt.
@@ -8,7 +8,7 @@ from collections import OrderedDict
 
 from sqlalchemy import func
 
-from . import storage
+from . import bulk, storage
 from .extensions import db
 from .i18n import gettext as _
 from .models import (DELIVERY_CLOSED, DELIVERY_OPEN, Certification, Delivery, DeliveryItem, utcnow)
@@ -70,12 +70,28 @@ def add_quantity(delivery, user, variety_id, usage, seed_class_id, grade, packag
     return item
 
 
+def add_bulk(delivery, user, store, net_kg=None, gross_kg=None, tare_kg=None, bags=None):
+    """Schüttgut verladen: bucht eine Auslagerung „Verkauf“ am Lagerort und eine Position auf dem Lieferschein."""
+    _require_open(delivery)
+    entry = bulk.take_out(store, user, delivery.date, "verkauf", net_kg=net_kg, gross_kg=gross_kg, tare_kg=tare_kg,
+                          bags=bags, delivery=delivery)
+    item = DeliveryItem(delivery=delivery, bulk_entry=entry, crop=store.ware or None, weight_kg=entry.net_kg,
+                        quantity=entry.bags, packaging="Big Bag" if entry.bags else None, from_location=store.name,
+                        user_id=user.id if user else None)
+    db.session.add(item)
+    db.session.flush()
+    return item
+
+
 def remove_item(item, user):
     delivery = item.delivery
     _require_open(delivery)
     if item.box is not None:
         storage.unship_box(item.box, item.fill, user, delivery.number)
+    entry = item.bulk_entry
     db.session.delete(item)
+    if entry is not None:                  # Schüttgut: Auslagerung zurücknehmen
+        db.session.delete(entry)
     db.session.flush()
 
 
@@ -137,12 +153,15 @@ def certification_for(variety_id, seed_class_id, year):
 
 def summarize(delivery):
     """Fasst Positionen zu Zeilen zusammen: Kisten je Sorte/Verwendung/Stufe/Sortierung/Erntejahr,
-    abgepackte Ware je Gebinde. Jede Zeile: dict mit variety, usage_label, seed_class, grade, year,
+    abgepackte Ware je Gebinde, Schüttgut je Ware. Jede Zeile: dict mit is_box, is_bulk, crop, variety, usage_label,
+    seed_class, grade, year,
     boxes, box_units (Kisten-Äquivalent aus Füllständen), codes, packaging, quantity, weight_kg, certification."""
     lines = OrderedDict()
     for item in delivery.items:
         year = item.harvest_date.year if item.harvest_date else None
-        if item.box_id:
+        if item.bulk_entry_id or item.crop:
+            key = ("bulk", item.crop or "", item.packaging or "")
+        elif item.box_id:
             key = ("box", item.variety_id, item.usage, item.seed_class_id, item.grade or "", year)
         else:
             key = ("qty", item.variety_id, item.usage, item.seed_class_id, item.grade or "", item.packaging or "",
@@ -150,7 +169,8 @@ def summarize(delivery):
         line = lines.get(key)
         if line is None:
             line = lines[key] = {
-                "is_box": bool(item.box_id), "variety": item.variety, "usage": item.usage,
+                "is_box": bool(item.box_id), "is_bulk": key[0] == "bulk", "crop": item.crop,
+                "variety": item.variety, "usage": item.usage,
                 "usage_label": item.usage_label, "seed_class": item.seed_class, "grade": item.grade, "year": year,
                 "boxes": 0, "box_units": 0, "codes": [], "packaging": item.packaging, "quantity": 0,
                 "weight_kg": 0,

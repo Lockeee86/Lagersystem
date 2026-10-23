@@ -44,6 +44,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Bestellungen**: Ersatzteile & Co. mit Foto anfragen (auch direkt aus einer Störung), ein Besteller
   übernimmt den Vorgang (oder gibt ihn weiter) und
   trägt Status, Lieferant, Preis und Liefertermin ein (Neu → Angefragt → Bestellt → Geliefert → Erledigt / Abgelehnt)
+- **Schüttgut-Lager** für Getreide u. Ä.: Flachlager-Boxen, Haufen, Big Bags; Fuhren mit Schlag, Waage und Qualität,
+  Eigenverbrauch, Verkauf über den Lieferschein, Ertrag t/ha je Schlag
 - **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur mit Luftbild, Fruchtfolge,
   Pflanzung und Rodung je Schlag, Ertrag in t/ha aus den Kisten; Schlagdokumentation aus Myfarm24 (CSV) mit
   Bodenuntersuchung, Aussaat, Düngung (Nährstoffe gegen N-Bedarf), Pflanzenschutz, Arbeiten und Personen;
