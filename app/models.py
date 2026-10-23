@@ -87,6 +87,8 @@ class User(UserMixin, db.Model):
                          server_default=DEFAULT_LANGUAGE)
     # Zuletzt gewählte Ansicht der Lagerkarte (siehe MAP_VIEWS)
     map_view = db.Column(db.String(10), nullable=False, default="karte", server_default="karte")
+    # Besteller: bearbeitet Bestellwünsche (Admins dürfen das immer)
+    can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -126,6 +128,11 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self):
         return self.has_role(ROLE_ADMIN)
+
+    @property
+    def is_buyer(self):
+        """Darf Bestellwünsche bearbeiten (bestellen, Liefertermin eintragen …)."""
+        return self.is_admin or (self.can_order and self.can_edit)
 
 
 # --- Stammdaten -------------------------------------------------------------
@@ -695,12 +702,14 @@ class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id"), index=True)
     task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), index=True)
+    purchase_id = db.Column(db.Integer, db.ForeignKey("purchase_requests.id"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     event = db.relationship("MachineEvent", back_populates="photos")
     task = db.relationship("Task", back_populates="photos")
+    purchase = db.relationship("PurchaseRequest", back_populates="photos")
 
 
 # --- Aufgaben ---------------------------------------------------------------
@@ -775,3 +784,59 @@ class Task(db.Model):
 
     def is_for(self, user):
         return not self.assignees or user in self.assignees
+
+
+# --- Bestellungen -----------------------------------------------------------
+
+PURCHASE_STATUSES = {
+    "angefragt": (N_("Angefragt"), "secondary"),
+    "bestellt": (N_("Bestellt"), "primary"),
+    "geliefert": (N_("Geliefert"), "success"),
+    "erledigt": (N_("Erledigt"), "dark"),
+    "abgelehnt": (N_("Abgelehnt"), "danger"),
+}
+PURCHASE_OPEN = ("angefragt", "bestellt", "geliefert")
+
+
+class PurchaseRequest(db.Model):
+    """Bestellwunsch (Ersatzteil, Verbrauchsmaterial …): Mitarbeiter fragen an, der Besteller bestellt."""
+    __tablename__ = "purchase_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)            # Was wird gebraucht?
+    details = db.Column(db.Text)                                 # Teilenummer, Hersteller, Maße …
+    quantity = db.Column(db.String(50))                          # „2 Stück“, „20 l“
+    urgent = db.Column(db.Boolean, nullable=False, default=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"), index=True)
+    machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"))
+    status = db.Column(db.String(20), nullable=False, default="angefragt", index=True)
+    requested_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # vom Besteller
+    supplier = db.Column(db.String(150))
+    order_number = db.Column(db.String(80))
+    price = db.Column(db.Numeric(10, 2))
+    ordered_on = db.Column(db.Date)
+    expected_on = db.Column(db.Date)
+    delivered_on = db.Column(db.Date)
+    buyer_note = db.Column(db.Text)                               # auch Begründung bei Ablehnung
+    handled_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+    machine = db.relationship("Machine")
+    machine_event = db.relationship("MachineEvent")
+    requested_by = db.relationship("User", foreign_keys=[requested_by_id])
+    handled_by = db.relationship("User", foreign_keys=[handled_by_id])
+    photos = db.relationship("Photo", back_populates="purchase", order_by="Photo.id", cascade="all, delete-orphan")
+
+    @property
+    def status_label(self):
+        return _(PURCHASE_STATUSES.get(self.status, (self.status, ""))[0])
+
+    @property
+    def status_color(self):
+        return PURCHASE_STATUSES.get(self.status, ("", "secondary"))[1]
+
+    @property
+    def is_open(self):
+        return self.status in PURCHASE_OPEN

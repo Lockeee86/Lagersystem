@@ -27,7 +27,7 @@ def _choices(task=None):
     deliveries = Delivery.query.filter((Delivery.status == DELIVERY_OPEN) |
                                        (Delivery.id == (task.delivery_id if task else None)))
     return dict(
-        users=tasks.assignable_users(), recurrences=RECURRENCES,
+        users=tasks.assignable_users() if current_user.is_admin else tasks.request_recipients(), recurrences=RECURRENCES,
         machines=machines.order_by(Machine.name).all(),
         deliveries=deliveries.order_by(Delivery.date.desc()).all(),
         warehouses=Warehouse.query.order_by(Warehouse.name).all(),
@@ -93,15 +93,20 @@ def task_list():
     return render_template(
         "tasks/list.html", groups=tasks.buckets(tasks.open_tasks(person)), done=tasks.recently_done(person),
         who=who, person=person, today=date.today(), prefill=prefill,
-        show_form=current_user.is_admin and request.args.get("neu") == "1", **_choices(),
+        show_form=current_user.can_edit and request.args.get("neu") == "1", **_choices(),
     )
 
 
 @bp.route("/aufgaben/neu", methods=["POST"])
-@admin_required
+@editor_required
 def task_create():
     try:
-        task = tasks.create_task(current_user, **_fields_from_form())
+        fields = _fields_from_form()
+        if not current_user.is_admin:
+            # Mitarbeiter schreiben Aufgaben nur an Admins/Besteller, ohne Wiederholung
+            fields["assignees"] = tasks.allowed_assignees(current_user, fields["assignees"])
+            fields["recurrence"] = None
+        task = tasks.create_task(current_user, **fields)
         db.session.commit()
         flash(_("Aufgabe „{title}“ angelegt.", title=task.title), "success")
     except StorageError as e:

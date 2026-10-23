@@ -2,7 +2,7 @@
 from sqlalchemy import or_
 
 from . import machines, storage
-from .models import Box, Customer, Delivery, Machine, Plot, Task
+from .models import Box, Customer, Delivery, Machine, Plot, PurchaseRequest, Task
 
 LIMIT = 20
 
@@ -38,6 +38,10 @@ def search(q, user):
         .order_by(Delivery.date.desc()).limit(LIMIT).all(),
         "tasks": Task.query.filter(or_(Task.title.ilike(like), Task.description.ilike(like)))
         .order_by(Task.done_at.isnot(None), Task.due_on.asc().nulls_last()).limit(LIMIT).all(),
+        "purchases": PurchaseRequest.query.filter(or_(PurchaseRequest.title.ilike(like), PurchaseRequest.details.ilike(like),
+                                                      PurchaseRequest.order_number.ilike(like),
+                                                      PurchaseRequest.supplier.ilike(like)))
+        .order_by(PurchaseRequest.created_at.desc()).limit(LIMIT).all(),
     }
     if user.is_admin:
         results["customers"] = Customer.query.filter(or_(Customer.name.ilike(like), Customer.number.ilike(like)))\

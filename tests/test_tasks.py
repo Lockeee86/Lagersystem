@@ -66,7 +66,7 @@ def png():
 def test_pages_and_rights(as_admin, as_worker, as_viewer, db, seed):
     m = machines.create_machine("Fendt", "schlepper", seed["admin"], counter_unit="h")
     db.session.commit()
-    assert as_worker.post("/aufgaben/neu", data={"title": "x"}).status_code == 403
+    assert as_viewer.post("/aufgaben/neu", data={"title": "x"}).status_code == 403
     as_admin.post("/aufgaben/neu", data={"title": "Öl nachfüllen", "assignee_ids": [str(seed["worker"].id)],
                                          "due_on": date.today().isoformat(), "important": "1",
                                          "machine_id": str(m.id), "place": f"{seed['wh'].id}:3"})
@@ -121,7 +121,8 @@ def test_task_from_fault_and_maintenance(as_admin, as_worker, db, seed):
     assert t.is_done and fault.resolved_at is not None and not machines.open_faults()
 
     # Ohne Haken: nur Störung; Mitarbeiter können keine Aufgabe erzeugen
-    as_worker.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Licht defekt", "as_task": "1"})
+    # Ohne Haken entsteht nur die Störung
+    as_worker.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Licht defekt"})
     fault2 = MachineEvent.query.filter_by(kind="stoerung", resolved_at=None).one()
     assert Task.query.count() == 1
     # Aufgabe nachträglich aus der Störung (vorbefüllt) – Störung an der Maschine erledigen schließt sie

@@ -43,6 +43,9 @@
         {% else %}<span class="s">{{ _("alles in Ordnung") }}</span>{% endif %}</a>
     <a class="area-tile" href="{{ url_for('fields.field_map') }}"><i class="bi bi-map"></i><span class="t">{{ _("Schläge") }}</span>
         <span class="s">{{ plot_stats.count }}{% if plot_stats.ha %} · {{ plot_stats.ha|num(1) }} ha{% endif %}</span></a>
+    <a class="area-tile" href="{{ url_for('purchases.purchase_list') }}"><i class="bi bi-box-seam"></i><span class="t">{{ _("Bestellungen") }}</span>
+        <span class="s">{% if purchase_arrived %}{{ ngettext("{n} ist da", "{n} sind da", purchase_arrived|length) }}{% elif current_user.is_buyer %}{{ ngettext("{n} offen", "{n} offen", purchase_open|length) }}{% else %}{{ _("Teil anfragen") }}{% endif %}</span>
+        {% if purchase_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}</a>
     <a class="area-tile" href="{{ url_for('main.weather_page') }}"><i class="bi bi-cloud-sun"></i><span class="t">{{ _("Wetter") }}</span>
         <span class="s">{% if weather and not weather.error and weather.current %}{{ weather.current.temp|num }} °C{% else %}–{% endif %}</span></a>
     <a class="area-tile" href="{{ url_for('main.history') }}"><i class="bi bi-clock-history"></i><span class="t">{{ _("Verlauf") }}</span>
@@ -63,6 +66,36 @@
     <ul class="list-group list-group-flush">
         {% for task in due_tasks_now[:10] %}{{ task_item(task, today, url_for('main.dashboard')) }}{% endfor %}
     </ul>
+</div>
+{% endif %}
+
+{% if purchase_arrived %}
+<div class="alert alert-success d-flex gap-2 align-items-start">
+    <i class="bi bi-box-seam"></i>
+    <div class="small flex-grow-1">
+        <strong>{{ _("Geliefert:") }}</strong>
+        {% for r in purchase_arrived %}<a class="alert-link" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">{{ r.title }}</a>{{ ", " if not loop.last }}{% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if purchase_open %}
+<div class="card shadow-sm mb-4 border-info-subtle">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box-seam me-1"></i>{{ _("Bestellungen") }}</span>
+        <a class="small" href="{{ url_for('purchases.purchase_list') }}">{{ _("Alle Bestellungen") }}</a>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for r in purchase_open[:8] %}
+        <a class="list-group-item list-group-item-action small d-flex gap-2 align-items-center" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">
+            <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span>
+            {% if r.urgent %}<span class="badge text-bg-danger">{{ _("dringend") }}</span>{% endif %}
+            <span class="fw-semibold">{{ r.title }}</span>
+            <span class="text-body-secondary">{% if r.machine %}· {{ r.machine.name }}{% endif %}{% if r.requested_by %} · {{ r.requested_by.name }}{% endif %}
+                {% if r.status == "bestellt" and r.expected_on %} · <span class="{{ 'text-danger fw-semibold' if r.expected_on < today }}">{{ _("Lieferung {date}", date=r.expected_on|date) }}</span>{% endif %}</span>
+        </a>
+        {% endfor %}
+    </div>
 </div>
 {% endif %}
 

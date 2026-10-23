@@ -388,6 +388,7 @@ def users():
         user.display_name = form_str("display_name", 100) or None
         user.role = role
         user.active = active
+        user.can_order = bool(request.form.get("can_order"))
         language = form_str("language", 5)
         if language in LANGUAGES:
             user.language = language

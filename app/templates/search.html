@@ -47,6 +47,11 @@
     <span class="fw-semibold">{{ c.name }}</span>{% if c.number %} <span class="small text-body-secondary">{{ c.number }}</span>{% endif %}</a>{% endfor %}
 {% endcall %}
 {% endif %}
+{% call group(_("Bestellungen"), "bi-box-seam", results.purchases) %}
+{% for r in results.purchases %}<a class="list-group-item list-group-item-action" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">
+    <span class="fw-semibold">{{ r.title }}</span> <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span>
+    <span class="small text-body-secondary">· {{ r.created_at|date }}</span></a>{% endfor %}
+{% endcall %}
 {% call group(_("Aufgaben"), "bi-list-check", results.tasks) %}
 {% for t in results.tasks %}<a class="list-group-item list-group-item-action" href="{{ url_for('tasks.task_detail', task_id=t.id) }}">
     <span class="fw-semibold {{ 'text-decoration-line-through text-body-secondary' if t.is_done }}">{{ t.title }}</span>

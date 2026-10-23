@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import machines, sales, search, storage, tasks, weather
+from . import machines, purchases, sales, search, storage, tasks, weather
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -99,6 +99,8 @@ def dashboard():
                            weather=weather.get_weather(), show_blight=weather.blight_in_season(),
                            due_tasks_now=tasks.due_now(None if current_user.is_admin else current_user),
                            today=date.today(), plot_stats=_plot_stats(),
+                           purchase_open=purchases.open_requests() if current_user.is_buyer else [],
+                           purchase_arrived=purchases.arrived_for(current_user),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
 

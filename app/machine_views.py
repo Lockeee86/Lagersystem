@@ -1,20 +1,19 @@
 """Seiten für Maschinen: Übersicht, Maschinenseite mit Wartungen und Logbuch, Fotos, QR-Etikett."""
 from datetime import date
-from decimal import Decimal, InvalidOperation
 
 from flask import (Blueprint, Response, abort, flash, redirect, render_template, request, send_from_directory,
                    url_for)
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import machines, tasks, uploads
+from . import machines, purchases, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
 from .models import (COUNTER_UNITS, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, Machine, MachineEvent,
                      MaintenanceTask, Photo, User)
 from .storage import StorageError
-from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
+from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
 
 bp = Blueprint("machines", __name__)
 
@@ -32,18 +31,7 @@ def _to_machine(machine, anchor=None):
 
 
 def _form_cost():
-    raw = form_str("cost", 20).replace("€", "").replace(" ", "")
-    if not raw:
-        return None
-    if "," in raw:
-        raw = raw.replace(".", "").replace(",", ".")
-    try:
-        value = Decimal(raw).quantize(Decimal("0.01"))
-    except InvalidOperation:
-        raise StorageError(_("Bitte die Kosten als Zahl angeben, z. B. 125,50."))
-    if value < 0 or value > Decimal("9999999"):
-        raise StorageError(_("Bitte die Kosten als Zahl angeben, z. B. 125,50."))
-    return value
+    return form_money("cost")
 
 
 def _run(machine, action, anchor=None):
@@ -127,7 +115,8 @@ def machine_detail(machine_id):
     page_args["machine_id"] = machine.id
     return render_template("machines/detail.html", machine=machine, tasks=maintenance, page=page, kind=kind,
                            page_args=page_args, open_tasks=open_tasks, today=date.today(),
-                           assignable=tasks.assignable_users(),
+                           assignable=tasks.assignable_users() if current_user.is_admin else tasks.request_recipients(),
+                           machine_purchases=purchases.for_machine(machine.id),
                            fault_tasks={t.machine_event_id: t for t in open_tasks if t.machine_event_id},
                            maint_tasks={t.maintenance_task_id: t for t in open_tasks if t.maintenance_task_id},
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
@@ -193,13 +182,14 @@ def machine_event(machine_id):
         event = machines.add_event(machine, kind, current_user, form_date("date"), text,
                                    _form_cost() if current_user.is_admin else None,
                                    form_int("counter", minimum=0, maximum=10_000_000), names)
-        if kind == "stoerung" and current_user.is_admin and request.form.get("as_task"):
+        if kind == "stoerung" and request.form.get("as_task"):
             db.session.flush()
             ids = {int(v) for v in request.form.getlist("assignee_ids") if v.isdigit()}
+            wanted = User.query.filter(User.id.in_(ids)).all() if ids else []
             tasks.create_task(
                 current_user, title=tasks.title_for(machine, text), description=text,
                 due_on=form_date("task_due") or date.today(), important=bool(request.form.get("task_important")),
-                assignees=User.query.filter(User.id.in_(ids)).all() if ids else [],
+                assignees=tasks.allowed_assignees(current_user, wanted),
                 machine_id=machine.id, machine_event_id=event.id,
             )
             return _("Störung gemeldet und als Aufgabe angelegt.")

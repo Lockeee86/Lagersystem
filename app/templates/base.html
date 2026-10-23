@@ -32,7 +32,7 @@
         </a>
         <nav class="app-areas d-none d-lg-flex" aria-label="{{ _('Bereiche') }}">
             {% for a in nav.areas %}
-            <a href="{{ a.href }}" class="{% if nav.area and nav.area.key == a.key %}active{% endif %}"><i class="bi {{ a.icon }}"></i>{{ _(a.label) }}</a>
+            <a href="{{ a.href }}" class="{% if nav.area and nav.area.key == a.key %}active{% endif %}"><i class="bi {{ a.icon }}"></i>{{ _(a.label) }}{% if a.key == "start" and purchase_count %} <span class="badge rounded-pill text-bg-danger" title="{{ _('Bestellungen') }}">{{ purchase_count }}</span>{% endif %}</a>
             {% endfor %}
         </nav>
         <div class="app-header-right">
@@ -82,7 +82,7 @@
     <nav class="app-subnav {% if nav.area.key == 'start' %}d-none d-lg-block{% endif %}" aria-label="{{ _(nav.area.label) }}">
         <div class="container-xl">
             {% for it in nav["items"] %}
-            <a href="{{ url_for(it.endpoint) }}" class="{% if nav.active == it.endpoint %}active{% endif %}"><i class="bi {{ it.icon }}"></i>{{ _(it.label) }}{% if it.badge == "tasks" and my_task_count %}<span class="badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}</a>
+            <a href="{{ url_for(it.endpoint) }}" class="{% if nav.active == it.endpoint %}active{% endif %}"><i class="bi {{ it.icon }}"></i>{{ _(it.label) }}{% if it.badge == "tasks" and my_task_count %}<span class="badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}{% if it.badge == "purchases" and purchase_count %}<span class="badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}</a>
             {% endfor %}
         </div>
     </nav>

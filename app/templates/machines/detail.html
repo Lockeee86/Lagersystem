@@ -56,16 +56,16 @@
                     <label class="form-label">{{ _("Fotos") }}</label>
                     {{ photo_input() }}
                 </div>
-                {% if current_user.is_admin %}
+                {% if current_user.can_edit %}
                 <div class="col-12" id="asTaskBox">
                     <div class="border rounded-3 p-2">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="as_task" name="as_task" value="1" checked>
-                            <label class="form-check-label fw-medium" for="as_task"><i class="bi bi-list-check me-1"></i>{{ _("Als Aufgabe anlegen, damit sich jemand darum kümmert") }}</label>
+                            <label class="form-check-label fw-medium" for="as_task"><i class="bi bi-list-check me-1"></i>{{ _("Als Aufgabe anlegen, damit sich jemand darum kümmert") if current_user.is_admin else _("Als Aufgabe an Admin/Besteller schicken") }}</label>
                         </div>
                         <div class="row g-2 mt-1" id="asTaskFields">
                             <div class="col-12">
-                                <div class="small text-body-secondary mb-1">{{ _("Für wen?") }} {{ _("(niemand gewählt = alle)") }}</div>
+                                <div class="small text-body-secondary mb-1">{{ _("Für wen?") }} {{ _("(niemand gewählt = alle)") if current_user.is_admin else _("(niemand gewählt = alle Admins und Besteller)") }}</div>
                                 <div class="d-flex flex-wrap gap-2">
                                     {% for u in assignable %}
                                     <input type="checkbox" class="btn-check" name="assignee_ids" value="{{ u.id }}" id="at_u{{ u.id }}">
@@ -102,6 +102,9 @@
     <div class="flex-grow-1 small">
         <strong>{{ _("Störung vom {date}", date=e.date|date) }}</strong>{% if e.user %} ({{ e.user.name }}){% endif %}: {{ e.text or "" }}
     </div>
+    {% if current_user.can_edit %}
+    <a class="btn btn-sm btn-outline-light text-nowrap" href="{{ url_for('purchases.purchase_list', neu=1, stoerung=e.id) }}"><i class="bi bi-box-seam me-1"></i>{{ _("Ersatzteil") }}</a>
+    {% endif %}
     {% set linked = fault_tasks.get(e.id) %}
     {% if linked %}
     <a class="btn btn-sm btn-outline-light text-nowrap" href="{{ url_for('tasks.task_detail', task_id=linked.id) }}"><i class="bi bi-list-check me-1"></i>{{ _("Aufgabe offen") }}{% if linked.assignees %} · {{ linked.assignees|map(attribute='name')|join(", ") }}{% endif %}</a>
@@ -149,6 +152,20 @@
             <ul class="list-group list-group-flush">
                 {% for task in open_tasks %}{{ task_item(task, today, request.path) }}{% else %}<li class="list-group-item small text-body-secondary">{{ _("Keine offenen Aufgaben.") }}</li>{% endfor %}
             </ul>
+        </div>
+        {% endif %}
+
+        {% if machine_purchases %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-box-seam me-1"></i>{{ _("Bestellungen") }}</div>
+            <div class="list-group list-group-flush">
+                {% for r in machine_purchases %}
+                <a class="list-group-item list-group-item-action small d-flex gap-2 align-items-center" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">
+                    <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span><span class="fw-semibold">{{ r.title }}</span>
+                    {% if r.status == "bestellt" and r.expected_on %}<span class="text-body-secondary">· {{ _("Lieferung {date}", date=r.expected_on|date) }}</span>{% endif %}
+                </a>
+                {% endfor %}
+            </div>
         </div>
         {% endif %}
 

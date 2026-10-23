@@ -21,6 +21,20 @@ def assignable_users():
     return [u for u in User.query.filter_by(active=True).order_by(User.username) if u.has_role(ROLE_MITARBEITER)]
 
 
+def request_recipients():
+    """An wen Mitarbeiter Aufgaben schicken dürfen: Admins und Besteller."""
+    return [u for u in assignable_users() if u.is_buyer]
+
+
+def allowed_assignees(user, wanted):
+    """Admins verteilen frei. Mitarbeiter nur an Admins/Besteller – ohne Auswahl an alle Admins/Besteller."""
+    if user.is_admin:
+        return list(wanted)
+    recipients = request_recipients()
+    chosen = [u for u in wanted if u in recipients]
+    return chosen or recipients
+
+
 def _advance(day, recurrence):
     if recurrence == "taeglich":
         return day + timedelta(days=1)

@@ -218,6 +218,15 @@ Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü
 5. ✅ Schlagkartei & Ertrag (Import aus Myfarm24)
 6. Lagerklima (Sensoren) – auf Wunsch zurückgestellt
 
+### Bestellungen und Aufgaben an die Admins (0.16.0)
+Mitarbeiter schicken Bestellwünsche (was, Menge, Details, Fotos, dringend, optional Maschine/Störung) – auch
+direkt aus einer offenen Störung über „Ersatzteil“. Bestellen dürfen Admins und Benutzer mit dem Häkchen
+„Darf bestellen“ (Besteller). Ablauf: Angefragt → Bestellt → Geliefert → Erledigt, oder Abgelehnt mit
+Begründung. Der Besteller trägt Lieferant, Bestellnummer, Preis, Bestell-/Liefertermin und eine Notiz ein;
+der Anfragende sieht den Fortschritt und auf der Übersicht „Geliefert“. Badge für Besteller: neue Wünsche
+und überfällige Lieferungen. Mitarbeiter dürfen Aufgaben anlegen, aber nur an Admins und Besteller
+(ohne Auswahl an alle), ohne Wiederholung.
+
 ### Aufgaben aus Störungen und Wartungen (0.15.0)
 Beim Melden einer Störung kann der Admin direkt eine Aufgabe anlegen (Zuständige, Termin, wichtig); offene
 Störungen und fällige Wartungen haben einen Knopf „Aufgabe“ (Formular vorbefüllt). Aufgabe und Störung/Wartung

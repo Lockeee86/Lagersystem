@@ -9,10 +9,12 @@
     </div>
     {% if current_user.is_admin %}
     <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newTask"><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Aufgabe") }}</button>
+    {% elif current_user.can_edit %}
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newTask"><i class="bi bi-send me-1"></i>{{ _("Aufgabe an Admin") }}</button>
     {% endif %}
 </div>
 
-{% if current_user.is_admin %}
+{% if current_user.can_edit %}
 <div class="collapse {% if show_form %}show{% endif %}" id="newTask">
     <div class="card shadow-sm mb-4">
         <div class="card-body">

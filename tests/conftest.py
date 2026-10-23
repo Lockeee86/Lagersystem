@@ -24,6 +24,7 @@ def app(tmp_path):
         g.pop("farm", None)
         g.pop("my_tasks", None)
         g.pop("_lang", None)
+        g.pop("purchase_count", None)
 
     with app.app_context():
         _db.create_all()

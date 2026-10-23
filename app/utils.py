@@ -103,6 +103,25 @@ def form_str(name, max_len=None):
     return value
 
 
+def form_money(name):
+    """Betrag in € aus dem Formular („1.234,50“, „125.5“, „80 €“). Leer → None, ungültig → StorageError."""
+    from decimal import Decimal, InvalidOperation
+    from .i18n import gettext
+    from .storage import StorageError
+    raw = form_str(name, 20).replace("€", "").replace(" ", "")
+    if not raw:
+        return None
+    if "," in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    try:
+        value = Decimal(raw).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        value = None
+    if value is None or value < 0 or value > Decimal("9999999"):
+        raise StorageError(gettext("Bitte die Kosten als Zahl angeben, z. B. 125,50."))
+    return value
+
+
 def form_date(name):
     raw = request.form.get(name, "").strip()
     if not raw:

@@ -80,6 +80,7 @@ def create_app(config=None):
     from .machine_views import bp as machines_bp
     from .task_views import bp as tasks_bp
     from .fields_views import bp as fields_bp
+    from .purchase_views import bp as purchases_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -88,6 +89,7 @@ def create_app(config=None):
     app.register_blueprint(machines_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(fields_bp)
+    app.register_blueprint(purchases_bp)
 
     from . import cli
     cli.register(app)
@@ -113,9 +115,15 @@ def create_app(config=None):
             from . import tasks
             g.my_tasks = (len(tasks.due_now(current_user)) if current_user.is_authenticated
                           and current_user.can_edit else 0)
+        if "purchase_count" not in g:
+            # Zahl am Menüpunkt „Bestellungen“: für Besteller neue Wünsche + überfällige Lieferungen
+            from . import purchases
+            c = purchases.counts() if current_user.is_authenticated and current_user.is_buyer else None
+            g.purchase_count = c["new"] + c["late"] if c else 0
         return {
             "farm": g.farm,
             "my_task_count": g.my_tasks,
+            "purchase_count": g.purchase_count,
             "nav": navigation.current(request.endpoint, current_user) if current_user.is_authenticated else None,
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,

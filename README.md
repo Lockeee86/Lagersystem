@@ -35,7 +35,9 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   Regen der letzten 30 Tage, Frost-Hinweis, Krautfäule-Ampel nach den Hutton-Kriterien
 - **Aufgaben**: der Admin verteilt an eine oder mehrere Personen oder an alle, mit Termin, Priorität,
   Wiederholung (täglich, werktags, wöchentlich …) und Bezug zu Maschine, Lieferschein oder Lagerplatz;
-  abhaken am Handy mit Notiz und Foto
+  abhaken am Handy mit Notiz und Foto. Mitarbeiter können Aufgaben an Admins/Besteller schicken
+- **Bestellungen**: Ersatzteile & Co. mit Foto anfragen (auch direkt aus einer Störung), der Besteller
+  trägt Status, Lieferant, Preis und Liefertermin ein (Angefragt → Bestellt → Geliefert → Erledigt / Abgelehnt)
 - **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur, Fruchtfolge,
   Pflanzung und Rodung je Schlag, Ertrag in t/ha aus den Kisten
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)

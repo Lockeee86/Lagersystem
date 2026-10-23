@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
-{% from "tasks/_macros.html" import task_form %}
+{% from "tasks/_macros.html" import task_form with context %}
 {% from "machines/_macros.html" import photo_input %}
 {% block title %}{{ task.title }}{% endblock %}
 {% block content %}

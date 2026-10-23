@@ -521,3 +521,15 @@ body:not(.has-tabbar) {
 .area-tile .s.warn { color: #e0866b; }
 .area-tile .cnt { position: absolute; top: .45rem; right: .45rem; }
 .area-tiles-wide .area-tile { padding: 1rem; }
+
+/* Bestellungen */
+.photo-thumb-sm { width: 52px; height: 52px; flex-shrink: 0; background: var(--surface-2); }
+.purchase-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.purchase-steps .step { position: relative; text-align: center; font-weight: 600; font-size: .9rem; color: var(--bs-secondary-color); }
+.purchase-steps .step .dot { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; margin: 0 auto .3rem;
+    border-radius: 50%; border: 2px solid var(--bs-border-color); background: var(--surface); position: relative; z-index: 1; }
+.purchase-steps .step.done { color: var(--bs-body-color); }
+.purchase-steps .step.done .dot { background: #3f8f4f; border-color: #3f8f4f; color: #fff; }
+.purchase-steps .step:not(:first-child)::before { content: ""; position: absolute; top: 1rem; right: 50%; width: 100%; height: 2px;
+    background: var(--bs-border-color); }
+.purchase-steps .step.done:not(:first-child)::before { background: #3f8f4f; }

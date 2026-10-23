@@ -45,4 +45,8 @@ def test_search(as_worker, db, seed):
     assert "Acker Nord" in html
     assert "Saatzucht Nord" in as_worker.get("/suche?q=saatzucht").get_data(as_text=True)   # über Lieferschein
     assert "Nichts gefunden" in as_worker.get("/suche?q=xyzzy").get_data(as_text=True)
+    from app import purchases
+    purchases.create_request(seed["worker"], "Keilriemen Roder", details="Gates 8PK1500")
+    db.session.commit()
+    assert "Keilriemen Roder" in as_worker.get("/suche?q=8pk1500").get_data(as_text=True)
     assert as_worker.get("/suche").status_code == 200
