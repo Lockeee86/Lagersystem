@@ -35,10 +35,14 @@ def test_status_flow(db, seed):
         purchases.update_request(req, seed["admin"], "abgelehnt")          # ohne Begründung
     with pytest.raises(StorageError):
         purchases.mark_done(req, seed["worker"])                            # noch nicht geliefert
+    assert req.status == "neu" and req.is_open                            # gemeldet, noch nicht angefragt
+    assert purchases.counts(seed["admin"]) == {"new": 1, "mine": 0, "late": 0}
+    purchases.update_request(req, seed["admin"], "angefragt", supplier="Landtechnik Meyer")
+    assert req.inquired_on == date.today() and req.ordered_on is None and req.assignee == seed["admin"]
+    assert purchases.counts(seed["admin"]) == {"new": 0, "mine": 0, "late": 0}
     purchases.update_request(req, seed["admin"], "bestellt", supplier="Landtechnik Meyer",
                              expected_on=date.today() - timedelta(days=1))
     assert req.ordered_on == date.today() and req.handled_by == seed["admin"]
-    assert req.assignee == seed["admin"]                                    # wer bearbeitet, übernimmt
     assert purchases.counts(seed["admin"]) == {"new": 0, "mine": 0, "late": 1}
     purchases.update_request(req, seed["admin"], "geliefert", supplier="Landtechnik Meyer")
     assert req.delivered_on == date.today() and purchases.arrived_for(seed["worker"]) == [req]
@@ -82,6 +86,7 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed):
     assert req.status == "bestellt" and req.price == Decimal("1234.50") and req.handled_by == buyer
     html = as_worker.get(f"/bestellung/{req.id}").get_data(as_text=True)
     assert "Landtechnik Meyer" in html and "1.234,50 €" in html
+    assert "skipped" in html and req.inquired_on is None                  # gleich bestellt, Anfrage übersprungen
 
     # Geliefert → Mitarbeiter sieht es auf der Übersicht und hakt ab
     client.post(f"/bestellung/{req.id}/bearbeiten", data=data | {"status": "geliefert"})
@@ -89,7 +94,7 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed):
     as_worker.post(f"/bestellung/{req.id}/erledigt")
     assert req.status == "erledigt"
 
-    # Zurückziehen nur, solange angefragt
+    # Zurückziehen nur, solange neu
     other = purchases.create_request(seed["worker"], "Netze 10 kg")
     db.session.commit()
     as_worker.post(f"/bestellung/{other.id}/loeschen")

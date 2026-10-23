@@ -221,11 +221,15 @@ Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü
 ### Bestellungen und Aufgaben an die Admins (0.16.0)
 Mitarbeiter schicken Bestellwünsche (was, Menge, Details, Fotos, dringend, optional Maschine/Störung) – auch
 direkt aus einer offenen Störung über „Ersatzteil“. Bestellen dürfen Admins und Benutzer mit dem Häkchen
-„Darf bestellen“ (Besteller). Ablauf: Angefragt → Bestellt → Geliefert → Erledigt, oder Abgelehnt mit
+„Darf bestellen“ (Besteller). Ablauf: Neu → (Angefragt) → Bestellt → Geliefert → Erledigt, oder Abgelehnt mit
 Begründung. Der Besteller trägt Lieferant, Bestellnummer, Preis, Bestell-/Liefertermin und eine Notiz ein;
 der Anfragende sieht den Fortschritt und auf der Übersicht „Geliefert“. Badge für Besteller: neue Wünsche
 und überfällige Lieferungen. Mitarbeiter dürfen Aufgaben anlegen, aber nur an Admins und Besteller
 (ohne Auswahl an alle), ohne Wiederholung.
+
+Status „Neu“ (0.16.2): Eine Meldung ist zuerst „Neu“. „Angefragt“ bedeutet: der Besteller hat beim
+Lieferanten angefragt (Datum „Angefragt am“). Der Schritt ist optional – wer gleich bestellt, überspringt ihn
+(gestrichelt in der Fortschrittsanzeige). Zurückziehen kann der Meldende nur, solange die Meldung „Neu“ ist.
 
 Zuständigkeit (0.16.1): Jede Bestellung hat einen zuständigen Besteller. Neue Wünsche sind „noch frei“, bis
 ein Besteller „Ich übernehme“ drückt (oder als Erster bearbeitet). Danach bearbeitet nur er (und der Admin);

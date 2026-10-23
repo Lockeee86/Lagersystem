@@ -7,7 +7,7 @@
         <h1 class="d-flex flex-wrap align-items-center gap-2">{{ req.title }}
             <span class="badge fs-6 text-bg-{{ req.status_color }}">{{ req.status_label }}</span>
             {% if req.urgent and req.is_open %}<span class="badge fs-6 text-bg-danger">{{ _("dringend") }}</span>{% endif %}</h1>
-        <p class="text-body-secondary mb-0">{{ _("Angefragt am {date}", date=req.created_at|date) }}{% if req.requested_by %} · {{ req.requested_by.name }}{% endif %}
+        <p class="text-body-secondary mb-0">{{ _("Gemeldet am {date}", date=req.created_at|date) }}{% if req.requested_by %} · {{ req.requested_by.name }}{% endif %}
             · {% if req.assignee %}<i class="bi bi-person-check"></i> {{ _("Zuständig: {name}", name=req.assignee.name) }}{% elif req.is_open %}<span class="text-warning-emphasis">{{ _("Noch niemand zuständig") }}</span>{% endif %}</p>
     </div>
     <a class="btn btn-outline-secondary" href="{{ url_for('purchases.purchase_list') }}"><i class="bi bi-box-seam me-1"></i>{{ _("Alle Bestellungen") }}</a>
@@ -16,11 +16,15 @@
 {# Fortschritt #}
 {% if req.status != "abgelehnt" %}
 <div class="purchase-steps mb-4">
-    {% for key in ("angefragt", "bestellt", "geliefert", "erledigt") %}
-    {% set reached = loop.index0 <= ["angefragt", "bestellt", "geliefert", "erledigt"].index(req.status) %}
-    <div class="step {{ 'done' if reached }}"><span class="dot">{% if reached %}<i class="bi bi-check-lg"></i>{% endif %}</span>{{ _(statuses[key][0]) }}
+    {% set steps = ["neu", "angefragt", "bestellt", "geliefert", "erledigt"] %}
+    {% for key in steps %}
+    {% set reached = loop.index0 <= steps.index(req.status) %}
+    {# „Angefragt“ ist optional: übersprungen = erreicht, aber ohne Datum und ohne Haken #}
+    {% set skipped = key == "angefragt" and reached and not req.inquired_on and req.status != "angefragt" %}
+    <div class="step {{ 'done' if reached and not skipped }} {{ 'skipped' if skipped }}"><span class="dot">{% if reached and not skipped %}<i class="bi bi-check-lg"></i>{% endif %}</span>{{ _("Gemeldet") if key == "neu" else _(statuses[key][0]) }}
         <div class="small text-body-secondary">
-            {% if key == "angefragt" %}{{ req.created_at|date }}
+            {% if key == "neu" %}{{ req.created_at|date }}
+            {% elif key == "angefragt" and req.inquired_on %}{{ req.inquired_on|date }}
             {% elif key == "bestellt" and req.ordered_on %}{{ req.ordered_on|date }}
             {% elif key == "geliefert" and req.delivered_on %}{{ req.delivered_on|date }}
             {% elif key == "geliefert" and req.expected_on %}{{ _("erwartet {date}", date=req.expected_on|date) }}{% endif %}
@@ -60,7 +64,7 @@
             <form method="post" action="{{ url_for('purchases.purchase_done', req_id=req.id) }}">{{ csrf() }}
                 <button class="btn btn-success"><i class="bi bi-check2-all me-1"></i>{{ _("Eingebaut / verbraucht – erledigt") }}</button></form>
             {% endif %}
-            {% if current_user.is_admin or (req.requested_by_id == current_user.id and req.status == "angefragt") %}
+            {% if current_user.is_admin or (req.requested_by_id == current_user.id and req.status == "neu") %}
             <form method="post" action="{{ url_for('purchases.purchase_delete', req_id=req.id) }}">{{ csrf() }}
                 <button class="btn btn-outline-danger" data-confirm="{{ _('Bestellwunsch „{title}“ löschen?', title=req.title) }}"><i class="bi bi-trash me-1"></i>{{ _("Löschen") }}</button></form>
             {% endif %}
@@ -119,11 +123,13 @@
                         <input class="form-control form-control-sm" id="b_number" name="order_number" maxlength="80" value="{{ req.order_number or '' }}"></div>
                     <div class="col-5"><label class="form-label small" for="b_price">{{ _("Preis (€)") }}</label>
                         <input class="form-control form-control-sm" id="b_price" name="price" inputmode="decimal" maxlength="20" value="{{ req.price|num(2) if req.price is not none else '' }}"></div>
-                    <div class="col-4"><label class="form-label small" for="b_ordered">{{ _("Bestellt am") }}</label>
+                    <div class="col-6"><label class="form-label small" for="b_inquired">{{ _("Angefragt am") }}</label>
+                        <input class="form-control form-control-sm" type="date" id="b_inquired" name="inquired_on" value="{{ req.inquired_on.isoformat() if req.inquired_on else '' }}"></div>
+                    <div class="col-6"><label class="form-label small" for="b_ordered">{{ _("Bestellt am") }}</label>
                         <input class="form-control form-control-sm" type="date" id="b_ordered" name="ordered_on" value="{{ req.ordered_on.isoformat() if req.ordered_on else '' }}"></div>
-                    <div class="col-4"><label class="form-label small" for="b_expected">{{ _("Liefertermin") }}</label>
+                    <div class="col-6"><label class="form-label small" for="b_expected">{{ _("Liefertermin") }}</label>
                         <input class="form-control form-control-sm" type="date" id="b_expected" name="expected_on" value="{{ req.expected_on.isoformat() if req.expected_on else '' }}"></div>
-                    <div class="col-4"><label class="form-label small" for="b_delivered">{{ _("Geliefert am") }}</label>
+                    <div class="col-6"><label class="form-label small" for="b_delivered">{{ _("Geliefert am") }}</label>
                         <input class="form-control form-control-sm" type="date" id="b_delivered" name="delivered_on" value="{{ req.delivered_on.isoformat() if req.delivered_on else '' }}"></div>
                     <div class="col-12"><label class="form-label small" for="b_note">{{ _("Notiz an den Anfragenden (bei Ablehnung: Begründung)") }}</label>
                         <textarea class="form-control form-control-sm" id="b_note" name="buyer_note" rows="2" maxlength="4000">{{ req.buyer_note or '' }}</textarea></div>

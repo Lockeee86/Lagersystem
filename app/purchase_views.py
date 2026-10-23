@@ -29,7 +29,7 @@ def purchase_list():
     status = request.args.get("status", "offen")
     statuses = FILTERS.get(status) or ((status,) if status in PURCHASE_STATUSES else PURCHASE_OPEN)
     query = PurchaseRequest.query.filter(PurchaseRequest.status.in_(statuses))
-    # wer=ich: selbst angefragt · wer=zustaendig: vom Besteller übernommen · wer=frei: noch niemand zuständig
+    # wer=ich: selbst gemeldet · wer=zustaendig: vom Besteller übernommen · wer=frei: noch niemand zuständig
     who = request.args.get("wer") if request.args.get("wer") in ("ich", "zustaendig", "frei") else None
     if who == "ich":
         query = query.filter(PurchaseRequest.requested_by_id == current_user.id)
@@ -120,6 +120,7 @@ def purchase_update(req_id):
             order_number=form_str("order_number", 80), price=form_money("price"),
             ordered_on=form_date("ordered_on"), expected_on=form_date("expected_on"),
             delivered_on=form_date("delivered_on"), buyer_note=form_str("buyer_note", 4000),
+            inquired_on=form_date("inquired_on"),
         )
         db.session.commit()
         flash(_("Bestellung „{title}“: {status}.", title=req.title, status=req.status_label), "success")
@@ -147,9 +148,9 @@ def purchase_done(req_id):
 @bp.route("/bestellung/<int:req_id>/loeschen", methods=["POST"])
 @editor_required
 def purchase_delete(req_id):
-    """Zurückziehen, solange noch nicht bestellt (Anfragender) – Admins dürfen immer."""
+    """Zurückziehen, solange noch niemand etwas unternommen hat (Anfragender) – Admins dürfen immer."""
     req = _get(req_id)
-    if not (current_user.is_admin or (req.requested_by_id == current_user.id and req.status == "angefragt")):
+    if not (current_user.is_admin or (req.requested_by_id == current_user.id and req.status == "neu")):
         abort(403)
     names = [p.filename for p in req.photos]
     db.session.delete(req)

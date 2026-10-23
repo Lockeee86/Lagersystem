@@ -789,13 +789,14 @@ class Task(db.Model):
 # --- Bestellungen -----------------------------------------------------------
 
 PURCHASE_STATUSES = {
-    "angefragt": (N_("Angefragt"), "secondary"),
+    "neu": (N_("Neu"), "warning"),                       # gemeldet, noch nichts unternommen
+    "angefragt": (N_("Angefragt"), "info"),              # beim Lieferanten angefragt (Preis/Verfügbarkeit)
     "bestellt": (N_("Bestellt"), "primary"),
     "geliefert": (N_("Geliefert"), "success"),
     "erledigt": (N_("Erledigt"), "dark"),
     "abgelehnt": (N_("Abgelehnt"), "danger"),
 }
-PURCHASE_OPEN = ("angefragt", "bestellt", "geliefert")
+PURCHASE_OPEN = ("neu", "angefragt", "bestellt", "geliefert")
 
 
 class PurchaseRequest(db.Model):
@@ -809,13 +810,14 @@ class PurchaseRequest(db.Model):
     urgent = db.Column(db.Boolean, nullable=False, default=False)
     machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"), index=True)
     machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"))
-    status = db.Column(db.String(20), nullable=False, default="angefragt", index=True)
+    status = db.Column(db.String(20), nullable=False, default="neu", index=True)
     requested_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     # vom Besteller
     supplier = db.Column(db.String(150))
     order_number = db.Column(db.String(80))
     price = db.Column(db.Numeric(10, 2))
+    inquired_on = db.Column(db.Date)                              # beim Lieferanten angefragt
     ordered_on = db.Column(db.Date)
     expected_on = db.Column(db.Date)
     delivered_on = db.Column(db.Date)

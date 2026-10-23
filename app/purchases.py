@@ -1,6 +1,7 @@
 """Bestellungen: Mitarbeiter schicken Bestellwünsche, der Besteller (Admin oder „darf bestellen“) bearbeitet sie.
 
-Ablauf: angefragt → bestellt → geliefert → erledigt (oder abgelehnt, mit Begründung).
+Ablauf: neu → (beim Lieferanten angefragt) → bestellt → geliefert → erledigt (oder abgelehnt, mit Begründung).
+„Angefragt“ ist optional – wer gleich bestellt, überspringt es.
 Wie `storage.py` verändern die Funktionen nur die Session, committen muss der Aufrufer.
 """
 from datetime import date
@@ -33,15 +34,18 @@ def create_request(user, title, details=None, quantity=None, urgent=False, machi
 
 
 def update_request(req, user, status, supplier=None, order_number=None, price=None, ordered_on=None,
-                   expected_on=None, delivered_on=None, buyer_note=None):
+                   expected_on=None, delivered_on=None, buyer_note=None, inquired_on=None):
     """Besteller trägt Status und Bestelldaten ein. Datumsfelder werden beim Statuswechsel sinnvoll vorbelegt."""
     if status not in PURCHASE_STATUSES:
         raise StorageError(_("Unbekannter Status."))
     if status == "abgelehnt" and not buyer_note:
         raise StorageError(_("Bitte begründen, warum nicht bestellt wird."))
     req.supplier, req.order_number, req.price = supplier or None, order_number or None, price
+    req.inquired_on = inquired_on
     req.ordered_on, req.expected_on, req.delivered_on = ordered_on, expected_on, delivered_on
     req.buyer_note = buyer_note or None
+    if status == "angefragt" and req.inquired_on is None:
+        req.inquired_on = date.today()
     if status in ("bestellt", "geliefert", "erledigt") and req.ordered_on is None:
         req.ordered_on = date.today()
     if status in ("geliefert", "erledigt") and req.delivered_on is None:
@@ -83,9 +87,9 @@ def _mine_or_free(user):
 def counts(user):
     """Für den Besteller-Zähler: noch nicht übernommene Wünsche, ihm zugeteilte und noch nicht bestellte,
     überfällige Lieferungen (seine und freie)."""
-    angefragt = PurchaseRequest.query.filter_by(status="angefragt")
-    new = angefragt.filter(PurchaseRequest.assignee_id.is_(None)).count()
-    mine = angefragt.filter(PurchaseRequest.assignee_id == user.id).count()
+    fresh = PurchaseRequest.query.filter_by(status="neu")
+    new = fresh.filter(PurchaseRequest.assignee_id.is_(None)).count()
+    mine = fresh.filter(PurchaseRequest.assignee_id == user.id).count()
     late = PurchaseRequest.query.filter(PurchaseRequest.status == "bestellt", _mine_or_free(user),
                                         PurchaseRequest.expected_on < date.today()).count()
     return {"new": new, "mine": mine, "late": late}

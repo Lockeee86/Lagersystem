@@ -58,11 +58,11 @@
 {% endif %}
 
 <div class="d-flex flex-wrap gap-2 mb-3">
-    {% for key, label in [("offen", _("Offen")), ("angefragt", _("Angefragt")), ("bestellt", _("Bestellt")), ("geliefert", _("Geliefert")), ("erledigt", _("Erledigt")), ("abgelehnt", _("Abgelehnt")), ("alle", _("Alle"))] %}
+    {% for key, label in [("offen", _("Offen")), ("neu", _("Neu")), ("angefragt", _("Angefragt")), ("bestellt", _("Bestellt")), ("geliefert", _("Geliefert")), ("erledigt", _("Erledigt")), ("abgelehnt", _("Abgelehnt")), ("alle", _("Alle"))] %}
     <a class="btn btn-sm {{ 'btn-primary' if status == key else 'btn-outline-secondary' }}" href="{{ url_for('purchases.purchase_list', status=key, wer=who) }}">{{ label }}</a>
     {% endfor %}
     <div class="ms-auto d-flex flex-wrap gap-2">
-        {% set whos = [("ich", "bi-person", _("Von mir angefragt"))] %}
+        {% set whos = [("ich", "bi-person", _("Von mir gemeldet"))] %}
         {% if current_user.is_buyer %}{% set whos = whos + [("zustaendig", "bi-person-check", _("Von mir übernommen")), ("frei", "bi-person-exclamation", _("Noch frei"))] %}{% endif %}
         {% for key, icon, label in whos %}
         <a class="btn btn-sm {{ 'btn-primary' if who == key else 'btn-outline-secondary' }}" href="{{ url_for('purchases.purchase_list', status=status, wer=none if who == key else key) }}"><i class="bi {{ icon }} me-1"></i>{{ label }}</a>
