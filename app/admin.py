@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import backup, branding, fields, tiles, transfer, weather
+from . import agenda, backup, branding, fields, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -66,6 +66,8 @@ def settings():
         location = weather.parse_location(values["farm_location"])
         for key in ("blight_from_month", "blight_to_month"):
             values[key] = str(form_int(key, int(Setting.DEFAULTS[key]), minimum=1, maximum=12))
+        if values["holiday_state"] not in agenda.STATES and values["holiday_state"] != "-":
+            values["holiday_state"] = Setting.DEFAULTS["holiday_state"]
         if values["farm_location"] and location is None:
             flash_error(_("Den Standort bitte als Breite, Länge angeben, z. B. 50.11, 8.68."))
         else:
@@ -77,8 +79,10 @@ def settings():
             weather.clear_cache()
             flash(_("Einstellungen gespeichert."), "success")
             return redirect(url_for("admin.settings"))
-        return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS)
-    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS)
+        return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS,
+                               states=agenda.STATES)
+    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS,
+                           states=agenda.STATES)
 
 
 @bp.route("/logo", methods=["POST"])

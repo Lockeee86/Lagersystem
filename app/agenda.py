@@ -23,7 +23,7 @@ ICS_FUTURE_DAYS = 400
 BERLIN = ZoneInfo("Europe/Berlin")
 
 
-# --- Feiertage (Niedersachsen) ----------------------------------------------------
+# --- Feiertage (je Bundesland) ----------------------------------------------------
 
 def easter(year):
     """Ostersonntag (gregorianisch, Gauß/Anonymous-Algorithmus)."""
@@ -39,22 +39,64 @@ def easter(year):
     return date(year, month, day + 1)
 
 
-def holidays(year):
-    """Gesetzliche Feiertage in Niedersachsen: {Datum: Name}."""
+# Bundesländer → Kürzel (Einstellung `holiday_state`, leer = keine Feiertage)
+STATES = {
+    "BW": N_("Baden-Württemberg"), "BY": N_("Bayern"), "BE": N_("Berlin"), "BB": N_("Brandenburg"),
+    "HB": N_("Bremen"), "HH": N_("Hamburg"), "HE": N_("Hessen"), "MV": N_("Mecklenburg-Vorpommern"),
+    "NI": N_("Niedersachsen"), "NW": N_("Nordrhein-Westfalen"), "RP": N_("Rheinland-Pfalz"), "SL": N_("Saarland"),
+    "SN": N_("Sachsen"), "ST": N_("Sachsen-Anhalt"), "SH": N_("Schleswig-Holstein"), "TH": N_("Thüringen"),
+}
+DEFAULT_STATE = "NI"
+
+
+def holiday_state():
+    from .models import Setting
+    value = Setting.all().get("holiday_state")
+    return value if value in STATES or value == "-" else DEFAULT_STATE
+
+
+def holidays(year, state=None):
+    """Gesetzliche Feiertage eines Bundeslands: {Datum: Name}. Feiertage nur einzelner Gemeinden
+    (z. B. Mariä Himmelfahrt in Teilen Bayerns, Fronleichnam in Teilen Sachsens/Thüringens) fehlen bewusst."""
+    state = state or holiday_state()
+    if state not in STATES:
+        return {}
     e = easter(year)
-    return {
+    days = {
         date(year, 1, 1): N_("Neujahr"), e - timedelta(days=2): N_("Karfreitag"),
         e + timedelta(days=1): N_("Ostermontag"), date(year, 5, 1): N_("Tag der Arbeit"),
         e + timedelta(days=39): N_("Christi Himmelfahrt"), e + timedelta(days=50): N_("Pfingstmontag"),
-        date(year, 10, 3): N_("Tag der Deutschen Einheit"), date(year, 10, 31): N_("Reformationstag"),
+        date(year, 10, 3): N_("Tag der Deutschen Einheit"),
         date(year, 12, 25): N_("1. Weihnachtstag"), date(year, 12, 26): N_("2. Weihnachtstag"),
     }
+    if state in ("BW", "BY", "ST"):
+        days[date(year, 1, 6)] = N_("Heilige Drei Könige")
+    if (state == "BE" and year >= 2019) or (state == "MV" and year >= 2023):
+        days[date(year, 3, 8)] = N_("Internationaler Frauentag")
+    if state == "BB":
+        days[e] = N_("Ostersonntag")
+        days[e + timedelta(days=49)] = N_("Pfingstsonntag")
+    if state in ("BW", "BY", "HE", "NW", "RP", "SL"):
+        days[e + timedelta(days=60)] = N_("Fronleichnam")
+    if state == "SL":
+        days[date(year, 8, 15)] = N_("Mariä Himmelfahrt")
+    if state == "TH" and year >= 2019:
+        days[date(year, 9, 20)] = N_("Weltkindertag")
+    if state in ("BB", "MV", "SN", "ST", "TH") or (state in ("HB", "HH", "NI", "SH") and year >= 2018) or year == 2017:
+        days[date(year, 10, 31)] = N_("Reformationstag")
+    if state in ("BW", "BY", "NW", "RP", "SL"):
+        days[date(year, 11, 1)] = N_("Allerheiligen")
+    if state == "SN":                                    # Mittwoch vor dem 23. November
+        nov23 = date(year, 11, 23)
+        days[nov23 - timedelta(days=(nov23.weekday() - 2) % 7 or 7)] = N_("Buß- und Bettag")
+    return days
 
 
 def _holidays(start, end):
     events = []
+    state = holiday_state()
     for year in range(start.year, end.year + 1):
-        for day, name in holidays(year).items():
+        for day, name in holidays(year, state).items():
             if start <= day <= end:
                 events.append(_event(day, "feiertag", f"feiertag-{day:%Y%m%d}", _(name), "bi-flag", "light", None, ""))
     return events

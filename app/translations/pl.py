@@ -1317,4 +1317,23 @@ MESSAGES = {
     'Uhrzeit': 'Godzina',
     'Bis': 'Do',
     'leer = am selben Tag': 'puste = ten sam dzień',
+    # Bundesländer, weitere Feiertage, Wochenübersicht
+    'Baden-Württemberg': 'Badenia-Wirtembergia', 'Bayern': 'Bawaria', 'Berlin': 'Berlin',
+    'Brandenburg': 'Brandenburgia', 'Bremen': 'Brema', 'Hamburg': 'Hamburg', 'Hessen': 'Hesja',
+    'Mecklenburg-Vorpommern': 'Meklemburgia-Pomorze Przednie', 'Niedersachsen': 'Dolna Saksonia',
+    'Nordrhein-Westfalen': 'Nadrenia Północna-Westfalia', 'Rheinland-Pfalz': 'Nadrenia-Palatynat',
+    'Saarland': 'Kraj Saary', 'Sachsen': 'Saksonia', 'Sachsen-Anhalt': 'Saksonia-Anhalt',
+    'Schleswig-Holstein': 'Szlezwik-Holsztyn', 'Thüringen': 'Turyngia',
+    'Heilige Drei Könige': 'Święto Trzech Króli', 'Internationaler Frauentag': 'Międzynarodowy Dzień Kobiet',
+    'Ostersonntag': 'Niedziela Wielkanocna', 'Pfingstsonntag': 'Zielone Świątki', 'Fronleichnam': 'Boże Ciało',
+    'Mariä Himmelfahrt': 'Wniebowzięcie NMP', 'Weltkindertag': 'Światowy Dzień Dziecka',
+    'Allerheiligen': 'Wszystkich Świętych', 'Buß- und Bettag': 'Dzień Pokuty i Modlitwy',
+    'Feiertage im Kalender': 'Święta w kalendarzu',
+    'Diese Woche': 'Ten tydzień',
+    'Morgen': 'Jutro',
+    'Heute steht nichts im Kalender.': 'Dziś nic nie ma w kalendarzu.',
+    'In den nächsten 7 Tagen steht nichts im Kalender.': 'W ciągu najbliższych 7 dni nic nie ma w kalendarzu.',
+    'keine Feiertage anzeigen': 'nie pokazuj świąt',
+    'Gesetzliche Feiertage des Bundeslands. Feiertage nur einzelner Gemeinden sind nicht dabei.':
+        'Ustawowe święta kraju związkowego. Święta obowiązujące tylko w niektórych gminach nie są uwzględnione.',
 }

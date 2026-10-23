@@ -48,6 +48,17 @@
             <div class="form-text">{{ _("Auf der Wetterseite ist die Ampel immer zu sehen.") }}</div>
         </div>
     </div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-calendar3 me-1"></i>{{ _("Kalender") }}</div>
+        <div class="card-body">
+            <label class="form-label" for="holiday_state">{{ _(fields.holiday_state[0]) }}</label>
+            <select class="form-select" id="holiday_state" name="holiday_state">
+                {% for code, name in states.items() %}<option value="{{ code }}" {% if values.holiday_state == code %}selected{% endif %}>{{ _(name) }}</option>{% endfor %}
+                <option value="-" {% if values.holiday_state == '-' %}selected{% endif %}>{{ _("keine Feiertage anzeigen") }}</option>
+            </select>
+            <div class="form-text">{{ _("Gesetzliche Feiertage des Bundeslands. Feiertage nur einzelner Gemeinden sind nicht dabei.") }}</div>
+        </div>
+    </div>
     <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
 </form>
 

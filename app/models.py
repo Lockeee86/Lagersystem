@@ -56,8 +56,9 @@ class Setting(db.Model):
         "farm_location": (N_("Standort für das Wetter (Breite, Länge)"), 60, False),
         "blight_from_month": (N_("Krautfäule-Ampel auf der Übersicht ab"), 2, False),
         "blight_to_month": (N_("bis einschließlich"), 2, False),
+        "holiday_state": (N_("Feiertage im Kalender"), 2, False),
     }
-    DEFAULTS = {"blight_from_month": "5", "blight_to_month": "9"}
+    DEFAULTS = {"blight_from_month": "5", "blight_to_month": "9", "holiday_state": "NI"}
 
     @classmethod
     def all(cls):

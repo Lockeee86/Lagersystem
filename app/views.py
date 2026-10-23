@@ -49,6 +49,20 @@ def commit_or_rollback():
 
 # --- Dashboard --------------------------------------------------------------
 
+def _week(days=7):
+    """Wochenübersicht für die Startseite: Termine, Feiertage, Wartungen, Lieferungen (Aufgaben haben eine eigene Karte)."""
+    today = date.today()
+    items, _undated = agenda.events(today, today + timedelta(days=days - 1), today, current_user)
+    result = []
+    for offset in range(days):
+        day = today + timedelta(days=offset)
+        # Mehrtägiges nur am ersten Tag – und bei „Heute“, solange es läuft
+        entries = [e for e in items if e["kind"] != "aufgabe"
+                   and (e["date"] == day or (offset == 0 and e["date"] < day <= e["end"]))]
+        result.append({"date": day, "offset": offset, "events": entries})
+    return result
+
+
 def _tile_info(key):
     """Zusatzangaben für Kacheln, die die Übersicht sonst nicht berechnet (nur bei Bedarf)."""
     if key == "tanken" or key == "tankbuch":
@@ -119,6 +133,7 @@ def dashboard():
                            purchase_arrived=purchases.arrived_for(current_user),
                            backup_alert=backup.needs_attention() if current_user.is_admin else None,
                            tiles=tiles.for_user(current_user), tile_catalog=tiles.CATALOG, tile_info=_tile_info,
+                           week=_week(),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
 

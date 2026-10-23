@@ -88,9 +88,34 @@ def test_fold():
 
 def test_holidays():
     assert agenda.easter(2026) == date(2026, 4, 5) and agenda.easter(2027) == date(2027, 3, 28)
-    h = agenda.holidays(2026)
+    h = agenda.holidays(2026, "NI")
     assert h[date(2026, 4, 3)] == "Karfreitag" and h[date(2026, 5, 14)] == "Christi Himmelfahrt"
     assert h[date(2026, 5, 25)] == "Pfingstmontag" and h[date(2026, 10, 31)] == "Reformationstag" and len(h) == 10
+    by = agenda.holidays(2026, "BY")
+    assert by[date(2026, 6, 4)] == "Fronleichnam" and by[date(2026, 11, 1)] == "Allerheiligen" and date(2026, 10, 31) not in by
+    assert agenda.holidays(2026, "SN")[date(2026, 11, 18)] == "Buß- und Bettag"
+    assert agenda.holidays(2022, "SN")[date(2022, 11, 16)] == "Buß- und Bettag"      # 23.11. war ein Mittwoch
+    assert date(2026, 3, 8) in agenda.holidays(2026, "BE") and date(2026, 9, 20) in agenda.holidays(2026, "TH")
+    assert agenda.holidays(2026, "-") == {}
+    assert all(len(agenda.holidays(2026, s)) >= 9 for s in agenda.STATES)
+
+
+def test_state_setting_and_week(app, as_admin, as_worker, db, seed):
+    from app.models import Setting
+    as_admin.post("/admin/einstellungen", data={"farm_name": "Hof", "holiday_state": "BY", "blight_from_month": "5",
+                                                "blight_to_month": "9"})
+    assert Setting.all()["holiday_state"] == "BY"
+    with app.test_request_context("/"):
+        names = [e["title"] for e in agenda.events(date(2026, 11, 1), date(2026, 11, 1))[0]]
+    assert names == ["Allerheiligen"]
+    as_admin.post("/admin/einstellungen", data={"farm_name": "Hof", "holiday_state": "XX", "blight_from_month": "5",
+                                                "blight_to_month": "9"})
+    assert Setting.all()["holiday_state"] == "NI"                         # Unsinn → Voreinstellung
+    # Startseite: Wochenübersicht
+    as_worker.post("/kalender/termin", data={"title": "Tierarzt im Stall", "all_day": "1",
+                                             "start_date": date.today().isoformat()})
+    html = as_worker.get("/").get_data(as_text=True)
+    assert "Diese Woche" in html and "Tierarzt im Stall" in html and "week-today" in html
 
 
 def test_entries_and_tasks(app, as_admin, as_worker, as_viewer, db, seed):

@@ -60,6 +60,39 @@
         <span class="s">{{ _("Kacheln wählen") }}</span></a>
 </div>
 
+{% from "agenda/_macros.html" import when %}
+{% set week_has = week|selectattr("events")|list %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-week me-1"></i>{{ _("Diese Woche") }}</span>
+        <a class="small" href="{{ url_for('agenda.month') }}">{{ _("Kalender") }}</a>
+    </div>
+    {% if week_has %}
+    <div class="list-group list-group-flush week-list">
+        {% for day in week %}
+        {% if day.events or day.offset == 0 %}
+        <div class="list-group-item d-flex gap-3 {{ 'week-today' if day.offset == 0 }}">
+            <div class="week-day text-nowrap">
+                <div class="fw-semibold">{{ _("Heute") if day.offset == 0 else _("Morgen") if day.offset == 1 else day.date|weekday }}</div>
+                <div class="small text-body-secondary">{{ day.date.strftime("%d.%m.") }}</div>
+            </div>
+            <div class="flex-grow-1 min-w-0 small d-flex flex-column gap-1">
+                {% for e in day.events %}
+                {% if e.kind == "feiertag" %}<span class="text-primary fw-semibold"><i class="bi bi-flag me-1"></i>{{ e.title }}</span>
+                {% else %}<a class="text-reset text-decoration-none" href="{{ e.url }}"><i class="bi {{ e.icon }} me-1 text-{{ 'body-secondary' if e.color in ('light', 'dark') else e.color }}"></i>{% if e.date == day.date %}{{ when(e) }}{% endif %}<span class="fw-semibold">{{ e.title }}</span>{% if e.end > e.date %} <span class="text-body-secondary">({{ _("bis {date}", date=e.end.strftime("%d.%m.")) }})</span>{% endif %}{% if e.note and e.kind == "eintrag" %} <span class="text-body-secondary">· {{ e.note }}</span>{% endif %}</a>
+                {% endif %}
+                {% else %}<span class="text-body-secondary">{{ _("Heute steht nichts im Kalender.") }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card-body small text-body-secondary">{{ _("In den nächsten 7 Tagen steht nichts im Kalender.") }}</div>
+    {% endif %}
+</div>
+
 {% if due_tasks_now %}
 {% from "tasks/_macros.html" import task_item with context %}
 <div class="card shadow-sm mb-4 border-primary-subtle">
