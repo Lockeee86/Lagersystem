@@ -303,6 +303,12 @@ Schlagseite: Boden-Karte, je Anbaujahr Maßnahmen aufklappbar, Nährstoffsumme u
 (Myfarm24 summiert ungerundet, daher ±1 kg/ha Abweichung möglich).
 Später möglich: Maschinen aus „Arbeiten / Maschinen“ den Maschinen der App zuordnen.
 
+### Niederschlag seit Jahresbeginn (0.27.1)
+Die Wetterseite zeigt unter „Niederschlag“ die Summe seit 1. Januar und ein Balkendiagramm je Monat.
+Abgeschlossene Monate werden einzeln bei Bright Sky abgefragt und im Speicher gehalten (endgültig 3 Tage nach
+Monatsende, vorher 30 Minuten); der laufende Monat kommt aus den 30-Tage-Messwerten (bis gestern). Nur die
+Wetterseite lädt die Monatswerte, die Übersicht bleibt schnell. Fehlt ein Monat, steht ein Hinweis da.
+
 ### Fruchtfolgeplan (0.27.0)
 Dritter Import unter Verwaltung → Schläge: der Myfarm24-„Fruchtfolgeplan“ (CSV, „Schlag;Nr.;ha;2026;…“, Kürzel
 K/M/RW/… mit Legende darunter). Er setzt je Schlag und Jahr `PlotYear.planned_crop` (Kulturname aus der Legende,

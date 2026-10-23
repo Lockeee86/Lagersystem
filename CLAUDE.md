@@ -34,7 +34,8 @@ docker compose up --build -d
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
 - `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen), committet nicht.
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`)
-- `app/weather.py`: Wetter über Bright Sky (DWD), Zwischenspeicher im Speicher, Frost und Krautfäule (Hutton);
+- `app/weather.py`: Wetter über Bright Sky (DWD), Zwischenspeicher im Speicher, Frost und Krautfäule (Hutton),
+  Niederschlag seit 1. Januar `rain_year()` (Monatswerte zwischengespeichert);
   in Tests `weather._fetch` ersetzen (kein Netz)
 - `app/backup.py`: Datensicherung nach `BACKUP_DIR` (pg_dump bzw. SQLite-Kopie, Fotos spiegeln, Aufbewahrung
   `to_delete`, Status in `status.json`). Konsole: `flask backup-now`, `flask backup-restore`

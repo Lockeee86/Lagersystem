@@ -587,3 +587,11 @@ body:not(.has-tabbar) {
     background: color-mix(in srgb, var(--chip, #b7b2a6) 35%, transparent); border: 1px solid var(--chip, #b7b2a6); }
 .rotation-chip.planned { background: transparent; border-style: dashed; font-style: italic; }
 .rotation-table .sticky-col { position: sticky; left: 0; background: var(--bs-body-bg); z-index: 1; min-width: 9rem; }
+
+/* Regen nach Monaten */
+.rain-months { height: 90px; gap: 4px; }
+.rain-months span { position: relative; }
+.rain-months span.current { opacity: .6; }
+.rain-months span b { position: absolute; bottom: 100%; left: 0; right: 0; text-align: center; font-size: .65rem;
+    font-weight: 500; color: var(--bs-secondary-color); line-height: 1.4; }
+.rain-month-labels span { flex: 1; text-align: center; font-size: .7rem; }

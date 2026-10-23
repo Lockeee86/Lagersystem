@@ -1464,4 +1464,10 @@ MESSAGES = {
     '{n} Schläge laut Fruchtfolgeplan (geplant)': (
         '{n} pole wg planu płodozmianu (planowane)', '{n} pola wg planu płodozmianu (planowane)',
         '{n} pól wg planu płodozmianu (planowane)'),
+    # Jahresniederschlag
+    'Regen {year} nach Monaten (mm)': 'Opady {year} według miesięcy (mm)',
+    'mm seit 1. Januar': 'mm od 1 stycznia',
+    'Die Monatswerte konnten gerade nicht geladen werden.': 'Nie udało się teraz pobrać wartości miesięcznych.',
+    'bis gestern': 'do wczoraj',
+    'Für einzelne Monate fehlen Messwerte.': 'Dla niektórych miesięcy brakuje pomiarów.',
 }

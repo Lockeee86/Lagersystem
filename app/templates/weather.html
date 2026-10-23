@@ -67,6 +67,27 @@
                 <div class="d-flex justify-content-between small text-body-tertiary">
                     <span>{{ weather.past[0].date.strftime("%d.%m.") if weather.past }}</span><span>{{ _("gestern") }}</span>
                 </div>
+                {% if rain_year %}
+                <div class="d-flex align-items-baseline gap-2 mt-4">
+                    <span class="fs-4 fw-semibold">{{ rain_year.total|num(1) }}</span>
+                    <span class="text-body-secondary">{{ _("mm seit 1. Januar") }}</span>
+                </div>
+                <div class="small text-body-secondary mt-2 mb-3">{{ _("Regen {year} nach Monaten (mm)", year=rain_year.year) }}</div>
+                {% if rain_year.error %}
+                <div class="small text-body-secondary">{{ _("Die Monatswerte konnten gerade nicht geladen werden.") }}</div>
+                {% else %}
+                {% set max_month = [rain_year.months|map(attribute='mm')|reject('none')|max|default(0), 20]|max %}
+                <div class="rain-bars rain-months" role="img" aria-label="{{ _('Regen {year} nach Monaten (mm)', year=rain_year.year) }}">
+                    {% for m in rain_year.months %}
+                    <span class="{{ 'current' if m.current }}" title="{{ _(months[m.month - 1][1]) }}: {{ m.mm|num(1) }} mm{% if m.current %} ({{ _('bis gestern') }}){% endif %}" style="height: {{ ((m.mm or 0) / max_month * 100)|round(1) }}%"><b>{{ m.mm|num }}</b></span>
+                    {% endfor %}
+                </div>
+                <div class="d-flex small text-body-tertiary rain-month-labels">
+                    {% for m in rain_year.months %}<span>{{ _(months[m.month - 1][1])[:3] }}</span>{% endfor %}
+                </div>
+                {% if rain_year.incomplete %}<div class="small text-body-tertiary mt-1">{{ _("Für einzelne Monate fehlen Messwerte.") }}</div>{% endif %}
+                {% endif %}
+                {% endif %}
             </div>
         </div>
     </div>

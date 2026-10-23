@@ -51,7 +51,9 @@ ICONS = {
 SEVERITY = list(ICONS)
 
 _cache = {}
+_month_cache = {}          # (Ort, Jahr, Monat) → mm; abgeschlossene Monate ändern sich nicht mehr
 _lock = threading.Lock()
+MONTH_FINAL_DAYS = 3       # so lange nach Monatsende kann der DWD noch Werte nachliefern
 
 
 class WeatherError(Exception):
@@ -74,6 +76,7 @@ def parse_location(text):
 def clear_cache():
     with _lock:
         _cache.clear()
+        _month_cache.clear()
 
 
 def _fetch(lat, lon, start, end):
@@ -254,6 +257,54 @@ def get_weather(now=None):
         _cache.clear()          # nur der aktuelle Tag/Ort wird gehalten
         _cache[key] = (time.monotonic(), ttl, result)
     return result
+
+
+def _month_total(location, year, month, today):
+    """Niederschlag eines abgeschlossenen Monats in mm (aus dem Zwischenspeicher oder von Bright Sky)."""
+    key = (location, year, month)
+    with _lock:
+        cached = _month_cache.get(key)
+    if cached is not None and (cached[1] or time.monotonic() - cached[2] < CACHE_SECONDS):
+        return cached[0]
+    first = date(year, month, 1)
+    after = date(year + month // 12, month % 12 + 1, 1)
+    data = _fetch(*location, first, after)
+    values = []
+    for r in data["weather"]:
+        try:
+            ts = datetime.fromisoformat(r["timestamp"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (ts.year, ts.month) == (year, month) and r.get("precipitation") is not None:
+            values.append(float(r["precipitation"]))
+    total = round(sum(values), 1) if values else None
+    final = total is not None and today >= after + timedelta(days=MONTH_FINAL_DAYS)
+    with _lock:
+        _month_cache[key] = (total, final, time.monotonic())
+    return total
+
+
+def rain_year(result, now=None):
+    """Niederschlag seit 1. Januar: {"year", "total", "months": [{month, mm, current}]} oder None.
+    Abgeschlossene Monate kommen einzeln von Bright Sky (danach aus dem Speicher), der laufende Monat aus den
+    30-Tage-Messwerten von `get_weather()` (bis gestern)."""
+    location = parse_location(Setting.all().get("farm_location"))
+    if location is None or not result or result.get("error"):
+        return None
+    today = (now or datetime.now().astimezone()).date()
+    months = []
+    try:
+        for month in range(1, today.month):
+            months.append({"month": month, "mm": _month_total(location, today.year, month, today), "current": False})
+    except WeatherError as e:
+        current_app.logger.warning("Jahresniederschlag konnte nicht geladen werden: %s", e)
+        return {"year": today.year, "total": None, "months": [], "error": True}
+    current = [d["rain"] for d in result["past"] if d["date"].year == today.year and d["date"].month == today.month
+               and d["rain"] is not None]
+    months.append({"month": today.month, "mm": round(sum(current), 1) if current else None, "current": True})
+    known = [m["mm"] for m in months if m["mm"] is not None]
+    return {"year": today.year, "total": round(sum(known), 1) if known else None, "months": months,
+            "incomplete": len(known) < len(months), "error": False}
 
 
 def blight_in_season(today=None):

@@ -164,7 +164,9 @@ def tile_settings():
 @bp.route("/wetter")
 @login_required
 def weather_page():
-    return render_template("weather.html", weather=weather.get_weather(), icons=weather.ICONS)
+    data = weather.get_weather()
+    return render_template("weather.html", weather=data, icons=weather.ICONS, rain_year=weather.rain_year(data),
+                           months=weather.MONTHS)
 
 
 # --- Lagerkarte -------------------------------------------------------------

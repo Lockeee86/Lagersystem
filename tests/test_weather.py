@@ -98,11 +98,18 @@ def located(db, seed, monkeypatch):
     weather.clear_cache()
 
 
+def window_calls(calls):
+    """Nur die Abrufe für 30 Tage + Vorhersage (ohne die Monatswerte für den Jahresniederschlag)."""
+    return [c for c in calls if (c[3] - c[2]).days > 32]
+
+
 def test_pages_and_cache(as_worker, as_admin, located):
     html = as_worker.get("/wetter").get_data(as_text=True)
     assert "Krautfäule-Risiko" in html and "Uelzen" in html
+    first = len(located)
     as_worker.get("/wetter")
-    assert len(located) == 1 and located[0][:2] == (50.11, 8.68)    # zweiter Aufruf aus dem Zwischenspeicher
+    assert len(located) == first                                       # zweiter Aufruf aus dem Zwischenspeicher
+    assert len(window_calls(located)) == 1 and located[0][:2] == (50.11, 8.68)
     assert as_worker.get("/").status_code == 200
 
     # Speichern der Einstellungen leert den Zwischenspeicher
@@ -110,7 +117,7 @@ def test_pages_and_cache(as_worker, as_admin, located):
                                                 "blight_to_month": "9"})
     assert Setting.all()["farm_location"] == "53.1000, 10.2000"
     as_worker.get("/wetter")
-    assert len(located) == 2 and located[1][:2] == (53.1, 10.2)
+    assert len(window_calls(located)) == 2 and window_calls(located)[1][:2] == (53.1, 10.2)
 
     as_admin.post("/admin/einstellungen", data={"farm_location": "irgendwo"})
     assert Setting.all()["farm_location"] == "53.1000, 10.2000"
@@ -128,3 +135,36 @@ def test_errors_and_missing_location(as_worker, db, seed, monkeypatch):
     assert "nicht erreichbar" in as_worker.get("/wetter").get_data(as_text=True)
     assert as_worker.get("/").status_code == 200
     weather.clear_cache()
+
+
+def test_rain_since_january(located, monkeypatch):
+    # 2,4 mm je Tag im Januar, 1,2 mm je Tag sonst; im laufenden Monat (Juli) 3 mm je Tag in den Messwerten
+    def fetch(lat, lon, start, end):
+        located.append((lat, lon, start, end))
+        rain = {}
+        day = start
+        while day <= end:
+            rain[day] = {"rain": 3.0 if day.month == 7 else 2.4 if day.month == 1 else 1.2}
+            day += timedelta(days=1)
+        return fake_data(rain, start=start, end=end)
+    monkeypatch.setattr(weather, "_fetch", fetch)
+    data = weather.get_weather(NOW)
+    result = weather.rain_year(data, NOW)
+    months = {m["month"]: m["mm"] for m in result["months"]}
+    assert result["year"] == 2026 and len(result["months"]) == 7 and result["months"][-1]["current"]
+    assert months[1] == 74.4 and months[2] == 33.6 and months[6] == 36.0
+    assert months[7] == 42.0                     # 1.–14. Juli aus den 30-Tage-Werten (bis gestern)
+    assert result["total"] == round(74.4 + 33.6 + 37.2 + 36 + 37.2 + 36 + 42, 1) and not result["incomplete"]
+    # Monatsenden ohne die Stunde 0:00 des Folgemonats
+    assert all(c[2].day == 1 and c[3].day == 1 for c in located if (c[3] - c[2]).days <= 32)
+    # abgeschlossene Monate kommen danach aus dem Speicher
+    before = len(located)
+    weather.rain_year(data, NOW)
+    assert len(located) == before
+
+    def broken(*args):
+        raise weather.WeatherError("weg")
+    weather.clear_cache()
+    monkeypatch.setattr(weather, "_fetch", broken)
+    assert weather.rain_year(data, NOW)["error"]
+    assert weather.rain_year({"error": True}, NOW) is None
