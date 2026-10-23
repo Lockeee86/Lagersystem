@@ -47,8 +47,9 @@ docker compose up --build -d
   `app/fuel_views.py` (Blueprint `fuel`). Tanken an der Maschine: `machine_views.machine_refuel`
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
-- `app/agenda.py`: Kalender (Termine werden aus Wartungen und Bestellungen berechnet, nicht gespeichert), iCal-Ausgabe
-  `ics()`; `app/agenda_views.py` (Blueprint `agenda`, Abo über `User.calendar_token`)
+- `app/agenda.py`: Kalender – Wartungen, Lieferungen, Aufgaben, Feiertage (`holidays()`) werden berechnet, eigene
+  Termine liegen in `CalendarEntry` (Wiederholungen über `occurrences()`), `save_entry()` committet nicht;
+  iCal-Ausgabe `ics()`. `app/agenda_views.py` (Blueprint `agenda`, Abo über `User.calendar_token`)
 - `app/branding.py`: Logo (Standard aus `static/img/` oder eigenes aus `UPLOAD_DIR/branding/`), in Templates
   `logo_url("logo-64" | "logo-512" | "icon-180" …)`, Auslieferung über `/logo/<name>.png`
 - `app/tiles.py`: Kacheln der Übersicht (Katalog `CATALOG`, Voreinstellung je Rolle in `settings` `tiles_<rolle>`,

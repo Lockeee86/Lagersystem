@@ -55,7 +55,8 @@ def _tile_info(key):
         return fuel.status()
     if key == "kalender":
         today = date.today()
-        return len(agenda.events(today, today + timedelta(days=14), today)[0])
+        items = agenda.events(today, today + timedelta(days=14), today, current_user, mine_only=True)[0]
+        return sum(1 for e in items if e["kind"] != "feiertag")
     if key == "lieferanten":
         return len(purchases.suppliers())
     if key == "kunden":

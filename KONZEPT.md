@@ -289,6 +289,13 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Kalender mit eigenen Terminen (0.23.0)
+Im Kalender stehen jetzt auch Aufgaben mit Termin (Admins alle, sonst eigene und die für alle) und die Feiertage
+in Niedersachsen. Eigene Termine (Mitarbeiter und Admins tragen ein, alle sehen sie): ganztägig oder mit Uhrzeit,
+mehrtägig, Wiederholung wöchentlich/monatlich/jährlich, Ort, Notiz, Beteiligte (leer = alle) und feste Arten mit
+Farbe (Termin, Frist, Abwesenheit/Urlaub, Prüfung/Kontrolle, Sonstiges). Ändern/löschen: wer eingetragen hat und
+Admins. Filter „Nur meine“. Im Abo-Link erscheinen alle Termine (Uhrzeiten in UTC, mehrtägige als Datum).
+
 ### Aufgabe mit Schlag (0.22.1)
 Aufgaben können sich auf einen Schlag beziehen (neben Maschine, Lieferschein, Lagerplatz). Auf der Schlagseite
 stehen die offenen Aufgaben und ein Knopf „Aufgabe“, der den Schlag vorbelegt; Wiederholungen behalten den Schlag.

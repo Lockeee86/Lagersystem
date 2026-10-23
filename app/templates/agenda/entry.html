@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "agenda/_macros.html" import entry_form %}
+{% block title %}{{ entry.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1 class="d-flex flex-wrap align-items-center gap-2"><i class="bi {{ entry.icon }}"></i>{{ entry.title }}
+            <span class="badge fs-6 text-bg-{{ entry.color }}">{{ entry.kind_label }}</span></h1>
+        <p class="text-body-secondary mb-0">
+            {{ entry.start_date|weekday }}, {{ entry.start_date|date }}{% if entry.start_time %} {{ entry.start_time.strftime('%H:%M') }}{% endif %}
+            {% if entry.end_date or entry.end_time %} – {% if entry.end_date %}{{ entry.end_date|weekday }}, {{ entry.end_date|date }}{% endif %}{% if entry.end_time %} {{ entry.end_time.strftime('%H:%M') }}{% endif %}{% endif %}
+            {% if entry.repeat %} · <i class="bi bi-arrow-repeat"></i> {{ _(repeats[entry.repeat]) }}{% endif %}
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('agenda.month', jahr=entry.start_date.year, monat=entry.start_date.month) }}"><i class="bi bi-calendar3 me-1"></i>{{ _("Kalender") }}</a>
+</div>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <dl class="row small mb-0">
+                    {% if entry.location %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Ort") }}</dt><dd class="col-8">{{ entry.location }}</dd>{% endif %}
+                    <dt class="col-4 fw-normal text-body-secondary">{{ _("Beteiligte") }}</dt>
+                    <dd class="col-8">{{ entry.participants|map(attribute='name')|join(", ") if entry.participants else _("alle") }}</dd>
+                    {% if entry.created_by %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Eingetragen von") }}</dt><dd class="col-8">{{ entry.created_by.name }} · {{ entry.created_at|date }}</dd>{% endif %}
+                </dl>
+                {% if entry.note %}<div class="mt-3" style="white-space: pre-line">{{ entry.note }}</div>{% endif %}
+            </div>
+        </div>
+        {% if entry.can_edit(current_user) %}
+        <form method="post" action="{{ url_for('agenda.entry_delete', entry_id=entry.id) }}" class="mt-3">{{ csrf() }}
+            <button class="btn btn-outline-danger" data-confirm="{{ _('Termin „{title}“ löschen?', title=entry.title) }}{% if entry.repeat %} {{ _('Alle Wiederholungen werden gelöscht.') }}{% endif %}"><i class="bi bi-trash me-1"></i>{{ _("Löschen") }}</button></form>
+        {% endif %}
+    </div>
+    {% if entry.can_edit(current_user) %}
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header">{{ _("Bearbeiten") }}{% if entry.repeat %} <span class="small text-body-secondary">· {{ _("gilt für alle Wiederholungen") }}</span>{% endif %}</div>
+            <div class="card-body">{{ entry_form(url_for('agenda.entry_edit', entry_id=entry.id), kinds, repeats, users, entry=entry) }}</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

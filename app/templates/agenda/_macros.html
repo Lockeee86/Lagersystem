@@ -1,0 +1,75 @@
+{# Formular für eigene Termine (neu und bearbeiten) #}
+{% macro entry_form(action, kinds, repeats, users, entry=none, prefill_date="") %}
+<form method="post" action="{{ action }}" class="row g-2 entry-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-8">
+        <label class="form-label" for="c_title">{{ _("Titel") }}</label>
+        <input class="form-control" id="c_title" name="title" required maxlength="200" value="{{ entry.title if entry else '' }}" placeholder="{{ _('z. B. Pflanzgut-Anerkennung, TÜV Kipper, Urlaub Jan') }}">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label" for="c_kind">{{ _("Art") }}</label>
+        <select class="form-select" id="c_kind" name="kind">
+            {% for key, (label, color, icon) in kinds.items() %}<option value="{{ key }}" {% if entry and entry.kind == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="c_allday" name="all_day" value="1" {% if not entry or entry.all_day %}checked{% endif %} data-allday>
+            <label class="form-check-label" for="c_allday">{{ _("Ganztägig") }}</label>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label" for="c_start">{{ _("Von") }}</label>
+        <input class="form-control" type="date" id="c_start" name="start_date" required value="{{ entry.start_date.isoformat() if entry else prefill_date }}">
+    </div>
+    <div class="col-6 col-md-3" data-time>
+        <label class="form-label" for="c_stime">{{ _("Uhrzeit") }}</label>
+        <input class="form-control" type="time" id="c_stime" name="start_time" value="{{ entry.start_time.strftime('%H:%M') if entry and entry.start_time else '' }}">
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label" for="c_end">{{ _("Bis") }}</label>
+        <input class="form-control" type="date" id="c_end" name="end_date" value="{{ entry.end_date.isoformat() if entry and entry.end_date else '' }}">
+        <div class="form-text">{{ _("leer = am selben Tag") }}</div>
+    </div>
+    <div class="col-6 col-md-3" data-time>
+        <label class="form-label" for="c_etime">{{ _("Uhrzeit") }}</label>
+        <input class="form-control" type="time" id="c_etime" name="end_time" value="{{ entry.end_time.strftime('%H:%M') if entry and entry.end_time else '' }}">
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="c_location">{{ _("Ort") }}</label>
+        <input class="form-control" id="c_location" name="location" maxlength="200" value="{{ entry.location or '' if entry else '' }}">
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="c_repeat">{{ _("Wiederholen") }}</label>
+        <select class="form-select" id="c_repeat" name="repeat">
+            <option value="">{{ _("nicht") }}</option>
+            {% for key, label in repeats.items() %}<option value="{{ key }}" {% if entry and entry.repeat == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <div class="small text-body-secondary mb-1">{{ _("Beteiligte") }} {{ _("(niemand gewählt = alle)") }}</div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for u in users %}
+            <input type="checkbox" class="btn-check" name="participant_ids" value="{{ u.id }}" id="cp_{{ u.id }}{{ '_' ~ entry.id if entry }}" {% if entry and u in entry.participants %}checked{% endif %}>
+            <label class="btn btn-sm btn-outline-primary" for="cp_{{ u.id }}{{ '_' ~ entry.id if entry }}">{{ u.name }}</label>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-12">
+        <label class="form-label" for="c_note">{{ _("Notiz") }}</label>
+        <textarea class="form-control" id="c_note" name="note" rows="2" maxlength="4000">{{ entry.note or '' if entry else '' }}</textarea>
+    </div>
+    <div class="col-12"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") if entry else _("Eintragen") }}</button></div>
+</form>
+<script>
+(function () {
+    document.querySelectorAll(".entry-form").forEach(function (form) {
+        var sw = form.querySelector("[data-allday]");
+        function sync() { form.querySelectorAll("[data-time]").forEach(function (el) { el.hidden = sw.checked; }); }
+        sw.addEventListener("change", sync); sync();
+    });
+})();
+</script>
+{% endmacro %}
+
+{% macro when(e) %}{% if e.time %}{{ e.time.strftime('%H:%M') }}{% if e.end_time %}–{{ e.end_time.strftime('%H:%M') }}{% endif %} {% endif %}{% endmacro %}

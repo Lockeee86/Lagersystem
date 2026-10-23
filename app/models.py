@@ -1014,3 +1014,69 @@ class FuelEntry(db.Model):
     @property
     def kind_label(self):
         return _(FUEL_KINDS.get(self.kind, self.kind))
+
+
+# --- Kalender: eigene Termine ---------------------------------------------------
+
+CALENDAR_KINDS = {                        # Art → (Bezeichnung, Bootstrap-Farbe, Symbol)
+    "termin": (N_("Termin"), "info", "bi-calendar-event"),
+    "frist": (N_("Frist"), "danger", "bi-hourglass-split"),
+    "abwesenheit": (N_("Abwesenheit / Urlaub"), "dark", "bi-person-dash"),
+    "pruefung": (N_("Prüfung / Kontrolle"), "warning", "bi-clipboard-check"),
+    "sonstiges": (N_("Sonstiges"), "secondary", "bi-bookmark"),
+}
+CALENDAR_REPEATS = {"woechentlich": N_("wöchentlich"), "monatlich": N_("monatlich"), "jaehrlich": N_("jährlich")}
+
+calendar_participants = db.Table(
+    "calendar_participants",
+    db.Column("entry_id", db.Integer, db.ForeignKey("calendar_entries.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class CalendarEntry(db.Model):
+    """Eigener Kalendereintrag (für alle sichtbar). Ohne Uhrzeit = ganztägig; `end_date` für mehrtägige Termine."""
+    __tablename__ = "calendar_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    kind = db.Column(db.String(20), nullable=False, default="termin")
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date)                          # leer = eintägig
+    start_time = db.Column(db.Time)                        # leer = ganztägig
+    end_time = db.Column(db.Time)
+    location = db.Column(db.String(200))
+    note = db.Column(db.Text)
+    repeat = db.Column(db.String(20))                      # siehe CALENDAR_REPEATS
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    participants = db.relationship("User", secondary=calendar_participants, order_by="User.username")
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+
+    @property
+    def kind_label(self):
+        return _(CALENDAR_KINDS.get(self.kind, CALENDAR_KINDS["sonstiges"])[0])
+
+    @property
+    def color(self):
+        return CALENDAR_KINDS.get(self.kind, CALENDAR_KINDS["sonstiges"])[1]
+
+    @property
+    def icon(self):
+        return CALENDAR_KINDS.get(self.kind, CALENDAR_KINDS["sonstiges"])[2]
+
+    @property
+    def all_day(self):
+        return self.start_time is None
+
+    @property
+    def days(self):
+        """Dauer in Tagen (1 = eintägig)."""
+        return ((self.end_date or self.start_date) - self.start_date).days + 1
+
+    def is_for(self, user):
+        return not self.participants or user in self.participants
+
+    def can_edit(self, user):
+        return user.is_admin or (user.can_edit and self.created_by_id == user.id)

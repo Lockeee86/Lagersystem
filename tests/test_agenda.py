@@ -30,7 +30,7 @@ def test_events_and_month(app, db, seed):
         delivery = titles["Lieferung: Keilriemen; 8PK1500, Lüfter"]
         assert delivery["date"] == today + timedelta(days=3) and delivery["note"] == "2 Stück · Landtechnik Meyer"
         assert [u["task"].name for u in undated] == ["Ölwechsel"]      # nach Zähler, ohne Datum
-        assert len(items) == 3
+        assert len([e for e in items if e["kind"] != "feiertag"]) == 3
 
         data = agenda.month(today.year, today.month, today)
         assert len(data["weeks"][0]) == 7 and data["weeks"][0][0]["date"].weekday() == 0
@@ -60,7 +60,7 @@ def test_page_and_feed(app, as_admin, as_worker, as_viewer, db, seed):
     assert r.status_code == 200 and r.mimetype == "text/calendar"
     body = r.get_data(as_text=True)
     assert body.startswith("BEGIN:VCALENDAR\r\n") and body.endswith("END:VCALENDAR\r\n")
-    assert body.count("BEGIN:VEVENT") == 3
+    assert body.count("BEGIN:VEVENT") - body.count("UID:feiertag-") == 3
     assert "SUMMARY:Lieferung: Keilriemen\\; 8PK1500\\, Lüfter" in body           # RFC 5545 escaping
     assert f"DTSTART;VALUE=DATE:{today + timedelta(days=3):%Y%m%d}" in body
     assert all(len(line.encode()) <= 75 for line in body.split("\r\n"))      # gefaltet
@@ -84,3 +84,77 @@ def test_fold():
     folded = agenda._fold(line)
     parts = folded.split("\r\n ")
     assert all(len(p.encode()) <= 75 for p in parts) and "".join(parts) == line
+
+
+def test_holidays():
+    assert agenda.easter(2026) == date(2026, 4, 5) and agenda.easter(2027) == date(2027, 3, 28)
+    h = agenda.holidays(2026)
+    assert h[date(2026, 4, 3)] == "Karfreitag" and h[date(2026, 5, 14)] == "Christi Himmelfahrt"
+    assert h[date(2026, 5, 25)] == "Pfingstmontag" and h[date(2026, 10, 31)] == "Reformationstag" and len(h) == 10
+
+
+def test_entries_and_tasks(app, as_admin, as_worker, as_viewer, db, seed):
+    from app import tasks
+    from app.models import CalendarEntry
+    worker, admin = seed["worker"], seed["admin"]
+    # Mitarbeiter trägt einen mehrtägigen Termin für sich ein, Betrachter darf nicht
+    as_worker.post("/kalender/termin", data={"title": "Urlaub Max", "kind": "abwesenheit", "all_day": "1",
+                                             "start_date": "2026-11-09", "end_date": "2026-11-13",
+                                             "participant_ids": [str(worker.id)]})
+    assert as_viewer.post("/kalender/termin", data={"title": "x", "start_date": "2026-11-09"}).status_code == 403
+    urlaub = CalendarEntry.query.one()
+    assert urlaub.days == 5 and urlaub.participants == [worker] and urlaub.created_by == worker
+    # Admin: jährliche Frist mit Uhrzeit, für alle
+    as_admin.post("/kalender/termin", data={"title": "Anerkennung Pflanzgut, Antrag", "kind": "frist",
+                                            "start_date": "2026-05-15", "start_time": "10:00", "end_time": "11:30",
+                                            "repeat": "jaehrlich"})
+    frist = CalendarEntry.query.filter_by(kind="frist").one()
+    assert frist.start_time.hour == 10 and frist.repeat == "jaehrlich"
+    # Fehler: Ende vor Anfang
+    as_admin.post("/kalender/termin", data={"title": "Falsch", "start_date": "2026-05-15", "end_date": "2026-05-10", "all_day": "1"})
+    assert CalendarEntry.query.count() == 2
+
+    with app.test_request_context("/"):
+        task = tasks.create_task(admin, title="Lager ausfegen", due_on=date(2026, 11, 10), assignees=[admin])
+        db.session.commit()
+        items, _ = agenda.events(date(2026, 11, 1), date(2026, 11, 30), date(2026, 11, 1), worker)
+        kinds = {e["title"]: e for e in items}
+        assert kinds["Urlaub Max"]["end"] == date(2026, 11, 13) and kinds["Urlaub Max"]["mine"]
+        assert "Lager ausfegen" not in kinds                               # fremde Aufgabe sieht Max nicht
+        assert "Lager ausfegen" in {e["title"] for e in agenda.events(date(2026, 11, 1), date(2026, 11, 30),
+                                                                      date(2026, 11, 1), admin)[0]}
+        # Wiederholung: jährliche Frist taucht 2027 wieder auf
+        items27, _ = agenda.events(date(2027, 5, 1), date(2027, 5, 31), date(2027, 5, 1), worker)
+        assert [e["date"] for e in items27 if e["kind"] == "eintrag"] == [date(2027, 5, 15)]
+        # Mehrtägig im Raster an jedem Tag; Filter „nur meine“
+        data = agenda.month(2026, 11, date(2026, 11, 1), admin, mine_only=True)
+        days = [d["date"] for w in data["weeks"] for d in w if any(e["title"] == "Urlaub Max" for e in d["events"])]
+        assert days == []                                                  # Admin ist nicht beteiligt
+        data = agenda.month(2026, 11, date(2026, 11, 1), worker)
+        days = [d["date"] for w in data["weeks"] for d in w if any(e["title"] == "Urlaub Max" for e in d["events"])]
+        assert days == [date(2026, 11, d) for d in range(9, 14)]
+
+    html = as_worker.get("/kalender?jahr=2026&monat=11").get_data(as_text=True)
+    assert "Urlaub Max" in html and "Termin" in html
+    html = as_worker.get("/kalender?jahr=2026&monat=5").get_data(as_text=True)
+    assert "10:00–11:30" in html and "Christi Himmelfahrt" in html
+
+    # iCal: Uhrzeit in UTC (Sommerzeit: 10:00 Berlin = 08:00 UTC), mehrtägig als DATE (Ende exklusiv)
+    with app.test_request_context("/"):
+        body = agenda.ics("Test", "https://hof.example/", worker, today=date(2027, 1, 1))
+    assert "DTSTART:20270515T080000Z" in body and "DTEND:20270515T093000Z" in body
+    assert "DTSTART;VALUE=DATE:20261109" in body and "DTEND;VALUE=DATE:20261114" in body
+    assert "SUMMARY:Anerkennung Pflanzgut\\, Antrag" in body
+
+    # Bearbeiten/Löschen: der Ersteller und Admins
+    other = app.test_client()
+    from .conftest import login, make_user
+    make_user("jan", "mitarbeiter")
+    login(other, "jan")
+    assert other.post(f"/kalender/termin/{urlaub.id}", data={"title": "x", "start_date": "2026-11-09"}).status_code == 403
+    as_worker.post(f"/kalender/termin/{urlaub.id}", data={"title": "Urlaub Max (verlängert)", "kind": "abwesenheit",
+                                                          "all_day": "1", "start_date": "2026-11-09", "end_date": "2026-11-16"})
+    assert urlaub.title == "Urlaub Max (verlängert)" and urlaub.days == 8 and urlaub.participants == []
+    assert "Urlaub Max" in as_viewer.get(f"/kalender/termin/{urlaub.id}").get_data(as_text=True)
+    as_admin.post(f"/kalender/termin/{frist.id}/loeschen")
+    assert CalendarEntry.query.count() == 1
