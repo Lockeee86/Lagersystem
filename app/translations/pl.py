@@ -1219,4 +1219,31 @@ MESSAGES = {
     'Summe': 'Suma',
     'Verbrauch aus den Zählerständen beim Tanken (immer volltanken, dann stimmt er).':
         'Zużycie z liczników przy tankowaniu (zawsze tankuj do pełna, wtedy jest dokładne).',
+    # Kalender
+    'Wartung fällig': 'Przegląd do wykonania',
+    'Lieferung: {title}': 'Dostawa: {title}',
+    'Neuer Abo-Link erstellt. Der alte funktioniert nicht mehr.': 'Utworzono nowy link subskrypcji. Stary już nie działa.',
+    '{farm}: Wartungen und Lieferungen': '{farm}: przeglądy i dostawy',
+    'Kalender': 'Kalendarz',
+    'Fällige Wartungen und erwartete Lieferungen.': 'Terminy przeglądów i oczekiwane dostawy.',
+    'Voriger Monat': 'Poprzedni miesiąc',
+    'Nächster Monat': 'Następny miesiąc',
+    'In diesem Monat steht nichts an.': 'W tym miesiącu nic nie zaplanowano.',
+    'Wartung überfällig': 'Przegląd zaległy',
+    'Wartung bald fällig': 'Przegląd wkrótce',
+    'Nach Zählerstand fällig': 'Według licznika',
+    'jetzt {counter}': 'teraz {counter}',
+    'Im Handy-Kalender': 'W kalendarzu telefonu',
+    'Die Termine lassen sich im Kalender auf dem Handy oder in Outlook abonnieren und aktualisieren sich dann von selbst.':
+        'Terminy można zasubskrybować w kalendarzu telefonu lub w Outlooku – aktualizują się wtedy same.',
+    'Abo-Link erstellen': 'Utwórz link subskrypcji',
+    'Jetzt abonnieren': 'Subskrybuj teraz',
+    'iPhone: Knopf antippen → „Abonnieren“. Android/Google: Link kopieren und am PC in Google Kalender unter „Weitere Kalender → Per URL“ einfügen.':
+        'iPhone: stuknij przycisk → „Subskrybuj”. Android/Google: skopiuj link i na komputerze w Kalendarzu Google dodaj go w „Inne kalendarze → Z adresu URL”.',
+    'Abo-Link': 'Link subskrypcji',
+    'Der Link ist persönlich – wer ihn kennt, sieht die Termine. Nicht weitergeben.':
+        'Link jest osobisty – kto go zna, widzi terminy. Nie przekazuj go dalej.',
+    'Neuen Link erstellen? Der alte hört dann auf zu funktionieren.': 'Utworzyć nowy link? Stary przestanie działać.',
+    'Neuen Link erstellen': 'Utwórz nowy link',
+    'fällig seit {date}': 'zaległe od {date}',
 }

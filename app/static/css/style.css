@@ -540,3 +540,15 @@ body:not(.has-tabbar) {
     .purchase-steps .step { font-size: .68rem; overflow-wrap: break-word; hyphens: auto; }
     .purchase-steps .step .small { font-size: .62rem; }
 }
+
+/* Kalender */
+.agenda-grid { table-layout: fixed; }
+.agenda-grid td { height: 7rem; vertical-align: top; padding: .3rem; }
+.agenda-grid td.other-month { background: var(--bs-tertiary-bg); }
+.agenda-grid td.other-month .day-num { color: var(--bs-tertiary-color); }
+.agenda-grid td.is-today .day-num { background: var(--bs-primary); color: #fff; border-radius: 999px; display: inline-block;
+    min-width: 1.6rem; text-align: center; }
+.agenda-grid .day-num { font-size: .8rem; font-weight: 600; margin-bottom: .2rem; }
+.agenda-chip { display: block; font-size: .72rem; line-height: 1.25; padding: .15rem .35rem; margin-bottom: .2rem;
+    border-radius: .35rem; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-chip:hover { filter: brightness(.95); }

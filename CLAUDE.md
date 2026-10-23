@@ -47,6 +47,8 @@ docker compose up --build -d
   `app/fuel_views.py` (Blueprint `fuel`). Tanken an der Maschine: `machine_views.machine_refuel`
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
+- `app/agenda.py`: Kalender (Termine werden aus Wartungen und Bestellungen berechnet, nicht gespeichert), iCal-Ausgabe
+  `ics()`; `app/agenda_views.py` (Blueprint `agenda`, Abo über `User.calendar_token`)
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
   Rechte über `PurchaseRequest.can_handle`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`

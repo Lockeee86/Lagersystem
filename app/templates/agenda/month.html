@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Kalender") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Kalender") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Fällige Wartungen und erwartete Lieferungen.") }}</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('agenda.month', jahr=prev[0], monat=prev[1]) }}" aria-label="{{ _('Voriger Monat') }}"><i class="bi bi-chevron-left"></i></a>
+        <span class="fw-semibold text-nowrap px-1" style="min-width: 9rem; text-align: center">{{ _(month_name) }} {{ year }}</span>
+        <a class="btn btn-outline-secondary" href="{{ url_for('agenda.month', jahr=next[0], monat=next[1]) }}" aria-label="{{ _('Nächster Monat') }}"><i class="bi bi-chevron-right"></i></a>
+        {% if year != today.year or month != today.month %}<a class="btn btn-outline-primary" href="{{ url_for('agenda.month') }}">{{ _("Heute") }}</a>{% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-9">
+        {# PC: Monatsraster #}
+        <div class="card shadow-sm d-none d-md-block">
+            <table class="table table-bordered mb-0 agenda-grid">
+                <thead><tr>{% for d in data.weeks[0] %}<th class="text-center small text-body-secondary fw-normal">{{ d.date|weekday }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                    {% for week in data.weeks %}
+                    <tr>
+                        {% for day in week %}
+                        <td class="{{ 'other-month' if not day.in_month }} {{ 'is-today' if day.today }}">
+                            <div class="day-num">{{ day.date.day }}</div>
+                            {% for e in day.events %}
+                            <a class="agenda-chip text-bg-{{ e.color }}" href="{{ e.url }}" title="{{ e.title }}{% if e.note %} · {{ e.note }}{% endif %}">
+                                <i class="bi {{ e.icon }}"></i> {{ e.title }}</a>
+                            {% endfor %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Handy: Liste #}
+        <div class="card shadow-sm d-md-none">
+            <div class="list-group list-group-flush">
+                {% for e in data.entries %}
+                {% if loop.first or e.date != loop.previtem.date %}
+                <div class="list-group-item small fw-semibold {{ 'text-primary' if e.date == today else 'text-body-secondary' }} bg-body-tertiary">{{ e.date|weekday }}, {{ e.date|date }}</div>
+                {% endif %}
+                <a class="list-group-item list-group-item-action d-flex gap-2 align-items-start" href="{{ e.url }}">
+                    <i class="bi {{ e.icon }} text-{{ e.color }}"></i>
+                    <div class="min-w-0"><div class="fw-semibold">{{ e.title }}</div>{% if e.note %}<div class="small text-body-secondary">{{ e.note }}</div>{% endif %}</div>
+                </a>
+                {% else %}
+                <div class="list-group-item text-body-secondary small">{{ _("In diesem Monat steht nichts an.") }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 small text-body-secondary mt-2">
+            <span><span class="badge text-bg-danger">&nbsp;</span> {{ _("Wartung überfällig") }}</span>
+            <span><span class="badge text-bg-warning">&nbsp;</span> {{ _("Wartung bald fällig") }}</span>
+            <span><span class="badge text-bg-secondary">&nbsp;</span> {{ _("Wartung") }}</span>
+            <span><span class="badge text-bg-primary">&nbsp;</span> {{ _("Lieferung") }}</span>
+        </div>
+    </div>
+
+    <div class="col-xl-3">
+        {% if data.overdue %}
+        <div class="card shadow-sm mb-4 border-danger">
+            <div class="card-header text-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Überfällig") }}</div>
+            <div class="list-group list-group-flush">
+                {% for u in data.overdue %}
+                <a class="list-group-item list-group-item-action small" href="{{ u.url }}">
+                    <span class="fw-semibold">{{ u.task.machine.name }}: {{ u.task.name }}</span>
+                    <div class="text-danger">{{ _("fällig seit {date}", date=u.status.due_on|date) }}</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if data.undated %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-speedometer2 me-1"></i>{{ _("Nach Zählerstand fällig") }}</div>
+            <div class="list-group list-group-flush">
+                {% for u in data.undated %}
+                <a class="list-group-item list-group-item-action small" href="{{ u.url }}">
+                    <span class="fw-semibold">{{ u.task.machine.name }}: {{ u.task.name }}</span>
+                    <div class="{{ 'text-danger' if u.status.state == 'overdue' else 'text-warning-emphasis' }}">
+                        {{ _("bei {counter} {unit}", counter=u.status.due_counter, unit=u.task.machine.unit_short) }}
+                        ({{ _("jetzt {counter}", counter=u.task.machine.counter) }})</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm" id="abo">
+            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Im Handy-Kalender") }}</div>
+            <div class="card-body small">
+                {% if not feed_url %}
+                <p>{{ _("Die Termine lassen sich im Kalender auf dem Handy oder in Outlook abonnieren und aktualisieren sich dann von selbst.") }}</p>
+                <form method="post" action="{{ url_for('agenda.subscribe') }}">{{ csrf() }}
+                    <button class="btn btn-primary btn-sm"><i class="bi bi-link-45deg me-1"></i>{{ _("Abo-Link erstellen") }}</button></form>
+                {% else %}
+                <a class="btn btn-primary btn-sm mb-2" href="{{ webcal_url }}"><i class="bi bi-calendar-plus me-1"></i>{{ _("Jetzt abonnieren") }}</a>
+                <p class="mb-1 text-body-secondary">{{ _("iPhone: Knopf antippen → „Abonnieren“. Android/Google: Link kopieren und am PC in Google Kalender unter „Weitere Kalender → Per URL“ einfügen.") }}</p>
+                <input class="form-control form-control-sm font-monospace mb-2" readonly value="{{ feed_url }}" onclick="this.select()" aria-label="{{ _('Abo-Link') }}">
+                <p class="text-body-secondary">{{ _("Der Link ist persönlich – wer ihn kennt, sieht die Termine. Nicht weitergeben.") }}</p>
+                <form method="post" action="{{ url_for('agenda.subscribe') }}">{{ csrf() }}
+                    <button class="btn btn-outline-secondary btn-sm" name="neu" value="1" data-confirm="{{ _('Neuen Link erstellen? Der alte hört dann auf zu funktionieren.') }}">{{ _("Neuen Link erstellen") }}</button></form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -20,6 +20,7 @@ AREAS = [
         item("main.dashboard", N_("Heute"), "bi-sun"),
         item("tasks.task_list", N_("Aufgaben"), "bi-list-check", prefixes=("tasks.",), badge="tasks"),
         item("purchases.purchase_list", N_("Bestellungen"), "bi-box-seam", prefixes=("purchases.",), badge="purchases"),
+        item("agenda.month", N_("Kalender"), "bi-calendar3", prefixes=("agenda.",)),
         item("main.search", N_("Suche"), "bi-search"),
     ]},
     {"key": "lager", "label": N_("Lager"), "icon": "bi-grid-3x3-gap", "items": [

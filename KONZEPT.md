@@ -281,7 +281,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    - **Lieferanten** (Bestellungen → Lieferanten): Ansprechpartner, Telefon, E-Mail, Shop, unsere Kundennummer.
      Besteller pflegen, Admin löscht (verwendete werden nur ausgeblendet). Auswahl in Bestellung, Teil, Lieferung.
    - Suche findet Teilenummern, Dokumente und Lieferanten.
-4. **Kalender** mit Wartungen und erwarteten Lieferungen (Bestellungen), dazu Abo-Link (ICS) fürs Handy.
+4. ✅ **Kalender (0.20.0)** (Übersicht → Kalender): Monatsraster (PC) bzw. Terminliste (Handy) mit fälligen
+   Wartungen (Ampelfarbe) und erwarteten Lieferungen bestellter Teile. Daneben: überfällige Wartungen und Wartungen
+   nach Zählerstand (ohne Datum). Persönlicher Abo-Link (iCal, `webcal://`) für iPhone/Google/Outlook – ohne
+   Anmeldung abrufbar über einen geheimen Schlüssel je Benutzer, erneuerbar; Texte in der Sprache des Benutzers.
 
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.

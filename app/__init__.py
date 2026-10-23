@@ -86,6 +86,7 @@ def create_app(config=None):
     from .purchase_views import bp as purchases_bp
     from .push_views import bp as push_bp
     from .fuel_views import bp as fuel_bp
+    from .agenda_views import bp as agenda_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -97,6 +98,7 @@ def create_app(config=None):
     app.register_blueprint(purchases_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(fuel_bp)
+    app.register_blueprint(agenda_bp)
 
     from . import cli
     cli.register(app)

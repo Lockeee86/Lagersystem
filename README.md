@@ -35,6 +35,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   Verbrauch je Maschine (l/h bzw. l/100 km)
 - **Ersatzteile und Dokumente** je Maschine (Teilenummer, „Nochmal bestellen“, Anleitungen, TÜV-Berichte, Rechnungen)
   und ein **Lieferantenverzeichnis**
+- **Kalender** mit Wartungen und Lieferterminen, als Abo im Handy-Kalender (iPhone, Google, Outlook)
 - **Wetter** vom Deutschen Wetterdienst (über Bright Sky, ohne Anmeldung): Vorhersage 7 Tage und stündlich,
   Regen der letzten 30 Tage, Frost-Hinweis, Krautfäule-Ampel nach den Hutton-Kriterien
 - **Aufgaben**: der Admin verteilt an eine oder mehrere Personen oder an alle, mit Termin, Priorität,
