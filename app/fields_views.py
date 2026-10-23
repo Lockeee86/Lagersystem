@@ -195,11 +195,11 @@ def aerial_image():
 @admin_required
 def aerial_test():
     """Für die Verwaltung: Luftbild rund um den Hof-Standort (oder Fehlermeldung des Dienstes)."""
-    if request.args.get("info"):
-        return Response(aerial.diagnose(), mimetype="text/plain")
     location = weather.parse_location(Setting.all().get("farm_location")) or (52.4, 10.5)
     lat, lon = location
     bbox = (lon - 0.008, lat - 0.005, lon + 0.008, lat + 0.005)
+    if request.args.get("info"):
+        return Response(aerial.diagnose(bbox), mimetype="text/plain")
     try:
         return _image_response(aerial.image(bbox, 800, 500))
     except aerial.AerialError as e:

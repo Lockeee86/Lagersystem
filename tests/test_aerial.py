@@ -52,7 +52,9 @@ def test_proxy_and_cache(app, as_worker, as_admin, db, seed, monkeypatch, tmp_pa
     assert r.status_code == 502 and "Layer unbekannt" in r.get_data(as_text=True)
     assert as_worker.get("/luftbild/test").status_code == 403
     r = as_admin.get("/luftbild/test?info=1")
-    assert r.status_code == 200 and "nicht erreichbar oder nicht lesbar" in r.get_data(as_text=True)
+    text = r.get_data(as_text=True)
+    assert r.status_code == 200 and "nicht erreichbar oder nicht lesbar" in text and "Grund: AerialError" in text
+    assert "Testbild am Hof-Standort: FEHLER" in text and "Layer unbekannt" in text
 
     # Aus: keine Bilder, Karte ohne Luftbild-Schalter
     Setting.put("aerial_source", "-")
@@ -97,7 +99,8 @@ def test_capabilities_choose_crs(app, db, seed, monkeypatch, tmp_path):
     app.config["AERIAL_CACHE_DIR"] = str(tmp_path / "cache")
     aerial.clear_capabilities()
     caps = aerial._parse_capabilities(CAPS, "ni_dop20")
-    assert caps == {"crs": ["EPSG:25832", "EPSG:25833"], "formats": ["image/png", "image/jpeg"], "found": True}
+    assert caps == {"crs": ["EPSG:25832", "EPSG:25833"], "formats": ["image/png", "image/jpeg"], "found": True,
+                    "version": "1.3.0"}
     assert aerial._parse_capabilities(CAPS, "ni_dop20_info")["crs"][-1] == "EPSG:4326"     # geerbt + eigenes
     assert not aerial._parse_capabilities(CAPS, "gibtsnicht")["found"]
 
@@ -112,7 +115,7 @@ def test_capabilities_choose_crs(app, db, seed, monkeypatch, tmp_path):
                   (60, 120, 40)).save(buf, "PNG")
         return buf.getvalue(), "image/png"
     monkeypatch.setattr(aerial, "_download", fake)
-    assert aerial.request_plan(dict(aerial.SOURCES["lgln"], key="lgln")) == ("EPSG:25832", "proj", "image/jpeg")
+    assert aerial.request_plan(dict(aerial.SOURCES["lgln"], key="lgln")) == ("EPSG:25832", "proj", "image/jpeg", "1.3.0")
     data = aerial.image((10.49, 52.42, 10.51, 52.43), 800, 500)
     getmap = [u for u in urls if "GetMap" in u]
     assert len(getmap) == 1 and "CRS=EPSG%3A25832" in getmap[0] and "FORMAT=image%2Fjpeg" in getmap[0]
@@ -134,4 +137,32 @@ def test_capabilities_choose_crs(app, db, seed, monkeypatch, tmp_path):
                                                           .replace(b"EPSG:25833", b"EPSG:2398"), "text/xml"))
     with pytest.raises(aerial.AerialError, match="kein passendes Koordinatensystem"):
         aerial.request_plan({"kind": "wms", "url": "https://y.example/wms", "layer": "ni_dop20"})
+    aerial.clear_capabilities()
+
+
+CAPS_111 = b"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd"
+ [ <!ELEMENT VendorSpecificCapabilities EMPTY> ]>
+<WMT_MS_Capabilities version="1.1.1"><Capability><Request><GetMap><Format>image/jpeg</Format></GetMap></Request>
+<Layer><SRS>EPSG:25832 EPSG:4326</SRS><Layer><Name>ni_dop20</Name></Layer></Layer></Capability></WMT_MS_Capabilities>"""
+
+
+def test_wms_111(app, db, seed, monkeypatch, tmp_path):
+    app.config["AERIAL_CACHE_DIR"] = str(tmp_path / "cache")
+    aerial.clear_capabilities()
+    caps = aerial._parse_capabilities(CAPS_111, "ni_dop20")
+    assert caps["version"] == "1.1.1" and caps["crs"] == ["EPSG:25832", "EPSG:4326"] and caps["found"]
+    with pytest.raises(aerial.AerialError):
+        aerial._parse_capabilities(b'<!DOCTYPE x [<!ENTITY a "b">]><x/>', "x")
+    urls = []
+
+    def fake(url):
+        urls.append(url)
+        return (CAPS_111, "text/xml") if "GetCapabilities" in url else (jpeg(), "image/jpeg")
+    monkeypatch.setattr(aerial, "_download", fake)
+    source = dict(aerial.SOURCES["lgln"], key="lgln")
+    assert aerial.request_plan(source) == ("EPSG:4326", "lonlat", "image/jpeg", "1.1.1")
+    aerial.image((10.1, 52.3, 10.2, 52.35), 800, 400)
+    getmap = next(u for u in urls if "GetMap" in u)
+    assert "VERSION=1.1.1" in getmap and "SRS=EPSG%3A4326" in getmap and "BBOX=10.1%2C52.3%2C10.2%2C52.35" in getmap
     aerial.clear_capabilities()

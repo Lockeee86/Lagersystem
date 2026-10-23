@@ -14,6 +14,7 @@ import hashlib
 import io
 import math
 import os
+import re
 import threading
 import time
 import urllib.parse
@@ -96,13 +97,17 @@ def _local(tag):
 
 
 def _parse_capabilities(data, layer):
-    """{"crs": [...], "formats": [...], "found": bool} für den Layer (CRS werden von übergeordneten Layern geerbt)."""
-    if b"<!DOCTYPE" in data[:2000].upper() or b"<!ENTITY" in data.upper():
-        raise AerialError("ungültige Capabilities")
+    """{"crs": [...], "formats": [...], "found": bool, "version": "1.3.0"} für den Layer (CRS werden von
+    übergeordneten Layern geerbt). WMS 1.1.1 beginnt mit einer DOCTYPE-Zeile (DTD) – die ist harmlos und wird
+    entfernt (ElementTree lädt keine externen DTDs); Entity-Definitionen werden abgelehnt."""
+    if b"<!ENTITY" in data.upper():
+        raise AerialError("Capabilities mit Entity-Definitionen werden nicht gelesen")
+    data = re.sub(rb"<!DOCTYPE[^>\[]*(\[[^\]]*\])?\s*>", b"", data, count=1, flags=re.IGNORECASE)
     try:
         root = ET.fromstring(data)
-    except ET.ParseError:
-        raise AerialError("Capabilities nicht lesbar")
+    except ET.ParseError as e:
+        start = data[:120].decode("utf-8", "replace").strip()
+        raise AerialError(f"Capabilities nicht lesbar ({e}): {start}") from None
     formats = []
     for el in root.iter():
         if _local(el.tag) == "GetMap":
@@ -128,7 +133,8 @@ def _parse_capabilities(data, layer):
             crs = walk(top, [])
             if crs is not None:
                 break
-    return {"crs": [c.upper() for c in (crs or [])], "formats": formats, "found": crs is not None}
+    return {"crs": [c.upper() for c in (crs or [])], "formats": formats, "found": crs is not None,
+            "version": root.get("version") or "1.3.0"}
 
 
 def capabilities(source):
@@ -141,15 +147,23 @@ def capabilities(source):
     sep = "&" if "?" in source["url"] else "?"
     url = source["url"] + sep + urllib.parse.urlencode({"SERVICE": "WMS", "REQUEST": "GetCapabilities",
                                                          "VERSION": "1.3.0"})
+    error = None
     try:
         data, _type = _download(url)
         caps, ttl = _parse_capabilities(data, source.get("layer")), CAPS_SECONDS
     except (OSError, AerialError) as e:
         current_app.logger.warning("WMS-Capabilities nicht lesbar (%s): %s", source["url"], e)
-        caps, ttl = None, CAPS_ERROR_SECONDS
+        caps, ttl, error = None, CAPS_ERROR_SECONDS, f"{type(e).__name__}: {e}"
     with _caps_lock:
-        _caps[key] = (time.monotonic(), ttl, caps)
+        _caps[key] = (time.monotonic(), ttl, caps, error)
     return caps
+
+
+def capabilities_error(source):
+    """Grund, warum die Capabilities zuletzt nicht gelesen werden konnten (oder None)."""
+    with _caps_lock:
+        cached = _caps.get((source["url"], source.get("layer")))
+    return cached[3] if cached else None
 
 
 def clear_capabilities():
@@ -157,47 +171,62 @@ def clear_capabilities():
         _caps.clear()
 
 
-def diagnose():
-    """Klartext für die Verwaltung: was der Dienst kann und wie die App ihn abfragt (bewusst Deutsch, technisch)."""
+def diagnose(bbox=None):
+    """Klartext für die Verwaltung: was der Dienst kann, wie die App ihn abfragt und was eine Testabfrage liefert
+    (bewusst Deutsch und technisch – zum Weitergeben bei Problemen)."""
     source = config()
     if source is None:
         return "Luftbild ist aus oder die WMS-Adresse ist unvollständig."
     lines = [f"Quelle: {source['key']}", f"Adresse: {source['url']}"]
-    if source["kind"] != "wms":
-        return "\n".join(lines + ["Art: ArcGIS-Export (EPSG:4326), keine Capabilities nötig."])
-    clear_capabilities()
-    caps = capabilities(source)
-    lines.append(f"Layer: {source.get('layer')}")
-    if caps is None:
-        lines.append("GetCapabilities: nicht erreichbar oder nicht lesbar – es wird EPSG:4326 versucht.")
+    if source["kind"] == "wms":
+        clear_capabilities()
+        caps = capabilities(source)
+        lines.append(f"Layer: {source.get('layer')}")
+        if caps is None:
+            lines += ["GetCapabilities: nicht erreichbar oder nicht lesbar – es wird EPSG:4326 versucht.",
+                      f"Grund: {capabilities_error(source)}"]
+        else:
+            lines += [f"WMS-Version: {caps['version']}", f"Layer gefunden: {'ja' if caps['found'] else 'NEIN'}",
+                      "Koordinatensysteme: " + (", ".join(caps["crs"]) or "–"),
+                      "Bildformate: " + (", ".join(caps["formats"]) or "–")]
+        try:
+            crs, axes, fmt, version = request_plan(source)
+        except AerialError as e:
+            return "\n".join(lines + [f"Problem: {e}"])
+        lines.append(f"Abfrage mit: {crs} ({'wird entzerrt' if axes == 'proj' else 'ohne Umrechnung'}), {fmt}, "
+                     f"WMS {version}")
     else:
-        lines += [f"Layer gefunden: {'ja' if caps['found'] else 'NEIN'}",
-                  "Koordinatensysteme: " + (", ".join(caps["crs"]) or "–"),
-                  "Bildformate: " + (", ".join(caps["formats"]) or "–")]
-    try:
-        crs, axes, fmt = request_plan(source)
-        lines.append(f"Abfrage mit: {crs} ({'wird entzerrt' if axes == 'proj' else 'ohne Umrechnung'}), {fmt}")
-    except AerialError as e:
-        lines.append(f"Problem: {e}")
+        lines.append("Art: ArcGIS-Export (EPSG:4326), keine Capabilities nötig.")
+    if bbox:
+        lines.append("")
+        try:
+            data = image(bbox, 400, 250)
+            lines.append(f"Testbild am Hof-Standort: in Ordnung ({len(data) // 1024} KB).")
+        except AerialError as e:
+            lines.append(f"Testbild am Hof-Standort: FEHLER\n{e}")
     return "\n".join(lines)
 
 
 def request_plan(source):
-    """Koordinatensystem und Bildformat für GetMap: (crs, art, format)."""
+    """Koordinatensystem, Achsen, Bildformat und WMS-Version für GetMap: (crs, art, format, version)."""
     if source["kind"] != "wms":
-        return None, None, None
+        return None, None, None, None
     caps = capabilities(source)
     if caps is not None and not caps["found"]:
         raise AerialError(f"Layer „{source.get('layer')}“ gibt es in diesem Dienst nicht.")
     if caps is None or not caps["crs"]:
-        return "EPSG:4326", "latlon", "image/jpeg"
+        return "EPSG:4326", "latlon", "image/jpeg", "1.3.0"
     choice = next(((c, kind) for c, kind in CRS_CHOICES if c in caps["crs"]), None)
     if choice is None:
         raise AerialError("Der Dienst bietet kein passendes Koordinatensystem an (nur "
                           + ", ".join(caps["crs"][:8]) + ").")
     fmt = next((f for f in ("image/jpeg", "image/png") if f in caps["formats"]), None) \
         or (caps["formats"][0] if caps["formats"] else "image/jpeg")
-    return choice[0], choice[1], fmt
+    version = caps.get("version") or "1.3.0"
+    axes = choice[1]
+    if version.startswith("1.1") and axes == "latlon":
+        axes = "lonlat"                  # WMS 1.1.1: immer Länge, Breite
+    return choice[0], axes, fmt, version
 
 
 def config():
@@ -233,7 +262,7 @@ def parse_bbox(text):
     return lon1, lat1, lon2, lat2
 
 
-def _url(source, bbox, width, height, crs="EPSG:4326", axes="latlon", fmt="image/jpeg"):
+def _url(source, bbox, width, height, crs="EPSG:4326", axes="latlon", fmt="image/jpeg", version="1.3.0"):
     lon1, lat1, lon2, lat2 = bbox
     if source["kind"] == "arcgis":
         params = {"bbox": f"{lon1},{lat1},{lon2},{lat2}", "bboxSR": "4326", "imageSR": "4326",
@@ -243,9 +272,9 @@ def _url(source, bbox, width, height, crs="EPSG:4326", axes="latlon", fmt="image
             box = f"{lat1},{lon1},{lat2},{lon2}"     # WMS 1.3.0 mit EPSG:4326/4258: Breite, Länge
         else:
             box = f"{lon1},{lat1},{lon2},{lat2}"     # CRS:84 und projizierte Systeme: x, y
-        params = {"SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap", "LAYERS": source["layer"],
-                  "STYLES": "", "CRS": crs, "BBOX": box, "WIDTH": str(width), "HEIGHT": str(height),
-                  "FORMAT": fmt}
+        params = {"SERVICE": "WMS", "VERSION": version, "REQUEST": "GetMap", "LAYERS": source["layer"],
+                  "STYLES": "", ("SRS" if version.startswith("1.1") else "CRS"): crs, "BBOX": box,
+                  "WIDTH": str(width), "HEIGHT": str(height), "FORMAT": fmt}
     sep = "&" if "?" in source["url"] else "?"
     return source["url"] + sep + urllib.parse.urlencode(params)
 
@@ -306,13 +335,14 @@ def image(bbox, width, height):
         raise AerialError("aus")
     width, height = max(16, min(MAX_SIDE, int(width))), max(16, min(MAX_SIDE, int(height)))
     bbox = tuple(round(v, 6) for v in bbox)
-    crs, axes, fmt = request_plan(source)
+    crs, axes, fmt, version = request_plan(source)
     quad = None
     if axes == "proj":
         box, w, h, quad = _projected_request(crs, bbox, width, height)
-        url = _url(source, tuple(round(v, 2) for v in box), w, h, crs, axes, fmt)
+        url = _url(source, tuple(round(v, 2) for v in box), w, h, crs, axes, fmt, version)
     else:
-        url = _url(source, bbox, width, height, crs or "EPSG:4326", axes or "latlon", fmt or "image/jpeg")
+        url = _url(source, bbox, width, height, crs or "EPSG:4326", axes or "latlon", fmt or "image/jpeg",
+                   version or "1.3.0")
     folder = cache_dir()
     path = os.path.join(folder, hashlib.sha256(f"{url}|{width}x{height}".encode()).hexdigest()[:40] + ".jpg")
     if os.path.isfile(path):

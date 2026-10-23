@@ -310,6 +310,9 @@ EPSG:4326/4258/CRS:84 direkt, sonst EPSG:3857 oder UTM 32/33 – dann holt er de
 entzerrt ihn auf Länge/Breite (Pillow QUAD, Projektion selbst gerechnet, gegen pyproj < 1 mm geprüft). Ohne lesbare
 Capabilities wird wie bisher EPSG:4326 versucht. Verwaltung → Hof → „Dienst prüfen“ zeigt Layer, Systeme, Formate
 und die gewählte Abfrage; Fehlermeldungen des Dienstes enthalten die abgefragte Adresse.
+0.27.4: Capabilities in WMS 1.1.1 (mit DOCTYPE-Zeile) werden gelesen – vorher pauschal abgelehnt –, GetMap dann
+mit `SRS` und Länge/Breite-Reihenfolge. „Dienst prüfen“ nennt den genauen Grund, wenn die Capabilities scheitern,
+und macht eine Testabfrage am Hof-Standort.
 
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im
