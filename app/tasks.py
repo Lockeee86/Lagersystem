@@ -64,7 +64,7 @@ def next_due(due_on, recurrence, today=None):
 
 def apply_fields(task, title, description=None, due_on=None, important=False, recurrence=None, assignees=(),
                  machine_id=None, delivery_id=None, warehouse_id=None, row=None, machine_event_id=None,
-                 maintenance_task_id=None):
+                 maintenance_task_id=None, plot_id=None):
     title = (title or "").strip()
     if not title:
         raise StorageError(_("Bitte einen Titel angeben."))
@@ -79,6 +79,7 @@ def apply_fields(task, title, description=None, due_on=None, important=False, re
     task.machine_id, task.delivery_id = machine_id, delivery_id
     task.warehouse_id = warehouse_id
     task.row = row if warehouse_id else None
+    task.plot_id = plot_id
     if machine_event_id or maintenance_task_id:
         task.machine_event_id, task.maintenance_task_id = machine_event_id, maintenance_task_id
     return task
@@ -111,7 +112,8 @@ def complete_task(task, user, note=None, photo_names=None):
             title=task.title, description=task.description, important=task.important,
             recurrence=task.recurrence, due_on=next_due(task.due_on, task.recurrence),
             assignees=list(task.assignees), machine_id=task.machine_id, delivery_id=task.delivery_id,
-            warehouse_id=task.warehouse_id, row=task.row, previous_id=task.id, created_by_id=task.created_by_id,
+            warehouse_id=task.warehouse_id, row=task.row, plot_id=task.plot_id, previous_id=task.id,
+            created_by_id=task.created_by_id,
         )
         db.session.add(follow_up)
     db.session.flush()
@@ -179,6 +181,10 @@ def recently_done(user=None, days=7):
 
 def for_machine(machine_id):
     return sorted(Task.query.filter_by(machine_id=machine_id, done_at=None), key=_sort_key)
+
+
+def for_plot(plot_id):
+    return sorted(Task.query.filter_by(plot_id=plot_id, done_at=None), key=_sort_key)
 
 
 def for_delivery(delivery_id):

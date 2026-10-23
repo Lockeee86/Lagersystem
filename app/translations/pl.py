@@ -1280,4 +1280,5 @@ MESSAGES = {
     'Welche Kacheln sieht jede Rolle am Handy auf der Übersicht? Jeder kann danach selbst Kacheln dazunehmen oder ausblenden.':
         'Które kafelki widzi każda rola na telefonie w przeglądzie? Każdy może potem sam dodać lub ukryć kafelki.',
     'Kachel': 'Kafelek',
+    '– kein Schlag –': '– bez pola –',
 }

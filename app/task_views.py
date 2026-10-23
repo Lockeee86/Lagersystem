@@ -7,7 +7,8 @@ from flask_login import current_user, login_required
 from . import machines, push, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
-from .models import DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Task, User, Warehouse
+from .models import (DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Plot, Task, User,
+                     Warehouse)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
@@ -31,6 +32,8 @@ def _choices(task=None):
         machines=machines.order_by(Machine.name).all(),
         deliveries=deliveries.order_by(Delivery.date.desc()).all(),
         warehouses=Warehouse.query.order_by(Warehouse.name).all(),
+        plots=Plot.query.filter((Plot.active.is_(True)) | (Plot.id == (task.plot_id if task else None)))
+        .order_by(Plot.name).all(),
     )
 
 
@@ -38,6 +41,7 @@ def _fields_from_form():
     ids = {int(v) for v in request.form.getlist("assignee_ids") if v.isdigit()}
     machine_id = form_int("machine_id")
     delivery_id = form_int("delivery_id")
+    plot_id = form_int("plot_id")
     # Lagerplatz als "lager_id:reihe" (Reihe leer = ganzes Lager)
     wh_part, _sep, row_part = form_str("place", 20).partition(":")
     warehouse = db.session.get(Warehouse, int(wh_part)) if wh_part.isdigit() else None
@@ -52,6 +56,7 @@ def _fields_from_form():
         delivery_id=delivery_id if delivery_id and db.session.get(Delivery, delivery_id) else None,
         warehouse_id=warehouse.id if warehouse else None,
         row=row if warehouse and row and row <= warehouse.rows else None,
+        plot_id=plot_id if plot_id and db.session.get(Plot, plot_id) else None,
         machine_event_id=event_id if (event_id := form_int("machine_event_id")) and db.session.get(MachineEvent, event_id) else None,
         maintenance_task_id=mt_id if (mt_id := form_int("maintenance_task_id")) and db.session.get(MaintenanceTask, mt_id) else None,
     )
@@ -77,6 +82,7 @@ def task_list():
     prefill = {
         "machine_id": request.args.get("maschine", type=int),
         "delivery_id": request.args.get("lieferschein", type=int),
+        "plot_id": request.args.get("schlag", type=int),
     }
     # Aus einer Störung oder fälligen Wartung heraus: Titel, Maschine und Verknüpfung vorbelegen
     event = db.session.get(MachineEvent, request.args.get("stoerung", type=int) or 0)

@@ -147,3 +147,18 @@ def test_task_from_fault_and_maintenance(as_admin, as_worker, db, seed):
     as_worker.post(f"/aufgabe/{t3.id}/erledigt")
     assert oil.last_done_on == date.today() and oil.last_done_counter == 4210
     assert MachineEvent.query.filter_by(kind="wartung").one().text == "Fendt 724: Motoröl und Filter"
+
+
+def test_task_for_plot(as_admin, as_worker, db, seed):
+    """Aufgabe mit Bezug zu einem Schlag – angelegt von der Schlagseite aus, dort auch sichtbar."""
+    plot = seed["plot"]
+    html = as_worker.get(f"/aufgaben?neu=1&schlag={plot.id}").get_data(as_text=True)
+    assert f'<option value="{plot.id}" selected>' in html
+    as_admin.post("/aufgaben/neu", data={"title": "Steine sammeln", "plot_id": str(plot.id), "recurrence": "woechentlich"})
+    task = Task.query.filter_by(title="Steine sammeln").one()
+    assert task.plot == plot
+    page = as_worker.get(f"/schlag/{plot.id}").get_data(as_text=True)
+    assert "Steine sammeln" in page and f"schlag={plot.id}" in page
+    assert "Acker Nord" in as_worker.get(f"/aufgabe/{task.id}").get_data(as_text=True)
+    follow_up = tasks.complete_task(task, seed["admin"])
+    assert follow_up.plot_id == plot.id                                  # Wiederholung behält den Schlag

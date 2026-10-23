@@ -25,6 +25,8 @@
                 <dl class="row small mb-0">
                     <dt class="col-4 fw-normal text-body-secondary">{{ _("Für") }}</dt>
                     <dd class="col-8">{{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</dd>
+                    {% if task.plot %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Schlag") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('fields.field_detail', plot_id=task.plot_id) }}">{{ task.plot.label }}</a></dd>{% endif %}
                     {% if task.machine %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Maschine") }}</dt>
                     <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}">{{ task.machine.name }}</a></dd>{% endif %}
                     {% if task.machine_event %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Störung") }}</dt>
@@ -74,7 +76,7 @@
         <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</div>
             <div class="card-body">
-                {{ task_form(url_for('tasks.task_edit', task_id=task.id), task=task, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses) }}
+                {{ task_form(url_for('tasks.task_edit', task_id=task.id), task=task, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses, plots=plots) }}
             </div>
         </div>
         <div class="d-flex gap-2">

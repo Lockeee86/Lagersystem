@@ -14,6 +14,7 @@
     <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="{{ url_for('fields.field_map') }}"><i class="bi bi-map me-1"></i>{{ _("Schlagkarte") }}</a>
         {% if stored %}<a class="btn btn-outline-primary" href="{{ url_for('main.boxes', schlag=plot.id, status='befuellt') }}"><i class="bi bi-boxes me-1"></i>{{ ngettext("{n} Kiste", "{n} Kisten", stored) }}</a>{% endif %}
+        {% if current_user.can_edit %}<a class="btn btn-outline-primary" href="{{ url_for('tasks.task_list', neu=1, schlag=plot.id) }}"><i class="bi bi-list-check me-1"></i>{{ _("Aufgabe") }}</a>{% endif %}
     </div>
 </div>
 
@@ -28,6 +29,15 @@
         </div>
         {% endif %}
         {% if plot.note %}<div class="card shadow-sm mb-4"><div class="card-body small" style="white-space: pre-line">{{ plot.note }}</div></div>{% endif %}
+        {% if open_tasks %}
+        {% from "tasks/_macros.html" import task_item with context %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-list-check me-1"></i>{{ _("Aufgaben") }}</div>
+            <ul class="list-group list-group-flush">
+                {% for task in open_tasks %}{{ task_item(task, today, request.path) }}{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
 
     <div class="col-lg-7">

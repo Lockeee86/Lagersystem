@@ -23,6 +23,7 @@
             <span class="{{ 'text-danger fw-semibold' if task.due_on < today }}">{{ _("Heute") if task.due_on == today else task.due_on|weekday ~ " " ~ task.due_on|date }}</span>
             {% endif %}
             <span><i class="bi bi-person"></i> {{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</span>
+            {% if task.plot %}<span><i class="bi bi-map"></i> {{ task.plot.name }}</span>{% endif %}
             {% if task.machine %}<span><i class="bi bi-gear-wide-connected"></i> {{ task.machine.name }}</span>{% endif %}
             {% if task.delivery %}<span><i class="bi bi-truck"></i> {{ task.delivery.number }}</span>{% endif %}
             {% if task.location_label %}<span><i class="bi bi-geo-alt"></i> {{ task.location_label }}</span>{% endif %}
@@ -33,7 +34,7 @@
 </li>
 {% endmacro %}
 
-{% macro task_form(action, task=none, prefill={}, users=[], recurrences={}, machines=[], deliveries=[], warehouses=[], back="") %}
+{% macro task_form(action, task=none, prefill={}, users=[], recurrences={}, machines=[], deliveries=[], warehouses=[], plots=[], back="") %}
 <form method="post" action="{{ action }}" class="row g-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="back" value="{{ back }}">
@@ -82,21 +83,28 @@
         </div>
     </div>
     <div class="col-12"><div class="small text-body-secondary mt-1">{{ _("Bezug (optional)") }}</div></div>
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <select class="form-select form-select-sm" name="plot_id" aria-label="{{ _('Schlag') }}">
+            <option value="">{{ _("– kein Schlag –") }}</option>
+            {% set pid = task.plot_id if task else prefill.get('plot_id') %}
+            {% for p in plots %}<option value="{{ p.id }}" {% if p.id == pid %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
             <option value="">{{ _("– keine Maschine –") }}</option>
             {% set mid = task.machine_id if task else prefill.get('machine_id') %}
             {% for m in machines %}<option value="{{ m.id }}" {% if m.id == mid %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
         </select>
     </div>
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="delivery_id" aria-label="{{ _('Lieferschein') }}">
             <option value="">{{ _("– kein Lieferschein –") }}</option>
             {% set did = task.delivery_id if task else prefill.get('delivery_id') %}
             {% for d in deliveries %}<option value="{{ d.id }}" {% if d.id == did %}selected{% endif %}>{{ d.number }} · {{ d.customer.name }}</option>{% endfor %}
         </select>
     </div>
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="place" aria-label="{{ _('Lagerplatz') }}">
             <option value="">{{ _("– kein Lagerplatz –") }}</option>
             {% set current = (task.warehouse_id ~ ":" ~ (task.row or "")) if task and task.warehouse_id else "" %}

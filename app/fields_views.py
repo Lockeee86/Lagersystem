@@ -5,7 +5,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
-from . import fields
+from . import fields, tasks
 from .extensions import db
 from .i18n import gettext as _
 from .models import Box, Plot, PlotYear, Variety
@@ -60,7 +60,8 @@ def field_detail(plot_id):
     stored = Box.query.filter(Box.plot_id == plot.id, Box.fill > 0).count()
     return render_template(
         "fields/detail.html", plot=plot, history=history, this_year=this_year, outline_ha=outline_ha,
-        stored=stored, map_data=fields.map_data([plot], this_year),
+        stored=stored, map_data=fields.map_data([plot], this_year), open_tasks=tasks.for_plot(plot.id),
+        today=date.today(),
         varieties=Variety.query.filter(or_(Variety.active.is_(True),
                                            Variety.id.in_([py.variety_id for py in plot.years if py.variety_id])))
         .order_by(Variety.name).all(),

@@ -18,7 +18,7 @@
 <div class="collapse {% if show_form %}show{% endif %}" id="newTask">
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            {{ task_form(url_for('tasks.task_create'), prefill=prefill, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses, back=request.full_path) }}
+            {{ task_form(url_for('tasks.task_create'), prefill=prefill, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses, plots=plots, back=request.full_path) }}
         </div>
     </div>
 </div>

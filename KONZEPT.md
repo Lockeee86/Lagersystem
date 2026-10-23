@@ -289,6 +289,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Aufgabe mit Schlag (0.22.1)
+Aufgaben können sich auf einen Schlag beziehen (neben Maschine, Lieferschein, Lagerplatz). Auf der Schlagseite
+stehen die offenen Aufgaben und ein Knopf „Aufgabe“, der den Schlag vorbelegt; Wiederholungen behalten den Schlag.
+
 ### Kacheln auf der Übersicht (0.22.0)
 Die Kacheln am Handy sind einstellbar: Der Admin legt unter Verwaltung → Startseite fest, welche Kacheln jede Rolle
 sieht (Mitarbeiter z. B. Scannen und Tanken vorne). Jeder kann über „Anpassen“ Kacheln dazunehmen oder ausblenden;
