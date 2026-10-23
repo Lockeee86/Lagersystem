@@ -14,9 +14,9 @@
             document.documentElement.setAttribute("data-bs-theme", t);
         })();
     </script>
-    <link rel="icon" href="{{ url_for('static', filename='img/icon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='img/icon.svg') }}?v={{ app_version }}" type="image/svg+xml">
     <link rel="manifest" href="{{ url_for('push.manifest') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-180.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-180.png') }}?v={{ app_version }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
@@ -31,7 +31,7 @@
 <header class="app-header sticky-top">
     <div class="container-xl app-header-row">
         <a class="app-brand" href="{{ url_for('main.dashboard') }}">
-            <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="" width="30" height="30">
+            <img src="{{ url_for('static', filename='img/icon.svg') }}?v={{ app_version }}" alt="" width="30" height="30">
             <span class="text-truncate">{{ app_name }}</span>
         </a>
         <nav class="app-areas d-none d-lg-flex" aria-label="{{ _('Bereiche') }}">

@@ -24,14 +24,15 @@ def service_worker():
 def manifest():
     """App-Beschreibung für „Zum Startbildschirm hinzufügen“ – mit dem Hofnamen."""
     name = Setting.all().get("farm_name") or "Lagersystem"
-    icon = lambda size: {"src": url_for("static", filename=f"img/icon-{size}.png"),   # noqa: E731
+    version = current_app.config.get("APP_VERSION", "")
+    icon = lambda size: {"src": url_for("static", filename=f"img/icon-{size}.png", v=version),   # noqa: E731
                          "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any"}
     data = {
         "id": "/", "name": name, "short_name": name if len(name) <= 12 else name.split()[-1][:12],
         "start_url": "/", "scope": "/", "display": "standalone",
         "background_color": "#f4f0e6", "theme_color": "#3f5a2a",
         "icons": [icon(192), icon(512), {**icon(512), "purpose": "maskable"},
-                  {"src": url_for("static", filename="img/icon.svg"), "sizes": "any", "type": "image/svg+xml"}],
+                  {"src": url_for("static", filename="img/icon.svg", v=version), "sizes": "any", "type": "image/svg+xml"}],
     }
     response = current_app.response_class(json.dumps(data), mimetype="application/manifest+json")
     response.headers["Cache-Control"] = "no-cache"

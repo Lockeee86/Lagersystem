@@ -5,7 +5,7 @@
     <div class="card auth-card shadow-sm">
         <div class="card-body p-4 p-md-5">
             <div class="text-center mb-4">
-                <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="" width="64" height="64">
+                <img src="{{ url_for('static', filename='img/icon.svg') }}?v={{ app_version }}" alt="" width="64" height="64">
                 <h1 class="h4 mt-3 mb-0">{{ app_name }}</h1>
                 <p class="text-body-secondary small">{{ _("Bitte melde dich an") }}</p>
             </div>
