@@ -64,7 +64,8 @@
                 <div class="col-12 form-text">{{ _("Die meisten Bundesländer bieten ihre Luftbilder (DOP) als freien WMS-Dienst an. Abgefragt wird in EPSG:4326.") }}</div>
             </div>
             <div class="form-text">{{ _("Der Server lädt die Luftbilder und speichert sie zwischen. Zum Prüfen nach dem Speichern:") }}
-                <a href="{{ url_for('fields.aerial_test') }}" target="_blank">{{ _("Luftbild am Hof-Standort testen") }}</a></div>
+                <a href="{{ url_for('fields.aerial_test') }}" target="_blank">{{ _("Luftbild am Hof-Standort testen") }}</a> ·
+                <a href="{{ url_for('fields.aerial_test', info=1) }}" target="_blank">{{ _("Dienst prüfen") }}</a></div>
         </div>
     </div>
     <script>

@@ -303,6 +303,14 @@ Schlagseite: Boden-Karte, je Anbaujahr Maßnahmen aufklappbar, Nährstoffsumme u
 (Myfarm24 summiert ungerundet, daher ±1 kg/ha Abweichung möglich).
 Später möglich: Maschinen aus „Arbeiten / Maschinen“ den Maschinen der App zuordnen.
 
+### Luftbild: Koordinatensystem aus den Capabilities (0.27.3)
+Der LGLN-Dienst liefert laut Portal in EPSG:25832 (UTM 32N); die App fragte bisher fest in EPSG:4326 ab. Jetzt
+liest der Server einmal am Tag die GetCapabilities des WMS (Layer, Koordinatensysteme, Formate) und wählt:
+EPSG:4326/4258/CRS:84 direkt, sonst EPSG:3857 oder UTM 32/33 – dann holt er den umschließenden Ausschnitt und
+entzerrt ihn auf Länge/Breite (Pillow QUAD, Projektion selbst gerechnet, gegen pyproj < 1 mm geprüft). Ohne lesbare
+Capabilities wird wie bisher EPSG:4326 versucht. Verwaltung → Hof → „Dienst prüfen“ zeigt Layer, Systeme, Formate
+und die gewählte Abfrage; Fehlermeldungen des Dienstes enthalten die abgefragte Adresse.
+
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im
 Kalender (eigene Termine, Termine für alle, eigene Aufgaben/Wartungen; Feiertage bleiben). Die Wahl merkt sich der

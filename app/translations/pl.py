@@ -1472,4 +1472,5 @@ MESSAGES = {
     'Für einzelne Monate fehlen Messwerte.': 'Dla niektórych miesięcy brakuje pomiarów.',
     'Welche Termine': 'Które terminy',
     'In den nächsten 7 Tagen hast du keine Termine.': 'W ciągu najbliższych 7 dni nie masz terminów.',
+    'Dienst prüfen': 'Sprawdź usługę',
 }
