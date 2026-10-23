@@ -1,8 +1,11 @@
-/* Schlagkarte: alle Schlag-Umrisse als SVG (ohne Kartenhintergrund, die CSP erlaubt nur 'self').
+/* Schlagkarte: alle Schlag-Umrisse als SVG, auf Wunsch mit Luftbild darunter.
  *
  * Daten (aus fields.map_data):
  *   [{ id, name, number, ha, crop, color, rings: [[[länge, breite], …], …] }, …]
- * Optionen: { url: "/schlag/0" (0 wird durch die ID ersetzt), labels: true, interactive: true }
+ * Optionen: { url: "/schlag/0" (0 wird durch die ID ersetzt), labels: true, interactive: true,
+ *             aerial: { url: "/luftbild", credit: "© …", on: true } }
+ * Das Luftbild kommt über den eigenen Server (CSP erlaubt nur 'self') für den gerade sichtbaren Ausschnitt in
+ * Länge/Breite (EPSG:4326) – das ist dieselbe lineare Abbildung wie die Umrisse, das Bild passt also als Rechteck.
  */
 window.Schlagkarte = (function () {
     "use strict";
@@ -39,7 +42,9 @@ window.Schlagkarte = (function () {
         var view = { x: full.x, y: full.y, w: full.w, h: full.h };
 
         var svg = el("svg", { "class": "field-map-svg", preserveAspectRatio: "xMidYMid meet" });
+        var photo = el("g", { "class": "field-aerial" });
         var shapes = el("g"), labels = el("g", { "class": "field-labels" });
+        svg.appendChild(photo);
         svg.appendChild(shapes);
         svg.appendChild(labels);
 
@@ -65,8 +70,63 @@ window.Schlagkarte = (function () {
         });
         container.appendChild(svg);
 
+        // --- Luftbild -------------------------------------------------------------
+        var aerial = opts.aerial && opts.aerial.url ? opts.aerial : null;
+        var aerialOn = false, aerialTimer = null, credit = null;
+        if (aerial) {
+            credit = document.createElement("div");
+            credit.className = "field-map-credit";
+            container.appendChild(credit);
+        }
+
+        function visibleBox() {
+            var r = svg.getBoundingClientRect();
+            if (!r.width || !r.height) return null;
+            var s = Math.max(view.w / r.width, view.h / r.height);
+            var w = r.width * s, h = r.height * s;
+            return { x: view.x - (w - view.w) / 2, y: view.y - (h - view.h) / 2, w: w, h: h, pw: r.width, ph: r.height };
+        }
+
+        function loadAerial() {
+            if (!aerialOn) return;
+            var b = visibleBox();
+            if (!b) return;
+            var lon1 = b.x / (k * scale), lon2 = (b.x + b.w) / (k * scale);
+            var lat2 = -b.y / scale, lat1 = -(b.y + b.h) / scale;
+            if (lon2 - lon1 > 2 || lat2 - lat1 > 2) return;
+            var dpr = Math.min(window.devicePixelRatio || 1, 2);
+            var pw = b.pw * dpr, ph = b.ph * dpr, f = Math.min(1, 2048 / Math.max(pw, ph));
+            var src = aerial.url + "?bbox=" + [lon1, lat1, lon2, lat2].map(function (v) { return v.toFixed(6); }).join(",") +
+                "&w=" + Math.round(pw * f) + "&h=" + Math.round(ph * f);
+            var img = el("image", { x: b.x, y: b.y, width: b.w, height: b.h, preserveAspectRatio: "none" });
+            img.addEventListener("load", function () {
+                // ältere Bilder erst entfernen, wenn das neue da ist (kein Flackern beim Verschieben)
+                while (photo.firstChild && photo.firstChild !== img) photo.removeChild(photo.firstChild);
+                credit.textContent = aerial.credit || "";
+            });
+            img.addEventListener("error", function () {
+                photo.removeChild(img);
+                credit.textContent = aerial.failed || "";
+            });
+            img.setAttribute("href", src);
+            photo.appendChild(img);
+        }
+
+        function setAerial(on) {
+            if (!aerial) return;
+            aerialOn = on;
+            svg.classList.toggle("with-aerial", on);
+            photo.style.display = on ? "" : "none";
+            credit.style.display = on ? "" : "none";
+            if (on) loadAerial();
+        }
+
         function apply() {
             svg.setAttribute("viewBox", [view.x, view.y, view.w, view.h].join(" "));
+            if (aerialOn) {
+                clearTimeout(aerialTimer);
+                aerialTimer = setTimeout(loadAerial, 350);
+            }
             // Schrift- und Linienstärke in Bildschirmpixeln konstant halten
             var px = view.w / (svg.clientWidth || 600);
             svg.style.setProperty("--px", px);
@@ -146,10 +206,12 @@ window.Schlagkarte = (function () {
         }
         window.addEventListener("resize", apply);
         apply();
+        if (aerial && aerial.on) setAerial(true);
         return {
             zoomIn: function () { zoom(1 / 1.5); },
             zoomOut: function () { zoom(1.5); },
             reset: function () { view = { x: full.x, y: full.y, w: full.w, h: full.h }; apply(); },
+            aerial: function (on) { setAerial(on === undefined ? !aerialOn : on); return aerialOn; },
         };
     }
 

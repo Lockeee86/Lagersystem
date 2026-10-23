@@ -24,6 +24,7 @@
             <button class="btn btn-sm btn-light" type="button" id="zoomIn" aria-label="{{ _('Vergrößern') }}"><i class="bi bi-plus-lg"></i></button>
             <button class="btn btn-sm btn-light" type="button" id="zoomOut" aria-label="{{ _('Verkleinern') }}"><i class="bi bi-dash-lg"></i></button>
             <button class="btn btn-sm btn-light" type="button" id="zoomReset" aria-label="{{ _('Ganze Karte') }}"><i class="bi bi-arrows-fullscreen"></i></button>
+            {% if aerial %}<button class="btn btn-sm btn-light" type="button" id="aerialToggle" aria-pressed="false" title="{{ _('Luftbild') }}" aria-label="{{ _('Luftbild') }}"><i class="bi bi-image"></i></button>{% endif %}
         </div>
     </div>
     <div class="card-body py-2 d-flex flex-wrap gap-3 small">
@@ -63,7 +64,20 @@
 (function () {
     var box = document.getElementById("fieldMap");
     if (!box) return;
-    var map = Schlagkarte.create(box, {{ map_data|tojson }}, { url: "{{ url_for('fields.field_detail', plot_id=0) }}" });
+    var aerial = {{ aerial|tojson }}, stored = null;
+    try { stored = localStorage.getItem("schlagkarte-luftbild"); } catch (e) {}
+    if (aerial) aerial.on = stored !== "0";          // Luftbild an, bis jemand es ausschaltet
+    var map = Schlagkarte.create(box, {{ map_data|tojson }}, { url: "{{ url_for('fields.field_detail', plot_id=0) }}", aerial: aerial });
+    var toggle = document.getElementById("aerialToggle");
+    function mark(on) { toggle.classList.toggle("active", on); toggle.setAttribute("aria-pressed", on ? "true" : "false"); }
+    if (toggle) {
+        mark(aerial.on);
+        toggle.addEventListener("click", function () {
+            var on = map.aerial();
+            mark(on);
+            try { localStorage.setItem("schlagkarte-luftbild", on ? "1" : "0"); } catch (e) {}
+        });
+    }
     document.getElementById("zoomIn").addEventListener("click", map.zoomIn);
     document.getElementById("zoomOut").addEventListener("click", map.zoomOut);
     document.getElementById("zoomReset").addEventListener("click", map.reset);

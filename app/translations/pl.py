@@ -1344,4 +1344,19 @@ MESSAGES = {
     'Excel': 'Excel',
     'Mit Bestand am Anfang und Ende, Liter und Verbrauch je Maschine und allen Einträgen – z. B. für die Agrardiesel-Erstattung.':
         'Ze stanem na początku i na końcu, litrami i zużyciem dla każdej maszyny oraz wszystkimi wpisami – np. do zwrotu podatku od oleju napędowego.',
+    # Luftbild
+    'Niedersachsen – amtliche Luftbilder (LGLN, frei nutzbar)': 'Dolna Saksonia – urzędowe zdjęcia lotnicze (LGLN, bezpłatne)',
+    'Weltweit – Esri World Imagery': 'Cały świat – Esri World Imagery',
+    'Eigener WMS-Dienst': 'Własna usługa WMS',
+    'Luftbild nicht verfügbar.': 'Zdjęcie lotnicze niedostępne.',
+    'Luftbild unter der Schlagkarte': 'Zdjęcie lotnicze pod mapą pól',
+    'WMS-Adresse': 'Adres WMS',
+    'WMS-Layer': 'Warstwa WMS',
+    'kein Luftbild': 'bez zdjęcia lotniczego',
+    'Die meisten Bundesländer bieten ihre Luftbilder (DOP) als freien WMS-Dienst an. Abgefragt wird in EPSG:4326.':
+        'Większość krajów związkowych udostępnia zdjęcia lotnicze (DOP) jako bezpłatną usługę WMS. Zapytania w EPSG:4326.',
+    'Der Server lädt die Luftbilder und speichert sie zwischen. Zum Prüfen nach dem Speichern:':
+        'Serwer pobiera zdjęcia lotnicze i przechowuje je w pamięci podręcznej. Aby sprawdzić po zapisaniu:',
+    'Luftbild am Hof-Standort testen': 'Sprawdź zdjęcie lotnicze w lokalizacji gospodarstwa',
+    'Luftbild': 'Zdjęcie lotnicze',
 }

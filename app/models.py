@@ -57,8 +57,11 @@ class Setting(db.Model):
         "blight_from_month": (N_("Krautfäule-Ampel auf der Übersicht ab"), 2, False),
         "blight_to_month": (N_("bis einschließlich"), 2, False),
         "holiday_state": (N_("Feiertage im Kalender"), 2, False),
+        "aerial_source": (N_("Luftbild unter der Schlagkarte"), 10, False),
+        "aerial_wms_url": (N_("WMS-Adresse"), 300, False),
+        "aerial_wms_layer": (N_("WMS-Layer"), 100, False),
     }
-    DEFAULTS = {"blight_from_month": "5", "blight_to_month": "9", "holiday_state": "NI"}
+    DEFAULTS = {"blight_from_month": "5", "blight_to_month": "9", "holiday_state": "NI", "aerial_source": "lgln"}
 
     @classmethod
     def all(cls):

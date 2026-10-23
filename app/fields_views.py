@@ -1,15 +1,15 @@
 """Seiten der Schlagkartei: Schlagkarte (alle Umrisse), Schlag mit Fruchtfolge, Pflanzung, Rodung und Ertrag."""
 from datetime import date
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
-from . import fields, tasks
+from . import aerial, fields, tasks, weather
 from .extensions import db
 from .i18n import gettext as _
-from .models import Box, Plot, PlotYear, Variety
-from .utils import editor_required, form_date, form_int, form_str
+from .models import Box, Plot, PlotYear, Setting, Variety
+from .utils import admin_required, editor_required, form_date, form_int, form_str
 
 bp = Blueprint("fields", __name__)
 
@@ -19,6 +19,15 @@ def _year_arg():
     default = date.today().year if date.today().year in years or not years else years[0]
     year = request.args.get("jahr", type=int) or default
     return year, sorted(set(years) | {year, date.today().year}, reverse=True)
+
+
+def aerial_options(on=True):
+    """Optionen für Schlagkarte.create(…, {aerial: …}) – None, wenn kein Luftbild eingestellt ist."""
+    source = aerial.config()
+    if source is None:
+        return None
+    return {"url": url_for("fields.aerial_image"), "credit": source.get("credit") or "", "on": on,
+            "failed": _("Luftbild nicht verfügbar.")}
 
 
 @bp.route("/schlagkarte")
@@ -38,7 +47,7 @@ def field_map():
                      "color": fields.crop_color(y.crop if y else None, y.crop_eppo if y else None)})
     return render_template(
         "fields/map.html", year=year, years=years, rows=rows, only_potatoes=only_potatoes,
-        map_data=fields.map_data(plots, year), legend=fields.crop_legend(plots, year),
+        map_data=fields.map_data(plots, year), legend=fields.crop_legend(plots, year), aerial=aerial_options(),
         total_ha=sum(float(p.area_ha or 0) for p in plots),
     )
 
@@ -61,6 +70,7 @@ def field_detail(plot_id):
     return render_template(
         "fields/detail.html", plot=plot, history=history, this_year=this_year, outline_ha=outline_ha,
         stored=stored, map_data=fields.map_data([plot], this_year), open_tasks=tasks.for_plot(plot.id),
+        aerial=aerial_options(),
         today=date.today(),
         varieties=Variety.query.filter(or_(Variety.active.is_(True),
                                            Variety.id.in_([py.variety_id for py in plot.years if py.variety_id])))
@@ -97,3 +107,40 @@ def field_year_save(plot_id):
     db.session.commit()
     flash(_("{plot}: Anbaujahr {year} gespeichert.", plot=plot.name, year=year), "success")
     return redirect(url_for("fields.field_detail", plot_id=plot.id) + "#jahr-" + str(year))
+
+
+# --- Luftbild -----------------------------------------------------------------------
+
+def _image_response(data):
+    mimetype = "image/png" if data[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
+    response = Response(data, mimetype=mimetype)
+    response.headers["Cache-Control"] = "private, max-age=2592000"
+    return response
+
+
+@bp.route("/luftbild")
+@login_required
+def aerial_image():
+    """Luftbild für den sichtbaren Ausschnitt der Schlagkarte (bbox = Länge1,Breite1,Länge2,Breite2)."""
+    bbox = aerial.parse_bbox(request.args.get("bbox"))
+    width, height = request.args.get("w", type=int), request.args.get("h", type=int)
+    if bbox is None or not width or not height:
+        abort(400)
+    try:
+        return _image_response(aerial.image(bbox, width, height))
+    except aerial.AerialError as e:
+        current_app.logger.warning("Luftbild nicht verfügbar: %s", e)
+        return Response(_("Luftbild nicht verfügbar."), status=502, mimetype="text/plain")
+
+
+@bp.route("/luftbild/test")
+@admin_required
+def aerial_test():
+    """Für die Verwaltung: Luftbild rund um den Hof-Standort (oder Fehlermeldung des Dienstes)."""
+    location = weather.parse_location(Setting.all().get("farm_location")) or (52.4, 10.5)
+    lat, lon = location
+    bbox = (lon - 0.008, lat - 0.005, lon + 0.008, lat + 0.005)
+    try:
+        return _image_response(aerial.image(bbox, 800, 500))
+    except aerial.AerialError as e:
+        return Response(_("Luftbild nicht verfügbar.") + "\n\n" + str(e), status=502, mimetype="text/plain")

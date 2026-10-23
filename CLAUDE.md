@@ -48,6 +48,8 @@ docker compose up --build -d
   `app/fuel_report.py`: Bericht für einen Zeitraum als Excel/PDF (immer Deutsch)
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
+- `app/aerial.py`: Luftbild-Proxy für die Schlagkarte (Quellen `SOURCES`, Zwischenspeicher, `_download` in Tests
+  ersetzen), Routen `/luftbild` und `/luftbild/test` in `fields_views.py`
 - `app/agenda.py`: Kalender – Wartungen, Lieferungen, Aufgaben, Feiertage (`holidays()`) werden berechnet, eigene
   Termine liegen in `CalendarEntry` (Wiederholungen über `occurrences()`), `save_entry()` committet nicht;
   iCal-Ausgabe `ics()`. `app/agenda_views.py` (Blueprint `agenda`, Abo über `User.calendar_token`)

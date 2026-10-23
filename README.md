@@ -44,7 +44,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Bestellungen**: Ersatzteile & Co. mit Foto anfragen (auch direkt aus einer Störung), ein Besteller
   übernimmt den Vorgang (oder gibt ihn weiter) und
   trägt Status, Lieferant, Preis und Liefertermin ein (Neu → Angefragt → Bestellt → Geliefert → Erledigt / Abgelehnt)
-- **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur, Fruchtfolge,
+- **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur mit Luftbild, Fruchtfolge,
   Pflanzung und Rodung je Schlag, Ertrag in t/ha aus den Kisten
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter

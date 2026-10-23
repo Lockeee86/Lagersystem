@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import agenda, backup, branding, fields, tiles, transfer, weather
+from . import aerial, agenda, backup, branding, fields, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -66,6 +66,10 @@ def settings():
         location = weather.parse_location(values["farm_location"])
         for key in ("blight_from_month", "blight_to_month"):
             values[key] = str(form_int(key, int(Setting.DEFAULTS[key]), minimum=1, maximum=12))
+        if values["aerial_source"] not in aerial.SOURCES and values["aerial_source"] != "-":
+            values["aerial_source"] = Setting.DEFAULTS["aerial_source"]
+        if values["aerial_wms_url"] and not values["aerial_wms_url"].startswith(("https://", "http://")):
+            values["aerial_wms_url"] = ""
         if values["holiday_state"] not in agenda.STATES and values["holiday_state"] != "-":
             values["holiday_state"] = Setting.DEFAULTS["holiday_state"]
         if values["farm_location"] and location is None:
@@ -80,9 +84,9 @@ def settings():
             flash(_("Einstellungen gespeichert."), "success")
             return redirect(url_for("admin.settings"))
         return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS,
-                               states=agenda.STATES)
+                               states=agenda.STATES, aerial_sources=aerial.SOURCES)
     return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS,
-                           states=agenda.STATES)
+                           states=agenda.STATES, aerial_sources=aerial.SOURCES)
 
 
 @bp.route("/logo", methods=["POST"])

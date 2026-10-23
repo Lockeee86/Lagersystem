@@ -48,6 +48,33 @@
             <div class="form-text">{{ _("Auf der Wetterseite ist die Ampel immer zu sehen.") }}</div>
         </div>
     </div>
+    <div class="card shadow-sm mb-4" id="luftbild">
+        <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Schlagkarte") }}</div>
+        <div class="card-body">
+            <label class="form-label" for="aerial_source">{{ _(fields.aerial_source[0]) }}</label>
+            <select class="form-select" id="aerial_source" name="aerial_source">
+                {% for key, src in aerial_sources.items() %}<option value="{{ key }}" {% if values.aerial_source == key %}selected{% endif %}>{{ _(src.label) }}</option>{% endfor %}
+                <option value="-" {% if values.aerial_source == '-' %}selected{% endif %}>{{ _("kein Luftbild") }}</option>
+            </select>
+            <div class="row g-2 mt-1" id="aerialWms">
+                <div class="col-md-8"><label class="form-label small" for="aerial_wms_url">{{ _(fields.aerial_wms_url[0]) }}</label>
+                    <input class="form-control form-control-sm" id="aerial_wms_url" name="aerial_wms_url" maxlength="300" value="{{ values.aerial_wms_url }}" placeholder="https://…/wms"></div>
+                <div class="col-md-4"><label class="form-label small" for="aerial_wms_layer">{{ _(fields.aerial_wms_layer[0]) }}</label>
+                    <input class="form-control form-control-sm" id="aerial_wms_layer" name="aerial_wms_layer" maxlength="100" value="{{ values.aerial_wms_layer }}"></div>
+                <div class="col-12 form-text">{{ _("Die meisten Bundesländer bieten ihre Luftbilder (DOP) als freien WMS-Dienst an. Abgefragt wird in EPSG:4326.") }}</div>
+            </div>
+            <div class="form-text">{{ _("Der Server lädt die Luftbilder und speichert sie zwischen. Zum Prüfen nach dem Speichern:") }}
+                <a href="{{ url_for('fields.aerial_test') }}" target="_blank">{{ _("Luftbild am Hof-Standort testen") }}</a></div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var sel = document.getElementById("aerial_source"), box = document.getElementById("aerialWms");
+        function sync() { box.hidden = sel.value !== "wms"; }
+        sel.addEventListener("change", sync); sync();
+    })();
+    </script>
+
     <div class="card shadow-sm mb-4">
         <div class="card-header"><i class="bi bi-calendar3 me-1"></i>{{ _("Kalender") }}</div>
         <div class="card-body">

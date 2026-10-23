@@ -568,3 +568,9 @@ body:not(.has-tabbar) {
 .agenda-chip.is-continued { opacity: .75; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .week-list .week-day { width: 4.5rem; flex-shrink: 0; }
 .week-list .week-today { background: rgba(var(--brand-rgb), .08); }
+
+/* Schlagkarte mit Luftbild */
+.field-map-svg.with-aerial .field-shape { fill-opacity: .28; stroke: #fff; stroke-width: calc(var(--px, 1) * 2px); }
+.field-map-svg.with-aerial .field-label { fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .65); }
+.field-map-credit { position: absolute; left: .4rem; bottom: .3rem; z-index: 2; font-size: .65rem; color: #fff;
+    text-shadow: 0 0 3px rgba(0, 0, 0, .9); pointer-events: none; }

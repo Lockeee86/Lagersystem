@@ -289,6 +289,14 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Luftbild unter der Schlagkarte (0.24.0)
+Die Schlagkarte (und die kleine Karte auf der Schlagseite) zeigt ein Luftbild unter den Umrissen; Schalter rechts
+an der Karte, die Wahl merkt sich der Browser. Der Server holt das Bild für den sichtbaren Ausschnitt (EPSG:4326,
+passt ohne Umrechnung zu den Umrissen), speichert es zwischen (`luftbild-cache` neben den Uploads, max. 500 MB,
+nicht in der Datensicherung) und liefert es aus – die CSP bleibt bei 'self'. Quelle unter Verwaltung → Hof:
+Niedersachsen (LGLN DOP20, Open Data, Voreinstellung), Esri World Imagery oder ein eigener WMS; „Luftbild am
+Hof-Standort testen“ zeigt die Antwort des Dienstes.
+
 ### Tankbuch-Export (0.23.2)
 Admins exportieren das Tankbuch (Tankbuch → Export) für ein Jahr oder einen Zeitraum, optional für eine Maschine,
 als PDF (Hofname/Anschrift, Bestand am Anfang/Ende, Lieferungen mit Kosten, Liter/Tankungen/Zählerstände/Verbrauch/
