@@ -106,6 +106,12 @@ def create_app(config=None):
     cli.register(app)
 
     app.jinja_env.globals.update(_=gettext, ngettext=ngettext, get_locale=get_locale)
+
+    def url_without(*params):
+        """Aktuelle Seite ohne die genannten Parameter (und ohne Seitenzahl) – für die Filter-Chips."""
+        args = {k: v for k, v in request.args.items(multi=True) if k not in params and k != "page"}
+        return url_for(request.endpoint, **(request.view_args or {}), **args)
+    app.jinja_env.globals["url_without"] = url_without
     login_manager.localize_callback = gettext
     app.jinja_env.filters.update(
         datetime=utils.fmt_datetime,
@@ -138,6 +144,9 @@ def create_app(config=None):
             "my_task_count": g.my_tasks,
             "purchase_count": g.purchase_count,
             "nav": navigation.current(request.endpoint, current_user) if current_user.is_authenticated else None,
+            "mobile_tab": navigation.tab_for(request.endpoint, request.view_args),
+            "mobile_crumb": navigation.crumb(request.endpoint, request.view_args)
+            if current_user.is_authenticated else None,
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,
             "ROLES": ROLES,

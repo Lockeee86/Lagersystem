@@ -14,9 +14,11 @@
 <span class="fill-bar" title="{{ _('Füllstand') }} {{ fill }} %"><span style="width: {{ fill }}%"></span></span>
 {%- endmacro %}
 
-{% macro location_badge(box) -%}
-{%- if box.is_stored -%}
+{% macro location_badge(box, link=true) -%}
+{%- if box.is_stored and link -%}
 <a class="loc-badge" href="{{ url_for('main.stack_view', warehouse_id=box.warehouse_id, row=box.row, slot=box.slot) }}"><i class="bi bi-geo-alt"></i>{{ box.location }}</a>
+{%- elif box.is_stored -%}
+<span class="loc-badge"><i class="bi bi-geo-alt"></i>{{ box.location }}</span>
 {%- else -%}
 <span class="loc-badge loc-none"><i class="bi bi-dash-circle"></i>{{ _("nicht eingelagert") }}</span>
 {%- endif -%}
@@ -62,3 +64,24 @@
 </nav>
 {% endif %}
 {% endmacro %}
+
+
+{# Listen am Handy: Filter hinter einem Knopf, aktive Filter als Chips zum Wegtippen.
+   filter_toggle(id, n) = der Knopf; die Auswahlfelder liegen in <div class="collapse filter-more" id="…"><div class="row g-2">…
+   (am PC immer sichtbar). filter_chips([(param, Text), …]) = die Chips; × entfernt den Parameter aus der Adresse. #}
+{% macro filter_toggle(id, active) -%}
+<button class="btn btn-outline-secondary filter-toggle d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#{{ id }}" aria-expanded="false" aria-controls="{{ id }}">
+    <i class="bi bi-sliders2"></i><span class="ms-1">{{ _("Filter") }}</span>{% if active %}<span class="badge rounded-pill text-bg-primary ms-1">{{ active }}</span>{% endif %}
+</button>
+{%- endmacro %}
+
+{% macro filter_chips(chips, summary=none) -%}
+{%- if chips or summary -%}
+<div class="filter-chips d-lg-none">
+    {%- for param, label in chips %}
+    <a class="filter-chip" href="{{ url_without(param) }}" aria-label="{{ _('Filter „{name}“ entfernen', name=label) }}">{{ label }}<i class="bi bi-x"></i></a>
+    {%- endfor %}
+    {%- if summary %}<span class="text-body-secondary small">{{ summary }}</span>{% endif %}
+</div>
+{%- endif -%}
+{%- endmacro %}

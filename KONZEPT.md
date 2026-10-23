@@ -320,6 +320,23 @@ prüfen“ misst DNS, Verbindung, Capabilities und Testbild einzeln mit Dauer un
 0.27.6: Antwortet der Dienst mit einer Webseite (z. B. Wartungsseite des LGLN), meldet die App deren Titel
 („Der Dienst antwortet mit einer Webseite statt mit Daten: „Wartungsarbeiten““) und fragt 2 Minuten nicht erneut.
 
+### Handy-Ansicht aufgeräumt (0.28.0)
+Ausgangslage: Die Startseite war am Handy über 6 Bildschirmhöhen lang, vieles stand doppelt (Kachel + Karte), dazu
+drei Navigationswege (Kacheln, Reiterleiste oben, Leiste unten). Entscheidungen (Entwürfe A–D besprochen):
+- **Untere Leiste**: Heute · Lager · Scannen · Feld & Hof · Mehr. Lager, Feld & Hof und Mehr öffnen eine
+  **Bereichsseite** (`/bereich/<key>`, `navigation.HUBS`/`hub()`) mit großen Zeilen und dem Stand je Punkt
+  (`views._status`: „2 Störungen“, „3682 l im Tank“ …). Die Reiterleiste oben gibt es nur noch am PC; am Handy
+  steht über dem Inhalt ein Zurück-Link zum Bereich (`navigation.crumb`).
+- **Startseite am Handy** („Heute“): Gruß und Datum, Info-Chips (Wetter, Frost, Krautfäule bei hohem Risiko, Tank),
+  **Schnellzugriff** (die ersten 4 der einstellbaren Kacheln, ohne Scannen – `tiles.quick`), **„Jetzt wichtig“**
+  (eine Liste statt einzelner Karten: Datensicherung, Störungen, fällige Aufgaben, überfällige Wartungen, offene
+  Lieferscheine, gelieferte Bestellungen – `views._important`, 4 sichtbar, Rest aufklappbar) und die Termine.
+  Lagerzahlen (Kennzahlen, Bestand je Sorte, Belegung, letzte Bewegungen) stehen am Handy auf der Lager-Seite
+  (`partials/stock_overview.html`, `views._stock_overview`). Am PC bleibt die Startseite wie bisher.
+- **Listen kompakt**: Suche + „Filter“-Knopf, aktive Filter als Chips zum Wegtippen (`macros.filter_toggle`,
+  `filter_chips`, Jinja-Global `url_without`), eine Zeile je Kiste/Schlag; Aufgaben mit einzeiliger Zusatzzeile.
+  Nebenbei behoben: In der Kistenliste steckte der Platz-Link in einem Link (ungültiges HTML, brach die Zeile).
+
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im
 Kalender (eigene Termine, Termine für alle, eigene Aufgaben/Wartungen; Feiertage bleiben). Die Wahl merkt sich der

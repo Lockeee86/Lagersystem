@@ -97,6 +97,58 @@ def current(endpoint, user):
     return {"areas": areas, "area": area, "items": items, "active": active}
 
 
+# --- Handy: untere Leiste und Bereichsseiten ----------------------------------------------
+# Unten: Heute · Lager · Scannen · Feld & Hof · Mehr. „Lager“, „Feld & Hof“ und „Mehr“ öffnen eine Bereichsseite
+# (`main.area`) mit großen Zeilen; die Reiterleiste oben gibt es nur am PC.
+HUBS = {"lager": N_("Lager"), "feld": N_("Feld & Hof"), "mehr": N_("Mehr")}
+MORE_EXTRA = [
+    item("admin.index", N_("Verwaltung"), "bi-sliders", role=ROLE_ADMIN),
+    item("auth.account", N_("Mein Konto"), "bi-person-gear"),
+]
+
+
+def tab_for(endpoint, view_args=None):
+    """Welcher Punkt der unteren Leiste zum Endpunkt gehört: heute | lager | scan | feld | mehr."""
+    endpoint = endpoint or ""
+    if endpoint == "main.area":
+        return (view_args or {}).get("key")
+    if endpoint == "main.dashboard":
+        return "heute"
+    if endpoint == "main.scan":
+        return "scan"
+    area = next((a for a in AREAS if any(_active(it, endpoint) for it in a["items"])), None)
+    if area and area["key"] in ("lager", "feld"):
+        return area["key"]
+    return "mehr"
+
+
+def hub(key, user):
+    """Gruppen der Bereichsseite: [{"label", "items": [...]}] – nur, was die Rolle darf."""
+    by_key = {a["key"]: a for a in AREAS}
+    if key in ("lager", "feld"):
+        items = [it for it in _visible(by_key[key]["items"], user) if it["endpoint"] != "main.scan"]
+        return [{"label": None, "items": items}]
+    start = [it for it in _visible(by_key["start"]["items"], user) if it["endpoint"] != "main.dashboard"]
+    return [g for g in (
+        {"label": None, "items": start},
+        {"label": by_key["verkauf"]["label"], "items": _visible(by_key["verkauf"]["items"], user)},
+        {"label": None, "items": _visible(MORE_EXTRA, user)},
+    ) if g["items"]]
+
+
+def crumb(endpoint, view_args=None):
+    """Zurück-Link am Handy über dem Seiteninhalt (statt der Reiterleiste): (Ziel-URL, Text) oder None."""
+    endpoint = endpoint or ""
+    if endpoint in ("main.dashboard", "main.area", "main.scan") or not endpoint:
+        return None
+    if endpoint.startswith("admin.") and endpoint != "admin.index":
+        return url_for("admin.index"), ADMIN["label"]
+    key = tab_for(endpoint, view_args)
+    if key in HUBS:
+        return url_for("main.area", key=key), HUBS[key]
+    return None
+
+
 def admin_tiles():
     return [{**it, "hint": ADMIN_HINTS.get(it["endpoint"]), "url": url_for(it["endpoint"])}
             for it in ADMIN["items"] if it["endpoint"] != "admin.index"]

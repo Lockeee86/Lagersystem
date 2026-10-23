@@ -13,10 +13,12 @@
     <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{{ url_for('tasks.task_detail', task_id=task.id) }}">
         <div class="d-flex flex-wrap gap-2 align-items-baseline">
             <span class="fw-semibold task-title">{{ task.title }}</span>
-            {% if task.important and not task.is_done %}<span class="badge text-bg-danger">{{ _("wichtig") }}</span>{% endif %}
-            {% if task.recurrence %}<span class="small text-body-secondary" title="{{ task.recurrence_label }}"><i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}</span>{% endif %}
+            {% if task.important and not task.is_done %}<span class="badge text-bg-danger d-none d-lg-inline">{{ _("wichtig") }}</span>{% endif %}
+            {% if task.recurrence %}<span class="small text-body-secondary d-none d-lg-inline" title="{{ task.recurrence_label }}"><i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}</span>{% endif %}
         </div>
         <div class="small text-body-secondary task-meta">
+            {% if task.important and not task.is_done %}<span class="text-danger fw-semibold d-lg-none"><i class="bi bi-exclamation-circle-fill"></i> {{ _("wichtig") }}</span>{% endif %}
+            {% if task.recurrence %}<span class="d-lg-none"><i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}</span>{% endif %}
             {% if task.is_done %}
             <span>{{ _("erledigt {date}", date=task.done_at|datetime) }}{% if task.done_by %} · {{ task.done_by.name }}{% endif %}</span>
             {% elif task.due_on %}

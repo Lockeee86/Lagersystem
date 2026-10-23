@@ -20,10 +20,38 @@ def test_area_and_subnav(as_admin, as_worker, seed):
     assert "Kistentypen" not in as_admin.get("/schlagkarte").get_data(as_text=True)
 
 
-def test_mobile_tiles_and_tabbar(as_worker, seed):
+def test_mobile_start_and_tabbar(as_worker, as_admin, db, seed):
     html = as_worker.get("/").get_data(as_text=True)
-    assert 'class="area-tiles d-lg-none"' in html and 'href="/suche"' in html
-    assert "Verwaltung" not in html          # Mitarbeiter sehen die Kachel nicht
+    # untere Leiste: Heute · Lager · Scannen · Feld & Hof · Mehr
+    for href in ('href="/bereich/lager"', 'href="/scan"', 'href="/bereich/feld"', 'href="/bereich/mehr"'):
+        assert href in html, href
+    assert 'class="quick-row d-lg-none"' in html and "Jetzt wichtig" in html
+    assert "Alles erledigt" in html                           # noch nichts Dringendes
+    tasks.create_task(seed["admin"], title="Zaun reparieren", assignees=[seed["worker"]], important=True)
+    db.session.commit()
+    html = as_worker.get("/").get_data(as_text=True)
+    assert "Zaun reparieren" in html and "dot-danger" in html
+
+
+def test_area_pages(as_worker, as_admin, as_viewer, seed):
+    html = as_worker.get("/bereich/feld").get_data(as_text=True)
+    assert "Schläge" in html and "Tankbuch" in html and "Pflanzenschutz" in html and "?tanken=1" in html
+    html = as_worker.get("/bereich/lager").get_data(as_text=True)
+    assert "Kisten" in html and "Bestand je Sorte" in html and "Letzte Bewegungen" in html
+    html = as_worker.get("/bereich/mehr").get_data(as_text=True)
+    assert "Aufgaben" in html and "Lieferscheine" in html and "Mein Konto" in html and "/admin/" not in html
+    assert 'href="/admin/"' in as_admin.get("/bereich/mehr").get_data(as_text=True)
+    assert "?tanken=1" not in as_viewer.get("/bereich/feld").get_data(as_text=True)   # Betrachter tankt nicht
+    assert as_worker.get("/bereich/gibtsnicht").status_code == 404
+    # Zurück-Link am Handy statt der Reiterleiste
+    assert 'class="mobile-crumb d-lg-none" href="/bereich/lager"' in as_worker.get("/kisten").get_data(as_text=True)
+    assert 'href="/bereich/mehr"' in as_worker.get("/aufgaben").get_data(as_text=True)
+
+
+def test_filter_chips(as_worker, db, seed):
+    html = as_worker.get(f"/kisten?sorte={seed['belana'].id}&status=befuellt").get_data(as_text=True)
+    assert 'class="filter-chip" href="/kisten?status=befuellt"' in html     # × entfernt nur die Sorte
+    assert ">Belana<i" in html and 'data-bs-target="#boxFilters"' in html
 
 
 def test_search(as_worker, db, seed):

@@ -84,8 +84,8 @@
         </div>
     </div>
     {% if nav["items"]|length > 1 %}
-    {# Am Handy stehen Heute/Aufgaben/Suche schon in der Leiste unten #}
-    <nav class="app-subnav {% if nav.area.key == 'start' %}d-none d-lg-block{% endif %}" aria-label="{{ _(nav.area.label) }}">
+    {# Am Handy gibt es statt der Reiterleiste die Bereichsseiten (untere Leiste) #}
+    <nav class="app-subnav d-none d-lg-block" aria-label="{{ _(nav.area.label) }}">
         <div class="container-xl">
             {% for it in nav["items"] %}
             <a href="{{ url_for(it.endpoint) }}" class="{% if nav.active == it.endpoint %}active{% endif %}"><i class="bi {{ it.icon }}"></i>{{ _(it.label) }}{% if it.badge == "tasks" and my_task_count %}<span class="badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}{% if it.badge == "purchases" and purchase_count %}<span class="badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}</a>
@@ -109,16 +109,17 @@
     </div>
     {% endif %}
     {% endwith %}
+    {% if mobile_crumb %}<a class="mobile-crumb d-lg-none" href="{{ mobile_crumb[0] }}"><i class="bi bi-chevron-left"></i>{{ _(mobile_crumb[1]) }}</a>{% endif %}
     {% block content %}{% endblock %}
 </main>
 
 {% if current_user.is_authenticated %}
-<nav class="tabbar d-lg-none">
-    <a href="{{ url_for('main.dashboard') }}" class="{% if ep == 'main.dashboard' %}active{% endif %}"><i class="bi bi-house"></i><span>{{ _("Start") }}</span></a>
-    <a href="{{ url_for('main.warehouse_map') }}" class="{% if nav.area and nav.area.key == 'lager' and ep != 'main.scan' %}active{% endif %}"><i class="bi bi-grid-3x3-gap"></i><span>{{ _("Lager") }}</span></a>
-    <a href="{{ url_for('main.scan') }}" class="tabbar-scan {% if ep == 'main.scan' %}active{% endif %}" aria-label="{{ _('Scannen') }}"><i class="bi bi-qr-code-scan"></i></a>
-    <a href="{{ url_for('tasks.task_list') }}" class="{% if ep.startswith('tasks.') %}active{% endif %}"><i class="bi bi-list-check"></i><span>{{ _("Aufgaben") }}</span>{% if my_task_count %}<span class="tab-badge">{{ my_task_count }}</span>{% endif %}</a>
-    <a href="{{ url_for('main.search') }}" class="{% if ep == 'main.search' %}active{% endif %}"><i class="bi bi-search"></i><span>{{ _("Suche") }}</span></a>
+<nav class="tabbar d-lg-none" aria-label="{{ _('Hauptmenü') }}">
+    <a href="{{ url_for('main.dashboard') }}" class="{% if mobile_tab == 'heute' %}active{% endif %}"><i class="bi bi-house"></i><span>{{ _("Heute") }}</span>{% if my_task_count %}<span class="tab-badge">{{ my_task_count }}</span>{% endif %}</a>
+    <a href="{{ url_for('main.area', key='lager') }}" class="{% if mobile_tab == 'lager' %}active{% endif %}"><i class="bi bi-grid-3x3-gap"></i><span>{{ _("Lager") }}</span></a>
+    <a href="{{ url_for('main.scan') }}" class="tabbar-scan {% if mobile_tab == 'scan' %}active{% endif %}" aria-label="{{ _('Scannen') }}"><i class="bi bi-qr-code-scan"></i></a>
+    <a href="{{ url_for('main.area', key='feld') }}" class="{% if mobile_tab == 'feld' %}active{% endif %}"><i class="bi bi-map"></i><span>{{ _("Feld & Hof") }}</span></a>
+    <a href="{{ url_for('main.area', key='mehr') }}" class="{% if mobile_tab == 'mehr' %}active{% endif %}"><i class="bi bi-list"></i><span>{{ _("Mehr") }}</span>{% if purchase_count %}<span class="tab-badge">{{ purchase_count }}</span>{% endif %}</a>
 </nav>
 {% endif %}
 

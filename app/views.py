@@ -8,15 +8,15 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import agenda, backup, fuel, machines, purchases, sales, search, storage, tasks, tiles, weather
+from . import agenda, backup, fuel, machines, navigation, purchases, sales, search, storage, tasks, tiles, weather
 from .extensions import db
-from .i18n import N_, gettext as _
+from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
 from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, Machine, Movement, Plot, SeedClass, User, Variety,
                      Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
-                    form_str)
+                    fmt_date, fmt_num, form_str)
 
 bp = Blueprint("main", __name__)
 
@@ -86,9 +86,50 @@ def _tile_info(key):
     return None
 
 
-@bp.route("/")
-@login_required
-def dashboard():
+def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today):
+    """„Jetzt wichtig“ auf der Startseite am Handy: eine Liste statt einzelner Karten, Dringendes zuerst.
+    Je Eintrag {level: danger|warning|success, title, sub, url}. Störungen, zu denen es schon eine Aufgabe gibt,
+    erscheinen nur einmal (als Aufgabe)."""
+    items = []
+    if backup_alert:
+        items.append({"level": "danger", "title": _("Datensicherung"),
+                      "sub": _("fehlgeschlagen") if backup_alert == "failed" else _("seit über einem Tag keine"),
+                      "url": url_for("admin.backups")})
+    task_faults = {t.machine_event_id for t in due_now if t.machine_event_id}
+    for e in faults:
+        if e.id not in task_faults:
+            items.append({"level": "danger", "title": e.machine.name, "sub": _("Störung") + (f" · {e.text}" if e.text else ""),
+                          "url": url_for("machines.machine_detail", machine_id=e.machine_id) + "#logbuch"})
+    for t in due_now:
+        overdue = t.due_on is not None and t.due_on < today
+        if overdue:
+            sub = _("überfällig seit {date}", date=fmt_date(t.due_on))
+        elif t.due_on is None:
+            sub = _("ohne Termin")
+        else:
+            sub = _("heute")
+        if t.machine:
+            sub += f" · {t.machine.name}"
+        items.append({"level": "danger" if overdue or t.important else "warning", "title": t.title, "sub": sub,
+                      "url": url_for("tasks.task_detail", task_id=t.id)})
+    for task, status in due_maintenance:
+        if status["state"] == "overdue":
+            items.append({"level": "warning", "title": f"{task.machine.name}: {task.name}", "sub": _("Wartung überfällig"),
+                          "url": url_for("machines.machine_detail", machine_id=task.machine_id) + "#wartungen"})
+    for d in deliveries:
+        items.append({"level": "warning", "title": _("{number} verladen", number=d.number),
+                      "sub": f"{d.customer.name} · " + ngettext("{n} Kiste", "{n} Kisten", d.box_count),
+                      "url": url_for("sales.delivery_detail", delivery_id=d.id)})
+    for r in arrived:
+        items.append({"level": "success", "title": _("{title} ist da", title=r.title), "sub": _("Bestellung"),
+                      "url": url_for("purchases.purchase_detail", req_id=r.id)})
+    order = {"danger": 0, "warning": 1, "success": 2}
+    return sorted(items, key=lambda i: order[i["level"]])
+
+
+def _stock_overview(recent_limit=12):
+    """Lagerzahlen für Startseite (PC) und Lager-Bereichsseite (Handy): Belegung je Lager, Bestand je Sorte,
+    Kennzahlen, letzte Bewegungen."""
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     boxes = Box.query.all()
 
@@ -129,21 +170,34 @@ def dashboard():
         "kg": sum(b.weight_kg for b in boxes),
         "filled_not_stored": sum(1 for b in boxes if not b.is_empty and not b.is_stored),
     }
-    recent = Movement.query.order_by(Movement.created_at.desc()).limit(12).all()
+    recent = Movement.query.order_by(Movement.created_at.desc()).limit(recent_limit).all()
+    return {"occupancy": occupancy, "varieties": varieties, "max_kg": max_kg, "stats": stats, "recent": recent}
+
+
+@bp.route("/")
+@login_required
+def dashboard():
+    stock = _stock_overview()
     choice = request.args.get(WEEK_COOKIE)
     if choice not in ("alle", "meine"):
         choice = None
     week_mine = (choice or request.cookies.get(WEEK_COOKIE)) == "meine"
-    response = make_response(render_template("dashboard.html", week_mine=week_mine, occupancy=occupancy, varieties=varieties,
-                           max_kg=max_kg, stats=stats, recent=recent, open_deliveries=sales.open_deliveries(),
-                           due_tasks=machines.due_tasks(), open_faults=machines.open_faults(),
+    today = date.today()
+    due_now = tasks.due_now(None if current_user.is_admin else current_user)
+    open_deliveries, due_maintenance, faults = sales.open_deliveries(), machines.due_tasks(), machines.open_faults()
+    arrived = purchases.arrived_for(current_user)
+    backup_alert = backup.needs_attention() if current_user.is_admin else None
+    important = _important(due_now, faults, due_maintenance, open_deliveries if current_user.can_edit else [],
+                           arrived, backup_alert, today)
+    response = make_response(render_template("dashboard.html", week_mine=week_mine, **stock,
+                           open_deliveries=open_deliveries, important=important,
+                           due_tasks=due_maintenance, open_faults=faults,
                            weather=weather.get_weather(), show_blight=weather.blight_in_season(),
-                           due_tasks_now=tasks.due_now(None if current_user.is_admin else current_user),
-                           today=date.today(), plot_stats=_plot_stats(),
+                           due_tasks_now=due_now, today=today, plot_stats=_plot_stats(),
                            purchase_open=purchases.open_requests(current_user) if current_user.is_buyer else [],
-                           purchase_arrived=purchases.arrived_for(current_user),
-                           backup_alert=backup.needs_attention() if current_user.is_admin else None,
-                           tiles=tiles.for_user(current_user), tile_catalog=tiles.CATALOG, tile_info=_tile_info,
+                           purchase_arrived=arrived, backup_alert=backup_alert,
+                           tank=fuel.status() if current_user.can_edit else None,
+                           quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
                            week=_week(mine_only=week_mine),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None))
@@ -151,6 +205,84 @@ def dashboard():
         response.set_cookie(WEEK_COOKIE, choice, max_age=365 * 24 * 3600, samesite="Lax", httponly=True,
                             secure=request.is_secure)
     return response
+
+
+def _status(endpoint):
+    """Kurzer Stand je Unterpunkt für die Bereichsseiten am Handy: (Text, Warnung?) oder (None, False)."""
+    if endpoint == "main.warehouse_map":
+        occ = _stock_overview(0)["occupancy"]
+        return (_("{n} % belegt", n=occ[0]["percent"]) if occ else None), False
+    if endpoint == "main.boxes":
+        n = Box.query.filter(Box.fill > 0).count()
+        return ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", n), False
+    if endpoint == "main.history":
+        return _("Ein- und Auslagern, Änderungen"), False
+    if endpoint == "main.labels":
+        return _("QR-Etiketten drucken"), False
+    if endpoint == "fields.field_map":
+        p = _plot_stats()
+        return (f"{p['count']} · {fmt_num(p['ha'], 0)} ha" if p["ha"] else str(p["count"])), False
+    if endpoint == "fields.rotation_page":
+        return _("Plan und Anbaupausen"), False
+    if endpoint == "fields.protection":
+        n = _tile_info("pflanzenschutz")
+        return (ngettext("{n} Wartezeit läuft", "{n} Wartezeiten laufen", n) if n else _("keine Wartezeit")), bool(n)
+    if endpoint == "machines.machine_list":
+        faults, due = machines.open_faults(), machines.due_tasks()
+        if faults:
+            return ngettext("{n} Störung", "{n} Störungen", len(faults)), True
+        if due:
+            return ngettext("{n} Wartung fällig", "{n} Wartungen fällig", len(due)), True
+        return _("alles in Ordnung"), False
+    if endpoint == "fuel.tank":
+        tank = fuel.status()
+        return ((_("{liters} l im Tank", liters=fmt_num(tank["liters"], 0)) if tank["has_entries"]
+                 else _("Liter eintragen")), bool(tank.get("low")))
+    if endpoint == "main.weather_page":
+        w = weather.get_weather()
+        if not w or w.get("error") or not w.get("current"):
+            return None, False
+        text = f"{fmt_num(w['current']['temp'], 0)} °C"
+        if w.get("frost"):
+            text += " · " + (_("Frost") if w["frost"]["level"] == "frost" else _("Bodenfrost"))
+        return text, bool(w.get("frost"))
+    if endpoint == "tasks.task_list":
+        n = len(tasks.due_now(current_user)) if current_user.can_edit else 0
+        return (ngettext("{n} für heute", "{n} für heute", n) if n else _("nichts fällig")), bool(n)
+    if endpoint == "purchases.purchase_list":
+        arrived = purchases.arrived_for(current_user)
+        if arrived:
+            return ngettext("{n} ist da", "{n} sind da", len(arrived)), True
+        if current_user.is_buyer:
+            return ngettext("{n} offen", "{n} offen", len(purchases.open_requests(current_user))), False
+        return _("Teil anfragen"), False
+    if endpoint == "agenda.month":
+        n = _tile_info("kalender")
+        return ngettext("{n} Termin in 14 Tagen", "{n} Termine in 14 Tagen", n), False
+    if endpoint == "main.search":
+        return _("Kisten, Schläge, Maschinen …"), False
+    if endpoint == "sales.deliveries":
+        n = len(sales.open_deliveries())
+        return (ngettext("{n} Lieferschein offen", "{n} Lieferscheine offen", n) if n else None), bool(n)
+    return None, False
+
+
+@bp.route("/bereich/<key>")
+@login_required
+def area(key):
+    """Bereichsseite fürs Handy (untere Leiste): Unterpunkte als große Zeilen mit Stand, bei „Lager“ die Lagerzahlen."""
+    if key not in navigation.HUBS:
+        abort(404)
+    groups = []
+    for group in navigation.hub(key, current_user):
+        rows = []
+        for it in group["items"]:
+            text, warn = _status(it["endpoint"])
+            rows.append({**it, "url": url_for(it["endpoint"]), "status": text, "warn": warn})
+        groups.append({"label": group["label"], "rows": rows})
+    return render_template("area.html", key=key, title=navigation.HUBS[key], groups=groups,
+                           stock=_stock_overview(5) if key == "lager" else None,
+                           tank=fuel.status() if key == "feld" and current_user.can_edit else None)
 
 
 @bp.route("/startseite/kacheln", methods=["GET", "POST"])

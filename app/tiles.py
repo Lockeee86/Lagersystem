@@ -1,4 +1,5 @@
-"""Kacheln auf der Übersicht (Handy): Voreinstellung je Rolle, jeder kann Kacheln dazunehmen oder ausblenden.
+"""Schnellzugriff auf der Übersicht (Handy, die ersten 4): Voreinstellung je Rolle, jeder kann Kacheln dazunehmen
+oder ausblenden.
 
 Sichtbar = Voreinstellung der Rolle + eigene Zusätze − eigene ausgeblendete, nur was die Rolle darf,
 immer in der Reihenfolge des Katalogs. Ändert der Admin die Voreinstellung, bekommen alle die Änderung,
@@ -36,11 +37,16 @@ CATALOG = {
 }
 
 DEFAULTS = {
-    ROLE_ADMIN: ["aufgaben", "lager", "kisten", "verkauf", "maschinen", "bestellungen", "kalender", "schlaege",
-                 "wetter", "verlauf", "verwaltung"],
-    ROLE_MITARBEITER: ["scan", "tanken", "aufgaben", "lager", "kisten", "maschinen", "bestellungen", "wetter"],
-    ROLE_BETRACHTER: ["lager", "kisten", "schlaege", "wetter", "verlauf"],
+    ROLE_ADMIN: ["aufgaben", "bestellungen", "kalender", "tankbuch"],
+    ROLE_MITARBEITER: ["tanken", "aufgaben", "maschinen", "bestellungen"],
+    ROLE_BETRACHTER: ["lager", "schlaege", "kalender", "wetter"],
 }
+QUICK_COUNT = 4             # so viele erscheinen am Handy im Schnellzugriff (Scannen steht schon in der Leiste)
+
+
+def quick(keys):
+    """Die Kacheln für den Schnellzugriff am Handy: die ersten 4 der Auswahl, ohne „Scannen“."""
+    return [k for k in keys if k != "scan"][:QUICK_COUNT]
 
 
 def _split(text):

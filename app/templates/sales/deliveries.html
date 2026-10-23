@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import pagination, csrf %}
+{% from "macros.html" import pagination, csrf, filter_toggle, filter_chips %}
 {% block title %}{{ _("Lieferscheine") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -46,8 +46,14 @@
 </div>
 {% endif %}
 
-<form class="filter-bar card shadow-sm mb-3" method="get">
+{% set chips = [] %}
+{% if args.get('kunde') %}{% for c in customers if c.id == args.get('kunde')|int %}{% set _x = chips.append(('kunde', c.name)) %}{% endfor %}{% endif %}
+{% if args.get('status') in statuses %}{% set _x = chips.append(('status', _(statuses[args.get('status')]))) %}{% endif %}
+{% if args.get('jahr') %}{% set _x = chips.append(('jahr', args.get('jahr'))) %}{% endif %}
+<form class="filter-bar card shadow-sm mb-2 mb-lg-3" method="get">
     <div class="card-body row g-2">
+        <div class="col-12 d-flex justify-content-end d-lg-none">{{ filter_toggle("deliveryFilters", chips|length) }}</div>
+        <div class="collapse filter-more" id="deliveryFilters"><div class="row g-2">
         <div class="col-12 col-md">
             <select class="form-select" name="kunde" onchange="this.form.submit()">
                 <option value="">{{ _("Alle Kunden") }}</option>
@@ -66,8 +72,10 @@
                 {% for y in years %}<option value="{{ y }}" {% if args.get('jahr')|int == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
             </select>
         </div>
+        </div></div>
     </div>
 </form>
+{{ filter_chips(chips) }}
 
 <div class="card shadow-sm">
     <div class="list-group list-group-flush">

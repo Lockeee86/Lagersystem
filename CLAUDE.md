@@ -56,8 +56,8 @@ docker compose up --build -d
   iCal-Ausgabe `ics()`. `app/agenda_views.py` (Blueprint `agenda`, Abo über `User.calendar_token`)
 - `app/branding.py`: Logo (Standard aus `static/img/` oder eigenes aus `UPLOAD_DIR/branding/`), in Templates
   `logo_url("logo-64" | "logo-512" | "icon-180" …)`, Auslieferung über `/logo/<name>.png`
-- `app/tiles.py`: Kacheln der Übersicht (Katalog `CATALOG`, Voreinstellung je Rolle in `settings` `tiles_<rolle>`,
-  persönliche Abweichung `User.tiles_add`/`tiles_hide`); Untertitel je Kachel in `dashboard.html`
+- `app/tiles.py`: Schnellzugriff der Übersicht am Handy (die ersten 4 ohne Scannen, `quick()`; Katalog `CATALOG`,
+  Voreinstellung je Rolle in `settings` `tiles_<rolle>`, persönliche Abweichung `User.tiles_add`/`tiles_hide`)
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
   Rechte über `PurchaseRequest.can_handle`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`
@@ -73,7 +73,12 @@ docker compose up --build -d
   Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
 - `app/navigation.py`: Bereiche (Übersicht, Lager, Feld & Hof, Verkauf) mit Unterpunkten und die Verwaltung –
-  neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste und Kacheln. `app/search.py`: Suche
+  neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste (PC) und auf den Bereichsseiten (Handy,
+  `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`). `app/search.py`: Suche
+- Handy: untere Leiste in `base.html` (`mobile_tab`, Zurück-Link `mobile_crumb`), Startseite mit „Jetzt wichtig“
+  (`views._important`) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
+  `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).
+  Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,

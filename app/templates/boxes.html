@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import variety_chip, fill_bar, location_badge, pagination, csrf %}
+{% from "macros.html" import variety_chip, fill_bar, location_badge, pagination, csrf, filter_toggle, filter_chips %}
 {% block title %}{{ _("Kisten") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -38,14 +38,21 @@
 </div>
 {% endif %}
 
-<form class="filter-bar card shadow-sm mb-3" method="get">
+{% set chips = [] %}
+{% if args.get('sorte') %}{% for v in varieties if v.id == args.get('sorte')|int %}{% set _x = chips.append(('sorte', v.name)) %}{% endfor %}{% endif %}
+{% if args.get('schlag') %}{% for p in plots if p.id == args.get('schlag')|int %}{% set _x = chips.append(('schlag', p.name)) %}{% endfor %}{% endif %}
+{% if args.get('status') and args.get('status') in filters %}{% set _x = chips.append(('status', _(filters[args.get('status')][0]))) %}{% endif %}
+{% if args.get('lager') %}{% for wh in warehouses if wh.id == args.get('lager')|int %}{% set _x = chips.append(('lager', wh.name)) %}{% endfor %}{% endif %}
+<form class="filter-bar card shadow-sm mb-2 mb-lg-3" method="get">
     <div class="card-body row g-2">
-        <div class="col-12 col-lg-3">
+        <div class="col-12 col-lg-3 d-flex gap-2">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="{{ _('Code, Schlag, Notiz …') }}">
+                <input class="form-control" name="q" value="{{ args.get('q', '') }}" placeholder="{{ _('Code, Schlag, Notiz …') }}" aria-label="{{ _('Suche') }}">
             </div>
+            {{ filter_toggle("boxFilters", chips|length) }}
         </div>
+        <div class="collapse filter-more" id="boxFilters"><div class="row g-2">
         <div class="col-6 col-md">
             <select class="form-select" name="sorte" onchange="this.form.submit()">
                 <option value="">{{ _("Alle Sorten") }}</option>
@@ -81,8 +88,11 @@
                 {% endfor %}
             </select>
         </div>
+        </div></div>
     </div>
 </form>
+
+{{ filter_chips(chips) }}
 
 {% if page.items %}
 <div class="card shadow-sm">
@@ -90,12 +100,12 @@
         {% for b in page.items %}
         <a class="list-group-item list-group-item-action box-row" href="{{ url_for('main.box_detail', code=b.code) }}" style="--c: {{ b.color or 'var(--box-blank)' }}">
             <span class="box-row-code">{{ b.code }}</span>
-            <span class="box-row-variety">{{ variety_chip(b.variety, b.is_empty) }}</span>
+            <span class="box-row-variety">{{ variety_chip(b.variety, b.is_empty) }}{% if b.plot %}<span class="box-row-plot d-lg-none"> {{ b.plot.name }}</span>{% endif %}</span>
             <span class="box-row-fill">{{ fill_bar(b.fill) }}<span class="small text-body-secondary">{{ b.fill_label }}</span></span>
-            <span class="box-row-meta small text-body-secondary">
+            <span class="box-row-meta small text-body-secondary d-none d-lg-block">
                 {% if b.harvest_date %}{{ b.harvest_date|date }}{% endif %}{% if b.plot %} · {{ b.plot.name }}{% endif %}
             </span>
-            <span class="box-row-loc">{{ location_badge(b) }}</span>
+            <span class="box-row-loc">{{ location_badge(b, link=false) }}</span>
         </a>
         {% endfor %}
     </div>

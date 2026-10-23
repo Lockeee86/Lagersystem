@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ _(title) }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>{{ _(title) }}</h1>
+</div>
+
+{% for group in groups %}
+{% if group.label %}<h2 class="hub-heading">{{ _(group.label) }}</h2>{% endif %}
+<div class="hub-list mb-3">
+    {% for r in group.rows %}
+    <a class="hub-row" href="{{ r.url }}">
+        <span class="hub-icon {{ 'warn' if r.warn }}"><i class="bi {{ r.icon }}"></i></span>
+        <span class="hub-text">
+            <span class="hub-title">{{ _(r.label) }}</span>
+            {% if r.status %}<span class="hub-status {{ 'warn' if r.warn }}">{{ r.status }}</span>{% endif %}
+        </span>
+        <i class="bi bi-chevron-right hub-chevron"></i>
+    </a>
+    {% endfor %}
+</div>
+{% endfor %}
+
+{% if key == "feld" and tank is not none %}
+<div class="d-grid mb-4">
+    <a class="btn btn-primary btn-lg" href="{{ url_for('fuel.tank', tanken=1) }}"><i class="bi bi-fuel-pump me-2"></i>{{ _("Tanken") }}</a>
+</div>
+{% endif %}
+
+{% if key == "mehr" %}
+<form method="post" action="{{ url_for('auth.logout') }}" class="mb-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline-danger w-100"><i class="bi bi-box-arrow-right me-1"></i>{{ _("Abmelden") }}</button>
+</form>
+{% endif %}
+
+{% if stock %}
+{% with occupancy=stock.occupancy, varieties=stock.varieties, max_kg=stock.max_kg, stats=stock.stats, recent=stock.recent %}
+{% include "partials/stock_overview.html" %}
+{% endwith %}
+{% endif %}
+{% endblock %}

@@ -4,8 +4,9 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>{{ _("Übersicht") }}</h1>
-        <p class="text-body-secondary mb-0">{{ _("Hallo {name}!", name=current_user.name) }}</p>
+        <p class="text-body-secondary mb-0 small d-lg-none">{{ today|weekday }}, {{ today|date }}</p>
+        <h1><span class="d-lg-none">{{ _("Hallo {name}!", name=current_user.name) }}</span><span class="d-none d-lg-inline">{{ _("Übersicht") }}</span></h1>
+        <p class="text-body-secondary mb-0 d-none d-lg-block">{{ _("Hallo {name}!", name=current_user.name) }}</p>
     </div>
     {% if current_user.can_edit %}
     <a class="btn btn-primary d-none d-lg-inline-flex" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>{{ _("Kiste scannen") }}</a>
@@ -26,40 +27,45 @@
 </div>
 {% endif %}
 
-{# Am Handy: Kacheln (Voreinstellung je Rolle + eigene Auswahl, siehe tiles.py); am PC übernimmt das die Leiste oben #}
-<div class="area-tiles d-lg-none">
-    {% for key in tiles %}
-    {% set t = tile_catalog[key] %}
-    <a class="area-tile" href="{{ url_for(t.endpoint, **t.args) }}"><i class="bi {{ t.icon }}"></i><span class="t">{{ _(t.label) }}</span>
-        {% if key == "lager" %}<span class="s">{% for o in occupancy[:1] %}{{ _("{n} % belegt", n=o.percent) }}{% endfor %}</span>
-        {% elif key == "kisten" %}<span class="s">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</span>
-        {% elif key == "aufgaben" %}<span class="s">{{ ngettext("{n} für heute", "{n} für heute", due_tasks_now|length) }}</span>
-            {% if my_task_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}
-        {% elif key == "verkauf" %}<span class="s">{{ ngettext("{n} Lieferschein offen", "{n} Lieferscheine offen", open_deliveries|length) }}</span>
-        {% elif key == "maschinen" %}
-            {% if open_faults %}<span class="s warn">{{ ngettext("{n} Störung", "{n} Störungen", open_faults|length) }}</span>
-            {% elif due_tasks %}<span class="s warn">{{ ngettext("{n} Wartung fällig", "{n} Wartungen fällig", due_tasks|length) }}</span>
-            {% else %}<span class="s">{{ _("alles in Ordnung") }}</span>{% endif %}
-        {% elif key == "schlaege" %}<span class="s">{{ plot_stats.count }}{% if plot_stats.ha %} · {{ plot_stats.ha|num(1) }} ha{% endif %}</span>
-        {% elif key == "bestellungen" %}<span class="s">{% if purchase_arrived %}{{ ngettext("{n} ist da", "{n} sind da", purchase_arrived|length) }}{% elif current_user.is_buyer %}{{ ngettext("{n} offen", "{n} offen", purchase_open|length) }}{% else %}{{ _("Teil anfragen") }}{% endif %}</span>
-            {% if purchase_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}
-        {% elif key == "wetter" %}<span class="s">{% if weather and not weather.error and weather.current %}{{ weather.current.temp|num }} °C{% else %}–{% endif %}</span>
-        {% elif key == "verlauf" %}<span class="s">{{ _("Bewegungen") }}</span>
-        {% elif key == "verwaltung" %}<span class="s">{{ _("Hof, Lager, Benutzer …") }}</span>
-        {% elif key == "scan" %}<span class="s">{{ _("Kiste oder Maschine") }}</span>
-        {% elif key in ("tanken", "tankbuch") %}{% set tank = tile_info(key) %}
-            {% if tank.has_entries %}<span class="s {{ 'warn' if tank.low }}">{{ _("{liters} l im Tank", liters=tank.liters|num(0)) }}</span>
-            {% else %}<span class="s">{{ _("Liter eintragen") }}</span>{% endif %}
-        {% elif key == "kalender" %}{% set n = tile_info(key) %}<span class="s">{{ ngettext("{n} Termin in 14 Tagen", "{n} Termine in 14 Tagen", n) }}</span>
-        {% elif key == "lieferanten" %}<span class="s">{{ tile_info(key) }}</span>
-        {% elif key == "pflanzenschutz" %}{% set n = tile_info(key) %}<span class="s {{ 'warn' if n }}">{% if n %}{{ ngettext("{n} Wartezeit läuft", "{n} Wartezeiten laufen", n) }}{% else %}{{ _("keine Wartezeit") }}{% endif %}</span>
-        {% elif key == "kunden" %}<span class="s">{{ tile_info(key) }}</span>
-        {% elif key == "etiketten" %}<span class="s">{{ _("QR-Etiketten drucken") }}</span>
-        {% endif %}</a>
-    {% endfor %}
-    <a class="area-tile area-tile-edit" href="{{ url_for('main.tile_settings') }}"><i class="bi bi-plus-lg"></i><span class="t">{{ _("Anpassen") }}</span>
-        <span class="s">{{ _("Kacheln wählen") }}</span></a>
+{# Am Handy: kurze Infos, Schnellzugriff (die ersten 4 eingestellten Kacheln, siehe tiles.py) und „Jetzt wichtig“ –
+   am PC stehen stattdessen die einzelnen Karten unten #}
+<div class="info-chips d-lg-none">
+    {% if weather and not weather.error and weather.current %}
+    <a class="info-chip" href="{{ url_for('main.weather_page') }}"><i class="bi {{ weather.forecast[0].bi if weather.forecast else 'bi-thermometer-half' }}"></i>{{ weather.current.temp|num }} °C</a>
+    {% if weather.frost %}<a class="info-chip cold" href="{{ url_for('main.weather_page') }}"><i class="bi bi-snow2"></i>{{ _("Frost") if weather.frost.level == "frost" else _("Bodenfrost") }} {{ weather.frost.at|weekday }} {{ weather.frost.min|num(1) }}°</a>{% endif %}
+    {% if show_blight and weather.blight.level == "high" %}<a class="info-chip warn" href="{{ url_for('main.weather_page') }}"><i class="bi bi-virus"></i>{{ _("Krautfäule") }}</a>{% endif %}
+    {% endif %}
+    {% if tank and tank.has_entries %}<a class="info-chip {{ 'warn' if tank.low }}" href="{{ url_for('fuel.tank') }}"><i class="bi bi-fuel-pump"></i>{{ _("{liters} l", liters=tank.liters|num(0)) }}</a>{% endif %}
 </div>
+
+<div class="quick-row d-lg-none">
+    {% for key in quick_tiles %}
+    {% set t = tile_catalog[key] %}
+    {% set n = my_task_count if key == "aufgaben" else purchase_count if key == "bestellungen" else open_faults|length if key == "maschinen" else 0 %}
+    <a class="quick-item" data-tile="{{ key }}" href="{{ url_for(t.endpoint, **t.args) }}"><span class="quick-icon"><i class="bi {{ t.icon }}"></i>{% if n %}<span class="cnt">{{ n }}</span>{% endif %}</span><span>{{ _(t.label) }}</span></a>
+    {% endfor %}
+    <a class="quick-item" href="{{ url_for('main.tile_settings') }}"><span class="quick-icon quick-edit"><i class="bi bi-plus-lg"></i></span><span>{{ _("Anpassen") }}</span></a>
+</div>
+
+<section class="d-lg-none mb-4">
+    <h2 class="hub-heading mt-0">{{ _("Jetzt wichtig") }}</h2>
+    {% if important %}
+    <div class="hub-list">
+        {% for i in important %}
+        <a class="hub-row important-row {{ 'collapse more-important' if loop.index > 4 }}" href="{{ i.url }}">
+            <span class="dot dot-{{ i.level }}"></span>
+            <span class="hub-text"><span class="hub-title">{{ i.title }}</span><span class="hub-status {{ 'warn' if i.level == 'danger' }}">{{ i.sub }}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% endfor %}
+    </div>
+    {% if important|length > 4 %}
+    <button class="btn btn-link btn-sm px-0" type="button" data-bs-toggle="collapse" data-bs-target=".more-important" aria-expanded="false">{{ ngettext("{n} weiterer Eintrag", "{n} weitere Einträge", important|length - 4) }}</button>
+    {% endif %}
+    {% else %}
+    <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Alles erledigt – nichts Dringendes.") }}</div></div>
+    {% endif %}
+</section>
 
 {% from "agenda/_macros.html" import when %}
 {% set week_has = week|selectattr("events")|list %}
@@ -100,6 +106,7 @@
     {% endif %}
 </div>
 
+<div class="d-none d-lg-block">
 {% if due_tasks_now %}
 {% from "tasks/_macros.html" import task_item with context %}
 <div class="card shadow-sm mb-4 border-primary-subtle">
@@ -152,9 +159,11 @@
 </div>
 {% endif %}
 
+</div>
+
 {% if weather and not weather.error %}
 {% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
-{{ frost_alert(weather.frost) }}
+<div class="d-none d-lg-block">{{ frost_alert(weather.frost) }}</div>
 <a class="card shadow-sm mb-4 text-reset text-decoration-none weather-card" href="{{ url_for('main.weather_page') }}">
     <div class="card-body d-flex flex-wrap gap-3 align-items-center">
         {% if weather.current %}
@@ -188,6 +197,7 @@
 <div class="alert alert-light small"><i class="bi bi-cloud-sun me-1"></i>{{ _("Für das Wetter fehlt noch der Standort des Hofs.") }} <a href="{{ url_for('admin.settings') }}">{{ _("Jetzt unter Verwaltung → Hof eintragen") }}</a></div>
 {% endif %}
 
+<div class="d-none d-lg-block">
 {% if open_faults or due_tasks %}
 {% from "machines/_macros.html" import state_badge, due_text %}
 <div class="card shadow-sm mb-4 border-danger-subtle">
@@ -228,110 +238,11 @@
 </div>
 {% endif %}
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-        <div class="stat-card">
-            <div class="stat-label"><i class="bi bi-basket"></i>{{ _("Bestand (geschätzt)") }}</div>
-            <div class="stat-value">{{ stats.kg|kg }}</div>
-            <div class="stat-sub">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</div>
-        </div>
-    </div>
-    {% for o in occupancy[:1] %}
-    <div class="col-6 col-lg-3">
-        <div class="stat-card">
-            <div class="stat-label"><i class="bi bi-grid-3x3-gap"></i>{{ _("Belegung") }}</div>
-            <div class="stat-value">{{ o.percent }} %</div>
-            <div class="stat-sub">{{ _("{n} von {total} Plätzen", n=o.stored, total=o.capacity) }}</div>
-        </div>
-    </div>
-    {% endfor %}
-    <div class="col-6 col-lg-3">
-        <div class="stat-card">
-            <div class="stat-label"><i class="bi bi-box"></i>{{ _("Leere Kisten") }}</div>
-            <div class="stat-value">{{ stats.empty }}</div>
-            <div class="stat-sub">{{ _("von {n} Kisten gesamt", n=stats.total) }}</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <a class="stat-card stat-link {% if stats.filled_not_stored %}stat-warn{% endif %}"
-           href="{{ url_for('main.boxes', status='befuellt_nicht_eingelagert') }}">
-            <div class="stat-label"><i class="bi bi-truck"></i>{{ _("Befüllt, nicht eingelagert") }}</div>
-            <div class="stat-value">{{ stats.filled_not_stored }}</div>
-            <div class="stat-sub">{{ _("Kisten") }} <i class="bi bi-chevron-right"></i></div>
-        </a>
-    </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-7">
-        <div class="card shadow-sm h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bar-chart me-1"></i>{{ _("Bestand je Sorte") }}</span>
-                <span class="small text-body-secondary">{{ _("geschätzt aus Füllstand") }}</span>
-            </div>
-            <div class="card-body">
-                {% if varieties %}
-                <div class="variety-bars">
-                    {% for v in varieties %}
-                    <a class="variety-bar" href="{{ url_for('main.boxes', sorte=v.variety.id, status='befuellt') }}">
-                        <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
-                            <span>{{ variety_chip(v.variety) }}
-                                <span class="small text-body-secondary ms-1">{{ v.variety.usage_label }}</span></span>
-                            <span class="text-nowrap"><strong>{{ v.kg|kg }}</strong>
-                                <span class="small text-body-secondary">· {{ ngettext("{n} Kiste", "{n} Kisten", v.boxes) }}</span></span>
-                        </div>
-                        <div class="bar-track"><div class="bar-fill" style="width: {{ (100 * v.kg / max_kg)|round(1) if max_kg else 0 }}%; --bar: {{ v.variety.color }}"></div></div>
-                        <div class="small text-body-tertiary mt-1">
-                            {% if v.stored < v.boxes %}{{ _("{n} nicht eingelagert", n=v.boxes - v.stored) }} · {% endif %}
-                            {% if v.oldest %}{{ _("älteste Ernte {date}", date=v.oldest|date) }}{% endif %}
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <i class="bi bi-basket"></i>
-                    <p>{{ _("Noch keine befüllten Kisten.") }}</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-5">
-        {% for o in occupancy %}
-        <a class="card shadow-sm mb-4 card-link" href="{{ url_for('main.warehouse_map', warehouse_id=o.warehouse.id) }}">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <div class="fw-semibold">{{ o.warehouse.name }}</div>
-                        <div class="small text-body-secondary">{{ _("{rows} Reihen × {slots} Plätze × {levels} Ebenen", rows=o.warehouse.rows, slots=o.warehouse.slots, levels=o.warehouse.max_levels) }}</div>
-                    </div>
-                    <span class="badge rounded-pill text-bg-light border">{{ o.percent }} %</span>
-                </div>
-                <div class="progress progress-thick mb-2" role="progressbar" aria-valuenow="{{ o.percent }}" aria-valuemin="0" aria-valuemax="100">
-                    <div class="progress-bar" style="width: {{ o.percent }}%"></div>
-                </div>
-                <div class="d-flex justify-content-between small text-body-secondary">
-                    <span>{{ _("{n} / {total} Kisten", n=o.stored, total=o.capacity) }}</span>
-                    <span>{{ _("{n} / {total} Stapel belegt · {full} voll", n=o.stacks, total=o.stack_capacity, full=o.full_stacks) }}</span>
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-        <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-clock-history me-1"></i>{{ _("Letzte Bewegungen") }}</span>
-                <a class="small" href="{{ url_for('main.history') }}">{{ _("alle") }}</a>
-            </div>
-            <div class="card-body">
-                {% if recent %}
-                <ul class="timeline">{% for m in recent %}{{ movement_item(m) }}{% endfor %}</ul>
-                {% else %}
-                <p class="text-body-secondary mb-0">{{ _("Noch keine Bewegungen.") }}</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+{# Am Handy stehen die Lagerzahlen auf der Lager-Bereichsseite #}
+<div class="d-none d-lg-block">
+{% include "partials/stock_overview.html" %}
 </div>
 {% endblock %}
 {% block scripts %}<script>App.autoRefresh();</script>{% endblock %}

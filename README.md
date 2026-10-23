@@ -50,6 +50,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   Pflanzenschutz-Übersicht mit Wartezeiten bis zur Ernte, Schläge ohne Umriss als Punkt auf der Karte;
   Fruchtfolgeplan aus Myfarm24 mit Fruchtfolge-Übersicht (Anbaupausen, Anbauumfang je Jahr)
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
+- **Handy-Ansicht**: untere Leiste mit Bereichsseiten, Startseite „Heute“ mit „Jetzt wichtig“ und Schnellzugriff,
+  kompakte Listen mit Filter-Chips
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)
 - Hell/Dunkel-Modus, Seiten aktualisieren sich automatisch, wenn jemand anderes bucht

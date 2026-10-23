@@ -27,7 +27,8 @@
             {% if aerial %}<button class="btn btn-sm btn-light" type="button" id="aerialToggle" aria-pressed="false" title="{{ _('Luftbild') }}" aria-label="{{ _('Luftbild') }}"><i class="bi bi-image"></i></button>{% endif %}
         </div>
     </div>
-    <div class="card-body py-2 d-flex flex-wrap gap-3 small">
+    <button class="btn btn-sm btn-link d-lg-none w-100 text-start py-2" type="button" data-bs-toggle="collapse" data-bs-target="#mapLegend" aria-expanded="false" aria-controls="mapLegend"><i class="bi bi-palette me-1"></i>{{ _("Legende") }}</button>
+    <div class="card-body py-2 flex-wrap gap-3 small collapse d-lg-flex" id="mapLegend">
         {% for l in legend %}
         <span><span class="legend-swatch" style="background: {{ l.color }}"></span>{{ l.crop or _("ohne Kultur") }} <span class="text-body-secondary">{{ l.ha|num(1) }} ha</span></span>
         {% endfor %}
@@ -40,7 +41,20 @@
 <div class="alert alert-info">{{ _("Noch keine Schläge mit Umriss.") }} <a href="{{ url_for('admin.plots') }}">{{ _("Schlagkartei importieren (KML, z. B. aus Myfarm24)") }}</a></div>
 {% endif %}
 
-<div class="card shadow-sm">
+{# Am Handy eine Zeile je Schlag, am PC die Tabelle #}
+<div class="hub-list d-lg-none">
+    {% for r in rows %}
+    <a class="hub-row plot-row" href="{{ url_for('fields.field_detail', plot_id=r.plot.id) }}">
+        <span class="plot-swatch" style="background: {{ r.color }}"></span>
+        <span class="hub-text">
+            <span class="hub-title text-truncate">{{ r.plot.name }}{% if r.plot.number %} <span class="small text-body-tertiary fw-normal">{{ r.plot.number }}</span>{% endif %}</span>
+            <span class="hub-status text-truncate">{% if r.year and r.year.shown_crop %}{{ r.year.shown_crop }}{% if not r.year.crop %} ({{ _("geplant") }}){% endif %}{% else %}–{% endif %}{% if r.t_ha %} · {{ r.t_ha|num(1) }} t/ha{% endif %}</span>
+        </span>
+        <span class="small text-nowrap text-body-secondary">{{ r.plot.area_ha|num(2) if r.plot.area_ha is not none else "–" }} ha</span>
+    </a>
+    {% endfor %}
+</div>
+<div class="card shadow-sm d-none d-lg-block">
     <div class="table-responsive">
         <table class="table table-hover table-sm align-middle mb-0">
             <thead><tr><th>{{ _("Nr.") }}</th><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th>{{ _("Kultur {year}", year=year) }}</th><th class="d-none d-md-table-cell">{{ _("Sorte") }}</th><th class="text-end">{{ _("Ertrag") }}</th></tr></thead>
