@@ -90,7 +90,7 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed):
 
     # Geliefert → Mitarbeiter sieht es auf der Übersicht und hakt ab
     client.post(f"/bestellung/{req.id}/bearbeiten", data=data | {"status": "geliefert"})
-    assert "Geliefert:" in as_worker.get("/").get_data(as_text=True)
+    assert f"{req.title} ist da" in as_worker.get("/").get_data(as_text=True)
     as_worker.post(f"/bestellung/{req.id}/erledigt")
     assert req.status == "erledigt"
 

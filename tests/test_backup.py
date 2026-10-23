@@ -1,5 +1,4 @@
 import os
-import re
 import sqlite3
 from datetime import date, datetime, timedelta
 
@@ -97,7 +96,7 @@ def test_failure_is_reported(file_app, monkeypatch):
     assert not status["ok"] and "Verbindung abgelehnt" in status["error"]
     assert backup.needs_attention() == "failed"
     assert not backup.is_running()
-    # Admins sehen den Hinweis oben auf der Übersicht (als eigene Meldung, nicht in einer Kachel)
+    # Admins sehen den Hinweis auf der Übersicht ganz oben in „Jetzt wichtig“
     admin = User(username="chef", role="admin")
     admin.set_password("geheim123")
     _db.session.add(admin)
@@ -105,9 +104,8 @@ def test_failure_is_reported(file_app, monkeypatch):
     client = file_app.test_client()
     login(client, "chef")
     html = client.get("/").get_data(as_text=True)
-    assert '<div class="alert alert-danger d-flex gap-2 align-items-center">' in html
-    assert "Die Datensicherung ist fehlgeschlagen." in html
-    assert not re.search(r'<span class="s">\s*<div class="alert', html)
+    first = html.index('class="hub-row important-row')
+    assert "Datensicherung" in html[first:first + 400] and "fehlgeschlagen" in html[first:first + 400]
 
 
 def test_not_configured(as_admin, as_worker):

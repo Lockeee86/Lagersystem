@@ -86,10 +86,10 @@ def _tile_info(key):
     return None
 
 
-def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today):
+def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=()):
     """„Jetzt wichtig“ auf der Startseite am Handy: eine Liste statt einzelner Karten, Dringendes zuerst.
     Je Eintrag {level: danger|warning|success, title, sub, url}. Störungen, zu denen es schon eine Aufgabe gibt,
-    erscheinen nur einmal (als Aufgabe)."""
+    erscheinen nur einmal (als Aufgabe). `unclaimed`: Bestellwünsche, die noch niemand übernommen hat (Besteller)."""
     items = []
     if backup_alert:
         items.append({"level": "danger", "title": _("Datensicherung"),
@@ -120,6 +120,9 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
         items.append({"level": "warning", "title": _("{number} verladen", number=d.number),
                       "sub": f"{d.customer.name} · " + ngettext("{n} Kiste", "{n} Kisten", d.box_count),
                       "url": url_for("sales.delivery_detail", delivery_id=d.id)})
+    for r in unclaimed:
+        items.append({"level": "warning", "title": r.title, "sub": _("Bestellwunsch · noch frei"),
+                      "url": url_for("purchases.purchase_detail", req_id=r.id)})
     for r in arrived:
         items.append({"level": "success", "title": _("{title} ist da", title=r.title), "sub": _("Bestellung"),
                       "url": url_for("purchases.purchase_detail", req_id=r.id)})
@@ -187,20 +190,17 @@ def dashboard():
     open_deliveries, due_maintenance, faults = sales.open_deliveries(), machines.due_tasks(), machines.open_faults()
     arrived = purchases.arrived_for(current_user)
     backup_alert = backup.needs_attention() if current_user.is_admin else None
+    unclaimed = [r for r in purchases.open_requests(current_user) if not r.assignee] if current_user.is_buyer else []
     important = _important(due_now, faults, due_maintenance, open_deliveries if current_user.can_edit else [],
-                           arrived, backup_alert, today)
-    response = make_response(render_template("dashboard.html", week_mine=week_mine, **stock,
-                           open_deliveries=open_deliveries, important=important,
-                           due_tasks=due_maintenance, open_faults=faults,
-                           weather=weather.get_weather(), show_blight=weather.blight_in_season(),
-                           due_tasks_now=due_now, today=today, plot_stats=_plot_stats(),
-                           purchase_open=purchases.open_requests(current_user) if current_user.is_buyer else [],
-                           purchase_arrived=arrived, backup_alert=backup_alert,
-                           tank=fuel.status() if current_user.can_edit else None,
-                           quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
-                           week=_week(mine_only=week_mine),
-                           has_varieties=Variety.query.first() is not None,
-                           has_plots=Plot.query.first() is not None))
+                           arrived, backup_alert, today, unclaimed)
+    response = make_response(render_template(
+        "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults,
+        weather=weather.get_weather(), show_blight=weather.blight_in_season(), today=today,
+        tank=fuel.status() if current_user.can_edit else None,
+        quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
+        week=_week(mine_only=week_mine),
+        has_varieties=Variety.query.first() is not None,
+        has_plots=Plot.query.first() is not None))
     if choice:
         response.set_cookie(WEEK_COOKIE, choice, max_age=365 * 24 * 3600, samesite="Lax", httponly=True,
                             secure=request.is_secure)

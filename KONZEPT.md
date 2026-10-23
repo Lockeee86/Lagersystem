@@ -336,6 +336,10 @@ drei Navigationswege (Kacheln, Reiterleiste oben, Leiste unten). Entscheidungen 
 - **Listen kompakt**: Suche + „Filter“-Knopf, aktive Filter als Chips zum Wegtippen (`macros.filter_toggle`,
   `filter_chips`, Jinja-Global `url_without`), eine Zeile je Kiste/Schlag; Aufgaben mit einzeiliger Zusatzzeile.
   Nebenbei behoben: In der Kistenliste steckte der Platz-Link in einem Link (ungültiges HTML, brach die Zeile).
+- 0.28.1, **PC-Startseite** nach demselben Prinzip: links „Jetzt wichtig“ (8 sichtbar), rechts Termine, Frost-Hinweis
+  und Wetter, darunter die Lagerzahlen. Die Einzelkarten (Aufgaben heute, Bestellungen, Maschinen, Lieferscheine,
+  Datensicherung) sind weg – ihr Inhalt steht in „Jetzt wichtig“ (für Besteller zusätzlich Bestellwünsche, die noch
+  niemand übernommen hat). Tablet hoch nutzt die Handy-Ansicht, ab 992 px die PC-Ansicht.
 
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im

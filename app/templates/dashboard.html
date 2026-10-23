@@ -27,8 +27,7 @@
 </div>
 {% endif %}
 
-{# Am Handy: kurze Infos, Schnellzugriff (die ersten 4 eingestellten Kacheln, siehe tiles.py) und „Jetzt wichtig“ –
-   am PC stehen stattdessen die einzelnen Karten unten #}
+{# Am Handy: kurze Infos und Schnellzugriff (die ersten 4 eingestellten Kacheln, siehe tiles.py) #}
 <div class="info-chips d-lg-none">
     {% if weather and not weather.error and weather.current %}
     <a class="info-chip" href="{{ url_for('main.weather_page') }}"><i class="bi {{ weather.forecast[0].bi if weather.forecast else 'bi-thermometer-half' }}"></i>{{ weather.current.temp|num }} °C</a>
@@ -47,12 +46,15 @@
     <a class="quick-item" href="{{ url_for('main.tile_settings') }}"><span class="quick-icon quick-edit"><i class="bi bi-plus-lg"></i></span><span>{{ _("Anpassen") }}</span></a>
 </div>
 
-<section class="d-lg-none mb-4">
+{# Handy: untereinander; PC: links „Jetzt wichtig“, rechts Termine und Wetter #}
+<div class="row g-lg-4">
+<div class="col-lg-7">
+<section class="mb-4">
     <h2 class="hub-heading mt-0">{{ _("Jetzt wichtig") }}</h2>
     {% if important %}
     <div class="hub-list">
         {% for i in important %}
-        <a class="hub-row important-row {{ 'collapse more-important' if loop.index > 4 }}" href="{{ i.url }}">
+        <a class="hub-row important-row {{ 'collapse more-important' if loop.index > 4 }} {{ 'd-lg-flex' if 4 < loop.index <= 8 }}" href="{{ i.url }}">
             <span class="dot dot-{{ i.level }}"></span>
             <span class="hub-text"><span class="hub-title">{{ i.title }}</span><span class="hub-status {{ 'warn' if i.level == 'danger' }}">{{ i.sub }}</span></span>
             <i class="bi bi-chevron-right hub-chevron"></i>
@@ -60,13 +62,17 @@
         {% endfor %}
     </div>
     {% if important|length > 4 %}
-    <button class="btn btn-link btn-sm px-0" type="button" data-bs-toggle="collapse" data-bs-target=".more-important" aria-expanded="false">{{ ngettext("{n} weiterer Eintrag", "{n} weitere Einträge", important|length - 4) }}</button>
+    <button class="btn btn-link btn-sm px-0 {{ 'd-lg-none' if important|length <= 8 }}" type="button" data-bs-toggle="collapse" data-bs-target=".more-important" aria-expanded="false">
+        <span class="d-lg-none">{{ ngettext("{n} weiterer Eintrag", "{n} weitere Einträge", important|length - 4) }}</span>
+        {% if important|length > 8 %}<span class="d-none d-lg-inline">{{ ngettext("{n} weiterer Eintrag", "{n} weitere Einträge", important|length - 8) }}</span>{% endif %}
+    </button>
     {% endif %}
     {% else %}
     <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Alles erledigt – nichts Dringendes.") }}</div></div>
     {% endif %}
 </section>
-
+</div>
+<div class="col-lg-5">
 {% from "agenda/_macros.html" import when %}
 {% set week_has = week|selectattr("events")|list %}
 <div class="card shadow-sm mb-4">
@@ -105,62 +111,6 @@
     <div class="card-body small text-body-secondary">{{ _("In den nächsten 7 Tagen hast du keine Termine.") if week_mine else _("In den nächsten 7 Tagen steht nichts im Kalender.") }}</div>
     {% endif %}
 </div>
-
-<div class="d-none d-lg-block">
-{% if due_tasks_now %}
-{% from "tasks/_macros.html" import task_item with context %}
-<div class="card shadow-sm mb-4 border-primary-subtle">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-list-check me-1"></i>{{ _("Aufgaben für heute") if current_user.is_admin else _("Deine Aufgaben für heute") }}</span>
-        <a class="small" href="{{ url_for('tasks.task_list') }}">{{ _("Alle Aufgaben") }}</a>
-    </div>
-    <ul class="list-group list-group-flush">
-        {% for task in due_tasks_now[:10] %}{{ task_item(task, today, url_for('main.dashboard')) }}{% endfor %}
-    </ul>
-</div>
-{% endif %}
-
-{% if backup_alert %}
-<div class="alert alert-danger d-flex gap-2 align-items-center">
-    <i class="bi bi-shield-exclamation"></i>
-    <div class="small flex-grow-1">{{ _("Die Datensicherung ist fehlgeschlagen.") if backup_alert == "failed" else _("Seit über einem Tag keine erfolgreiche Datensicherung.") }}</div>
-    <a class="btn btn-sm btn-outline-danger" href="{{ url_for('admin.backups') }}">{{ _("Ansehen") }}</a>
-</div>
-{% endif %}
-
-{% if purchase_arrived %}
-<div class="alert alert-success d-flex gap-2 align-items-start">
-    <i class="bi bi-box-seam"></i>
-    <div class="small flex-grow-1">
-        <strong>{{ _("Geliefert:") }}</strong>
-        {% for r in purchase_arrived %}<a class="alert-link" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">{{ r.title }}</a>{{ ", " if not loop.last }}{% endfor %}
-    </div>
-</div>
-{% endif %}
-
-{% if purchase_open %}
-<div class="card shadow-sm mb-4 border-info-subtle">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-box-seam me-1"></i>{{ _("Bestellungen") }}</span>
-        <a class="small" href="{{ url_for('purchases.purchase_list') }}">{{ _("Alle Bestellungen") }}</a>
-    </div>
-    <div class="list-group list-group-flush">
-        {% for r in purchase_open[:8] %}
-        <a class="list-group-item list-group-item-action small d-flex gap-2 align-items-center" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">
-            <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span>
-            {% if r.urgent %}<span class="badge text-bg-danger">{{ _("dringend") }}</span>{% endif %}
-            <span class="fw-semibold">{{ r.title }}</span>
-            {% if not r.assignee %}<span class="badge text-bg-warning">{{ _("noch frei") }}</span>{% endif %}
-            <span class="text-body-secondary">{% if r.machine %}· {{ r.machine.name }}{% endif %}{% if r.requested_by %} · {{ r.requested_by.name }}{% endif %}
-                {% if r.status == "bestellt" and r.expected_on %} · <span class="{{ 'text-danger fw-semibold' if r.expected_on < today }}">{{ _("Lieferung {date}", date=r.expected_on|date) }}</span>{% endif %}</span>
-        </a>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-</div>
-
 {% if weather and not weather.error %}
 {% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
 <div class="d-none d-lg-block">{{ frost_alert(weather.frost) }}</div>
@@ -196,48 +146,7 @@
 {% elif weather is none and current_user.is_admin %}
 <div class="alert alert-light small"><i class="bi bi-cloud-sun me-1"></i>{{ _("Für das Wetter fehlt noch der Standort des Hofs.") }} <a href="{{ url_for('admin.settings') }}">{{ _("Jetzt unter Verwaltung → Hof eintragen") }}</a></div>
 {% endif %}
-
-<div class="d-none d-lg-block">
-{% if open_faults or due_tasks %}
-{% from "machines/_macros.html" import state_badge, due_text %}
-<div class="card shadow-sm mb-4 border-danger-subtle">
-    <div class="card-header"><i class="bi bi-gear-wide-connected me-1"></i>{{ _("Maschinen") }}</div>
-    <ul class="list-group list-group-flush">
-        {% for e in open_faults %}
-        <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}#logbuch">
-            <span class="badge text-bg-danger">{{ _("Störung") }}</span> <span class="fw-semibold">{{ e.machine.name }}</span>
-            <span class="text-body-secondary">· {{ e.text|truncate(80) if e.text else "" }}</span>
-        </a>
-        {% endfor %}
-        {% for task, status in due_tasks[:8] %}
-        <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}#wartungen">
-            {{ state_badge(status.state) }} <span class="fw-semibold">{{ task.machine.name }}</span>: {{ task.name }}
-            <span class="text-body-secondary">· {{ due_text(task, status, task.machine) }}</span>
-        </a>
-        {% endfor %}
-    </ul>
 </div>
-{% endif %}
-
-{% if open_deliveries %}
-<div class="card shadow-sm mb-4 border-warning">
-    <div class="card-header"><i class="bi bi-truck me-1"></i>{{ _("Offene Lieferscheine") }}</div>
-    <ul class="list-group list-group-flush">
-        {% for d in open_deliveries %}
-        <li class="list-group-item d-flex gap-2 align-items-center">
-            <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{{ url_for('sales.delivery_detail', delivery_id=d.id) }}">
-                <span class="fw-semibold">{{ d.number }}</span> {{ d.customer.name }}
-                <div class="small text-body-secondary">{{ d.date|date }} · {{ ngettext("{n} Kiste", "{n} Kisten", d.box_count) }}</div>
-            </a>
-            {% if current_user.can_edit %}
-            <a class="btn btn-sm btn-primary" href="{{ url_for('sales.delivery_load', delivery_id=d.id) }}"><i class="bi bi-qr-code-scan me-1"></i>{{ _("Verladen") }}</a>
-            {% endif %}
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-
 </div>
 
 {# Am Handy stehen die Lagerzahlen auf der Lager-Bereichsseite #}

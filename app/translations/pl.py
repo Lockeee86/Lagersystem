@@ -585,7 +585,6 @@ MESSAGES = {
     'Offen': 'Otwarty',
     'Abgeschlossen': 'Zamknięty',
     '{code} steht auf einem Lieferschein und kann nicht gelöscht werden.': '{code} jest na dokumencie dostawy i nie można jej usunąć.',
-    'Offene Lieferscheine': 'Otwarte dokumenty dostawy',
     'Kunden': 'Klienci',
     'Anerkennungen': 'Kwalifikacje',
     'Verkauf': 'Sprzedaż',
@@ -836,8 +835,6 @@ MESSAGES = {
     'Bitte einen Titel angeben.': 'Podaj tytuł.',
     'Unbekannte Wiederholung.': 'Nieznane powtarzanie.',
     'Diese Aufgabe ist schon erledigt.': 'To zadanie jest już wykonane.',
-    'Aufgaben für heute': 'Zadania na dziś',
-    'Deine Aufgaben für heute': 'Twoje zadania na dziś',
     'Alle Aufgaben': 'Wszystkie zadania',
     'Aufgaben': 'Zadania',
     'Aufgabe': 'Zadanie',
@@ -973,7 +970,6 @@ MESSAGES = {
     '{n} sind da': ('{n} jest', '{n} są', '{n} jest'),
     '{n} offen': ('{n} otwarte', '{n} otwarte', '{n} otwartych'),
     'Teil anfragen': 'Zamów część',
-    'Geliefert:': 'Dostarczone:',
     'Alle Bestellungen': 'Wszystkie zamówienia',
     'dringend': 'pilne',
     'Lieferung {date}': 'Dostawa {date}',
@@ -1038,9 +1034,6 @@ MESSAGES = {
     'Die Datensicherung ist nicht eingerichtet (BACKUP_DIR fehlt).': 'Kopia zapasowa nie jest skonfigurowana (brak BACKUP_DIR).',
     'Es läuft bereits eine Sicherung.': 'Kopia zapasowa jest już w toku.',
     'Sicherung gestartet.': 'Rozpoczęto tworzenie kopii.',
-    'Die Datensicherung ist fehlgeschlagen.': 'Tworzenie kopii zapasowej nie powiodło się.',
-    'Seit über einem Tag keine erfolgreiche Datensicherung.': 'Od ponad doby brak udanej kopii zapasowej.',
-    'Ansehen': 'Zobacz',
     'Jede Nacht ab {hour} Uhr: Datenbank und alle Fotos/Dokumente. Aufbewahrt werden 14 Tage und je ein Stand pro Monat für ein Jahr.':
         'Każdej nocy od godz. {hour}: baza danych i wszystkie zdjęcia/dokumenty. Przechowywane jest 14 dni oraz jedna kopia na miesiąc przez rok.',
     'Jetzt sichern': 'Utwórz kopię teraz',
@@ -1493,4 +1486,5 @@ MESSAGES = {
     'Welcher Schnellzugriff steht für jede Rolle am Handy auf der Übersicht? Die ersten vier erscheinen dort. Jeder kann danach selbst Kacheln dazunehmen oder ausblenden.':
         'Jaki szybki dostęp ma każda rola w telefonie na stronie głównej? Pojawią się tam pierwsze cztery. Każdy może potem sam dodać lub ukryć kafelki.',
     'Legende': 'Legenda',
+    'Bestellwunsch · noch frei': 'Zapotrzebowanie · jeszcze wolne',
 }
