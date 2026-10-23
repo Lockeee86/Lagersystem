@@ -5,6 +5,8 @@ Wie `storage.py` verändern die Funktionen nur die Session, committen muss der A
 """
 from datetime import date
 
+from sqlalchemy import or_
+
 from .extensions import db
 from .i18n import gettext as _
 from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Photo, PurchaseRequest, User, utcnow
@@ -45,7 +47,20 @@ def update_request(req, user, status, supplier=None, order_number=None, price=No
     if status in ("geliefert", "erledigt") and req.delivered_on is None:
         req.delivered_on = date.today()
     req.status = status
+    if req.assignee_id is None and user is not None:
+        req.assignee_id = user.id                     # wer zuerst bearbeitet, hat übernommen
     req.handled_by_id = user.id if user else None
+    req.updated_at = utcnow()
+    db.session.flush()
+
+
+def assign(req, user, assignee):
+    """Übernehmen (assignee = user) oder an einen anderen Besteller weitergeben."""
+    if assignee is None or not assignee.is_buyer or not assignee.active:
+        raise StorageError(_("Nur an Besteller weitergeben."))
+    if not req.is_open:
+        raise StorageError(_("Diese Bestellung ist abgeschlossen."))
+    req.assignee_id = assignee.id
     req.updated_at = utcnow()
     db.session.flush()
 
@@ -61,19 +76,28 @@ def mark_done(req, user):
 
 # --- Abfragen ---------------------------------------------------------------
 
-def counts():
-    """Für Besteller: neue Wünsche und überfällige Lieferungen."""
-    new = PurchaseRequest.query.filter_by(status="angefragt").count()
-    late = PurchaseRequest.query.filter(PurchaseRequest.status == "bestellt",
+def _mine_or_free(user):
+    return or_(PurchaseRequest.assignee_id.is_(None), PurchaseRequest.assignee_id == user.id)
+
+
+def counts(user):
+    """Für den Besteller-Zähler: noch nicht übernommene Wünsche, ihm zugeteilte und noch nicht bestellte,
+    überfällige Lieferungen (seine und freie)."""
+    angefragt = PurchaseRequest.query.filter_by(status="angefragt")
+    new = angefragt.filter(PurchaseRequest.assignee_id.is_(None)).count()
+    mine = angefragt.filter(PurchaseRequest.assignee_id == user.id).count()
+    late = PurchaseRequest.query.filter(PurchaseRequest.status == "bestellt", _mine_or_free(user),
                                         PurchaseRequest.expected_on < date.today()).count()
-    return {"new": new, "late": late}
+    return {"new": new, "mine": mine, "late": late}
 
 
-def open_requests(user=None):
+def open_requests(buyer=None):
+    """Offene Wünsche; mit `buyer` nur seine und noch nicht übernommene (freie zuerst)."""
     query = PurchaseRequest.query.filter(PurchaseRequest.status.in_(PURCHASE_OPEN))
-    if user is not None:
-        query = query.filter(PurchaseRequest.requested_by_id == user.id)
-    return query.order_by(PurchaseRequest.urgent.desc(), PurchaseRequest.created_at).all()
+    if buyer is not None:
+        query = query.filter(_mine_or_free(buyer))
+    items = query.order_by(PurchaseRequest.urgent.desc(), PurchaseRequest.created_at).all()
+    return sorted(items, key=lambda r: (r.assignee_id is not None, not r.urgent))
 
 
 def arrived_for(user):

@@ -227,6 +227,11 @@ der Anfragende sieht den Fortschritt und auf der Übersicht „Geliefert“. Bad
 und überfällige Lieferungen. Mitarbeiter dürfen Aufgaben anlegen, aber nur an Admins und Besteller
 (ohne Auswahl an alle), ohne Wiederholung.
 
+Zuständigkeit (0.16.1): Jede Bestellung hat einen zuständigen Besteller. Neue Wünsche sind „noch frei“, bis
+ein Besteller „Ich übernehme“ drückt (oder als Erster bearbeitet). Danach bearbeitet nur er (und der Admin);
+andere Besteller sehen „X kümmert sich darum“ und können bewusst selbst übernehmen. Weitergeben an einen
+anderen Besteller ist möglich. Zähler und Übersichtskarte zeigen jedem Besteller nur freie und eigene Vorgänge.
+
 ### Aufgaben aus Störungen und Wartungen (0.15.0)
 Beim Melden einer Störung kann der Admin direkt eine Aufgabe anlegen (Zuständige, Termin, wichtig); offene
 Störungen und fällige Wartungen haben einen Knopf „Aufgabe“ (Formular vorbefüllt). Aufgabe und Störung/Wartung

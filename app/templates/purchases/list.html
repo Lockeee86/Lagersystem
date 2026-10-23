@@ -59,9 +59,15 @@
 
 <div class="d-flex flex-wrap gap-2 mb-3">
     {% for key, label in [("offen", _("Offen")), ("angefragt", _("Angefragt")), ("bestellt", _("Bestellt")), ("geliefert", _("Geliefert")), ("erledigt", _("Erledigt")), ("abgelehnt", _("Abgelehnt")), ("alle", _("Alle"))] %}
-    <a class="btn btn-sm {{ 'btn-primary' if status == key else 'btn-outline-secondary' }}" href="{{ url_for('purchases.purchase_list', status=key, wer='ich' if mine else none) }}">{{ label }}</a>
+    <a class="btn btn-sm {{ 'btn-primary' if status == key else 'btn-outline-secondary' }}" href="{{ url_for('purchases.purchase_list', status=key, wer=who) }}">{{ label }}</a>
     {% endfor %}
-    <a class="btn btn-sm ms-auto {{ 'btn-primary' if mine else 'btn-outline-secondary' }}" href="{{ url_for('purchases.purchase_list', status=status, wer=none if mine else 'ich') }}"><i class="bi bi-person me-1"></i>{{ _("Meine") }}</a>
+    <div class="ms-auto d-flex flex-wrap gap-2">
+        {% set whos = [("ich", "bi-person", _("Von mir angefragt"))] %}
+        {% if current_user.is_buyer %}{% set whos = whos + [("zustaendig", "bi-person-check", _("Von mir übernommen")), ("frei", "bi-person-exclamation", _("Noch frei"))] %}{% endif %}
+        {% for key, icon, label in whos %}
+        <a class="btn btn-sm {{ 'btn-primary' if who == key else 'btn-outline-secondary' }}" href="{{ url_for('purchases.purchase_list', status=status, wer=none if who == key else key) }}"><i class="bi {{ icon }} me-1"></i>{{ label }}</a>
+        {% endfor %}
+    </div>
 </div>
 
 <div class="card shadow-sm">
@@ -82,6 +88,7 @@
                     {% if r.machine %} · <i class="bi bi-gear-wide-connected"></i> {{ r.machine.name }}{% endif %}
                     {% if r.status == "bestellt" and r.expected_on %} · <span class="{{ 'text-danger fw-semibold' if r.expected_on < today else '' }}">{{ _("Lieferung {date}", date=r.expected_on|date) }}</span>{% endif %}
                     {% if r.supplier %} · {{ r.supplier }}{% endif %}
+                    {% if r.assignee %} · <i class="bi bi-person-check"></i> {{ r.assignee.name }}{% elif r.is_open %} · <span class="text-warning-emphasis">{{ _("noch frei") }}</span>{% endif %}
                 </div>
             </div>
             <i class="bi bi-chevron-right text-body-tertiary"></i>

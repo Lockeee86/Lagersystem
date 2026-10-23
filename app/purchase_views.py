@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from . import purchases, uploads
 from .extensions import db
 from .i18n import gettext as _
-from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, PurchaseRequest
+from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, PurchaseRequest, User
 from .storage import StorageError
 from .utils import editor_required, flash_error, form_date, form_int, form_money, form_str
 
@@ -29,9 +29,14 @@ def purchase_list():
     status = request.args.get("status", "offen")
     statuses = FILTERS.get(status) or ((status,) if status in PURCHASE_STATUSES else PURCHASE_OPEN)
     query = PurchaseRequest.query.filter(PurchaseRequest.status.in_(statuses))
-    mine = request.args.get("wer") == "ich"
-    if mine:
+    # wer=ich: selbst angefragt · wer=zustaendig: vom Besteller übernommen · wer=frei: noch niemand zuständig
+    who = request.args.get("wer") if request.args.get("wer") in ("ich", "zustaendig", "frei") else None
+    if who == "ich":
         query = query.filter(PurchaseRequest.requested_by_id == current_user.id)
+    elif who == "zustaendig":
+        query = query.filter(PurchaseRequest.assignee_id == current_user.id)
+    elif who == "frei":
+        query = query.filter(PurchaseRequest.assignee_id.is_(None))
     items = query.order_by(PurchaseRequest.urgent.desc(), PurchaseRequest.created_at.desc()).limit(300).all()
     order = {s: i for i, s in enumerate(PURCHASE_STATUSES)}
     items.sort(key=lambda r: (order.get(r.status, 9), not r.urgent))
@@ -41,7 +46,7 @@ def purchase_list():
         "machine_event_id": event.id if event else None,
     }
     return render_template(
-        "purchases/list.html", items=items, status=status, mine=mine, statuses=PURCHASE_STATUSES,
+        "purchases/list.html", items=items, status=status, who=who, statuses=PURCHASE_STATUSES,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all(), prefill=prefill,
         show_form=request.args.get("neu") == "1", buyers=purchases.buyers(), today=date.today(),
     )
@@ -75,14 +80,39 @@ def purchase_create():
 @bp.route("/bestellung/<int:req_id>")
 @login_required
 def purchase_detail(req_id):
-    return render_template("purchases/detail.html", req=_get(req_id), statuses=PURCHASE_STATUSES)
+    return render_template("purchases/detail.html", req=_get(req_id), statuses=PURCHASE_STATUSES,
+                           buyers=purchases.buyers())
+
+
+@bp.route("/bestellung/<int:req_id>/uebernehmen", methods=["POST"])
+@login_required
+def purchase_assign(req_id):
+    """Selbst übernehmen (jeder Besteller) oder weitergeben (wer zuständig ist und der Admin)."""
+    req = _get(req_id)
+    if not current_user.is_buyer:
+        abort(403)
+    target_id = form_int("assignee_id")
+    target = db.session.get(User, target_id) if target_id else current_user
+    if target != current_user and not req.can_handle(current_user):
+        abort(403)
+    try:
+        purchases.assign(req, current_user, target)
+        db.session.commit()
+        if target == current_user:
+            flash(_("Du kümmerst dich um „{title}“.", title=req.title), "success")
+        else:
+            flash(_("„{title}“ an {name} weitergegeben.", title=req.title, name=target.name), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("purchases.purchase_detail", req_id=req.id))
 
 
 @bp.route("/bestellung/<int:req_id>/bearbeiten", methods=["POST"])
 @login_required
 def purchase_update(req_id):
     req = _get(req_id)
-    if not current_user.is_buyer:
+    if not req.can_handle(current_user):
         abort(403)
     try:
         purchases.update_request(
@@ -103,7 +133,7 @@ def purchase_update(req_id):
 @editor_required
 def purchase_done(req_id):
     req = _get(req_id)
-    if not (current_user.is_buyer or req.requested_by_id == current_user.id):
+    if not (req.can_handle(current_user) or req.requested_by_id == current_user.id):
         abort(403)
     try:
         purchases.mark_done(req, current_user)

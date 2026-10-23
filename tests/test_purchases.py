@@ -38,7 +38,8 @@ def test_status_flow(db, seed):
     purchases.update_request(req, seed["admin"], "bestellt", supplier="Landtechnik Meyer",
                              expected_on=date.today() - timedelta(days=1))
     assert req.ordered_on == date.today() and req.handled_by == seed["admin"]
-    assert purchases.counts() == {"new": 0, "late": 1}
+    assert req.assignee == seed["admin"]                                    # wer bearbeitet, übernimmt
+    assert purchases.counts(seed["admin"]) == {"new": 0, "mine": 0, "late": 1}
     purchases.update_request(req, seed["admin"], "geliefert", supplier="Landtechnik Meyer")
     assert req.delivered_on == date.today() and purchases.arrived_for(seed["worker"]) == [req]
     purchases.mark_done(req, seed["worker"])
@@ -110,3 +111,39 @@ def test_worker_tasks_go_to_admins(as_worker, db, seed):
     as_worker.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Bremslicht kaputt", "as_task": "1"})
     t2 = Task.query.filter_by(machine_event_id=MachineEvent.query.filter_by(kind="stoerung").one().id).one()
     assert t2.assignees == [seed["admin"]] and t2.title == "Kipper: Bremslicht kaputt"
+
+
+def test_assignee(app, as_admin, db, seed):
+    """Unter mehreren Bestellern ist klar, wer sich kümmert: übernehmen, weitergeben, nur der Zuständige bearbeitet."""
+    anna, ben = make_user("anna", "mitarbeiter"), make_user("ben", "mitarbeiter")
+    anna.can_order = ben.can_order = True
+    req = purchases.create_request(seed["worker"], "Keilriemen")
+    db.session.commit()
+    assert purchases.counts(anna) == {"new": 1, "mine": 0, "late": 0}
+    a, b = app.test_client(), app.test_client()
+    login(a, "anna")
+    login(b, "ben")
+    assert "Ich übernehme" in b.get(f"/bestellung/{req.id}").get_data(as_text=True)
+
+    a.post(f"/bestellung/{req.id}/uebernehmen")
+    assert req.assignee == anna
+    assert purchases.counts(ben)["new"] == 0 and purchases.open_requests(ben) == []
+    html = b.get(f"/bestellung/{req.id}").get_data(as_text=True)
+    assert "anna kümmert sich darum." in html and "Bestellung bearbeiten" not in html
+    assert b.post(f"/bestellung/{req.id}/bearbeiten", data={"status": "bestellt"}).status_code == 403
+    assert b.post(f"/bestellung/{req.id}/uebernehmen", data={"assignee_id": str(seed["admin"].id)}).status_code == 403
+    assert "Keilriemen" not in b.get("/bestellungen?wer=frei").get_data(as_text=True)
+
+    # Anna gibt an Ben weiter; Ben sieht sie im Zähler, nur an Besteller möglich
+    a.post(f"/bestellung/{req.id}/uebernehmen", data={"assignee_id": str(ben.id)})
+    assert req.assignee == ben and purchases.counts(ben)["mine"] == 1
+    a.post(f"/bestellung/{req.id}/uebernehmen", data={"assignee_id": str(seed["worker"].id)})
+    assert req.assignee == ben
+    assert "Keilriemen" in b.get("/bestellungen?wer=zustaendig").get_data(as_text=True)
+    assert "Keilriemen" not in a.get("/bestellungen?wer=zustaendig").get_data(as_text=True)
+
+    # Anna holt sie sich zurück (Selbst übernehmen), der Admin darf immer bearbeiten
+    a.post(f"/bestellung/{req.id}/uebernehmen")
+    assert req.assignee == anna
+    as_admin.post(f"/bestellung/{req.id}/bearbeiten", data={"status": "bestellt"})
+    assert req.status == "bestellt" and req.assignee == anna

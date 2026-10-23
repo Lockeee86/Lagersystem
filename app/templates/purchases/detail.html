@@ -7,7 +7,8 @@
         <h1 class="d-flex flex-wrap align-items-center gap-2">{{ req.title }}
             <span class="badge fs-6 text-bg-{{ req.status_color }}">{{ req.status_label }}</span>
             {% if req.urgent and req.is_open %}<span class="badge fs-6 text-bg-danger">{{ _("dringend") }}</span>{% endif %}</h1>
-        <p class="text-body-secondary mb-0">{{ _("Angefragt am {date}", date=req.created_at|date) }}{% if req.requested_by %} · {{ req.requested_by.name }}{% endif %}</p>
+        <p class="text-body-secondary mb-0">{{ _("Angefragt am {date}", date=req.created_at|date) }}{% if req.requested_by %} · {{ req.requested_by.name }}{% endif %}
+            · {% if req.assignee %}<i class="bi bi-person-check"></i> {{ _("Zuständig: {name}", name=req.assignee.name) }}{% elif req.is_open %}<span class="text-warning-emphasis">{{ _("Noch niemand zuständig") }}</span>{% endif %}</p>
     </div>
     <a class="btn btn-outline-secondary" href="{{ url_for('purchases.purchase_list') }}"><i class="bi bi-box-seam me-1"></i>{{ _("Alle Bestellungen") }}</a>
 </div>
@@ -68,6 +69,37 @@
 
     {% if current_user.is_buyer %}
     <div class="col-lg-5">
+        {% if req.is_open %}
+        {# Wer kümmert sich? Übernehmen bzw. weitergeben #}
+        <div class="card shadow-sm mb-3 {{ 'border-warning' if not req.assignee else '' }}" id="zustaendig">
+            <div class="card-body">
+                {% if not req.assignee %}
+                <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <span><i class="bi bi-person-exclamation me-1"></i>{{ _("Noch niemand kümmert sich darum.") }}</span>
+                    <form method="post" action="{{ url_for('purchases.purchase_assign', req_id=req.id) }}">{{ csrf() }}
+                        <button class="btn btn-warning"><i class="bi bi-hand-index-thumb me-1"></i>{{ _("Ich übernehme") }}</button></form>
+                </div>
+                {% elif req.can_handle(current_user) %}
+                <div class="mb-2"><i class="bi bi-person-check me-1"></i>{{ _("Zuständig: {name}", name=req.assignee.name) }}{% if req.assignee_id == current_user.id %} ({{ _("du") }}){% endif %}</div>
+                {% else %}
+                <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <span><i class="bi bi-person-check me-1"></i>{{ _("{name} kümmert sich darum.", name=req.assignee.name) }}</span>
+                    <form method="post" action="{{ url_for('purchases.purchase_assign', req_id=req.id) }}">{{ csrf() }}
+                        <button class="btn btn-outline-secondary btn-sm" data-confirm="{{ _('{name} kümmert sich bereits. Trotzdem selbst übernehmen?', name=req.assignee.name) }}">{{ _("Selbst übernehmen") }}</button></form>
+                </div>
+                {% endif %}
+                {% if req.assignee and req.can_handle(current_user) and buyers|length > 1 %}
+                <form method="post" action="{{ url_for('purchases.purchase_assign', req_id=req.id) }}" class="d-flex gap-2">{{ csrf() }}
+                    <select class="form-select form-select-sm" name="assignee_id" aria-label="{{ _('Weitergeben an') }}">
+                        {% for b in buyers if b.id != req.assignee_id %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-outline-secondary btn-sm text-nowrap"><i class="bi bi-arrow-left-right me-1"></i>{{ _("Weitergeben") }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% if req.can_handle(current_user) %}
         <div class="card shadow-sm mb-4 border-primary-subtle">
             <div class="card-header"><i class="bi bi-cart-check me-1"></i>{{ _("Bestellung bearbeiten") }}</div>
             <div class="card-body">
@@ -99,6 +131,7 @@
                 </form>
             </div>
         </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

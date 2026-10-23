@@ -99,7 +99,7 @@ def dashboard():
                            weather=weather.get_weather(), show_blight=weather.blight_in_season(),
                            due_tasks_now=tasks.due_now(None if current_user.is_admin else current_user),
                            today=date.today(), plot_stats=_plot_stats(),
-                           purchase_open=purchases.open_requests() if current_user.is_buyer else [],
+                           purchase_open=purchases.open_requests(current_user) if current_user.is_buyer else [],
                            purchase_arrived=purchases.arrived_for(current_user),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)

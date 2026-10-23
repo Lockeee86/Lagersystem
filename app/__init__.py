@@ -118,8 +118,8 @@ def create_app(config=None):
         if "purchase_count" not in g:
             # Zahl am Menüpunkt „Bestellungen“: für Besteller neue Wünsche + überfällige Lieferungen
             from . import purchases
-            c = purchases.counts() if current_user.is_authenticated and current_user.is_buyer else None
-            g.purchase_count = c["new"] + c["late"] if c else 0
+            c = purchases.counts(current_user) if current_user.is_authenticated and current_user.is_buyer else None
+            g.purchase_count = sum(c.values()) if c else 0
         return {
             "farm": g.farm,
             "my_task_count": g.my_tasks,

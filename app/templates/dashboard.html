@@ -91,6 +91,7 @@
             <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span>
             {% if r.urgent %}<span class="badge text-bg-danger">{{ _("dringend") }}</span>{% endif %}
             <span class="fw-semibold">{{ r.title }}</span>
+            {% if not r.assignee %}<span class="badge text-bg-warning">{{ _("noch frei") }}</span>{% endif %}
             <span class="text-body-secondary">{% if r.machine %}· {{ r.machine.name }}{% endif %}{% if r.requested_by %} · {{ r.requested_by.name }}{% endif %}
                 {% if r.status == "bestellt" and r.expected_on %} · <span class="{{ 'text-danger fw-semibold' if r.expected_on < today }}">{{ _("Lieferung {date}", date=r.expected_on|date) }}</span>{% endif %}</span>
         </a>

@@ -163,6 +163,7 @@
                 <a class="list-group-item list-group-item-action small d-flex gap-2 align-items-center" href="{{ url_for('purchases.purchase_detail', req_id=r.id) }}">
                     <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span><span class="fw-semibold">{{ r.title }}</span>
                     {% if r.status == "bestellt" and r.expected_on %}<span class="text-body-secondary">· {{ _("Lieferung {date}", date=r.expected_on|date) }}</span>{% endif %}
+                    {% if r.assignee %}<span class="text-body-secondary">· <i class="bi bi-person-check"></i> {{ r.assignee.name }}</span>{% endif %}
                 </a>
                 {% endfor %}
             </div>

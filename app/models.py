@@ -821,12 +821,14 @@ class PurchaseRequest(db.Model):
     delivered_on = db.Column(db.Date)
     buyer_note = db.Column(db.Text)                               # auch Begründung bei Ablehnung
     handled_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    assignee_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)   # welcher Besteller kümmert sich
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
     machine = db.relationship("Machine")
     machine_event = db.relationship("MachineEvent")
     requested_by = db.relationship("User", foreign_keys=[requested_by_id])
     handled_by = db.relationship("User", foreign_keys=[handled_by_id])
+    assignee = db.relationship("User", foreign_keys=[assignee_id])
     photos = db.relationship("Photo", back_populates="purchase", order_by="Photo.id", cascade="all, delete-orphan")
 
     @property
@@ -840,3 +842,7 @@ class PurchaseRequest(db.Model):
     @property
     def is_open(self):
         return self.status in PURCHASE_OPEN
+
+    def can_handle(self, user):
+        """Bearbeiten darf, wer übernommen hat, der Admin – oder jeder Besteller, solange niemand übernommen hat."""
+        return user.is_buyer and (user.is_admin or self.assignee_id in (None, user.id))

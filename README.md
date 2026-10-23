@@ -36,7 +36,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Aufgaben**: der Admin verteilt an eine oder mehrere Personen oder an alle, mit Termin, Priorität,
   Wiederholung (täglich, werktags, wöchentlich …) und Bezug zu Maschine, Lieferschein oder Lagerplatz;
   abhaken am Handy mit Notiz und Foto. Mitarbeiter können Aufgaben an Admins/Besteller schicken
-- **Bestellungen**: Ersatzteile & Co. mit Foto anfragen (auch direkt aus einer Störung), der Besteller
+- **Bestellungen**: Ersatzteile & Co. mit Foto anfragen (auch direkt aus einer Störung), ein Besteller
+  übernimmt den Vorgang (oder gibt ihn weiter) und
   trägt Status, Lieferant, Preis und Liefertermin ein (Angefragt → Bestellt → Geliefert → Erledigt / Abgelehnt)
 - **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur, Fruchtfolge,
   Pflanzung und Rodung je Schlag, Ertrag in t/ha aus den Kisten
