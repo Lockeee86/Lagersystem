@@ -264,3 +264,88 @@ def test_protection_pages(as_admin, as_worker, as_viewer, db, seed):
     assert 'value="F"' in html and "Mittel ohne Wartezeit" not in html
     koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
     assert as_viewer.get(f"/schlag/{koppel.id}").status_code == 200
+
+
+# Aufbau wie der Myfarm24-„Fruchtfolgeplan“ (Daten erfunden)
+PLAN = """Fruchtfolgeplan Erntejahre 2026 - 2028
+Betriebsstätte: Musterhof (. .)
+Schlag;Nr.;ha;2026;2027;2028
+Hofkoppel (2);1;6,5;K;-;-
+Bachfeld;22;16,6;WW;M;K
+Neuland;300;2,25;;Sonst,;ZR
+Rübenacker;301;3;ZR;RW;ZR
+
+Kulturen;2026 ha;2026 %;2027 ha;2027 %;2028 ha;2028 %
+K - Kartoffel;6,5;30;;;;
+M - Mais;;;16,6;80;;
+RW - Winterroggen;;;3;10;;
+WW - Winterweichweizen;16,6;70;;;;
+ZR - Zuckerrübe;3;10;;;2,25;10
+Sonstige:
+Ackergras;;;2,25;10;;
+Gesamt;26,1;;21,85;;;
+"""
+
+
+def test_rotation_plan(db, seed):
+    years, entries = fielddoc.parse_plan(PLAN.encode("cp1252"))
+    assert years == [2026, 2027, 2028] and [e["name"] for e in entries] == ["Hofkoppel (2)", "Bachfeld", "Neuland",
+                                                                              "Rübenacker"]
+    assert entries[0]["plan"] == {2026: "Kartoffel", 2027: "-", 2028: "-"}
+    assert entries[2]["plan"] == {2026: None, 2027: "Sonstige", 2028: "Zuckerrübe"}
+    assert entries[2]["area_ha"] == Decimal("2.25")
+    with pytest.raises(FieldImportError):
+        fielddoc.parse_plan(CSV.encode("cp1252"))
+
+    fielddoc.apply_import(fielddoc.parse_csv(data())[1], 2026)          # Schlagdokumentation: Kultur 2026
+    db.session.commit()
+    rows, missing = fielddoc.plan_rotation(entries, years)
+    assert [r["plot"] is None for r in rows] == [False, False, True, True] and rows[0]["changes"] == [2026, 2027, 2028]
+    stats = fielddoc.apply_rotation(entries, years, create=False)
+    db.session.commit()
+    assert stats == {"created": 0, "updated": 2, "skipped": 2}
+    stats = fielddoc.apply_rotation(entries, years)
+    db.session.commit()
+    assert stats == {"created": 2, "updated": 0, "skipped": 0}
+    bach = Plot.query.filter_by(name="Bachfeld").one()
+    assert bach.year(2026).crop == "Winterweizen" and bach.year(2026).planned_crop == "Winterweichweizen"
+    assert bach.year(2027).crop is None and bach.year(2027).shown_crop == "Mais"
+    neu = Plot.query.filter_by(name="Neuland").one()
+    assert neu.number == "300" and neu.area_ha == Decimal("2.25") and neu.year(2026) is None
+    koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
+    assert koppel.year(2027).planned_crop == "-" and koppel.year(2027).shown_crop is None
+    # Planung geändert: leere Zelle löscht die Planung, die tatsächliche Kultur bleibt
+    fielddoc.apply_rotation(fielddoc.parse_plan(PLAN.replace("Bachfeld;22;16,6;WW;M;K", "Bachfeld;22;16,6;;M;").encode())[1],
+                            years)
+    assert bach.year(2026).planned_crop is None and bach.year(2026).crop == "Winterweizen"
+    assert bach.year(2028).planned_crop is None
+
+    # Fruchtfolge-Tabelle: Zuckerrübe 2026 und 2028 → Anbaupause unterschritten
+    plots = Plot.query.order_by(Plot.name).all()
+    rows, summary = fielddoc.rotation(plots, [2025, 2026, 2027, 2028])
+    by_name = {r["plot"].name: r for r in rows}
+    ruebe = {c["year"]: c for c in by_name["Rübenacker"]["cells"]}
+    assert ruebe[2028]["warn"] == 2026 and ruebe[2026]["warn"] is None and ruebe[2027]["shown"] == "Winterroggen"
+    kop = {c["year"]: c for c in by_name["Hofkoppel (2)"]["cells"]}
+    assert kop[2026]["shown"] == "Kartoffel (Pflanz)" and kop[2025]["shown"] == "Zuckerrüben"
+    assert kop[2027]["shown"] is None and kop[2027]["planned"] == "-"
+    mais = next(c for c in summary if c["crop"] == "Mais")
+    assert mais["ha"] == {2027: Decimal("16.6")}
+    assert fields.crop_color("Mais", None) == fields.crop_color("Silomais", None)
+
+
+def test_rotation_pages(as_admin, as_worker, as_viewer, db, seed):
+    r = as_admin.post("/admin/schlaege/fruchtfolge", data={"file": (io.BytesIO(PLAN.encode("cp1252")), "plan.csv")},
+                      content_type="multipart/form-data")
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200 and "Rübenacker" in html and "2026–2028" in html and Plot.query.count() == 1
+    assert as_worker.post("/admin/schlaege/fruchtfolge/uebernehmen", data={"create": "1"}).status_code == 403
+    r = as_admin.post("/admin/schlaege/fruchtfolge/uebernehmen", data={"create": "1"})
+    assert r.headers["Location"].endswith("/fruchtfolge") and Plot.query.count() == 5
+    html = as_viewer.get("/fruchtfolge?von=2025").get_data(as_text=True)
+    assert "Rübenacker" in html and "Winterweichweizen" in html and "Anbauumfang" in html
+    assert "Gleiche Kultur schon 2026" in html
+    assert "Hofkoppel" in as_viewer.get("/fruchtfolge?kartoffeln=1").get_data(as_text=True)
+    assert "Bachfeld" in as_viewer.get("/schlagkarte?jahr=2028&kartoffeln=1").get_data(as_text=True)   # geplant
+    bach = Plot.query.filter_by(name="Bachfeld").one()
+    assert "geplant" in as_viewer.get(f"/schlag/{bach.id}").get_data(as_text=True)

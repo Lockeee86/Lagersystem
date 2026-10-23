@@ -68,6 +68,8 @@ docker compose up --build -d
   (`source="myfarm"` wird beim Re-Import ersetzt), Abgleich über `fields._match`; Anzeige `fields/_doc.html`.
   Wartezeiten: `fielddoc.protection()` / `protection_overview()` (Bemerkung „Wartezeit n Tage/F“, sonst
   `PesticideProduct`), Seite `fields.protection` (`/pflanzenschutz`).
+  Fruchtfolgeplan: `fielddoc.parse_plan/apply_rotation` → `PlotYear.planned_crop` (Anzeige über `shown_crop`),
+  Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
 - `app/navigation.py`: Bereiche (Übersicht, Lager, Feld & Hof, Verkauf) mit Unterpunkten und die Verwaltung –
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste und Kacheln. `app/search.py`: Suche
@@ -82,6 +84,10 @@ docker compose up --build -d
 - `migrations/`: Alembic. Der Container führt beim Start `flask db upgrade` aus (`entrypoint.sh`).
 
 ## Konventionen
+
+- **Keine echten Hofdaten im Repo** (Tests, Doku, Kommentare, Beispiele): keine echten Schlagnamen, Schlagnummern,
+  Flächen, FLIK/USchlag-IDs, Koordinaten, Personen, Hof-/Betriebsnamen oder Adressen aus Dateien des Nutzers.
+  Immer erfundene Daten verwenden. Vor jedem Commit danach suchen und gefundene echte Daten wieder entfernen.
 
 - Positionen: `row`, `slot`, `level` sind 1-basiert. Anzeige über `Warehouse.location_label()` → `C-07-3`
 - Kisten-Codes `K-0001`; Benutzereingaben immer über `storage.normalize_code()`

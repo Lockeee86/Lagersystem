@@ -423,3 +423,157 @@ def save_product(name, wait_days, covered):
         db.session.add(product)
     product.wait_days, product.covered = (None if covered else wait_days), bool(covered)
     return product
+
+
+# --- Fruchtfolgeplan (CSV aus Myfarm24) --------------------------------------------------
+# Kopf „Fruchtfolgeplan Erntejahre 2026 - 2030“, dann „Schlag;Nr.;ha;2026;2027;…“ und je Schlag eine Zeile mit
+# Kürzeln (K, M, RW …). Die Legende darunter („K - Kartoffel;…“) übersetzt die Kürzel.
+# „Sonst,“ = sonstige Kultur, „-“ = Schlag in dem Jahr nicht im Plan, leer = noch nicht geplant.
+
+PLAN_RE = re.compile(r"Fruchtfolgeplan\s+Erntejahre?\s+(\d{4})")
+LEGEND_RE = re.compile(r"^([A-Za-zÄÖÜäöü]{1,6})\s+-\s+([^;]+)")
+PLAN_OTHER = "Sonstige"
+PLAN_NONE = "-"
+
+
+def parse_plan(data):
+    """Liest den Fruchtfolgeplan. Liefert (Jahre, [{name, number, area_ha, plan: {jahr: kultur|"-"|None}}])."""
+    text = _decode(data)
+    if not PLAN_RE.search(text[:300]):
+        raise FieldImportError(_("Die Datei ist kein Fruchtfolgeplan aus Myfarm24 (CSV)."))
+    lines = [l.strip() for l in text.splitlines()]
+    legend = {}
+    for line in lines:
+        m = LEGEND_RE.match(line)
+        if m:
+            legend[m.group(1)] = m.group(2).strip()[:100]
+    years, rows, header = [], [], False
+    for line in lines:
+        cols = [c.strip() for c in line.split(";")]
+        if not header:
+            if [c.lower() for c in cols[:3]] == ["schlag", "nr.", "ha"]:
+                years = [int(c) for c in cols[3:] if re.fullmatch(r"\d{4}", c)]
+                header = True
+            continue
+        if not line or cols[0].startswith("Kulturen"):
+            break
+        if not cols[0]:
+            continue
+        cols += [""] * (3 + len(years))
+        plan = {}
+        for year, code in zip(years, cols[3:3 + len(years)]):
+            code = code.strip().rstrip(",").strip()
+            if not code:
+                plan[year] = None
+            elif code == PLAN_NONE:
+                plan[year] = PLAN_NONE
+            elif code.lower().startswith("sonst"):
+                plan[year] = PLAN_OTHER
+            else:
+                plan[year] = legend.get(code, code)[:100]
+        area = _number(cols[2])
+        rows.append({"name": cols[0][:100], "number": cols[1][:20] or None, "myfarm_id": None, "rings": None,
+                     "area_ha": area.quantize(Decimal("0.0001")) if area and 0 < area < 100000 else None,
+                     "plan": plan})
+    if not years or not rows:
+        raise FieldImportError(_("Im Fruchtfolgeplan sind keine Schläge."))
+    return years, rows
+
+
+def plan_rotation(entries, years):
+    """Vorschau: [{entry, plot, changes: [jahre]}] und aktive Schläge, die nicht im Plan stehen."""
+    matches = _match(entries)
+    rows = []
+    for e, plot in zip(entries, matches):
+        changes = []
+        if plot is not None:
+            for year in years:
+                current = plot.year(year)
+                if (current.planned_crop if current else None) != e["plan"][year]:
+                    changes.append(year)
+        rows.append({"entry": e, "plot": plot, "changes": changes})
+    seen = {p.id for p in matches if p}
+    missing = [p for p in Plot.query.filter_by(active=True).order_by(Plot.name) if p.id not in seen]
+    return rows, missing
+
+
+def apply_rotation(entries, years, create=True):
+    """Übernimmt die geplanten Kulturen für die Jahre des Plans (leere Zellen löschen die Planung).
+    Die tatsächliche Kultur (aus Schlagdokumentation/KML) bleibt unberührt. Liefert ein dict mit Zählern."""
+    rows, _missing = plan_rotation(entries, years)
+    taken = {p.name.casefold() for p in Plot.query.all()}
+    stats = {"created": 0, "updated": 0, "skipped": 0}
+    for row in rows:
+        e, plot = row["entry"], row["plot"]
+        if plot is None:
+            if not create:
+                stats["skipped"] += 1
+                continue
+            name = e["name"] if e["name"].casefold() not in taken else _numbered_name(e)
+            if name.casefold() in taken:
+                raise FieldImportError(_("Den Schlag „{name}“ gibt es schon.", name=name))
+            plot = Plot(name=name, number=e["number"], area_ha=e["area_ha"], active=True)
+            db.session.add(plot)
+            taken.add(name.casefold())
+            stats["created"] += 1
+        elif row["changes"]:
+            stats["updated"] += 1
+        for year in years:
+            planned = e["plan"][year]
+            entry = plot.year(year)
+            if entry is None:
+                if planned is None:
+                    continue
+                entry = _year_entry(plot, year)
+            entry.planned_crop = planned
+        db.session.flush()
+    return stats
+
+
+ROTATION_BREAKS = [("kartoffel", 3), ("rübe", 3)]   # Anbaupause in Jahren (Nematoden, Krankheiten)
+
+
+def _crop_group(crop):
+    lower = (crop or "").lower()
+    return next(((word, years) for word, years in ROTATION_BREAKS if word in lower), None)
+
+
+def rotation(plots, years):
+    """Fruchtfolge-Tabelle: je Schlag und Jahr {crop, planned, color, warn}, dazu Hektar je Kultur und Jahr.
+    `warn` = gleiche Kultur(gruppe) innerhalb der Anbaupause (Kartoffel, Rübe)."""
+    from .fields import crop_color
+    first = min(years) - max(y for _w, y in ROTATION_BREAKS)
+    rows, totals = [], {y: {} for y in years}
+    for plot in plots:
+        by_year = {py.year: py for py in plot.years}
+        cells, any_data = [], False
+        for year in years:
+            entry = by_year.get(year)
+            crop = entry.crop if entry else None
+            planned = entry.planned_crop if entry else None
+            shown = crop or (planned if planned != PLAN_NONE else None)
+            warn = None
+            group = _crop_group(shown)
+            if group:
+                for back in range(1, group[1] + 1):
+                    earlier = by_year.get(year - back)
+                    if year - back >= first and earlier and _crop_group(earlier.shown_crop) == group:
+                        warn = year - back
+                        break
+            cells.append({"year": year, "crop": crop, "planned": planned, "shown": shown, "warn": warn,
+                          "color": crop_color(shown, entry.crop_eppo if entry and crop else None) if shown else None})
+            if shown or planned:
+                any_data = True
+            if shown:
+                bucket = totals[year].setdefault(shown, {"ha": Decimal(0), "color": cells[-1]["color"]})
+                bucket["ha"] += Decimal(plot.area_ha or 0)
+        if any_data:
+            rows.append({"plot": plot, "cells": cells})
+    crops = {}
+    for year, per_crop in totals.items():
+        for crop, t in per_crop.items():
+            c = crops.setdefault(crop, {"crop": crop, "color": t["color"], "ha": {}, "total": Decimal(0)})
+            c["ha"][year] = t["ha"]
+            c["total"] += t["ha"]
+    summary = sorted(crops.values(), key=lambda c: (c["crop"] == PLAN_OTHER, -c["total"]))
+    return rows, summary

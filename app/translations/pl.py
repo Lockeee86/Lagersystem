@@ -1435,4 +1435,33 @@ MESSAGES = {
         '{n} pole bez granic (położenie z dokumentacji pól)',
         '{n} pola bez granic (położenie z dokumentacji pól)',
         '{n} pól bez granic (położenie z dokumentacji pól)'),
+
+    # Fruchtfolgeplan
+    'Die Datei ist kein Fruchtfolgeplan aus Myfarm24 (CSV).': 'Plik nie jest planem płodozmianu z Myfarm24 (CSV).',
+    'Im Fruchtfolgeplan sind keine Schläge.': 'W planie płodozmianu nie ma pól.',
+    'Fruchtfolge': 'Płodozmian',
+    'Fruchtfolgeplan {first}–{last} übernommen: {created} Schläge neu, {updated} geändert.':
+        'Przejęto plan płodozmianu {first}–{last}: {created} nowych pól, {updated} zmienionych.',
+    'Fruchtfolgeplan importieren (CSV aus Myfarm24)': 'Importuj plan płodozmianu (CSV z Myfarm24)',
+    'CSV-Datei „Fruchtfolgeplan“': 'Plik CSV „Fruchtfolgeplan”',
+    'Trägt die geplanten Kulturen je Schlag und Jahr ein. Die tatsächliche Kultur aus der Schlagdokumentation bleibt davon unberührt.':
+        'Wpisuje planowane uprawy dla każdego pola i roku. Rzeczywista uprawa z dokumentacji pól pozostaje bez zmian.',
+    'Die {n} neuen Schläge anlegen': ('Utwórz nowe pole', 'Utwórz {n} nowe pola', 'Utwórz {n} nowych pól'),
+    'Fruchtfolgeplan importieren': 'Importuj plan płodozmianu',
+    'Nicht im Plan:': 'Brak w planie:',
+    '(sonst werden sie übersprungen)': '(w przeciwnym razie zostaną pominięte)',
+    'nicht im Plan': 'brak w planie',
+    'ab': 'od',
+    'nur Schläge mit Kartoffeln': 'tylko pola z ziemniakami',
+    'laut Schlagdokumentation': 'wg dokumentacji pól',
+    'geplant': 'planowane',
+    'laut Fruchtfolgeplan': 'wg planu płodozmianu',
+    'Anbaupause unterschritten (Kartoffel, Rübe: 3 Jahre)': 'Za krótka przerwa w uprawie (ziemniak, burak: 3 lata)',
+    'geplant: {crop}': 'planowane: {crop}',
+    'Gleiche Kultur schon {year}': 'Ta sama uprawa już w {year}',
+    'Anbauumfang': 'Powierzchnia upraw',
+    'Noch keine Kulturen eingetragen.': 'Nie wpisano jeszcze upraw.',
+    '{n} Schläge laut Fruchtfolgeplan (geplant)': (
+        '{n} pole wg planu płodozmianu (planowane)', '{n} pola wg planu płodozmianu (planowane)',
+        '{n} pól wg planu płodozmianu (planowane)'),
 }

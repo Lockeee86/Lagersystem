@@ -351,6 +351,52 @@ def plots_csv_apply():
     return redirect(url_for("admin.plots"))
 
 
+@bp.route("/schlaege/fruchtfolge", methods=["POST"])
+def plots_plan_preview():
+    """Fruchtfolgeplan aus Myfarm24 (CSV) – erst Vorschau, dann übernehmen."""
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("admin.plots"))
+    data_bytes = upload.read()
+    try:
+        years, entries = fielddoc.parse_plan(data_bytes)
+    except fields.FieldImportError as e:
+        flash_error(str(e))
+        return redirect(url_for("admin.plots"))
+    rows, missing = fielddoc.plan_rotation(entries, years)
+    _cleanup_imports()
+    token = secrets.token_hex(16)
+    with open(os.path.join(_import_dir(), token), "wb") as f:
+        f.write(data_bytes)
+    session["plan_import"] = {"token": token}
+    return render_template("admin/plots_plan_preview.html", rows=rows, missing=missing, years=years,
+                           filename=upload.filename)
+
+
+@bp.route("/schlaege/fruchtfolge/uebernehmen", methods=["POST"])
+def plots_plan_apply():
+    info, path = _pending_import("plan_import")
+    if not info:
+        flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
+        return redirect(url_for("admin.plots"))
+    with open(path, "rb") as f:
+        data_bytes = f.read()
+    try:
+        years, entries = fielddoc.parse_plan(data_bytes)
+        stats = fielddoc.apply_rotation(entries, years, create=bool(request.form.get("create")))
+        db.session.commit()
+    except fields.FieldImportError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("admin.plots"))
+    os.remove(path)
+    session.pop("plan_import", None)
+    flash(_("Fruchtfolgeplan {first}–{last} übernommen: {created} Schläge neu, {updated} geändert.",
+            first=years[0], last=years[-1], created=stats["created"], updated=stats["updated"]), "success")
+    return redirect(url_for("fields.rotation_page"))
+
+
 @bp.route("/schlaege/<int:p_id>/loeschen", methods=["POST"])
 def plot_delete(p_id):
     plot = _get(Plot, p_id)

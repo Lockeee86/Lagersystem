@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Fruchtfolgeplan importieren") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Fruchtfolgeplan importieren") }}</h1>
+        <p class="text-body-secondary mb-0">{{ filename }} · {{ years[0] }}–{{ years[-1] }} ·
+            {{ ngettext("{n} Schlag", "{n} Schläge", rows|length) }}</p>
+    </div>
+</div>
+
+{% set new = rows|selectattr("plot", "none")|list %}
+{% set changed = rows|rejectattr("plot", "none")|selectattr("changes")|list %}
+<div class="alert alert-info">
+    {{ _("Neu: {new} · geändert: {changed} · unverändert: {same}", new=new|length, changed=changed|length, same=rows|length - new|length - changed|length) }}
+</div>
+{% if missing %}
+<div class="alert alert-warning small">
+    <strong>{{ _("Nicht im Plan:") }}</strong> {{ missing|map(attribute='label')|join(", ") }}.
+    {{ _("Diese Schläge bleiben unverändert.") }}
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('admin.plots_plan_apply') }}" class="mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if new %}
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="create" name="create" value="1" checked>
+        <label class="form-check-label" for="create">{{ ngettext("Den neuen Schlag anlegen", "Die {n} neuen Schläge anlegen", new|length) }}
+            <span class="text-body-secondary small">{{ _("(sonst werden sie übersprungen)") }}</span></label>
+    </div>
+    {% endif %}
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.plots') }}">{{ _("Abbrechen") }}</a>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>{{ _("Nr.") }}</th><th>{{ _("Schlag") }}</th>{% for y in years %}<th>{{ y }}</th>{% endfor %}<th></th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+            {% set e = row.entry %}
+            <tr>
+                <td>{{ e.number or "" }}</td>
+                <td>{{ e.name }}</td>
+                {% for y in years %}{% set c = e.plan[y] %}
+                <td class="small {% if y in row.changes %}table-warning{% endif %}">{% if c == "-" %}<span class="text-body-tertiary" title="{{ _('nicht im Plan') }}">–</span>{% else %}{{ c or "" }}{% endif %}</td>
+                {% endfor %}
+                <td>{% if not row.plot %}<span class="badge text-bg-success">{{ _("neu") }}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -318,6 +318,7 @@ class PlotYear(db.Model):
     variety_name = db.Column(db.String(100))    # Sorte laut Schlagdokumentation (auch Getreide, Mais …)
     n_demand = db.Column(db.Integer)            # N-Düngebedarf nach DüV in kg/ha
     catch_crop = db.Column(db.String(100))      # Zwischenfrucht
+    planned_crop = db.Column(db.String(100))    # laut Fruchtfolgeplan (Myfarm24); "-" = Schlag in dem Jahr nicht im Plan
 
     plot = db.relationship("Plot", back_populates="years")
     variety = db.relationship("Variety")
@@ -327,6 +328,13 @@ class PlotYear(db.Model):
     @property
     def is_potato(self):
         return self.crop_eppo == "SOLTU" or "kartoffel" in (self.crop or "").lower()
+
+    @property
+    def shown_crop(self):
+        """Tatsächliche Kultur, sonst die geplante (ohne „-“)."""
+        if self.crop:
+            return self.crop
+        return self.planned_crop if self.planned_crop and self.planned_crop != "-" else None
 
 
 FIELD_MEASURE_KINDS = {

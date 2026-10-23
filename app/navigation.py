@@ -32,6 +32,7 @@ AREAS = [
     ]},
     {"key": "feld", "label": N_("Feld & Hof"), "icon": "bi-map", "items": [
         item("fields.field_map", N_("Schläge"), "bi-map", endpoints=("fields.field_detail", "fields.field_year_save")),
+        item("fields.rotation_page", N_("Fruchtfolge"), "bi-arrow-repeat"),
         item("fields.protection", N_("Pflanzenschutz"), "bi-shield-plus", endpoints=("fields.protection_product",)),
         item("machines.machine_list", N_("Maschinen"), "bi-gear-wide-connected", prefixes=("machines.",)),
         item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
@@ -50,7 +51,8 @@ ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items
     item("admin.settings", N_("Hof"), "bi-house-gear"),
     item("admin.warehouses", N_("Lager"), "bi-buildings"),
     item("admin.varieties", N_("Sorten"), "bi-palette"),
-    item("admin.plots", N_("Schläge"), "bi-map", endpoints=("admin.plots_kml_preview", "admin.plots_csv_preview")),
+    item("admin.plots", N_("Schläge"), "bi-map", endpoints=("admin.plots_kml_preview", "admin.plots_csv_preview",
+                                                             "admin.plots_plan_preview")),
     item("admin.seed_classes", N_("Stufen"), "bi-award"),
     item("admin.box_types", N_("Kistentypen"), "bi-box"),
     item("admin.users", N_("Benutzer"), "bi-people"),

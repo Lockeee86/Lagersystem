@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Fruchtfolge") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Fruchtfolge") }}</h1>
+        <p class="text-body-secondary mb-0">{{ years[0] }}–{{ years[-1] }} · {{ ngettext("{n} Schlag", "{n} Schläge", rows|length) }}</p>
+    </div>
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+        <label class="small text-body-secondary" for="von">{{ _("ab") }}</label>
+        <select class="form-select form-select-sm w-auto" id="von" name="von" onchange="this.form.submit()">
+            {% for y in first_options %}<option value="{{ y }}" {% if y == first %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="onlyPotatoes" name="kartoffeln" value="1" {% if only_potatoes %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="onlyPotatoes">{{ _("nur Schläge mit Kartoffeln") }}</label>
+        </div>
+    </form>
+</div>
+
+<p class="small text-body-secondary">
+    <span class="rotation-chip">{{ _("Kultur") }}</span> {{ _("laut Schlagdokumentation") }} ·
+    <span class="rotation-chip planned">{{ _("geplant") }}</span> {{ _("laut Fruchtfolgeplan") }} ·
+    <i class="bi bi-exclamation-triangle-fill text-warning"></i> {{ _("Anbaupause unterschritten (Kartoffel, Rübe: 3 Jahre)") }}
+</p>
+
+{% if rows %}
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive rotation-table">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th class="sticky-col">{{ _("Schlag") }}</th><th class="text-end d-none d-md-table-cell">ha</th>
+                {% for y in years %}<th class="{{ 'table-active' if y == this_year }}">{{ y }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for r in rows %}
+            <tr>
+                <td class="sticky-col"><a href="{{ url_for('fields.field_detail', plot_id=r.plot.id) }}">{{ r.plot.name }}</a>
+                    {% if r.plot.number %}<span class="small text-body-secondary">{{ r.plot.number }}</span>{% endif %}</td>
+                <td class="text-end small text-nowrap d-none d-md-table-cell">{{ r.plot.area_ha|num(2) if r.plot.area_ha is not none else "" }}</td>
+                {% for c in r.cells %}
+                <td class="{{ 'table-active' if c.year == this_year }}">
+                    {% if c.shown %}
+                    <span class="rotation-chip {{ 'planned' if not c.crop }}" style="--chip: {{ c.color }}"
+                          {% if c.crop and c.planned and c.planned != "-" and c.planned != c.crop %}title="{{ _('geplant: {crop}', crop=c.planned) }}"{% endif %}>{{ c.shown }}</span>
+                    {% if c.warn %}<i class="bi bi-exclamation-triangle-fill text-warning" title="{{ _('Gleiche Kultur schon {year}', year=c.warn) }}"></i>{% endif %}
+                    {% elif c.planned == "-" %}<span class="text-body-tertiary small" title="{{ _('nicht im Plan') }}">–</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h2 class="h5">{{ _("Anbauumfang") }}</h2>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small">
+            <thead><tr><th>{{ _("Kultur") }}</th>{% for y in years %}<th class="text-end {{ 'table-active' if y == this_year }}">{{ y }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for c in summary %}
+            <tr><td><span class="legend-swatch" style="background: {{ c.color }}"></span>{{ c.crop }}</td>
+                {% for y in years %}<td class="text-end text-nowrap {{ 'table-active' if y == this_year }}">{% if c.ha.get(y) %}{{ c.ha[y]|num(1) }} ha{% endif %}</td>{% endfor %}</tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-arrow-repeat"></i><p>{{ _("Noch keine Kulturen eingetragen.") }}
+    {% if current_user.is_admin %}<a href="{{ url_for('admin.plots') }}">{{ _("Fruchtfolgeplan importieren") }}</a>{% endif %}</p></div>
+{% endif %}
+{% endblock %}

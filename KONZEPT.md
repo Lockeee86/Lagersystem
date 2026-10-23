@@ -168,7 +168,7 @@ Umsetzung: Import der Schlagkartei aus Myfarm24 als KML/KMZ (Verwaltung → Schl
 werden Name, Schlagnummer, Fläche (SchlagHa, 4 Nachkommastellen), Bodenart, Rotes Gebiet, Umriss, Kultur
 (Anbaujahr wählbar) und Vorfrucht (→ Kultur des Vorjahres, nur wenn dort leer). Abgleich beim erneuten
 Import: Nummer + Name → Name (Schlag ohne Nummer) → gleicher Umriss (umbenannt) → eindeutige Nummer.
-Schlagnummern und -namen sind in Myfarm24 nicht eindeutig (z. B. zweimal Nr. 7, zweimal „Obere Wiese“);
+Schlagnummern und -namen sind in Myfarm24 nicht eindeutig (z. B. zweimal Nr. 7, zweimal „Mühlenfeld“);
 doppelte Namen werden zu „Name (Nr)“. Schlagkarte als SVG ohne Kartenhintergrund (CSP), eingefärbt nach
 Kultur, mit Zoom und Verschieben. Schlagseite: Fruchtfolge je Jahr, Pflanzung (Sorte, Pflanzgut, Datum)
 und Rodung – Mitarbeiter dürfen eintragen, die Kultur ändert nur der Admin. Ertrag t/ha aus den Kisten
@@ -302,6 +302,17 @@ erneuten Import werden die importierten Maßnahmen des Jahres ersetzt, in der Ap
 Schlagseite: Boden-Karte, je Anbaujahr Maßnahmen aufklappbar, Nährstoffsumme und N anrechenbar gegen den Bedarf
 (Myfarm24 summiert ungerundet, daher ±1 kg/ha Abweichung möglich).
 Später möglich: Maschinen aus „Arbeiten / Maschinen“ den Maschinen der App zuordnen.
+
+### Fruchtfolgeplan (0.27.0)
+Dritter Import unter Verwaltung → Schläge: der Myfarm24-„Fruchtfolgeplan“ (CSV, „Schlag;Nr.;ha;2026;…“, Kürzel
+K/M/RW/… mit Legende darunter). Er setzt je Schlag und Jahr `PlotYear.planned_crop` (Kulturname aus der Legende,
+„Sonst,“ → „Sonstige“, „-“ = Schlag in dem Jahr nicht im Plan, leer = Planung gelöscht); die tatsächliche Kultur
+aus Schlagdokumentation/KML bleibt unberührt und geht in der Anzeige vor (`PlotYear.shown_crop`). Neue Schläge aus
+dem Plan werden auf Wunsch angelegt (Nummer, Fläche). Feld & Hof → Fruchtfolge: Tabelle Schlag × Jahr (tatsächlich
+ausgefüllt, geplant gestrichelt), Hinweis bei unterschrittener Anbaupause (Kartoffel, Rübe: 3 Jahre) und
+Anbauumfang in ha je Kultur und Jahr. Schlagkarte und Schlagseite zeigen für Planjahre die geplante Kultur.
+Farben je Kultur jetzt auch über den Namen (Mais = Silomais, Winterweichweizen = Winterweizen, Spelz = Dinkel).
+Echte Hofdaten (Schlagnamen, Flächen, Personen, Hofname) gehören nicht ins Repo – Tests nutzen erfundene Daten.
 
 ### Pflanzenschutz-Übersicht und Lage ohne Umriss (0.26.0)
 Feld & Hof → Pflanzenschutz: je Erntejahr alle Schläge mit Anwendungen, letzte Anwendung, Ende der Wartezeit

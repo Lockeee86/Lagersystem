@@ -581,3 +581,9 @@ body:not(.has-tabbar) {
 .field-doc .table td, .field-doc .table th { white-space: normal; }
 .field-point, .field-map-svg.with-aerial .field-point { fill-opacity: .95; stroke-dasharray: none; }
 .field-map-svg.with-aerial .field-point { stroke: #fff; }
+
+/* Fruchtfolge */
+.rotation-chip { display: inline-block; padding: .05rem .4rem; border-radius: .35rem; font-size: .8rem; white-space: nowrap;
+    background: color-mix(in srgb, var(--chip, #b7b2a6) 35%, transparent); border: 1px solid var(--chip, #b7b2a6); }
+.rotation-chip.planned { background: transparent; border-style: dashed; font-style: italic; }
+.rotation-table .sticky-col { position: sticky; left: 0; background: var(--bs-body-bg); z-index: 1; min-width: 9rem; }

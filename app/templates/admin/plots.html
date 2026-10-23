@@ -27,6 +27,23 @@
 </div>
 
 <div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Fruchtfolgeplan importieren (CSV aus Myfarm24)") }}</div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('admin.plots_plan_preview') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-9">
+                <label class="form-label" for="plan_file">{{ _("CSV-Datei „Fruchtfolgeplan“") }}</label>
+                <input class="form-control" type="file" id="plan_file" name="file" accept=".csv,text/csv" required>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
+            </div>
+            <div class="col-12 form-text">{{ _("Trägt die geplanten Kulturen je Schlag und Jahr ein. Die tatsächliche Kultur aus der Schlagdokumentation bleibt davon unberührt.") }}</div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-bounding-box me-1"></i>{{ _("Umrisse importieren (KML, z. B. aus Myfarm24)") }}</div>
     <div class="card-body">
         <form method="post" action="{{ url_for('admin.plots_kml_preview') }}" enctype="multipart/form-data" class="row g-2 align-items-end">

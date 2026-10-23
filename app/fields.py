@@ -36,6 +36,10 @@ CROP_COLORS = {
     "HORVW": "#c7b26a",   # Wintergerste
     "BRSNW": "#e8d33a",   # Winterraps
 }
+# Kulturen ohne EPPO-Code (z. B. aus dem Fruchtfolgeplan: „Mais“, „Winterweichweizen“) über Teile des Namens
+CROP_KEYWORDS = [("kartoffel", "SOLTU"), ("mais", "ZEAMX"), ("dinkel", "TRZSP"), ("spelz", "TRZSP"),
+                 ("wickroggen", None), ("weizen", "TRZAW"), ("roggen", "SECCW"), ("rübe", "BEAVA"), ("raps", "BRSNW"),
+                 ("gerste", "HORVW"), ("gras", "CERAR"), ("weide", "CERAR")]
 FALLBACK_COLORS = ["#4f8fba", "#7fae5b", "#c76d4f", "#5aa89a", "#a8845a", "#8f6fb3", "#b5a33c", "#6b8e3d"]
 NO_CROP_COLOR = "#b7b2a6"
 
@@ -138,7 +142,7 @@ def parse_kml(filename, data):
 # --- Abgleich und Übernahme ------------------------------------------------------
 
 def _numbered_name(e):
-    """Name bei doppeltem Schlagnamen (z. B. zweimal „Obere Wiese“ mit Nr. 2 und 1002)."""
+    """Name bei doppeltem Schlagnamen (z. B. zweimal „Mühlenfeld“ mit Nr. 2 und 1002)."""
     return f"{e['name']} ({e['number']})"[:100] if e["number"] else e["name"]
 
 
@@ -259,8 +263,12 @@ def crop_color(crop, eppo):
         return NO_CROP_COLOR
     if eppo and eppo in CROP_COLORS:
         return CROP_COLORS[eppo]
-    if "kartoffel" in crop.lower():
-        return CROP_COLORS["SOLTU"]
+    lower = crop.lower()
+    for word, code in CROP_KEYWORDS:
+        if word in lower:
+            if code:
+                return CROP_COLORS[code]
+            break
     return FALLBACK_COLORS[sum(map(ord, crop)) % len(FALLBACK_COLORS)]
 
 
@@ -293,12 +301,12 @@ def map_data(plots, year):
         if not p.rings and not point:
             continue
         y = p.year(year)
-        crop = y.crop if y else None
+        crop = y.shown_crop if y else None
         items.append({
             "id": p.id, "name": p.name, "number": p.number or "",
             "ha": float(p.area_ha) if p.area_ha is not None else None,
-            "crop": crop or "", "color": crop_color(crop, y.crop_eppo if y else None), "rings": p.rings,
-            "point": point,
+            "crop": crop or "", "color": crop_color(crop, y.crop_eppo if y and y.crop else None), "rings": p.rings,
+            "point": point, "planned": bool(y and not y.crop and crop),
         })
     return items
 
@@ -307,8 +315,8 @@ def crop_legend(plots, year):
     legend = {}
     for p in plots:
         y = p.year(year)
-        crop = y.crop if y else None
-        entry = legend.setdefault(crop or "", {"crop": crop, "color": crop_color(crop, y.crop_eppo if y else None),
+        crop = y.shown_crop if y else None
+        entry = legend.setdefault(crop or "", {"crop": crop, "color": crop_color(crop, y.crop_eppo if y and y.crop else None),
                                                 "ha": Decimal(0), "count": 0})
         entry["ha"] += Decimal(p.area_ha or 0)
         entry["count"] += 1

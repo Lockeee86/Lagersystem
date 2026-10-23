@@ -37,18 +37,19 @@ def field_map():
     only_potatoes = request.args.get("kartoffeln") == "1"
     plots = Plot.query.filter_by(active=True).order_by(Plot.name).all()
     if only_potatoes:
-        plots = [p for p in plots if (y := p.year(year)) and y.is_potato]
+        plots = [p for p in plots if (y := p.year(year)) and "kartoffel" in (y.shown_crop or "").lower()]
     yields = fields.yields(year)
     rows = []
     for p in plots:
         y = p.year(year)
         kg = yields.get(p.id, {}).get("kg")
         rows.append({"plot": p, "year": y, "kg": kg, "t_ha": fields.t_per_ha(kg, p.area_ha),
-                     "color": fields.crop_color(y.crop if y else None, y.crop_eppo if y else None)})
+                     "color": fields.crop_color(y.shown_crop if y else None, y.crop_eppo if y and y.crop else None)})
     return render_template(
         "fields/map.html", year=year, years=years, rows=rows, only_potatoes=only_potatoes,
         map_data=fields.map_data(plots, year), legend=fields.crop_legend(plots, year), aerial=aerial_options(),
         total_ha=sum(float(p.area_ha or 0) for p in plots),
+        planned=sum(1 for r in rows if r["year"] and not r["year"].crop and r["year"].shown_crop),
     )
 
 
@@ -109,6 +110,29 @@ def field_year_save(plot_id):
     db.session.commit()
     flash(_("{plot}: Anbaujahr {year} gespeichert.", plot=plot.name, year=year), "success")
     return redirect(url_for("fields.field_detail", plot_id=plot.id) + "#jahr-" + str(year))
+
+
+# --- Fruchtfolge ----------------------------------------------------------------------
+
+@bp.route("/fruchtfolge")
+@login_required
+def rotation_page():
+    """Fruchtfolge über die Jahre: tatsächliche Kultur, sonst geplant (Fruchtfolgeplan), Hinweis auf Anbaupausen."""
+    this_year = date.today().year
+    # nur Jahre, in denen wirklich eine Kultur steht (tatsächlich oder geplant)
+    data_years = sorted({y for (y,) in db.session.query(PlotYear.year).filter(or_(
+        PlotYear.crop.isnot(None), PlotYear.planned_crop.notin_(["-", ""]))).distinct()})
+    last = max([this_year + 1, *data_years])
+    first = request.args.get("von", type=int) or max(min([this_year, *data_years]), this_year - 3, last - 9)
+    first = max(2000, min(first, last))
+    years = list(range(first, last + 1))
+    plots = Plot.query.filter_by(active=True).order_by(Plot.name).all()
+    if request.args.get("kartoffeln") == "1":
+        plots = [p for p in plots if any("kartoffel" in (py.shown_crop or "").lower() for py in p.years)]
+    rows, summary = fielddoc.rotation(plots, years)
+    return render_template("fields/rotation.html", rows=rows, summary=summary, years=years, this_year=this_year,
+                           first=first, only_potatoes=request.args.get("kartoffeln") == "1",
+                           first_options=list(range(min([this_year - 10, *data_years]), last + 1)))
 
 
 # --- Pflanzenschutz -------------------------------------------------------------------

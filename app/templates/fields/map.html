@@ -31,6 +31,7 @@
         {% for l in legend %}
         <span><span class="legend-swatch" style="background: {{ l.color }}"></span>{{ l.crop or _("ohne Kultur") }} <span class="text-body-secondary">{{ l.ha|num(1) }} ha</span></span>
         {% endfor %}
+        {% if planned %}<span class="text-body-secondary"><i class="bi bi-arrow-repeat me-1"></i>{{ ngettext("{n} Schlag laut Fruchtfolgeplan (geplant)", "{n} Schläge laut Fruchtfolgeplan (geplant)", planned) }}</span>{% endif %}
         {% set pts = map_data|selectattr("point")|list %}
         {% if pts %}<span class="text-body-secondary"><i class="bi bi-circle-fill me-1" style="font-size: .6rem"></i>{{ ngettext("{n} Schlag ohne Umriss (Lage aus der Schlagdokumentation)", "{n} Schläge ohne Umriss (Lage aus der Schlagdokumentation)", pts|length) }}</span>{% endif %}
     </div>
@@ -49,7 +50,7 @@
                 <td class="text-body-secondary">{{ r.plot.number or "" }}</td>
                 <td><a href="{{ url_for('fields.field_detail', plot_id=r.plot.id) }}">{{ r.plot.name }}</a></td>
                 <td class="text-end text-nowrap">{{ r.plot.area_ha|num(2) if r.plot.area_ha is not none else "–" }} ha</td>
-                <td>{% if r.year and r.year.crop %}<span class="legend-swatch" style="background: {{ r.color }}"></span>{{ r.year.crop }}{% else %}–{% endif %}</td>
+                <td>{% if r.year and r.year.shown_crop %}<span class="legend-swatch" style="background: {{ r.color }}"></span>{{ r.year.shown_crop }}{% if not r.year.crop %} <span class="small text-body-secondary">({{ _("geplant") }})</span>{% endif %}{% else %}–{% endif %}</td>
                 <td class="d-none d-md-table-cell">{{ r.year.variety.name if r.year and r.year.variety else "" }}</td>
                 <td class="text-end text-nowrap">{% if r.t_ha %}<span class="fw-semibold">{{ r.t_ha|num(1) }} t/ha</span> <span class="small text-body-secondary">({{ r.kg|kg }})</span>{% elif r.kg %}{{ r.kg|kg }}{% endif %}</td>
             </tr>
