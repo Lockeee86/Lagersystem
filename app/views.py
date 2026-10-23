@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import machines, sales, storage, tasks, weather
+from . import machines, sales, search, storage, tasks, weather
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -98,7 +98,7 @@ def dashboard():
                            due_tasks=machines.due_tasks(), open_faults=machines.open_faults(),
                            weather=weather.get_weather(), show_blight=weather.blight_in_season(),
                            due_tasks_now=tasks.due_now(None if current_user.is_admin else current_user),
-                           today=date.today(),
+                           today=date.today(), plot_stats=_plot_stats(),
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
 
@@ -112,6 +112,12 @@ def weather_page():
 
 
 # --- Lagerkarte -------------------------------------------------------------
+
+def _plot_stats():
+    from sqlalchemy import func
+    count, area = db.session.query(func.count(Plot.id), func.sum(Plot.area_ha)).filter(Plot.active.is_(True)).one()
+    return {"count": count, "ha": area}
+
 
 def variety_shorts(varieties):
     """Eindeutige Kürzel je Sorte (2–3 Buchstaben), z. B. Belana → BE, Bellarosa → BL."""
@@ -450,6 +456,26 @@ def scan():
             return redirect(url_for("main.box_detail", code=code))
         flash_error(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
     return render_template("scan.html")
+
+
+# --- Suche ------------------------------------------------------------------
+
+@bp.route("/suche", endpoint="search")
+@login_required
+def search_page():
+    q = request.args.get("q", "").strip()[:100]
+    if q:
+        hit = search.direct_hit(q)
+        if hit:
+            kind, obj = hit
+            if kind == "box":
+                return redirect(url_for("main.box_detail", code=obj.code))
+            if kind == "machine":
+                return redirect(url_for("machines.machine_detail", machine_id=obj.id))
+            return redirect(url_for("sales.delivery_detail", delivery_id=obj.id))
+    results = search.search(q, current_user) if q else None
+    return render_template("search.html", q=q, results=results,
+                           total=sum(len(v) for v in results.values()) if results else 0)
 
 
 # --- Verlauf ----------------------------------------------------------------

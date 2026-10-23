@@ -2,7 +2,6 @@
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ _("Lager verwalten") }}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="page-head">
     <h1>{{ _("Lager") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#whModal" data-edit='{"rows": 10, "slots": 15, "max_levels": 5}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neues Lager") }}</button>

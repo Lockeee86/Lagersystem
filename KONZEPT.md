@@ -218,6 +218,14 @@ Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü
 5. ✅ Schlagkartei & Ertrag (Import aus Myfarm24)
 6. Lagerklima (Sensoren) – auf Wunsch zurückgestellt
 
+### Navigation (0.14.0)
+PC: vier Bereiche oben (Übersicht, Lager, Feld & Hof, Verkauf), darunter die Unterpunkte des Bereichs;
+rechts Suche, Aufgaben, Verwaltung (Zahnrad, nur Admin) und ein schlankes Benutzermenü (Einstellungen,
+Hell/Dunkel, Sprache, Abmelden). Verwaltung hat eine eigene Startseite mit Kacheln. Handy: Startseite mit
+Bereichs-Kacheln, Leiste unten Start · Lager · Scannen · Aufgaben · Suche. Die Suche findet Kisten,
+Schläge, Maschinen, Lieferscheine, Kunden und Aufgaben; ein genauer Kisten-/Maschinencode oder eine
+Lieferscheinnummer öffnet direkt die Seite.
+
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.

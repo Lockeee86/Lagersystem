@@ -43,6 +43,19 @@ def _name_taken(model, name, own_id=None):
     return query.first() is not None
 
 
+# --- Startseite der Verwaltung ------------------------------------------------
+
+@bp.route("/")
+def index():
+    from .navigation import admin_tiles
+    counts = {
+        "admin.warehouses": Warehouse.query.count(), "admin.varieties": Variety.query.filter_by(active=True).count(),
+        "admin.plots": Plot.query.filter_by(active=True).count(), "admin.seed_classes": SeedClass.query.count(),
+        "admin.box_types": BoxType.query.count(), "admin.users": User.query.filter_by(active=True).count(),
+    }
+    return render_template("admin/index.html", tiles=admin_tiles(), counts=counts)
+
+
 # --- Einstellungen ----------------------------------------------------------
 
 @bp.route("/einstellungen", methods=["GET", "POST"])

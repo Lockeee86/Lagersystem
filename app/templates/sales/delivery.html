@@ -2,7 +2,6 @@
 {% from "macros.html" import csrf, variety_chip %}
 {% block title %}{{ delivery.number }}{% endblock %}
 {% block content %}
-{% include "sales/_nav.html" %}
 {% set editable = delivery.is_open and current_user.is_admin %}
 <div class="page-head">
     <div class="min-w-0">

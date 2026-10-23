@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Verwaltung") }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ _("Verwaltung") }}</h1></div>
+<div class="area-tiles area-tiles-wide">
+    {% for t in tiles %}
+    <a class="area-tile" href="{{ t.url }}">
+        <i class="bi {{ t.icon }}"></i>
+        <span class="t">{{ _(t.label) }}{% if counts.get(t.endpoint) is not none %} <span class="text-body-secondary fw-normal">({{ counts[t.endpoint] }})</span>{% endif %}</span>
+        {% if t.hint %}<span class="s">{{ _(t.hint) }}</span>{% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

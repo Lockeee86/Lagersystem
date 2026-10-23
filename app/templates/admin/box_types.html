@@ -2,7 +2,6 @@
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ _("Kistentypen") }}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="page-head">
     <h1>{{ _("Kistentypen") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#typeModal" data-edit='{"full_weight_kg": 400}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Kistentyp") }}</button>

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "macros.html" import variety_chip, location_badge %}
+{% block title %}{{ _("Suche") }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ _("Suche") }}</h1></div>
+<form method="get" class="mb-4" role="search">
+    <div class="input-group input-group-lg">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input class="form-control" name="q" value="{{ q }}" autofocus autocomplete="off"
+               placeholder="{{ _('Kiste K-0012, Schlag, Maschine, Lieferschein …') }}" aria-label="{{ _('Suche') }}">
+        <button class="btn btn-primary">{{ _("Suchen") }}</button>
+    </div>
+</form>
+
+{% if results is not none %}
+{% if not total %}
+<p class="text-body-secondary">{{ _("Nichts gefunden für „{q}“.", q=q) }}</p>
+{% endif %}
+{% macro group(title, icon, items) %}
+{% if items %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header"><i class="bi {{ icon }} me-1"></i>{{ title }} <span class="text-body-secondary small">({{ items|length }})</span></div>
+    <div class="list-group list-group-flush">{{ caller() }}</div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% call group(_("Kisten"), "bi-boxes", results.boxes) %}
+{% for b in results.boxes %}<a class="list-group-item list-group-item-action d-flex gap-2 align-items-center" href="{{ url_for('main.box_detail', code=b.code) }}">
+    <span class="fw-semibold">{{ b.code }}</span>{{ variety_chip(b.variety, b.is_empty) }}<span class="small text-body-secondary ms-auto">{{ b.location or "" }}</span></a>{% endfor %}
+{% endcall %}
+{% call group(_("Schläge"), "bi-map", results.plots) %}
+{% for p in results.plots %}<a class="list-group-item list-group-item-action" href="{{ url_for('fields.field_detail', plot_id=p.id) }}">
+    <span class="fw-semibold">{{ p.name }}</span> <span class="small text-body-secondary">{% if p.number %}{{ _("Nr. {n}", n=p.number) }} · {% endif %}{{ p.area_ha|num(2) if p.area_ha is not none else "–" }} ha</span></a>{% endfor %}
+{% endcall %}
+{% call group(_("Maschinen"), "bi-gear-wide-connected", results.machines) %}
+{% for m in results.machines %}<a class="list-group-item list-group-item-action" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}">
+    <span class="fw-semibold">{{ m.name }}</span> <span class="small text-body-secondary">{{ m.code }}{% if m.plate %} · {{ m.plate }}{% endif %}</span></a>{% endfor %}
+{% endcall %}
+{% call group(_("Lieferscheine"), "bi-truck", results.deliveries) %}
+{% for d in results.deliveries %}<a class="list-group-item list-group-item-action" href="{{ url_for('sales.delivery_detail', delivery_id=d.id) }}">
+    <span class="fw-semibold">{{ d.number }}</span> {{ d.customer.name }} <span class="small text-body-secondary">· {{ d.date|date }} · {{ d.status_label }}</span></a>{% endfor %}
+{% endcall %}
+{% if results.customers %}
+{% call group(_("Kunden"), "bi-person-vcard", results.customers) %}
+{% for c in results.customers %}<a class="list-group-item list-group-item-action" href="{{ url_for('sales.deliveries', kunde=c.id) }}">
+    <span class="fw-semibold">{{ c.name }}</span>{% if c.number %} <span class="small text-body-secondary">{{ c.number }}</span>{% endif %}</a>{% endfor %}
+{% endcall %}
+{% endif %}
+{% call group(_("Aufgaben"), "bi-list-check", results.tasks) %}
+{% for t in results.tasks %}<a class="list-group-item list-group-item-action" href="{{ url_for('tasks.task_detail', task_id=t.id) }}">
+    <span class="fw-semibold {{ 'text-decoration-line-through text-body-secondary' if t.is_done }}">{{ t.title }}</span>
+    <span class="small text-body-secondary">{% if t.due_on %}· {{ t.due_on|date }}{% endif %}</span></a>{% endfor %}
+{% endcall %}
+{% endif %}
+{% endblock %}

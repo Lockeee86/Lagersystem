@@ -7,7 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
 from .models import FILL_LEVELS, ROLES, SORT_USAGES, Setting, User
-from . import utils
+from . import navigation, utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
 
@@ -116,6 +116,7 @@ def create_app(config=None):
         return {
             "farm": g.farm,
             "my_task_count": g.my_tasks,
+            "nav": navigation.current(request.endpoint, current_user) if current_user.is_authenticated else None,
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,
             "ROLES": ROLES,

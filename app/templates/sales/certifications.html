@@ -2,7 +2,6 @@
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ _("Anerkennungen") }}{% endblock %}
 {% block content %}
-{% include "sales/_nav.html" %}
 <div class="page-head">
     <h1>{{ _("Anerkennungen") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#certModal" data-edit='{{ {"year": this_year}|tojson }}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Anerkennungsnummer") }}</button>

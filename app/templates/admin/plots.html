@@ -2,7 +2,6 @@
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ _("Schläge") }}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="page-head">
     <h1>{{ _("Schläge") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#plotModal" data-edit='{"active": true}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Schlag") }}</button>

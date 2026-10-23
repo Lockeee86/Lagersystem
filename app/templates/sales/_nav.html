@@ -1,8 +1,0 @@
-{% if current_user.is_admin %}
-<ul class="nav nav-pills admin-nav mb-4">
-    {% set ep = request.endpoint %}
-    <li class="nav-item"><a class="nav-link {% if ep in ('sales.deliveries', 'sales.delivery_detail', 'sales.delivery_load') %}active{% endif %}" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck me-1"></i>{{ _("Lieferscheine") }}</a></li>
-    <li class="nav-item"><a class="nav-link {% if ep == 'sales.customers' %}active{% endif %}" href="{{ url_for('sales.customers') }}"><i class="bi bi-person-vcard me-1"></i>{{ _("Kunden") }}</a></li>
-    <li class="nav-item"><a class="nav-link {% if ep == 'sales.certifications' %}active{% endif %}" href="{{ url_for('sales.certifications') }}"><i class="bi bi-patch-check me-1"></i>{{ _("Anerkennungen") }}</a></li>
-</ul>
-{% endif %}

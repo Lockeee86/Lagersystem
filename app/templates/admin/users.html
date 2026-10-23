@@ -2,7 +2,6 @@
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ _("Benutzer") }}{% endblock %}
 {% block content %}
-{% include "admin/_nav.html" %}
 <div class="page-head">
     <h1>{{ _("Benutzer") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-edit='{"role": "mitarbeiter", "active": true, "language": "de"}'><i class="bi bi-person-plus me-1"></i>{{ _("Neuer Benutzer") }}</button>

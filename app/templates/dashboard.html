@@ -26,6 +26,33 @@
 </div>
 {% endif %}
 
+{# Am Handy: alle Bereiche als Kacheln (am PC übernimmt das die Leiste oben) #}
+<div class="area-tiles d-lg-none">
+    <a class="area-tile" href="{{ url_for('main.warehouse_map') }}"><i class="bi bi-grid-3x3-gap"></i><span class="t">{{ _("Lager") }}</span>
+        <span class="s">{% for o in occupancy[:1] %}{{ _("{n} % belegt", n=o.percent) }}{% endfor %}</span></a>
+    <a class="area-tile" href="{{ url_for('main.boxes') }}"><i class="bi bi-boxes"></i><span class="t">{{ _("Kisten") }}</span>
+        <span class="s">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</span></a>
+    <a class="area-tile" href="{{ url_for('tasks.task_list') }}"><i class="bi bi-list-check"></i><span class="t">{{ _("Aufgaben") }}</span>
+        <span class="s">{{ ngettext("{n} für heute", "{n} für heute", due_tasks_now|length) }}</span>
+        {% if my_task_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}</a>
+    <a class="area-tile" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck"></i><span class="t">{{ _("Verkauf") }}</span>
+        <span class="s">{{ ngettext("{n} Lieferschein offen", "{n} Lieferscheine offen", open_deliveries|length) }}</span></a>
+    <a class="area-tile" href="{{ url_for('machines.machine_list') }}"><i class="bi bi-gear-wide-connected"></i><span class="t">{{ _("Maschinen") }}</span>
+        {% if open_faults %}<span class="s warn">{{ ngettext("{n} Störung", "{n} Störungen", open_faults|length) }}</span>
+        {% elif due_tasks %}<span class="s warn">{{ ngettext("{n} Wartung fällig", "{n} Wartungen fällig", due_tasks|length) }}</span>
+        {% else %}<span class="s">{{ _("alles in Ordnung") }}</span>{% endif %}</a>
+    <a class="area-tile" href="{{ url_for('fields.field_map') }}"><i class="bi bi-map"></i><span class="t">{{ _("Schläge") }}</span>
+        <span class="s">{{ plot_stats.count }}{% if plot_stats.ha %} · {{ plot_stats.ha|num(1) }} ha{% endif %}</span></a>
+    <a class="area-tile" href="{{ url_for('main.weather_page') }}"><i class="bi bi-cloud-sun"></i><span class="t">{{ _("Wetter") }}</span>
+        <span class="s">{% if weather and not weather.error and weather.current %}{{ weather.current.temp|num }} °C{% else %}–{% endif %}</span></a>
+    <a class="area-tile" href="{{ url_for('main.history') }}"><i class="bi bi-clock-history"></i><span class="t">{{ _("Verlauf") }}</span>
+        <span class="s">{{ _("Bewegungen") }}</span></a>
+    {% if current_user.is_admin %}
+    <a class="area-tile" href="{{ url_for('admin.index') }}"><i class="bi bi-sliders"></i><span class="t">{{ _("Verwaltung") }}</span>
+        <span class="s">{{ _("Hof, Lager, Benutzer …") }}</span></a>
+    {% endif %}
+</div>
+
 {% if due_tasks_now %}
 {% from "tasks/_macros.html" import task_item with context %}
 <div class="card shadow-sm mb-4 border-primary-subtle">
