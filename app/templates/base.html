@@ -15,7 +15,11 @@
         })();
     </script>
     <link rel="icon" href="{{ url_for('static', filename='img/icon.svg') }}" type="image/svg+xml">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <link rel="manifest" href="{{ url_for('push.manifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-180.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
@@ -56,6 +60,7 @@
                 <ul class="dropdown-menu dropdown-menu-end shadow">
                     <li><h6 class="dropdown-header">{{ current_user.name }} · {{ current_user.role_label }}</h6></li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}"><i class="bi bi-person-gear me-2"></i>{{ _("Einstellungen") }}</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.account') }}#push"><i class="bi bi-bell me-2"></i>{{ _("Benachrichtigungen") }}</a></li>
                     <li><button class="dropdown-item" type="button" id="themeToggle"><i class="bi bi-moon-stars"></i>{{ _("Hell/Dunkel umschalten") }}</button></li>
                     <li>
                         <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-switch-menu px-3 py-1">

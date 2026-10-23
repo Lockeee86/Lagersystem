@@ -86,6 +86,17 @@ Der Kamera-Scan im Browser funktioniert nur über **HTTPS**. Möglichkeiten:
 
 Ohne HTTPS funktioniert alles außer der Kamera: Den Code gibst du dann auf der Scan-Seite von Hand ein.
 
+### Push-Nachrichten aufs Handy
+
+Unter **Einstellungen → Benachrichtigungen** schaltet jeder auf seinen Geräten Push-Nachrichten ein und wählt,
+worüber er benachrichtigt werden will (Aufgaben, Bestellungen, Störungen, Wartungen, Frost, Krautfäule).
+Voraussetzung ist **HTTPS** (eigene Domain). Auf dem **iPhone** (ab iOS 16.4) zuerst in Safari
+„Teilen → Zum Home-Bildschirm“, die App von dort öffnen und dann einschalten. Android/PC: direkt im Browser.
+
+Die Schlüssel für den Versand (VAPID) erzeugt die App beim ersten Einschalten selbst und speichert sie in der
+Datenbank. Wer sie fest vorgeben will: `VAPID_PRIVATE_KEY` (PEM) als Umgebungsvariable.
+Der Server muss die Push-Dienste von Google, Apple und Mozilla erreichen können (ausgehend HTTPS).
+
 ### Sicherheit
 
 - Passwörter werden gehasht gespeichert, jedes Formular ist gegen CSRF geschützt

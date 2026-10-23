@@ -4,7 +4,7 @@ from datetime import date
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import purchases, uploads
+from . import purchases, push, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, PurchaseRequest, User
@@ -68,6 +68,7 @@ def purchase_create():
             photo_names=names,
         )
         db.session.commit()
+        push.purchase_requested(req, current_user)
         flash(_("Bestellwunsch „{title}“ abgeschickt.", title=req.title), "success")
         return redirect(url_for("purchases.purchase_detail", req_id=req.id))
     except StorageError as e:
@@ -98,6 +99,8 @@ def purchase_assign(req_id):
     try:
         purchases.assign(req, current_user, target)
         db.session.commit()
+        if target != current_user:
+            push.purchase_handed_over(req, current_user, target)
         if target == current_user:
             flash(_("Du kümmerst dich um „{title}“.", title=req.title), "success")
         else:
@@ -114,6 +117,7 @@ def purchase_update(req_id):
     req = _get(req_id)
     if not req.can_handle(current_user):
         abort(403)
+    old_status = req.status
     try:
         purchases.update_request(
             req, current_user, form_str("status", 20), supplier=form_str("supplier", 150),
@@ -123,6 +127,8 @@ def purchase_update(req_id):
             inquired_on=form_date("inquired_on"),
         )
         db.session.commit()
+        if req.status != old_status:
+            push.purchase_status(req, current_user)
         flash(_("Bestellung „{title}“: {status}.", title=req.title, status=req.status_label), "success")
     except StorageError as e:
         db.session.rollback()

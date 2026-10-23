@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from .extensions import db
 from .i18n import LANGUAGE_FLAGS, LANG_COOKIE, LANGUAGES, get_locale, gettext as _, set_request_locale
-from .models import ROLE_ADMIN, BoxType, User, Warehouse, utcnow
+from .models import PUSH_TOPICS, ROLE_ADMIN, BoxType, User, Warehouse, utcnow
 from .utils import flash_error, form_int, form_str, login_throttle, safe_next
 
 bp = Blueprint("auth", __name__)
@@ -121,7 +121,7 @@ def account():
                 login_user(current_user._get_current_object(), remember=True)
                 flash(_("Passwort geändert. Andere Geräte wurden abgemeldet."), "success")
                 return redirect(url_for("auth.account"))
-    return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS)
+    return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS)
 
 
 @bp.route("/sprache", methods=["POST"])

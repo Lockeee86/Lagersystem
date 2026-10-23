@@ -6,7 +6,7 @@ from flask import (Blueprint, Response, abort, flash, redirect, render_template,
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import machines, purchases, tasks, uploads
+from . import machines, purchases, push, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -34,13 +34,16 @@ def _form_cost():
     return form_money("cost")
 
 
-def _run(machine, action, anchor=None):
-    """Führt `action()` aus (speichert hochgeladene Fotos vorher), committet oder meldet den Fehler."""
+def _run(machine, action, anchor=None, after=None):
+    """Führt `action()` aus (speichert hochgeladene Fotos vorher), committet oder meldet den Fehler.
+    `after()` läuft nach dem Commit (z. B. Push-Nachrichten)."""
     names = []
     try:
         names = uploads.save_photos(request.files.getlist("photos"))
         message = action(names)
         db.session.commit()
+        if after:
+            after()
         flash(message, "success")
     except StorageError as e:
         db.session.rollback()
@@ -176,17 +179,19 @@ def task_done(machine_id, task_id):
 def machine_event(machine_id):
     machine = _get(Machine, machine_id)
     kind = form_str("kind", 20)
+    created = {}
 
     def action(names):
         text = form_str("text", 4000)
         event = machines.add_event(machine, kind, current_user, form_date("date"), text,
                                    _form_cost() if current_user.is_admin else None,
                                    form_int("counter", minimum=0, maximum=10_000_000), names)
+        created["event"] = event
         if kind == "stoerung" and request.form.get("as_task"):
             db.session.flush()
             ids = {int(v) for v in request.form.getlist("assignee_ids") if v.isdigit()}
             wanted = User.query.filter(User.id.in_(ids)).all() if ids else []
-            tasks.create_task(
+            created["task"] = tasks.create_task(
                 current_user, title=tasks.title_for(machine, text), description=text,
                 due_on=form_date("task_due") or date.today(), important=bool(request.form.get("task_important")),
                 assignees=tasks.allowed_assignees(current_user, wanted),
@@ -196,7 +201,16 @@ def machine_event(machine_id):
         if kind == "stoerung":
             return _("Störung gemeldet.")
         return _("Eintrag gespeichert.")
-    return _run(machine, action, "logbuch")
+
+    def after():
+        if kind != "stoerung":
+            return
+        task = created.get("task")
+        if task is not None:
+            push.task_assigned(task, current_user)
+        # wer die Aufgabe schon bekommen hat, braucht die Störung nicht noch einmal
+        push.fault_reported(created["event"], current_user, exclude=task.assignees if task else ())
+    return _run(machine, action, "logbuch", after)
 
 
 @bp.route("/maschine/<int:machine_id>/eintrag/<int:event_id>/erledigt", methods=["POST"])

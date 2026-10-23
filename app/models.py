@@ -89,6 +89,8 @@ class User(UserMixin, db.Model):
     map_view = db.Column(db.String(10), nullable=False, default="karte", server_default="karte")
     # Besteller: bearbeitet Bestellwünsche (Admins dürfen das immer)
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    # Abgewählte Push-Themen, kommagetrennt (leer = alle passenden an)
+    push_off = db.Column(db.String(300), nullable=False, default="", server_default="")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -133,6 +135,45 @@ class User(UserMixin, db.Model):
     def is_buyer(self):
         """Darf Bestellwünsche bearbeiten (bestellen, Liefertermin eintragen …)."""
         return self.is_admin or (self.can_order and self.can_edit)
+
+    def push_topics(self):
+        """Push-Themen, die für diesen Benutzer in Frage kommen (je nach Rolle)."""
+        return [key for key, topic in PUSH_TOPICS.items() if topic["who"](self)]
+
+    def wants_push(self, topic):
+        return topic in self.push_topics() and topic not in (self.push_off or "").split(",")
+
+
+# Push-Nachrichten: Thema → Bezeichnung, Erklärung, für wen es in Frage kommt
+PUSH_TOPICS = {
+    "tasks_new": {"label": N_("Neue Aufgabe für mich"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
+    "tasks_due": {"label": N_("Morgens: meine Aufgaben für heute"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
+    "purchase_new": {"label": N_("Neue Bestellwünsche und an mich weitergegebene"), "group": N_("Bestellungen"),
+                     "who": lambda u: u.is_buyer},
+    "purchase_status": {"label": N_("Neuigkeiten zu meinen Bestellwünschen (bestellt, geliefert …)"),
+                        "group": N_("Bestellungen"), "who": lambda u: u.can_edit},
+    "fault": {"label": N_("Neue Störung an einer Maschine"), "group": N_("Maschinen"), "who": lambda u: u.can_edit},
+    "maintenance": {"label": N_("Wartung wird fällig"), "group": N_("Maschinen"), "who": lambda u: u.can_edit},
+    "frost": {"label": N_("Frostwarnung"), "group": N_("Wetter"), "who": lambda u: True},
+    "blight": {"label": N_("Krautfäule-Ampel springt auf Rot"), "group": N_("Wetter"), "who": lambda u: True},
+}
+
+
+class PushSubscription(db.Model):
+    """Ein Gerät/Browser, das Push-Nachrichten für einen Benutzer empfängt."""
+    __tablename__ = "push_subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    p256dh = db.Column(db.String(200), nullable=False)
+    auth = db.Column(db.String(100), nullable=False)
+    device = db.Column(db.String(120))                          # „iPhone · Safari“, nur zur Anzeige
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    last_sent_at = db.Column(db.DateTime(timezone=True))
+
+    user = db.relationship("User", backref=db.backref("push_subscriptions", cascade="all, delete-orphan",
+                                                      passive_deletes=True))
 
 
 # --- Stammdaten -------------------------------------------------------------

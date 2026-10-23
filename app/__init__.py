@@ -84,6 +84,7 @@ def create_app(config=None):
     from .task_views import bp as tasks_bp
     from .fields_views import bp as fields_bp
     from .purchase_views import bp as purchases_bp
+    from .push_views import bp as push_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -93,6 +94,7 @@ def create_app(config=None):
     app.register_blueprint(tasks_bp)
     app.register_blueprint(fields_bp)
     app.register_blueprint(purchases_bp)
+    app.register_blueprint(push_bp)
 
     from . import cli
     cli.register(app)

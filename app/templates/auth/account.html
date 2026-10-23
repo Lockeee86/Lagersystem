@@ -46,5 +46,75 @@
             </div>
         </div>
     </div>
+
+    <div class="col-12" id="push">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-bell me-1"></i>{{ _("Benachrichtigungen aufs Handy") }}</div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div id="pushDevice" data-csrf="{{ csrf_token() }}" data-key="{{ url_for('push.vapid_key') }}"
+                             data-subscribe="{{ url_for('push.subscribe') }}" data-unsubscribe="{{ url_for('push.unsubscribe') }}">
+                            <h3 class="h6">{{ _("Dieses Gerät") }}</h3>
+                            <div data-state="loading" class="mb-3 small">
+                                <div data-msg="loading" class="text-body-secondary"><span class="spinner-border spinner-border-sm me-1"></span>{{ _("Wird geprüft …") }}</div>
+                                <div data-msg="on" hidden class="text-success fw-semibold"><i class="bi bi-bell-fill me-1"></i>{{ _("Eingeschaltet – dieses Gerät bekommt Nachrichten.") }}</div>
+                                <div data-msg="off" hidden class="text-body-secondary">{{ _("Ausgeschaltet. Nach dem Einschalten fragt der Browser einmal um Erlaubnis.") }}</div>
+                                <div data-msg="denied" hidden class="text-danger">{{ _("Nachrichten sind für diese Seite im Browser blockiert. Bitte in den Browser- bzw. Handy-Einstellungen erlauben.") }}</div>
+                                <div data-msg="ios" hidden class="alert alert-info mb-0">
+                                    <strong>{{ _("iPhone/iPad:") }}</strong>
+                                    {{ _("Erst die App auf den Home-Bildschirm legen: in Safari unten auf Teilen tippen → „Zum Home-Bildschirm“. Dann die App von dort öffnen und hier einschalten.") }}
+                                </div>
+                                <div data-msg="unsupported" hidden class="text-body-secondary">{{ _("Dieser Browser kann keine Push-Nachrichten empfangen.") }}</div>
+                                <div data-msg="insecure" hidden class="text-body-secondary">{{ _("Push-Nachrichten gehen nur über HTTPS.") }}</div>
+                                <div data-msg="error" hidden class="text-danger">{{ _("Einschalten hat nicht geklappt. Bitte noch einmal versuchen.") }}</div>
+                            </div>
+                            <button type="button" class="btn btn-primary" data-push-on hidden><i class="bi bi-bell me-1"></i>{{ _("Auf diesem Gerät einschalten") }}</button>
+                            <button type="button" class="btn btn-outline-secondary" data-push-off hidden><i class="bi bi-bell-slash me-1"></i>{{ _("Auf diesem Gerät ausschalten") }}</button>
+                        </div>
+                        {% set subs = current_user.push_subscriptions %}
+                        {% if subs %}
+                        <h3 class="h6 mt-4">{{ _("Eingeschaltete Geräte") }}</h3>
+                        <ul class="list-group mb-3">
+                            {% for s in subs %}
+                            <li class="list-group-item d-flex align-items-center gap-2 small">
+                                <i class="bi bi-phone"></i>
+                                <span class="flex-grow-1">{{ s.device or _("Unbekanntes Gerät") }}
+                                    <span class="text-body-secondary">· {{ _("seit {date}", date=s.created_at|date) }}</span></span>
+                                <form method="post" action="{{ url_for('push.device_delete', sub_id=s.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-sm btn-link text-danger p-0" aria-label="{{ _('Entfernen') }}"><i class="bi bi-x-lg"></i></button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <form method="post" action="{{ url_for('push.test') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-send me-1"></i>{{ _("Testnachricht schicken") }}</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div class="col-lg-6">
+                        <h3 class="h6">{{ _("Worüber möchtest du benachrichtigt werden?") }}</h3>
+                        <form method="post" action="{{ url_for('push.topics') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            {% set ns = namespace(group=none) %}
+                            {% for key in current_user.push_topics() %}
+                            {% set topic = push_topics[key] %}
+                            {% if topic.group != ns.group %}<div class="small text-body-secondary fw-semibold mt-3 mb-1">{{ _(topic.group) }}</div>{% set ns.group = topic.group %}{% endif %}
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" name="topic" value="{{ key }}" id="topic_{{ key }}" {% if current_user.wants_push(key) %}checked{% endif %}>
+                                <label class="form-check-label" for="topic_{{ key }}">{{ _(topic.label) }}</label>
+                            </div>
+                            {% endfor %}
+                            <button class="btn btn-primary btn-sm mt-3">{{ _("Speichern") }}</button>
+                            <p class="small text-body-secondary mt-2 mb-0">{{ _("Gilt für alle deine Geräte. Morgens kommen die Nachrichten ab 6 Uhr, die Frostwarnung am Nachmittag.") }}</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/push.js') }}?v={{ app_version }}"></script>{% endblock %}

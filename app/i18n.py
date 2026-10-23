@@ -9,6 +9,9 @@ Verwendung:
     ngettext("{n} Kiste", "{n} Kisten", n)
     N_("voll")   # nur markieren (für Konstanten), übersetzt wird später mit _()
 """
+import threading
+from contextlib import contextmanager
+
 from flask import g, has_request_context, request
 from flask_login import current_user
 
@@ -21,8 +24,24 @@ CATALOGS = {"pl": pl.MESSAGES}
 LANG_COOKIE = "lang"
 
 
+_forced = threading.local()
+
+
+@contextmanager
+def force_locale(lang):
+    """Texte für jemand anderen übersetzen (z. B. Push-Nachricht in der Sprache des Empfängers)."""
+    previous = getattr(_forced, "lang", None)
+    _forced.lang = lang if lang in LANGUAGES else DEFAULT_LANGUAGE
+    try:
+        yield
+    finally:
+        _forced.lang = previous
+
+
 def get_locale():
     """Sprache der aktuellen Anfrage: Benutzereinstellung → Cookie → Browser → Deutsch."""
+    if getattr(_forced, "lang", None):
+        return _forced.lang
     if not has_request_context():
         return DEFAULT_LANGUAGE
     lang = g.get("_lang")

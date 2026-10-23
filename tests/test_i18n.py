@@ -10,8 +10,9 @@ from app.translations.pl import MESSAGES
 
 ROOT = Path(__file__).resolve().parent.parent / "app"
 STR = r'("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\')'
-SINGLE = re.compile(r"(?<![\w.])(?:_|N_|gettext)\(\s*" + STR)
-PLURAL = re.compile(r"(?<![\w.])ngettext\(\s*" + STR + r"\s*,\s*" + STR)
+# Msg(…) aus app/push.py wird erst beim Versand in der Sprache des Empfängers übersetzt
+SINGLE = re.compile(r"(?<![\w])(?:_|N_|gettext|Msg)\(\s*" + STR)
+PLURAL = re.compile(r"(?<![\w.])(?:ngettext|Msg)\(\s*" + STR + r"\s*,\s*" + STR)
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 

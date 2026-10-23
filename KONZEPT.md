@@ -259,9 +259,13 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    wird, ist noch offen – SMB, NFS oder gemounteter Ordner sind vorbereitet, siehe README). Verwaltung →
    Datensicherung zeigt Status, „Jetzt sichern“, Download; Admins sehen auf der Übersicht eine Warnung,
    wenn die Sicherung fehlschlägt oder älter als 36 Stunden ist. Zurückspielen nur über die Konsole.
-2. **Push-Nachrichten + App auf dem Startbildschirm (PWA):** Aufgaben, Bestellungen, Maschinen (Störung,
-   Wartung fällig), Wetter (Frost, Krautfäule rot). **Jeder wählt selbst**, welche Nachrichten er bekommt.
-   Läuft über die eigene Domain mit HTTPS.
+2. ✅ **Push-Nachrichten + App auf dem Startbildschirm (0.18.0):** Einstellungen → Benachrichtigungen:
+   je Gerät einschalten, **jeder wählt selbst** seine Themen (nur die, die zu seiner Rolle passen):
+   neue Aufgabe für mich · morgens (ab 6 Uhr) meine Aufgaben für heute · neue/weitergegebene Bestellwünsche
+   (Besteller) · Neuigkeiten zu meinen Bestellwünschen · neue Störung · Wartung wird fällig (nur neu fällige)
+   · Frostwarnung (nachmittags, Frost in den nächsten 24 h) · Krautfäule-Ampel springt auf Rot.
+   Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
+   Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. **Maschinen:** Tankbuch (ein Hoftank; Mitarbeiter tragen Liter + Zählerstand über den QR-Code ein, der Admin
    die Tanklieferungen), Dokumente je Maschine (alle sehen und laden hoch), Teileliste je Maschine mit
    „Nochmal bestellen“, Lieferantenverzeichnis.

@@ -4,7 +4,7 @@ from datetime import date
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import machines, tasks, uploads
+from . import machines, push, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .models import DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Task, User, Warehouse
@@ -108,6 +108,7 @@ def task_create():
             fields["recurrence"] = None
         task = tasks.create_task(current_user, **fields)
         db.session.commit()
+        push.task_assigned(task, current_user)
         flash(_("Aufgabe „{title}“ angelegt.", title=task.title), "success")
     except StorageError as e:
         db.session.rollback()
@@ -127,9 +128,13 @@ def task_detail(task_id):
 @admin_required
 def task_edit(task_id):
     task = _get_task(task_id)
+    before = set(task.assignees)
     try:
         tasks.apply_fields(task, **_fields_from_form())
         db.session.commit()
+        added = [u for u in task.assignees if u not in before]
+        if added and not task.is_done:
+            push.task_assigned(task, current_user, added)   # nur neu Zugeteilte benachrichtigen
         flash(_("Aufgabe „{title}“ gespeichert.", title=task.title), "success")
     except StorageError as e:
         db.session.rollback()

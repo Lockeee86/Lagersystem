@@ -6,7 +6,7 @@ Aufbau im Sicherungsordner:
     status.json                     letzter Lauf (für die Verwaltungsseite)
 
 Aufbewahrung: alle Stände der letzten 14 Tage, dazu der erste Stand jedes Monats für 12 Monate.
-Der nächtliche Lauf startet aus Gunicorn (`gunicorn.conf.py`) in einem Hintergrund-Thread.
+Der nächtliche Lauf startet aus dem Zeitplan (`scheduler.py`).
 """
 import json
 import os
@@ -26,7 +26,6 @@ from sqlalchemy.engine import make_url
 KEEP_DAYS = 14
 KEEP_MONTHS = 12
 STALE_AFTER = timedelta(hours=36)        # Warnung, wenn so lange keine erfolgreiche Sicherung
-CHECK_EVERY = 600                        # Sekunden zwischen zwei Prüfungen im Hintergrund
 NAME_RE = re.compile(r"^lager-(\d{4})-(\d{2})-(\d{2})_(\d{4})\.(dump|sqlite)$")
 
 _lock = threading.Lock()
@@ -268,7 +267,7 @@ def is_due(now_local, last_success_local, last_run_local, hour):
     return True
 
 
-def _tick(app):
+def tick(app):
     with app.app_context():
         if not backup_dir():
             return
@@ -281,24 +280,6 @@ def _tick(app):
                 run_backup()
             except BackupError:
                 pass
-
-
-def start_scheduler(app):
-    """Hintergrund-Thread für die nächtliche Sicherung (einmal je Gunicorn-Worker – wir haben genau einen)."""
-    if not app.config.get("BACKUP_DIR") or app.config.get("TESTING"):
-        return None
-
-    def loop():
-        time.sleep(60)                    # erst nach dem Start loslegen
-        while True:
-            try:
-                _tick(app)
-            except Exception:             # noqa: BLE001 – der Thread darf nie sterben
-                app.logger.exception("Zeitplan der Datensicherung")
-            time.sleep(CHECK_EVERY)
-    thread = threading.Thread(target=loop, name="backup-scheduler", daemon=True)
-    thread.start()
-    return thread
 
 
 def restore(path):
