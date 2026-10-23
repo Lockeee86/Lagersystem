@@ -149,8 +149,9 @@ def _match(entries):
     """Ordnet jedem Eintrag einen vorhandenen Schlag zu (oder None = neu).
     Nummern sind in Myfarm24 nicht eindeutig, daher zuerst Nummer + Name, dann Name (Schlag ohne Nummer).
     Umbenannte Schläge werden am unveränderten Umriss erkannt oder an einer Nummer, die in Datei und
-    Datenbank nur einmal vorkommt."""
+    Datenbank nur einmal vorkommt. Einträge aus der Schlagdokumentation bringen die USchlag-ID mit – die zählt zuerst."""
     plots = Plot.query.all()
+    by_id = {p.myfarm_id: p for p in plots if p.myfarm_id}
     by_key = {((p.number or ""), p.name.casefold()): p for p in plots}
     by_name = {p.name.casefold(): p for p in plots if not p.number}
     by_shape = {p.boundary: p for p in plots if p.boundary}
@@ -163,10 +164,11 @@ def _match(entries):
             numbers_file[e["number"]] = numbers_file.get(e["number"], 0) + 1
     used, matches = set(), []
     for e in entries:
-        plot = (by_key.get((e["number"] or "", e["name"].casefold()))
+        plot = (by_id.get(e.get("myfarm_id"))
+                or by_key.get((e["number"] or "", e["name"].casefold()))
                 or by_key.get((e["number"] or "", _numbered_name(e).casefold()))
                 or by_name.get(e["name"].casefold())
-                or by_shape.get(json.dumps(e["rings"], separators=(",", ":"))))
+                or (by_shape.get(json.dumps(e["rings"], separators=(",", ":"))) if e.get("rings") else None))
         if plot is None and e["number"] and numbers_file[e["number"]] == 1 \
                 and len(numbers_db.get(e["number"], [])) == 1:
             plot = numbers_db[e["number"]][0]

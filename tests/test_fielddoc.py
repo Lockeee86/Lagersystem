@@ -1,0 +1,187 @@
+import io
+from datetime import date
+from decimal import Decimal
+
+import pytest
+
+from app import fielddoc, fields
+from app.fields import FieldImportError
+from app.models import FieldMeasure, Plot
+
+from .test_fields import kml
+
+# Aufbau wie die Myfarm24-„Schlagdokumentation“ (Daten erfunden), inklusive Seitenumbruch-Zeilen
+CSV = """Schlagdokumentation Erntejahr 2026
+Betrieb: Testhof (12345 Musterdorf)
+Schlag: Hofkoppel (2) / Nr. 1 / FLIK: DENILI0000000001
+Fläche:;6,5;ha
+USchlag-ID:;MY000000001
+Kultur: Kartoffel (Pflanz)
+Sorte: Belana
+Vorfrucht: Zuckerrüben
+Vorvorfrucht: Winterroggen
+DüV Bedarf Frühjahr: 127 kg N/ha
+Saatdatum: 29.04.2026
+Saatmenge:;30;dt/ha
+Bestellverfahren: Mulchsaat
+Erntedatum:
+Ertrag:;
+Bodenart: S
+Rotes Gebiet: N
+pH-Wert:;6,08
+P-Klasse: C
+K-Klasse: D
+Mg:;4.1;mg/100g
+Analyse: 02.02.2022 (CAL)
+N-min 30:;0;kg
+Analyse:
+Aussaat:
+Datum;Sorte;Fläche ha;Menge je ha;Einheit;Bemerkungen
+28.04.26;Belana (Basis);6,5;30;dt;(Beizinfo: Testbeize)
+Düngung:
+Datum;BBCH;Dünger;Fläche ha;Menge je ha;Einheit;N gesamt;;N anrechenbar;P2O5 ;K2O ;MgO ;S ;CaO ;Bemerkungen
+24.04.26;;Gärrest Frühjahr;6,5;15;m³;80;45;30;81;12;8;33;
+27.04.26;;Mischdünger NPK;2,8;3;dt;17;17;5;20;8;12;7;
+24.06.26;;Kalkammonsalpeter 27;2;1,5;dt;12;;12;;;;;-7;nur Teilfläche
+Summe Nährstoffe (kg/ha);;;;;;109;74;35;101;20;20;33
+Bei Düngerbuchungen auf Teilflächen wird der jeweilige Anteil am Nährstoffsaldo entsprechend verringert.
+Pflanzenschutz:
+Datum;BBCH Stadium;Produkt;Fläche [ha];Menge je ha;Mengeneinheit;Bemerkung / Indikation
+16.05.26;09;Mittel A;6,5;2,5;l;Unkräuter, Wartezeit F
+Schlagdokumentation Erntejahr 2026
+Betrieb: Testhof (12345 Musterdorf)
+Arbeiten / Maschinen:
+Datum;BBCH Stadium;Arbeit / Maschine;Fläche [ha];Bemerkungen
+22.04.26;;Traktor 1;6,5;
+22.04.26;;Grubber;6,5;
+Personen:
+Datum;Person;Dauer [h];Bemerkungen
+22.04.26;Muster, Max;2,5;
+Inhalt der Checkliste "Gute fachliche Praxis" ist bekannt.
+Geografische Lage des Schlages (WGS 84): N 52,4, E 10,5
+Schlag: Bachfeld / Nr. 22
+Fläche:;16,6;ha
+USchlag-ID:;MY000000002
+Kultur: Winterweizen
+Sorte: Testweizen
+Bodenart: Keine Angabe
+Rotes Gebiet: J
+Zwischenfrucht: ZF Ölrettich (nicht eingearbeitet)
+Schlag: Ohne Kultur / Nr. 30 / FLIK:
+Fläche:;;ha
+Kultur:
+"""
+
+
+def data(text=CSV):
+    return text.encode("cp1252")
+
+
+def test_parse():
+    year, entries = fielddoc.parse_csv(data())
+    assert year == 2026 and [e["name"] for e in entries] == ["Hofkoppel (2)", "Bachfeld", "Ohne Kultur"]
+    e = entries[0]
+    assert (e["number"], e["flik"], e["myfarm_id"], e["area_ha"]) == ("1", "DENILI0000000001", "MY000000001",
+                                                                      Decimal("6.5"))
+    assert (e["crop"], e["variety"], e["prev_crop"], e["prev_prev_crop"]) == \
+        ("Kartoffel (Pflanz)", "Belana", "Zuckerrüben", "Winterroggen")
+    assert e["n_demand"] == 127 and e["planted_on"] == date(2026, 4, 29) and e["harvested_on"] is None
+    assert (e["soil"], e["red_area"], e["ph"], e["p_class"], e["k_class"], e["mg_value"], e["soil_test_on"]) == \
+        ("S", False, Decimal("6.08"), "C", "D", Decimal("4.1"), date(2022, 2, 2))
+    kinds = [m["kind"] for m in e["measures"]]
+    assert kinds == ["aussaat", "duengung", "duengung", "duengung", "pflanzenschutz", "arbeit", "arbeit", "person"]
+    gaerrest = e["measures"][1]
+    assert (gaerrest["name"], gaerrest["amount"], gaerrest["unit"], gaerrest["n_total"], gaerrest["n_avail"],
+            gaerrest["cao"], gaerrest["note"]) == ("Gärrest Frühjahr", Decimal("15"), "m³", 80, 45, 33, None)
+    # Zeile mit der zusätzlichen leeren Spalte nach „N gesamt“
+    kas = e["measures"][3]
+    assert (kas["n_total"], kas["n_avail"], kas["p2o5"], kas["cao"], kas["note"]) == (12, 12, None, -7, "nur Teilfläche")
+    psm = e["measures"][4]
+    assert (psm["bbch"], psm["name"], psm["amount"], psm["unit"], psm["note"]) == \
+        ("09", "Mittel A", Decimal("2.5"), "l", "Unkräuter, Wartezeit F")
+    person = e["measures"][-1]
+    assert (person["name"], person["amount"], person["unit"]) == ("Muster, Max", Decimal("2.5"), "h")
+    b = entries[1]
+    assert b["flik"] is None and b["soil"] is None and b["red_area"] is True and b["catch_crop"].startswith("ZF Öl")
+    assert entries[2]["area_ha"] is None and entries[2]["crop"] is None and entries[2]["flik"] is None
+    # UTF-8 geht auch
+    assert fielddoc.parse_csv(CSV.encode("utf-8"))[1][0]["measures"][1]["unit"] == "m³"
+
+
+def test_parse_invalid():
+    for bad in (b"", b"Datum;Konto;Betrag\n01.01.26;4000;12", b"Schlagdokumentation Erntejahr 2026\nnix"):
+        with pytest.raises(FieldImportError):
+            fielddoc.parse_csv(bad)
+
+
+def test_import_matches_kml_plots_and_reimport(db, seed):
+    # Umrisse aus der KML zuerst – die Schlagdokumentation findet sie über Nummer + Name wieder
+    fields.apply_import(fields.parse_kml("x.kml", kml(("Hofkoppel (2)", "1", "6.4", "Kartoffel", "SOLTU", "", "N"))),
+                        2026)
+    db.session.commit()
+    koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
+    year, entries = fielddoc.parse_csv(data())
+    rows, missing = fielddoc.plan_import(entries, year)
+    assert rows[0]["plot"] is koppel and rows[1]["plot"] is None
+    assert rows[0]["counts"] == {"aussaat": 1, "duengung": 3, "pflanzenschutz": 1, "arbeit": 2, "person": 1}
+    assert [p.name for p in missing] == ["Acker Nord"]
+
+    stats = fielddoc.apply_import(entries, year, create=False)
+    db.session.commit()
+    assert stats == {"created": 0, "updated": 1, "skipped": 2, "measures": 8} and Plot.query.count() == 2
+    assert koppel.myfarm_id == "MY000000001" and koppel.area_ha == Decimal("6.5") and koppel.rings
+    assert koppel.ph == Decimal("6.08") and koppel.p_class == "C"
+    y = koppel.year(2026)
+    assert y.crop == "Kartoffel (Pflanz)" and y.crop_eppo is None and y.is_potato
+    assert y.variety_id == seed["belana"].id and y.variety_name == "Belana" and y.n_demand == 127
+    assert y.planted_on == date(2026, 4, 29)
+    assert koppel.year(2025).crop == "Zuckerrüben" and koppel.year(2024).crop == "Winterroggen"
+    summary = fielddoc.summary(y)
+    assert summary["nutrients"]["n_total"] == 109 and summary["nutrients"]["n_avail"] == 74 and summary["hours"] == 2.5
+
+    # Pflanzdatum aus der App bleibt, Maßnahmen werden ersetzt statt verdoppelt, eigene Einträge bleiben
+    y.planted_on = date(2026, 4, 30)
+    y.measures.append(FieldMeasure(kind="arbeit", done_on=date(2026, 5, 1), name="Von Hand", source="app"))
+    db.session.commit()
+    changed = CSV.replace("22.04.26;;Grubber;6,5;\n", "").replace("USchlag-ID:;MY000000001", "USchlag-ID:;MY000000001")
+    changed = changed.replace("Schlag: Hofkoppel (2) / Nr. 1", "Schlag: Hofkoppel / Nr. 1")   # in Myfarm umbenannt
+    stats = fielddoc.apply_import(fielddoc.parse_csv(data(changed))[1], 2026)
+    db.session.commit()
+    assert stats["created"] == 2 and stats["measures"] == 7 and Plot.query.count() == 4
+    assert koppel.name == "Hofkoppel"            # über die USchlag-ID wiedererkannt
+    assert y.planted_on == date(2026, 4, 30)
+    assert FieldMeasure.query.filter_by(plot_year_id=y.id, source="myfarm").count() == 7
+    assert FieldMeasure.query.filter_by(plot_year_id=y.id, source="app").count() == 1
+    bach = Plot.query.filter_by(name="Bachfeld").one()
+    assert bach.boundary is None and bach.red_area is True and bach.year(2026).catch_crop.startswith("ZF")
+    assert bach.year(2026).variety_id is None and bach.year(2026).variety_name == "Testweizen"
+    # Unverändert erneut → Vorschau zeigt keine Änderungen
+    rows, _ = fielddoc.plan_import(fielddoc.parse_csv(data(changed))[1], 2026)
+    assert not any(r["changes"] for r in rows)
+
+
+def test_pages(as_admin, as_worker, as_viewer, db, seed):
+    r = as_admin.post("/admin/schlaege/myfarm", data={"file": (io.BytesIO(data()), "schlagkartei.csv")},
+                      content_type="multipart/form-data")
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200 and "Hofkoppel (2)" in html and "Erntejahr 2026" in html
+    assert Plot.query.count() == 1                       # nur Vorschau
+    assert as_worker.post("/admin/schlaege/myfarm/uebernehmen", data={"create": "1"}).status_code == 403
+    r = as_admin.post("/admin/schlaege/myfarm/uebernehmen", data={"create": "1"})
+    assert r.status_code == 302 and Plot.query.count() == 4
+    koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
+    html = as_viewer.get(f"/schlag/{koppel.id}").get_data(as_text=True)
+    for text in ("Gärrest Frühjahr", "Mittel A", "Traktor 1", "Muster, Max", "N anrechenbar 74 kg/ha",
+                 "von 127 kg/ha Bedarf", "DENILI0000000001", "6,08", "Belana"):
+        assert text in html, text
+    r = as_admin.post("/admin/schlaege/myfarm", data={"file": (io.BytesIO(b"kaputt"), "x.csv")},
+                      content_type="multipart/form-data")
+    assert r.status_code == 302
+    assert "Schlagdokumentation importieren" in as_admin.get("/admin/schlaege").get_data(as_text=True)
+
+
+def test_fmt_qty():
+    from app.utils import fmt_qty
+    assert [fmt_qty(v) for v in (Decimal("4.500"), Decimal("15"), 80, None, Decimal("0.25"))] == \
+        ["4,5", "15", "80", "", "0,25"]
+    assert fmt_qty(Decimal("130.0"), 0) == "130" and fmt_qty(Decimal("-0.0"), 1) == "0" and fmt_qty(2.5, 1) == "2,5"

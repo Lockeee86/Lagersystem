@@ -265,6 +265,14 @@ class Plot(db.Model):
     area_ha = db.Column(db.Numeric(9, 4))
     soil = db.Column(db.String(60))             # Bodenart
     red_area = db.Column(db.Boolean)            # Rotes Gebiet (Düngeverordnung)
+    flik = db.Column(db.String(20))             # Feldblock-Kennung
+    myfarm_id = db.Column(db.String(30), index=True)  # „USchlag-ID“ aus der Myfarm24-Schlagdokumentation
+    # Bodenuntersuchung (aus der Schlagdokumentation)
+    ph = db.Column(db.Numeric(4, 2))
+    p_class = db.Column(db.String(5))
+    k_class = db.Column(db.String(5))
+    mg_value = db.Column(db.Numeric(6, 2))      # mg/100 g Boden
+    soil_test_on = db.Column(db.Date)
     # Umriss als JSON: Liste von Ringen, je Ring [[länge, breite], …] (WGS 84)
     boundary = db.Column(db.Text)
     note = db.Column(db.Text)
@@ -304,13 +312,62 @@ class PlotYear(db.Model):
     seed_note = db.Column(db.String(200))       # Pflanzgut, z. B. Partie/Stufe/Menge
     harvested_on = db.Column(db.Date)
     note = db.Column(db.Text)
+    variety_name = db.Column(db.String(100))    # Sorte laut Schlagdokumentation (auch Getreide, Mais …)
+    n_demand = db.Column(db.Integer)            # N-Düngebedarf nach DüV in kg/ha
+    catch_crop = db.Column(db.String(100))      # Zwischenfrucht
 
     plot = db.relationship("Plot", back_populates="years")
     variety = db.relationship("Variety")
+    measures = db.relationship("FieldMeasure", back_populates="plot_year", cascade="all, delete-orphan",
+                               order_by=lambda: (FieldMeasure.done_on, FieldMeasure.id))
 
     @property
     def is_potato(self):
         return self.crop_eppo == "SOLTU" or "kartoffel" in (self.crop or "").lower()
+
+
+FIELD_MEASURE_KINDS = {
+    "aussaat": N_("Aussaat"),
+    "duengung": N_("Düngung"),
+    "pflanzenschutz": N_("Pflanzenschutz"),
+    "arbeit": N_("Arbeiten / Maschinen"),
+    "person": N_("Personen"),
+}
+NUTRIENTS = ("n_total", "n_avail", "p2o5", "k2o", "mgo", "s", "cao")
+
+
+class FieldMeasure(db.Model):
+    """Eine Maßnahme auf dem Schlag (Aussaat, Düngung, Pflanzenschutz, Arbeit, Person) – aus der
+    Myfarm24-Schlagdokumentation (`source` = "myfarm", wird beim nächsten Import ersetzt).
+    `name` ist je nach Art Sorte, Dünger, Mittel, Maschine/Arbeit oder Person; bei Personen ist `amount` die Dauer in h.
+    Nährstoffe in kg/ha bezogen auf den ganzen Schlag (bei Teilflächen anteilig, wie in Myfarm24)."""
+    __tablename__ = "field_measures"
+
+    id = db.Column(db.Integer, primary_key=True)
+    plot_year_id = db.Column(db.Integer, db.ForeignKey("plot_years.id", ondelete="CASCADE"), nullable=False,
+                             index=True)
+    kind = db.Column(db.String(20), nullable=False)
+    done_on = db.Column(db.Date)
+    bbch = db.Column(db.String(20))
+    name = db.Column(db.String(150), nullable=False)
+    area_ha = db.Column(db.Numeric(9, 4))
+    amount = db.Column(db.Numeric(12, 3))
+    unit = db.Column(db.String(20))
+    n_total = db.Column(db.Numeric(8, 1))
+    n_avail = db.Column(db.Numeric(8, 1))
+    p2o5 = db.Column(db.Numeric(8, 1))
+    k2o = db.Column(db.Numeric(8, 1))
+    mgo = db.Column(db.Numeric(8, 1))
+    s = db.Column(db.Numeric(8, 1))
+    cao = db.Column(db.Numeric(8, 1))
+    note = db.Column(db.String(300))
+    source = db.Column(db.String(20), nullable=False, default="myfarm")
+
+    plot_year = db.relationship("PlotYear", back_populates="measures")
+
+    @property
+    def kind_label(self):
+        return _(FIELD_MEASURE_KINDS.get(self.kind, self.kind))
 
 
 class SeedClass(db.Model):

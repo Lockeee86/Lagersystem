@@ -212,6 +212,16 @@ def fmt_num(value, digits=0):
     return text.replace(".", ",")
 
 
+def fmt_qty(value, digits=3):
+    """Menge ohne überflüssige Nullen: 4.500 → "4,5", 15.000 → "15", None → "" """
+    if value is None:
+        return ""
+    text = f"{value:.{digits}f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text.replace(".", ",")
+
+
 def fmt_weekday(value):
     from .i18n import gettext
     from .weather import WEEKDAYS

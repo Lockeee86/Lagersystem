@@ -179,8 +179,8 @@ Offen: Luftbild als Hintergrund (bräuchte einen Kartendienst und eine CSP-Ausna
 - **Umrisse auf einer Karte** (Luftbild), Import z. B. aus dem Agrarantrag (Shape/GeoJSON).
   Kartenkacheln müssen über die CSP erlaubt oder über den Server geholt werden.
 - Erfasst in der App: **Pflanzung** (Datum, Sorte, Pflanzgut-Partie, Menge) und **Rodung**.
-- **Düngung und Pflanzenschutz bleiben im bisherigen Programm** und werden importiert (nur Anzeige).
-  Welches Programm/Format: noch offen.
+- **Düngung und Pflanzenschutz bleiben im bisherigen Programm** und werden importiert (nur Anzeige) –
+  umgesetzt in 0.25.0 über die Myfarm24-Schlagdokumentation (CSV).
 - **Ertrag** automatisch aus den Kisten: t/ha je Schlag, Sorte und Jahr, Jahresvergleich.
 
 ### Baustein E – Wetter (umgesetzt in 0.11.0)
@@ -289,6 +289,21 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Schlagdokumentation aus Myfarm24 (0.25.0)
+Zweiter Import unter Verwaltung → Schläge: die CSV „Schlagdokumentation“ (cp1252, „;“, je Schlag ein Block
+„Schlag: Name / Nr. n / FLIK: …“). Die KML-Datei bleibt für die Umrisse zuständig, die CSV bringt alles andere:
+Fläche, FLIK, USchlag-ID, Bodenart, Rotes Gebiet, Bodenuntersuchung (pH, P-/K-Klasse, Mg, Datum), Kultur, Sorte
+(Kartoffelsorten werden der Sorte in der App zugeordnet, sonst als Text), Vorfrucht/Vorvorfrucht (→ Vorjahre,
+nur wenn leer), N-Bedarf nach DüV, Saat-/Erntedatum (nur ergänzt), Zwischenfrucht und alle Maßnahmen
+(`FieldMeasure`: Aussaat, Düngung mit Nährstoffen in kg/ha, Pflanzenschutz, Arbeiten/Maschinen, Personen).
+Das Erntejahr steht in der Datei. Abgleich: USchlag-ID → Nummer + Name → Name (wie beim KML-Import); neue
+Schläge (in Myfarm24 ohne Umriss in der KML, z. B. Teilschläge, Grünland) werden auf Wunsch angelegt. Beim
+erneuten Import werden die importierten Maßnahmen des Jahres ersetzt, in der App erfasste bleiben.
+Schlagseite: Boden-Karte, je Anbaujahr Maßnahmen aufklappbar, Nährstoffsumme und N anrechenbar gegen den Bedarf
+(Myfarm24 summiert ungerundet, daher ±1 kg/ha Abweichung möglich).
+Später möglich: Pflanzenschutz-Übersicht über alle Schläge (Wartezeiten vor der Ernte), Maschinen aus
+„Arbeiten / Maschinen“ den Maschinen der App zuordnen, Standortpunkt für Schläge ohne Umriss.
+
 ### Luftbild unter der Schlagkarte (0.24.0)
 Die Schlagkarte (und die kleine Karte auf der Schlagseite) zeigt ein Luftbild unter den Umrissen; Schalter rechts
 an der Karte, die Wahl merkt sich der Browser. Der Server holt das Bild für den sichtbaren Ausschnitt (EPSG:4326,
@@ -340,7 +355,6 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 2. Lieferschein: Muss ein Pflanzenpass-Etikett mitgedruckt werden oder reicht die Angabe auf dem Lieferschein?
    Gibt es eine Vorlage, wie der Lieferschein aussehen soll?
 3. Werden je Fahrzeug mehrere Kunden beliefert (ein Wiegevorgang, mehrere Lieferscheine)?
-4. Düngung/Pflanzenschutz kommen aus Myfarm24 – welche Exporte (Excel/CSV/ISOXML) gibt es dort?
-5. Welche Sensoren genau (Vorschlag folgt mit Baustein B).
+4. Welche Sensoren genau (Vorschlag folgt mit Baustein B).
 
 Geklärt: WLAN im Lager ist gut (kein Offline-Modus nötig); Zugriff von unterwegs läuft über die eigene Domain mit HTTPS.

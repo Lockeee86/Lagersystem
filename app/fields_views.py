@@ -5,10 +5,10 @@ from flask import Blueprint, Response, abort, current_app, flash, redirect, rend
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
-from . import aerial, fields, tasks, weather
+from . import aerial, fielddoc, fields, tasks, weather
 from .extensions import db
 from .i18n import gettext as _
-from .models import Box, Plot, PlotYear, Setting, Variety
+from .models import FIELD_MEASURE_KINDS, Box, Plot, PlotYear, Setting, Variety
 from .utils import admin_required, editor_required, form_date, form_int, form_str
 
 bp = Blueprint("fields", __name__)
@@ -64,13 +64,14 @@ def field_detail(plot_id):
         entry = plot.year(y)
         kg = fields.yields(y).get(plot.id, {})
         history.append({"year": y, "entry": entry, "kg": kg.get("kg"), "boxes": kg.get("boxes"),
-                        "varieties": kg.get("varieties", {}), "t_ha": fields.t_per_ha(kg.get("kg"), plot.area_ha)})
+                        "varieties": kg.get("varieties", {}), "t_ha": fields.t_per_ha(kg.get("kg"), plot.area_ha),
+                        "doc": fielddoc.summary(entry)})
     outline_ha = sum(fields.ring_area_ha(r) for r in plot.rings) if plot.rings else None
     stored = Box.query.filter(Box.plot_id == plot.id, Box.fill > 0).count()
     return render_template(
         "fields/detail.html", plot=plot, history=history, this_year=this_year, outline_ha=outline_ha,
         stored=stored, map_data=fields.map_data([plot], this_year), open_tasks=tasks.for_plot(plot.id),
-        aerial=aerial_options(),
+        aerial=aerial_options(), kinds=FIELD_MEASURE_KINDS,
         today=date.today(),
         varieties=Variety.query.filter(or_(Variety.active.is_(True),
                                            Variety.id.in_([py.variety_id for py in plot.years if py.variety_id])))

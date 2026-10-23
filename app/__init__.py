@@ -113,6 +113,7 @@ def create_app(config=None):
         kg=utils.fmt_kg,
         money=utils.fmt_money,
         num=utils.fmt_num,
+        qty=utils.fmt_qty,
         bytes=utils.fmt_bytes,
         weekday=utils.fmt_weekday,
         textcolor=utils.text_color_for,

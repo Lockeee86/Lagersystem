@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
+{% from "fields/_doc.html" import measures with context %}
 {% block title %}{{ plot.name }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -28,6 +29,21 @@
             {% endif %}
         </div>
         {% endif %}
+        {% if plot.ph is not none or plot.p_class or plot.k_class or plot.mg_value is not none or plot.flik %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-moisture me-1"></i>{{ _("Boden") }}</div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    {% if plot.soil %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Bodenart") }}</dt><dd class="col-7">{{ plot.soil }}</dd>{% endif %}
+                    {% if plot.ph is not none %}<dt class="col-5 fw-normal text-body-secondary">{{ _("pH-Wert") }}</dt><dd class="col-7">{{ plot.ph|qty(2) }}</dd>{% endif %}
+                    {% if plot.p_class or plot.k_class %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Gehaltsklasse P / K") }}</dt><dd class="col-7">{{ plot.p_class or "–" }} / {{ plot.k_class or "–" }}</dd>{% endif %}
+                    {% if plot.mg_value is not none %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Magnesium") }}</dt><dd class="col-7">{{ plot.mg_value|qty(2) }} mg/100 g</dd>{% endif %}
+                    {% if plot.soil_test_on %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Untersucht am") }}</dt><dd class="col-7">{{ plot.soil_test_on|date }}</dd>{% endif %}
+                    {% if plot.flik %}<dt class="col-5 fw-normal text-body-secondary">FLIK</dt><dd class="col-7 text-break">{{ plot.flik }}</dd>{% endif %}
+                </dl>
+            </div>
+        </div>
+        {% endif %}
         {% if plot.note %}<div class="card shadow-sm mb-4"><div class="card-body small" style="white-space: pre-line">{{ plot.note }}</div></div>{% endif %}
         {% if open_tasks %}
         {% from "tasks/_macros.html" import task_item with context %}
@@ -46,15 +62,17 @@
         {% set e = h.entry %}
         <div class="card shadow-sm mb-3" id="jahr-{{ h.year }}">
             <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
-                <span><span class="fw-semibold">{{ h.year }}</span> · {{ e.crop if e and e.crop else _("keine Kultur eingetragen") }}{% if e and e.variety %} · {{ e.variety.name }}{% endif %}</span>
+                <span><span class="fw-semibold">{{ h.year }}</span> · {{ e.crop if e and e.crop else _("keine Kultur eingetragen") }}{% if e and e.variety %} · {{ e.variety.name }}{% elif e and e.variety_name %} · {{ e.variety_name }}{% endif %}</span>
                 {% if h.t_ha %}<span class="badge text-bg-success fs-6">{{ h.t_ha|num(1) }} t/ha</span>{% endif %}
             </div>
             <div class="card-body small">
-                {% if e and (e.planted_on or e.harvested_on or e.seed_note or e.note) %}
+                {% if e and (e.planted_on or e.harvested_on or e.seed_note or e.note or e.catch_crop or e.n_demand) %}
                 <dl class="row mb-2">
-                    {% if e.planted_on %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Gepflanzt") }}</dt><dd class="col-8">{{ e.planted_on|date }}</dd>{% endif %}
+                    {% if e.catch_crop %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Zwischenfrucht") }}</dt><dd class="col-8">{{ e.catch_crop }}</dd>{% endif %}
+                    {% if e.n_demand %}<dt class="col-4 fw-normal text-body-secondary">{{ _("N-Bedarf (DüV)") }}</dt><dd class="col-8">{{ e.n_demand }} kg/ha</dd>{% endif %}
+                    {% if e.planted_on %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Gepflanzt") if e.is_potato or not e.crop else _("Gesät") }}</dt><dd class="col-8">{{ e.planted_on|date }}</dd>{% endif %}
                     {% if e.seed_note %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Pflanzgut") }}</dt><dd class="col-8">{{ e.seed_note }}</dd>{% endif %}
-                    {% if e.harvested_on %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Gerodet") }}</dt><dd class="col-8">{{ e.harvested_on|date }}</dd>{% endif %}
+                    {% if e.harvested_on %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Gerodet") if e.is_potato or not e.crop else _("Geerntet") }}</dt><dd class="col-8">{{ e.harvested_on|date }}</dd>{% endif %}
                     {% if e.note %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Notiz") }}</dt><dd class="col-8" style="white-space: pre-line">{{ e.note }}</dd>{% endif %}
                 </dl>
                 {% endif %}
@@ -63,6 +81,7 @@
                     {% if h.varieties|length > 1 %}<span class="text-body-secondary">({% for name, kg in h.varieties.items() %}{{ name }} {{ kg|kg }}{{ ", " if not loop.last }}{% endfor %})</span>{% endif %}
                 </div>
                 {% endif %}
+                {% if h.doc.groups %}<div class="mb-3">{{ measures(h.doc, e, kinds) }}</div>{% endif %}
                 {% if current_user.can_edit %}
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#form{{ h.year }}"><i class="bi bi-pencil me-1"></i>{{ _("Pflanzung / Rodung eintragen") }}</button>
                 <form class="collapse mt-3" id="form{{ h.year }}" method="post" action="{{ url_for('fields.field_year_save', plot_id=plot.id) }}">

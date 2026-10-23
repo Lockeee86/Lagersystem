@@ -1,0 +1,66 @@
+{# Maßnahmen eines Anbaujahrs aus der Schlagdokumentation (fielddoc.summary) #}
+{% macro measures(doc, entry, kinds) %}
+{% set groups = doc.groups %}
+{% for kind, label in kinds.items() if groups.get(kind) %}
+{% set items = groups[kind] %}
+<details class="field-doc mt-2" {% if kind in ("duengung", "pflanzenschutz") %}open{% endif %}>
+    <summary class="fw-medium">{{ _(label) }} <span class="badge text-bg-secondary">{{ items|length }}</span>
+        {% if kind == "duengung" and doc.nutrients %}<span class="fw-normal text-body-secondary ms-1">· {{ _("N anrechenbar {n} kg/ha", n=doc.nutrients.n_avail|num) }}{% if entry.n_demand %} {{ _("von {n} kg/ha Bedarf", n=entry.n_demand) }}{% endif %}</span>{% endif %}
+        {% if kind == "person" and doc.hours %}<span class="fw-normal text-body-secondary ms-1">· {{ doc.hours|qty(1) }} h</span>{% endif %}
+    </summary>
+    <div class="table-responsive">
+    <table class="table table-sm small align-middle mb-0">
+        {% if kind == "duengung" %}
+        <thead><tr><th>{{ _("Datum") }}</th><th>{{ _("Dünger") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("je ha") }}</th><th class="text-end" title="{{ _('N gesamt') }}">N</th><th class="text-end" title="{{ _('N anrechenbar') }}">{{ _("N anr.") }}</th><th class="text-end">P₂O₅</th><th class="text-end">K₂O</th><th class="text-end d-none d-md-table-cell">MgO</th><th class="text-end d-none d-md-table-cell">S</th><th class="text-end d-none d-md-table-cell">CaO</th></tr></thead>
+        <tbody>
+        {% for m in items %}
+        <tr><td class="text-nowrap">{{ m.done_on|date }}</td><td>{{ m.name }}{% if m.note %}<div class="text-body-secondary">{{ m.note }}</div>{% endif %}</td>
+            <td class="text-end text-nowrap">{{ m.area_ha|qty(2) }}</td><td class="text-end text-nowrap">{{ m.amount|qty }} {{ m.unit or "" }}</td>
+            <td class="text-end">{{ m.n_total|qty(0) }}</td><td class="text-end">{{ m.n_avail|qty(0) }}</td><td class="text-end">{{ m.p2o5|qty(0) }}</td><td class="text-end">{{ m.k2o|qty(0) }}</td>
+            <td class="text-end d-none d-md-table-cell">{{ m.mgo|qty(0) }}</td><td class="text-end d-none d-md-table-cell">{{ m.s|qty(0) }}</td><td class="text-end d-none d-md-table-cell">{{ m.cao|qty(0) }}</td></tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr class="fw-semibold"><td colspan="4">{{ _("Summe kg/ha") }}</td>
+            {% for k in ("n_total", "n_avail", "p2o5", "k2o") %}<td class="text-end">{{ doc.nutrients[k]|qty(0) }}</td>{% endfor %}
+            {% for k in ("mgo", "s", "cao") %}<td class="text-end d-none d-md-table-cell">{{ doc.nutrients[k]|qty(0) }}</td>{% endfor %}</tr></tfoot>
+        {% elif kind == "pflanzenschutz" %}
+        <thead><tr><th>{{ _("Datum") }}</th><th>{{ _("Mittel") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("je ha") }}</th><th class="d-none d-md-table-cell">{{ _("Indikation") }}</th></tr></thead>
+        <tbody>
+        {% for m in items %}
+        <tr><td class="text-nowrap">{{ m.done_on|date }}{% if m.bbch %}<div class="text-body-secondary">BBCH {{ m.bbch }}</div>{% endif %}</td>
+            <td>{{ m.name }}{% if m.note %}<div class="text-body-secondary d-md-none">{{ m.note }}</div>{% endif %}</td>
+            <td class="text-end text-nowrap">{{ m.area_ha|qty(2) }}</td><td class="text-end text-nowrap">{{ m.amount|qty }} {{ m.unit or "" }}</td>
+            <td class="d-none d-md-table-cell text-body-secondary">{{ m.note or "" }}</td></tr>
+        {% endfor %}
+        </tbody>
+        {% elif kind == "aussaat" %}
+        <thead><tr><th>{{ _("Datum") }}</th><th>{{ _("Sorte") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("je ha") }}</th><th class="d-none d-md-table-cell">{{ _("Bemerkung") }}</th></tr></thead>
+        <tbody>
+        {% for m in items %}
+        <tr><td class="text-nowrap">{{ m.done_on|date }}</td><td>{{ m.name }}{% if m.note %}<div class="text-body-secondary d-md-none">{{ m.note }}</div>{% endif %}</td>
+            <td class="text-end text-nowrap">{{ m.area_ha|qty(2) }}</td><td class="text-end text-nowrap">{{ m.amount|qty }} {{ m.unit or "" }}</td>
+            <td class="d-none d-md-table-cell text-body-secondary">{{ m.note or "" }}</td></tr>
+        {% endfor %}
+        </tbody>
+        {% elif kind == "arbeit" %}
+        <thead><tr><th>{{ _("Datum") }}</th><th>{{ _("Arbeit / Maschine") }}</th><th class="text-end">{{ _("Fläche") }}</th></tr></thead>
+        <tbody>
+        {% for m in items %}
+        <tr><td class="text-nowrap">{{ m.done_on|date }}</td><td>{{ m.name }}{% if m.note %}<div class="text-body-secondary">{{ m.note }}</div>{% endif %}</td>
+            <td class="text-end text-nowrap">{{ m.area_ha|qty(2) }}</td></tr>
+        {% endfor %}
+        </tbody>
+        {% else %}
+        <thead><tr><th>{{ _("Datum") }}</th><th>{{ _("Person") }}</th><th class="text-end">{{ _("Dauer") }}</th></tr></thead>
+        <tbody>
+        {% for m in items %}
+        <tr><td class="text-nowrap">{{ m.done_on|date }}</td><td>{{ m.name }}{% if m.note %}<div class="text-body-secondary">{{ m.note }}</div>{% endif %}</td>
+            <td class="text-end text-nowrap">{% if m.amount %}{{ m.amount|qty(2) }} h{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+        {% endif %}
+    </table>
+    </div>
+</details>
+{% endfor %}
+{% endmacro %}

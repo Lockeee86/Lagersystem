@@ -10,12 +10,12 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import aerial, agenda, backup, branding, fields, tiles, transfer, weather
+from . import aerial, agenda, backup, branding, fielddoc, fields, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
-from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, Setting, User,
-                     Variety, Warehouse)
+from .models import (FIELD_MEASURE_KINDS, ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass,
+                     Setting, User, Variety, Warehouse)
 from .storage import StorageError
 from .utils import admin_required, flash_error, form_int, form_str
 
@@ -298,6 +298,57 @@ def plots_kml_apply():
     flash(_("Schlagkartei übernommen: {created} neu, {updated} aktualisiert.", created=created, updated=updated),
           "success")
     return redirect(url_for("fields.field_map", jahr=info["year"]))
+
+
+@bp.route("/schlaege/myfarm", methods=["POST"])
+def plots_csv_preview():
+    """Schlagdokumentation aus Myfarm24 (CSV) – erst Vorschau, dann übernehmen."""
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("admin.plots"))
+    data_bytes = upload.read()
+    try:
+        year, entries = fielddoc.parse_csv(data_bytes)
+    except fields.FieldImportError as e:
+        flash_error(str(e))
+        return redirect(url_for("admin.plots"))
+    rows, missing = fielddoc.plan_import(entries, year)
+    _cleanup_imports()
+    token = secrets.token_hex(16)
+    with open(os.path.join(_import_dir(), token), "wb") as f:
+        f.write(data_bytes)
+    session["fielddoc_import"] = {"token": token}
+    totals = {}
+    for row in rows:
+        for kind, n in row["counts"].items():
+            totals[kind] = totals.get(kind, 0) + n
+    return render_template("admin/plots_csv_preview.html", rows=rows, missing=missing, year=year,
+                           filename=upload.filename, totals=totals, kinds=FIELD_MEASURE_KINDS)
+
+
+@bp.route("/schlaege/myfarm/uebernehmen", methods=["POST"])
+def plots_csv_apply():
+    info, path = _pending_import("fielddoc_import")
+    if not info:
+        flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
+        return redirect(url_for("admin.plots"))
+    with open(path, "rb") as f:
+        data_bytes = f.read()
+    try:
+        year, entries = fielddoc.parse_csv(data_bytes)
+        stats = fielddoc.apply_import(entries, year, create=bool(request.form.get("create")))
+        db.session.commit()
+    except fields.FieldImportError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("admin.plots"))
+    os.remove(path)
+    session.pop("fielddoc_import", None)
+    flash(_("Schlagdokumentation {year} übernommen: {created} Schläge neu, {updated} aktualisiert, {measures} Maßnahmen.",
+            year=year, created=stats["created"], updated=stats["updated"],
+            measures=stats["measures"]), "success")
+    return redirect(url_for("admin.plots"))
 
 
 @bp.route("/schlaege/<int:p_id>/loeschen", methods=["POST"])
