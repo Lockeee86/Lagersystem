@@ -47,20 +47,45 @@ def test_proxy_and_cache(app, as_worker, as_admin, db, seed, monkeypatch, tmp_pa
 
     # Dienst meldet Fehler als XML → 502, nichts gespeichert
     monkeypatch.setattr(aerial, "_download", lambda url: (b"<ServiceException>Layer unbekannt</ServiceException>" * 3, "text/xml"))
-    assert as_worker.get("/luftbild?bbox=10.0,52.3,10.1,52.35&w=800&h=400").status_code == 502
+    assert as_worker.get("/luftbild?bbox=10.0,52.3,10.1,52.35&w=800&h=400").status_code == 424   # kein 502 (Cloudflare)
     r = as_admin.get("/luftbild/test")
-    assert r.status_code == 502 and "Layer unbekannt" in r.get_data(as_text=True)
+    assert r.status_code == 200 and "Layer unbekannt" in r.get_data(as_text=True)
     assert as_worker.get("/luftbild/test").status_code == 403
+    monkeypatch.setattr(aerial, "_resolve", lambda host, port: ["192.0.2.10"])
+    monkeypatch.setattr(aerial, "_connect", lambda host, port: None)
     r = as_admin.get("/luftbild/test?info=1")
     text = r.get_data(as_text=True)
-    assert r.status_code == 200 and "nicht erreichbar oder nicht lesbar" in text and "Grund: AerialError" in text
+    assert r.status_code == 200 and "DNS opendata.lgln.niedersachsen.de: in Ordnung" in text and "192.0.2.10" in text
+    assert "GetCapabilities: nicht lesbar" in text and "Grund: AerialError" in text
     assert "Testbild am Hof-Standort: FEHLER" in text and "Layer unbekannt" in text
+
+    # Server erreicht den Dienst nicht → Diagnose bricht früh ab
+    def refused(host, port):
+        raise ConnectionRefusedError(111, "Connection refused")
+    monkeypatch.setattr(aerial, "_connect", refused)
+    text = as_admin.get("/luftbild/test?info=1").get_data(as_text=True)
+    assert "Verbindung Port 443: FEHLER" in text and "erreicht den Dienst nicht" in text and "Testbild" not in text
+
+    # Netzfehler beim Bild → Dienst 2 Minuten nicht erneut fragen
+    aerial.clear_capabilities()
+    tries = []
+
+    def timeout(url):
+        tries.append(url)
+        raise TimeoutError("timed out")
+    monkeypatch.setattr(aerial, "_download", timeout)
+    assert as_worker.get("/luftbild?bbox=10.0,52.31,10.1,52.35&w=800&h=400").status_code == 424
+    n = len(tries)
+    assert as_worker.get("/luftbild?bbox=10.0,52.32,10.1,52.35&w=800&h=400").status_code == 424
+    assert len(tries) == n                                      # gesperrt, kein neuer Versuch
+    assert "neuer Versuch in" in as_admin.get("/luftbild/test").get_data(as_text=True)
+    aerial.clear_capabilities()
 
     # Aus: keine Bilder, Karte ohne Luftbild-Schalter
     Setting.put("aerial_source", "-")
     db.session.add(Plot(name="Acker Süd", boundary="[[[10.1, 52.3], [10.2, 52.3], [10.2, 52.35], [10.1, 52.3]]]"))
     db.session.commit()
-    assert as_worker.get("/luftbild?bbox=10.1,52.3,10.2,52.35&w=800&h=400").status_code == 502
+    assert as_worker.get("/luftbild?bbox=10.1,52.3,10.2,52.35&w=800&h=400").status_code == 424
     assert 'id="aerialToggle"' not in as_worker.get("/schlagkarte").get_data(as_text=True)
     Setting.put("aerial_source", "lgln")
     db.session.commit()
@@ -126,6 +151,8 @@ def test_capabilities_choose_crs(app, db, seed, monkeypatch, tmp_path):
     assert len([u for u in urls if "GetCapabilities" in u]) == 1                      # Capabilities vorgehalten
     Setting.put("aerial_source", "lgln")
     db.session.commit()
+    monkeypatch.setattr(aerial, "_resolve", lambda host, port: ["192.0.2.10"])
+    monkeypatch.setattr(aerial, "_connect", lambda host, port: None)
     text = aerial.diagnose()
     assert "Layer gefunden: ja" in text and "EPSG:25832 (wird entzerrt), image/jpeg" in text
 

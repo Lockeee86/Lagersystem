@@ -313,6 +313,10 @@ und die gewählte Abfrage; Fehlermeldungen des Dienstes enthalten die abgefragte
 0.27.4: Capabilities in WMS 1.1.1 (mit DOCTYPE-Zeile) werden gelesen – vorher pauschal abgelehnt –, GetMap dann
 mit `SRS` und Länge/Breite-Reihenfolge. „Dienst prüfen“ nennt den genauen Grund, wenn die Capabilities scheitern,
 und macht eine Testabfrage am Hof-Standort.
+0.27.5: Wartezeit je Abruf 10 s; nach einem Netzfehler wird der Dienst 2 Minuten nicht erneut gefragt (die Threads
+blieben sonst hängen, und „Dienst prüfen“ lief in die 60-s-Grenze von Gunicorn → 502 über Cloudflare). Fehler
+liefern 424 bzw. 200 (Testseite) statt 502 – 502/504 ersetzt Cloudflare durch die eigene Fehlerseite. „Dienst
+prüfen“ misst DNS, Verbindung, Capabilities und Testbild einzeln mit Dauer und bricht beim ersten Netzfehler ab.
 
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im

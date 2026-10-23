@@ -188,7 +188,9 @@ def aerial_image():
         return _image_response(aerial.image(bbox, width, height))
     except aerial.AerialError as e:
         current_app.logger.warning("Luftbild nicht verfügbar: %s", e)
-        return Response(_("Luftbild nicht verfügbar."), status=502, mimetype="text/plain")
+        # bewusst kein 502/504: die ersetzt ein Proxy wie Cloudflare durch seine eigene Fehlerseite
+        return Response(_("Luftbild nicht verfügbar."), status=424, mimetype="text/plain",
+                        headers={"Cache-Control": "no-store"})
 
 
 @bp.route("/luftbild/test")
@@ -203,4 +205,5 @@ def aerial_test():
     try:
         return _image_response(aerial.image(bbox, 800, 500))
     except aerial.AerialError as e:
-        return Response(_("Luftbild nicht verfügbar.") + "\n\n" + str(e), status=502, mimetype="text/plain")
+        return Response(_("Luftbild nicht verfügbar.") + "\n\n" + str(e), mimetype="text/plain",
+                        headers={"Cache-Control": "no-store"})

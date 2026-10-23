@@ -36,7 +36,8 @@ SOURCES = {
     "wms": {"label": N_("Eigener WMS-Dienst"), "kind": "wms", "credit": ""},
 }
 MAX_SIDE = 2048
-TIMEOUT = 20
+TIMEOUT = 10
+DOWN_SECONDS = 120         # nach einem Netzfehler wird der Dienst so lange nicht erneut gefragt (Threads nicht blockieren)
 CACHE_LIMIT = 500 * 1024 * 1024          # ab 500 MB werden die ältesten Ausschnitte gelöscht
 
 
@@ -47,6 +48,7 @@ CRS_CHOICES = [("EPSG:4326", "latlon"), ("EPSG:4258", "latlon"), ("CRS:84", "lon
                ("EPSG:25832", "proj"), ("EPSG:25833", "proj"), ("EPSG:900913", "proj")]
 _caps = {}
 _caps_lock = threading.Lock()
+_down = {}                 # Dienst-Adresse → (bis wann, Fehlertext)
 
 
 class AerialError(Exception):
@@ -154,6 +156,8 @@ def capabilities(source):
     except (OSError, AerialError) as e:
         current_app.logger.warning("WMS-Capabilities nicht lesbar (%s): %s", source["url"], e)
         caps, ttl, error = None, CAPS_ERROR_SECONDS, f"{type(e).__name__}: {e}"
+        if isinstance(e, OSError) and not hasattr(e, "code"):     # Netz/Zeitüberschreitung, kein HTTP-Status
+            _mark_down(source, e)
     with _caps_lock:
         _caps[key] = (time.monotonic(), ttl, caps, error)
     return caps
@@ -169,24 +173,71 @@ def capabilities_error(source):
 def clear_capabilities():
     with _caps_lock:
         _caps.clear()
+        _down.clear()
+
+
+def _mark_down(source, error):
+    with _caps_lock:
+        _down[source["url"]] = (time.monotonic() + DOWN_SECONDS, str(error))
+
+
+def _check_down(source):
+    with _caps_lock:
+        entry = _down.get(source["url"])
+    if entry and time.monotonic() < entry[0]:
+        raise AerialError(f"Dienst zurzeit nicht erreichbar ({entry[1]}) – neuer Versuch in "
+                          f"{int(entry[0] - time.monotonic()) + 1} s.")
+
+
+def _resolve(host, port):
+    """IP-Adressen des Dienstes (in Tests ersetzen)."""
+    import socket
+    return sorted({a[4][0] for a in socket.getaddrinfo(host, port)})
+
+
+def _connect(host, port):
+    """TCP-Verbindung zum Dienst aufbauen und gleich schließen (in Tests ersetzen)."""
+    import socket
+    socket.create_connection((host, port), timeout=TIMEOUT).close()
+
+
+def _timed(label, fn):
+    start = time.monotonic()
+    try:
+        result = fn()
+        return result, f"{label}: in Ordnung ({time.monotonic() - start:.1f} s)", True
+    except Exception as e:                     # noqa: BLE001 – Diagnose soll alles zeigen
+        return None, f"{label}: FEHLER nach {time.monotonic() - start:.1f} s – {type(e).__name__}: {e}", False
 
 
 def diagnose(bbox=None):
-    """Klartext für die Verwaltung: was der Dienst kann, wie die App ihn abfragt und was eine Testabfrage liefert
-    (bewusst Deutsch und technisch – zum Weitergeben bei Problemen)."""
+    """Klartext für die Verwaltung: Erreichbarkeit (DNS, Verbindung), was der Dienst kann, wie die App ihn abfragt
+    und eine Testabfrage – jeder Schritt mit Dauer (bewusst Deutsch und technisch – zum Weitergeben bei Problemen).
+    Bricht nach dem ersten Netzfehler ab, damit die Seite nicht in die Zeitbegrenzung von Gunicorn läuft."""
     source = config()
     if source is None:
         return "Luftbild ist aus oder die WMS-Adresse ist unvollständig."
+    clear_capabilities()
     lines = [f"Quelle: {source['key']}", f"Adresse: {source['url']}"]
+    parts = urllib.parse.urlsplit(source["url"])
+    host, port = parts.hostname, parts.port or (443 if parts.scheme == "https" else 80)
+    addresses, line, ok = _timed("DNS " + host, lambda: _resolve(host, port))
+    lines.append(line + (f": {', '.join(addresses)}" if addresses else ""))
+    if not ok:
+        return "\n".join(lines + ["→ Der Server kann den Namen nicht auflösen (DNS des Servers/Containers prüfen)."])
+    _sock, line, ok = _timed(f"Verbindung Port {port}",
+                             lambda: _connect(host, port))
+    lines.append(line)
+    if not ok:
+        return "\n".join(lines + ["→ Der Server erreicht den Dienst nicht (Firewall, ausgehender Verkehr, IPv6?)."])
     if source["kind"] == "wms":
-        clear_capabilities()
-        caps = capabilities(source)
         lines.append(f"Layer: {source.get('layer')}")
+        caps, line, _ok = _timed("GetCapabilities", lambda: capabilities(source))
         if caps is None:
-            lines += ["GetCapabilities: nicht erreichbar oder nicht lesbar – es wird EPSG:4326 versucht.",
-                      f"Grund: {capabilities_error(source)}"]
+            lines += [line.replace("in Ordnung", "nicht lesbar"), f"Grund: {capabilities_error(source)}",
+                      "→ Es wird EPSG:4326 versucht."]
         else:
-            lines += [f"WMS-Version: {caps['version']}", f"Layer gefunden: {'ja' if caps['found'] else 'NEIN'}",
+            lines += [line, f"WMS-Version: {caps['version']}", f"Layer gefunden: {'ja' if caps['found'] else 'NEIN'}",
                       "Koordinatensysteme: " + (", ".join(caps["crs"]) or "–"),
                       "Bildformate: " + (", ".join(caps["formats"]) or "–")]
         try:
@@ -198,12 +249,8 @@ def diagnose(bbox=None):
     else:
         lines.append("Art: ArcGIS-Export (EPSG:4326), keine Capabilities nötig.")
     if bbox:
-        lines.append("")
-        try:
-            data = image(bbox, 400, 250)
-            lines.append(f"Testbild am Hof-Standort: in Ordnung ({len(data) // 1024} KB).")
-        except AerialError as e:
-            lines.append(f"Testbild am Hof-Standort: FEHLER\n{e}")
+        data, line, _ok = _timed("Testbild am Hof-Standort", lambda: image(bbox, 400, 250))
+        lines += ["", line + (f" ({len(data) // 1024} KB)" if data else "")]
     return "\n".join(lines)
 
 
@@ -335,6 +382,7 @@ def image(bbox, width, height):
         raise AerialError("aus")
     width, height = max(16, min(MAX_SIDE, int(width))), max(16, min(MAX_SIDE, int(height)))
     bbox = tuple(round(v, 6) for v in bbox)
+    _check_down(source)
     crs, axes, fmt, version = request_plan(source)
     quad = None
     if axes == "proj":
@@ -352,6 +400,8 @@ def image(bbox, width, height):
     try:
         data, content_type = _download(url)
     except OSError as e:
+        if not hasattr(e, "code"):
+            _mark_down(source, e)
         raise AerialError(str(e)) from None
     if not content_type.startswith("image/") or len(data) < 100:
         # WMS-Dienste melden Fehler als XML-Text
