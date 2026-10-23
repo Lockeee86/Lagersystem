@@ -6,12 +6,12 @@ from flask import (Blueprint, Response, abort, flash, redirect, render_template,
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import machines, purchases, push, tasks, uploads
+from . import fuel, machines, purchases, push, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
-from .models import (COUNTER_UNITS, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, Machine, MachineEvent,
-                     MaintenanceTask, Photo, User)
+from .models import (COUNTER_UNITS, DOCUMENT_KINDS, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, FuelEntry, Machine,
+                     MachineDocument, MachineEvent, MachinePart, MaintenanceTask, Photo, User)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
 
@@ -124,7 +124,11 @@ def machine_detail(machine_id):
                            maint_tasks={t.maintenance_task_id: t for t in open_tasks if t.maintenance_task_id},
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
                            faults=[e for e in machines.open_faults() if e.machine_id == machine.id],
-                           total_cost=total_cost, label_formats=LABEL_FORMATS)
+                           total_cost=total_cost, label_formats=LABEL_FORMATS,
+                           doc_kinds=DOCUMENT_KINDS, suppliers=purchases.suppliers(),
+                           fuel_recent=machine.fuel_entries.filter(FuelEntry.kind == "tanken")
+                           .order_by(FuelEntry.date.desc(), FuelEntry.id.desc()).limit(5).all(),
+                           fuel_consumption=fuel.consumption(machine), fuel_year=fuel.liters_in_year(machine.id))
 
 
 @bp.route("/maschine/<int:machine_id>/bearbeiten", methods=["POST"])
@@ -283,6 +287,119 @@ def task_delete(machine_id, task_id):
     db.session.commit()
     flash(_("Wartung „{task}“ gelöscht.", task=task.name), "success")
     return _to_machine(machine, "wartungen")
+
+
+# --- Tanken an der Maschine ------------------------------------------------------
+
+@bp.route("/maschine/<int:machine_id>/getankt", methods=["POST"])
+@editor_required
+def machine_refuel(machine_id):
+    machine = _get(Machine, machine_id)
+    before = None
+    try:
+        before = fuel.level()[0]
+        entry = fuel.refuel(machine, current_user, fuel.parse_liters(form_str("liters", 20)),
+                            form_int("counter", minimum=0, maximum=10_000_000), form_date("date"),
+                            form_str("note", 200))
+        db.session.commit()
+        push.tank_low(before, before - entry.liters)
+        flash(_("{liters} l für {name} eingetragen.", liters=f"{entry.liters:.1f}".replace(".", ","),
+                name=machine.name), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    target = request.form.get("back", "")
+    if target.startswith("/") and not target.startswith("//"):
+        return redirect(target)
+    return _to_machine(machine, "diesel")
+
+
+# --- Ersatzteile ----------------------------------------------------------------
+
+@bp.route("/maschine/<int:machine_id>/teil", methods=["POST"])
+@editor_required
+def part_save(machine_id):
+    machine = _get(Machine, machine_id)
+    part_id = form_int("id")
+    part = _get(MachinePart, part_id) if part_id else MachinePart()
+    if part.machine_id not in (None, machine.id):
+        abort(404)
+    if part_id and request.form.get("delete"):
+        if not current_user.is_admin:
+            abort(403)
+        db.session.delete(part)
+        db.session.commit()
+        flash(_("Teil „{name}“ gelöscht.", name=part.name), "success")
+        return _to_machine(machine, "teile")
+    name = form_str("name", 150)
+    if not name:
+        flash_error(_("Bitte angeben, was für ein Teil es ist."))
+        return _to_machine(machine, "teile")
+    supplier = purchases.supplier_by_name(form_str("supplier", 150))
+    part.name, part.part_number = name, form_str("part_number", 80) or None
+    part.manufacturer, part.quantity = form_str("manufacturer", 100) or None, form_str("quantity", 50) or None
+    part.note, part.supplier_id = form_str("note", 1000) or None, supplier.id if supplier else None
+    part.machine = machine
+    db.session.add(part)
+    db.session.commit()
+    flash(_("Teil „{name}“ gespeichert.", name=part.name), "success")
+    return _to_machine(machine, "teile")
+
+
+# --- Dokumente ------------------------------------------------------------------
+
+@bp.route("/maschine/<int:machine_id>/dokument", methods=["POST"])
+@editor_required
+def document_upload(machine_id):
+    machine = _get(Machine, machine_id)
+    upload = request.files.get("file")
+    kind = form_str("kind", 20)
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return _to_machine(machine, "dokumente")
+    name = None
+    try:
+        name, mimetype, size = uploads.save_document(upload)
+        title = form_str("title", 150) or (upload.filename.rsplit(".", 1)[0][:150])
+        db.session.add(MachineDocument(machine=machine, title=title, kind=kind if kind in DOCUMENT_KINDS else "sonstiges",
+                                       filename=name, original_name=upload.filename[:200], mimetype=mimetype,
+                                       size=size, user_id=current_user.id))
+        db.session.commit()
+        flash(_("„{title}“ hochgeladen.", title=title), "success")
+    except StorageError as e:
+        db.session.rollback()
+        if name:
+            uploads.delete_document(name)
+        flash_error(str(e))
+    return _to_machine(machine, "dokumente")
+
+
+@bp.route("/dokument/<int:doc_id>")
+@login_required
+def document(doc_id):
+    doc = _get(MachineDocument, doc_id)
+    ext = doc.filename.rsplit(".", 1)[-1]
+    download = f"{doc.title[:80]}.{ext}"
+    response = send_from_directory(uploads.document_dir(), doc.filename, mimetype=doc.mimetype, max_age=86400,
+                                   as_attachment=request.args.get("download") == "1", download_name=download)
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    # Hochgeladene Dateien dürfen im Browser nichts ausführen
+    response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'"
+    return response
+
+
+@bp.route("/dokument/<int:doc_id>/loeschen", methods=["POST"])
+@editor_required
+def document_delete(doc_id):
+    doc = _get(MachineDocument, doc_id)
+    if not (current_user.is_admin or doc.user_id == current_user.id):
+        abort(403)
+    machine = doc.machine
+    db.session.delete(doc)
+    db.session.commit()
+    uploads.delete_document(doc.filename)
+    flash(_("„{title}“ gelöscht.", title=doc.title), "success")
+    return _to_machine(machine, "dokumente")
 
 
 # --- Fotos und QR -------------------------------------------------------------

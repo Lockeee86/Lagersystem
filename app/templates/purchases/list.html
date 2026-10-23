@@ -8,9 +8,12 @@
         <h1>{{ _("Bestellungen") }}</h1>
         <p class="text-body-secondary mb-0">{{ _("Ersatzteile und Material anfragen – der Besteller kümmert sich.") }}</p>
     </div>
-    {% if current_user.can_edit %}
-    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newPurchase"><i class="bi bi-plus-lg me-1"></i>{{ _("Bestellwunsch") }}</button>
-    {% endif %}
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('purchases.suppliers') }}"><i class="bi bi-shop me-1"></i>{{ _("Lieferanten") }}</a>
+        {% if current_user.can_edit %}
+        <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newPurchase"><i class="bi bi-plus-lg me-1"></i>{{ _("Bestellwunsch") }}</button>
+        {% endif %}
+    </div>
 </div>
 
 {% if current_user.can_edit %}
@@ -20,17 +23,19 @@
             <form method="post" action="{{ url_for('purchases.purchase_create') }}" enctype="multipart/form-data" class="row g-2">
                 {{ csrf() }}
                 {% if prefill.machine_event_id %}<input type="hidden" name="machine_event_id" value="{{ prefill.machine_event_id }}">{% endif %}
+                {% if prefill.part_id %}<input type="hidden" name="part_id" value="{{ prefill.part_id }}">
+                <div class="col-12"><div class="alert alert-info small mb-0 py-2"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Nachbestellung aus der Teileliste") }}</div></div>{% endif %}
                 <div class="col-md-8">
                     <label class="form-label" for="p_title">{{ _("Was wird gebraucht?") }}</label>
-                    <input class="form-control" id="p_title" name="title" required maxlength="200" placeholder="{{ _('z. B. Hydraulikschlauch Frontlader') }}">
+                    <input class="form-control" id="p_title" name="title" required maxlength="200" placeholder="{{ _('z. B. Hydraulikschlauch Frontlader') }}" value="{{ prefill.title or '' }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="p_qty">{{ _("Menge") }}</label>
-                    <input class="form-control" id="p_qty" name="quantity" maxlength="50" placeholder="{{ _('z. B. 2 Stück') }}">
+                    <input class="form-control" id="p_qty" name="quantity" maxlength="50" placeholder="{{ _('z. B. 2 Stück') }}" value="{{ prefill.quantity or '' }}">
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="p_details">{{ _("Teilenummer, Hersteller, Maße, Link …") }}</label>
-                    <textarea class="form-control" id="p_details" name="details" rows="3" maxlength="4000"></textarea>
+                    <textarea class="form-control" id="p_details" name="details" rows="3" maxlength="4000">{{ prefill.details or '' }}</textarea>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="p_machine">{{ _("Für Maschine (optional)") }}</label>

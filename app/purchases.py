@@ -10,7 +10,7 @@ from sqlalchemy import or_
 
 from .extensions import db
 from .i18n import gettext as _
-from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Photo, PurchaseRequest, User, utcnow
+from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Photo, PurchaseRequest, Supplier, User, utcnow
 from .storage import StorageError
 
 
@@ -19,13 +19,18 @@ def buyers():
 
 
 def create_request(user, title, details=None, quantity=None, urgent=False, machine_id=None, machine_event_id=None,
-                   photo_names=None):
+                   photo_names=None, part=None):
     title = (title or "").strip()
     if not title:
         raise StorageError(_("Bitte angeben, was gebraucht wird."))
     req = PurchaseRequest(title=title[:200], details=details or None, quantity=quantity or None, urgent=bool(urgent),
                           machine_id=machine_id, machine_event_id=machine_event_id,
                           requested_by_id=user.id if user else None)
+    if part is not None:
+        # Nachbestellung eines bekannten Teils: Lieferant schon vorschlagen
+        req.part_id = part.id
+        if part.supplier is not None:
+            req.supplier, req.supplier_id = part.supplier.name, part.supplier.id
     for name in photo_names or []:
         req.photos.append(Photo(filename=name, user_id=user.id if user else None))
     db.session.add(req)
@@ -41,6 +46,8 @@ def update_request(req, user, status, supplier=None, order_number=None, price=No
     if status == "abgelehnt" and not buyer_note:
         raise StorageError(_("Bitte begründen, warum nicht bestellt wird."))
     req.supplier, req.order_number, req.price = supplier or None, order_number or None, price
+    known = supplier_by_name(supplier)
+    req.supplier_id = known.id if known else None
     req.inquired_on = inquired_on
     req.ordered_on, req.expected_on, req.delivered_on = ordered_on, expected_on, delivered_on
     req.buyer_note = buyer_note or None
@@ -114,3 +121,38 @@ def for_machine(machine_id):
     return PurchaseRequest.query.filter(PurchaseRequest.machine_id == machine_id,
                                         PurchaseRequest.status.in_(PURCHASE_OPEN))\
         .order_by(PurchaseRequest.created_at.desc()).all()
+
+
+# --- Lieferanten ------------------------------------------------------------------
+
+def supplier_by_name(name):
+    name = (name or "").strip()
+    if not name:
+        return None
+    return Supplier.query.filter(db.func.lower(Supplier.name) == name.lower()).first()
+
+
+def suppliers(active_only=True):
+    query = Supplier.query.filter_by(active=True) if active_only else Supplier.query
+    return query.order_by(Supplier.name).all()
+
+
+def save_supplier(supplier, name, **fields):
+    name = (name or "").strip()
+    if not name:
+        raise StorageError(_("Bitte einen Namen angeben."))
+    other = supplier_by_name(name)
+    if other is not None and other is not supplier:
+        raise StorageError(_("„{name}“ gibt es schon.", name=name))
+    supplier.name = name[:150]
+    for key, value in fields.items():
+        setattr(supplier, key, value or None)
+    db.session.add(supplier)
+    db.session.flush()
+    return supplier
+
+
+def supplier_in_use(supplier):
+    from .models import FuelEntry, MachinePart
+    return any(q.filter_by(supplier_id=supplier.id).first() is not None
+               for q in (PurchaseRequest.query, MachinePart.query, FuelEntry.query))

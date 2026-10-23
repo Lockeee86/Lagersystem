@@ -252,6 +252,18 @@ def purchase_status(req, actor):
                   url_for("purchases.purchase_detail", req_id=req.id), tag=f"purchase-{req.id}", exclude=actor)
 
 
+def tank_low(before, after):
+    """Hoftank fällt unter die Warnschwelle → Besteller benachrichtigen (nur beim Unterschreiten)."""
+    from . import fuel
+    warn = fuel.settings()["warn"]
+    if warn is None or not (before > warn >= after):
+        return 0
+    return notify([u for u in everyone() if u.is_buyer], "tank",
+                  Msg("Hoftank: noch {liters} l", liters=f"{after:.0f}"),
+                  Msg("Unter der Warnschwelle von {warn} l – Diesel bestellen.", warn=warn),
+                  url_for("fuel.tank"), tag="tank")
+
+
 # --- Tägliche Nachrichten -------------------------------------------------------
 
 def _job_done(name, day):

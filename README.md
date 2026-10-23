@@ -31,6 +31,10 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   Lieferschein als PDF mit Hofname und Anschrift. Jede Kiste zeigt, an wen sie geliefert wurde
 - **Maschinen**: QR-Code an der Maschine, Betriebsstunden/km, Wartungsintervalle mit Vorlagen je Art
   (Ölwechsel, TÜV, UVV …) und Ampel, Störungen melden mit Foto, Reparaturbuch mit Kosten
+- **Tankbuch** für den Hoftank: Tanken per QR-Code an der Maschine, Lieferungen, Peilung, Füllstand mit Warnung,
+  Verbrauch je Maschine (l/h bzw. l/100 km)
+- **Ersatzteile und Dokumente** je Maschine (Teilenummer, „Nochmal bestellen“, Anleitungen, TÜV-Berichte, Rechnungen)
+  und ein **Lieferantenverzeichnis**
 - **Wetter** vom Deutschen Wetterdienst (über Bright Sky, ohne Anmeldung): Vorhersage 7 Tage und stündlich,
   Regen der letzten 30 Tage, Frost-Hinweis, Krautfäule-Ampel nach den Hutton-Kriterien
 - **Aufgaben**: der Admin verteilt an eine oder mehrere Personen oder an alle, mit Termin, Priorität,

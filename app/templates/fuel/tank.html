@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, pagination %}
+{% block title %}{{ _("Tankbuch") }}{% endblock %}
+{% macro liters(value, digits=0) %}{{ value|num(digits) }} l{% endmacro %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Tankbuch") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Hoftank Diesel: getankt, geliefert, Füllstand und Verbrauch je Maschine.") }}</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if current_user.can_edit %}
+        <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#fuelRefuel"><i class="bi bi-fuel-pump me-1"></i>{{ _("Getankt") }}</button>
+        {% endif %}
+        {% if current_user.is_buyer %}
+        <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#fuelDelivery"><i class="bi bi-truck me-1"></i>{{ _("Lieferung") }}</button>
+        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#fuelDip"><i class="bi bi-rulers me-1"></i>{{ _("Peilung") }}</button>
+        {% endif %}
+    </div>
+</div>
+
+<div id="fuelForms">
+{% if current_user.can_edit %}
+<div class="collapse" id="fuelRefuel" data-bs-parent="#fuelForms">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <form method="post" action="{{ url_for('fuel.refuel') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-12 col-md-4"><label class="form-label" for="r_machine">{{ _("Maschine") }}</label>
+                <select class="form-select" id="r_machine" name="machine_id" required>
+                    <option value="">–</option>
+                    {% for m in machines %}<option value="{{ m.id }}" {% if m.id == machine_id %}selected{% endif %}>{{ m.name }}{% if m.counter is not none %} ({{ m.counter }} {{ m.unit_short }}){% endif %}</option>{% endfor %}
+                </select></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="r_liters">{{ _("Liter") }}</label>
+                <input class="form-control" id="r_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="r_counter">{{ _("Zählerstand") }}</label>
+                <input class="form-control" id="r_counter" name="counter" type="number" inputmode="numeric" min="0"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="r_date">{{ _("Datum") }}</label>
+                <input class="form-control" id="r_date" name="date" type="date" value="{{ today.isoformat() }}"></div>
+            <div class="col-6 col-md-2"><button class="btn btn-primary w-100">{{ _("Eintragen") }}</button></div>
+        </form>
+    </div></div>
+</div>
+{% endif %}
+{% if current_user.is_buyer %}
+<div class="collapse" id="fuelDelivery" data-bs-parent="#fuelForms">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <form method="post" action="{{ url_for('fuel.delivery') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-6 col-md-2"><label class="form-label" for="d_liters">{{ _("Liter") }}</label>
+                <input class="form-control" id="d_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="d_price">{{ _("Preis je Liter (€)") }}</label>
+                <input class="form-control" id="d_price" name="price" inputmode="decimal" maxlength="20" placeholder="{{ last_price|num(3) if last_price else '' }}"></div>
+            <div class="col-12 col-md-3"><label class="form-label" for="d_supplier">{{ _("Lieferant") }}</label>
+                <input class="form-control" id="d_supplier" name="supplier" maxlength="150" list="fuelSuppliers" autocomplete="off">
+                <datalist id="fuelSuppliers">{% for s in suppliers %}<option value="{{ s.name }}">{% endfor %}</datalist></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="d_date">{{ _("Datum") }}</label>
+                <input class="form-control" id="d_date" name="date" type="date" value="{{ today.isoformat() }}"></div>
+            <div class="col-6 col-md-3"><button class="btn btn-primary w-100">{{ _("Lieferung eintragen") }}</button></div>
+        </form>
+    </div></div>
+</div>
+<div class="collapse" id="fuelDip" data-bs-parent="#fuelForms">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <p class="small text-body-secondary">{{ _("Gemessenen Füllstand eintragen (z. B. von der Tankuhr). Ab dann rechnet das Tankbuch von diesem Wert aus weiter.") }}</p>
+        <form method="post" action="{{ url_for('fuel.dip') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-6 col-md-3"><label class="form-label" for="p_liters">{{ _("Liter im Tank") }}</label>
+                <input class="form-control" id="p_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="p_date">{{ _("Datum") }}</label>
+                <input class="form-control" id="p_date" name="date" type="date" value="{{ today.isoformat() }}"></div>
+            <div class="col-12 col-md-3"><button class="btn btn-primary w-100">{{ _("Speichern") }}</button></div>
+        </form>
+    </div></div>
+</div>
+{% endif %}
+</div>
+
+<div class="card shadow-sm mb-4 {{ 'border-danger' if status.low }}">
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-4 align-items-center">
+            <div>
+                <div class="small text-body-secondary">{{ _("Im Hoftank") }}</div>
+                <div class="display-6 fw-semibold {{ 'text-danger' if status.low }}">{{ liters(status.liters) }}</div>
+                {% if status.capacity %}<div class="small text-body-secondary">{{ _("von {capacity} l", capacity=status.capacity) }}</div>{% endif %}
+            </div>
+            <div class="flex-grow-1" style="min-width: 220px">
+                {% if status.percent is not none %}
+                <div class="progress mb-1" style="height: 1.25rem" role="progressbar" aria-valuenow="{{ status.percent }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar {{ 'bg-danger' if status.low else 'bg-success' }}" style="width: {{ status.percent }}%">{{ status.percent }} %</div>
+                </div>
+                {% endif %}
+                {% if status.low %}<div class="text-danger small fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Unter der Warnschwelle ({warn} l) – Diesel bestellen.", warn=status.warn) }}</div>{% endif %}
+                <div class="small text-body-secondary">
+                    {% if status.last_dip %}{{ _("Zuletzt gepeilt am {date}: {liters} l", date=status.last_dip.date|date, liters=status.last_dip.liters|num(0)) }}
+                    {% elif status.has_entries %}{{ _("Noch nie gepeilt – der Stand ist aus Lieferungen und Tankungen gerechnet.") }}{% endif %}
+                    {% if last_price %} · {{ _("Letzter Preis {price} €/l", price=last_price|num(3)) }}{% endif %}
+                </div>
+            </div>
+            {% if current_user.is_admin %}
+            <button class="btn btn-sm btn-link text-body-secondary" data-bs-toggle="collapse" data-bs-target="#tankSettings" aria-label="{{ _('Tank-Einstellungen') }}"><i class="bi bi-gear"></i></button>
+            {% endif %}
+        </div>
+        {% if current_user.is_admin %}
+        <div class="collapse {{ 'show' if not status.capacity }}" id="tankSettings">
+            <form method="post" action="{{ url_for('fuel.tank_settings') }}" class="row g-2 align-items-end mt-2 pt-2 border-top">
+                {{ csrf() }}
+                <div class="col-6 col-md-3"><label class="form-label small" for="t_cap">{{ _("Tankgröße (l)") }}</label>
+                    <input class="form-control form-control-sm" id="t_cap" name="capacity" type="number" min="1" value="{{ status.capacity or '' }}"></div>
+                <div class="col-6 col-md-3"><label class="form-label small" for="t_warn">{{ _("Warnen ab (l)") }}</label>
+                    <input class="form-control form-control-sm" id="t_warn" name="warn" type="number" min="1" value="{{ status.warn or '' }}"></div>
+                <div class="col-12 col-md-3"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
+                <div class="col-12 small text-body-secondary">{{ _("Unter der Warnschwelle bekommen die Besteller eine Push-Nachricht.") }}</div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                <span class="me-auto">{% if filter_machine %}{{ filter_machine.name }}{% else %}{{ _("Einträge") }}{% endif %}</span>
+                {% for key, label in kinds.items() %}
+                <a class="btn btn-sm {{ 'btn-primary' if kind == key else 'btn-outline-secondary' }}" href="{{ url_for('fuel.tank', art=none if kind == key else key, maschine=machine_id) }}">{{ _(label) }}</a>
+                {% endfor %}
+                {% if filter_machine %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('fuel.tank', art=kind) }}"><i class="bi bi-x-lg"></i></a>{% endif %}
+            </div>
+            <div class="list-group list-group-flush">
+                {% for e in page.items %}
+                <div class="list-group-item d-flex gap-3 align-items-center small">
+                    <i class="bi {{ {'tanken': 'bi-fuel-pump', 'lieferung': 'bi-truck', 'peilung': 'bi-rulers'}[e.kind] }} fs-5 text-body-secondary"></i>
+                    <div class="flex-grow-1 min-w-0">
+                        <div><span class="fw-semibold">{{ e.date|date }}</span> ·
+                            {% if e.kind == "tanken" and e.machine %}<a href="{{ url_for('fuel.tank', maschine=e.machine_id) }}">{{ e.machine.name }}</a>{% if e.counter is not none %} <span class="text-body-secondary">({{ e.counter }} {{ e.machine.unit_short }})</span>{% endif %}
+                            {% else %}{{ e.kind_label }}{% if e.supplier %} · {{ e.supplier.name }}{% endif %}{% endif %}</div>
+                        <div class="text-body-secondary">{% if e.user %}{{ e.user.name }}{% endif %}{% if e.price_per_liter %} · {{ e.price_per_liter|num(3) }} €/l{% endif %}{% if e.note %} · {{ e.note }}{% endif %}</div>
+                    </div>
+                    <span class="fw-semibold text-nowrap {{ 'text-success' if e.kind == 'lieferung' }}">{% if e.kind == "lieferung" %}+{% elif e.kind == "tanken" %}−{% else %}={% endif %}{{ liters(e.liters, 1 if e.kind == "tanken" else 0) }}</span>
+                    {% if current_user.is_admin %}
+                    <form method="post" action="{{ url_for('fuel.entry_delete', entry_id=e.id) }}">{{ csrf() }}
+                        <button class="btn btn-sm btn-link text-danger p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-trash"></i></button></form>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="list-group-item small text-body-secondary">{{ _("Noch keine Einträge.") }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {{ pagination(page, 'fuel.tank', request.args) }}
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>{{ _("Getankt {year}", year=year) }}</span>
+                <span class="small d-flex gap-2">
+                    <a href="{{ url_for('fuel.tank', jahr=year - 1) }}" aria-label="{{ _('Vorjahr') }}"><i class="bi bi-chevron-left"></i></a>
+                    {% if year < today.year %}<a href="{{ url_for('fuel.tank', jahr=year + 1) }}" aria-label="{{ _('Folgejahr') }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle small">
+                    <thead><tr><th>{{ _("Maschine") }}</th><th class="text-end">{{ _("Liter") }}</th><th class="text-end">{{ _("Verbrauch") }}</th></tr></thead>
+                    <tbody>
+                        {% for r in per_machine %}
+                        <tr>
+                            <td><a href="{{ url_for('fuel.tank', maschine=r.machine.id) }}">{{ r.machine.name }}</a></td>
+                            <td class="text-end">{{ r.liters|num(0) }}</td>
+                            <td class="text-end text-body-secondary">{% if r.consumption %}{{ r.consumption.value|num(1) }} {{ r.consumption.unit }}{% else %}–{% endif %}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-body-secondary">{{ _("In diesem Jahr noch nichts getankt.") }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if per_machine %}<tfoot><tr class="fw-semibold"><td>{{ _("Summe") }}</td><td class="text-end">{{ year_total|num(0) }}</td><td></td></tr></tfoot>{% endif %}
+                </table>
+            </div>
+            <div class="card-footer small text-body-secondary">{{ _("Verbrauch aus den Zählerständen beim Tanken (immer volltanken, dann stimmt er).") }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

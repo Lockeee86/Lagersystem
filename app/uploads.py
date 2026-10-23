@@ -58,3 +58,40 @@ def delete_files(names):
             os.remove(os.path.join(upload_dir(), name))
         except OSError:
             pass
+
+
+# --- Dokumente (PDF, Bilder) – unverändert gespeichert ------------------------------
+
+DOC_DIR = "dokumente"
+DOC_TYPES = (                       # (Dateianfang, Endung, MIME-Typ)
+    (b"%PDF-", "pdf", "application/pdf"),
+    (b"\xff\xd8\xff", "jpg", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
+)
+
+
+def document_dir():
+    path = os.path.join(upload_dir(), DOC_DIR)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def save_document(file_storage):
+    """Speichert PDF/JPEG/PNG so wie hochgeladen. Liefert (Dateiname, MIME-Typ, Größe).
+    Der Typ wird am Dateiinhalt erkannt, nicht an der Endung."""
+    head = file_storage.stream.read(8)
+    file_storage.stream.seek(0)
+    match = next(((ext, mime) for magic, ext, mime in DOC_TYPES if head.startswith(magic)), None)
+    if match is None:
+        raise StorageError(_("„{name}“ ist kein PDF oder Bild (JPEG, PNG).", name=(file_storage.filename or "")[:60]))
+    name = f"{uuid.uuid4().hex}.{match[0]}"
+    path = os.path.join(document_dir(), name)
+    file_storage.save(path)
+    return name, match[1], os.path.getsize(path)
+
+
+def delete_document(name):
+    try:
+        os.remove(os.path.join(document_dir(), name))
+    except OSError:
+        pass

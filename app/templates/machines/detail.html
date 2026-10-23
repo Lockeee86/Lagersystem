@@ -142,6 +142,37 @@
         </div>
         {% endif %}
 
+        <div class="card shadow-sm mb-4" id="diesel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-fuel-pump me-1"></i>{{ _("Diesel") }}</span>
+                <a class="small" href="{{ url_for('fuel.tank', maschine=machine.id) }}">{{ _("Tankbuch") }}</a>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-4 small mb-2">
+                    <div><span class="text-body-secondary">{{ _("Getankt {year}", year=today.year) }}:</span> <strong>{{ fuel_year|num(0) }} l</strong></div>
+                    {% if fuel_consumption %}<div><span class="text-body-secondary">{{ _("Verbrauch") }}:</span> <strong>{{ fuel_consumption.value|num(1) }} {{ fuel_consumption.unit }}</strong>
+                        <span class="text-body-tertiary">({{ ngettext("aus {n} Tankung", "aus {n} Tankungen", fuel_consumption.count) }})</span></div>{% endif %}
+                </div>
+                {% if current_user.can_edit %}
+                <form method="post" action="{{ url_for('machines.machine_refuel', machine_id=machine.id) }}" class="row g-2 align-items-end">
+                    {{ csrf() }}
+                    <div class="col-5 col-md-3"><label class="form-label small" for="f_liters">{{ _("Liter") }}</label>
+                        <input class="form-control" id="f_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
+                    {% if machine.counter_unit %}
+                    <div class="col-7 col-md-4"><label class="form-label small" for="f_counter">{{ _("Stand ({unit})", unit=machine.unit_short) }}</label>
+                        <input class="form-control" id="f_counter" name="counter" type="number" inputmode="numeric" min="{{ machine.counter or 0 }}" placeholder="{{ machine.counter if machine.counter is not none else '' }}"></div>
+                    {% endif %}
+                    <div class="col-12 col-md"><button class="btn btn-primary w-100"><i class="bi bi-fuel-pump me-1"></i>{{ _("Getankt") }}</button></div>
+                </form>
+                {% endif %}
+                {% if fuel_recent %}
+                <ul class="list-unstyled small mt-3 mb-0">
+                    {% for e in fuel_recent %}<li class="d-flex justify-content-between border-top py-1"><span>{{ e.date|date }}{% if e.user %} · {{ e.user.name }}{% endif %}{% if e.counter is not none %} · {{ e.counter }} {{ machine.unit_short }}{% endif %}</span><span>{{ e.liters|num(1) }} l</span></li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+
         {% if open_tasks or current_user.is_admin %}
         {% from "tasks/_macros.html" import task_item with context %}
         <div class="card shadow-sm mb-4">
@@ -302,6 +333,80 @@
     </div>
 
     <div class="col-lg-4">
+        <div class="card shadow-sm mb-4" id="teile">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-nut me-1"></i>{{ _("Ersatzteile") }}</span>
+                {% if current_user.can_edit %}<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#partModal" data-edit='{}'><i class="bi bi-plus-lg"></i></button>{% endif %}
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for p in machine.parts %}
+                <li class="list-group-item small">
+                    <div class="d-flex gap-2 align-items-start">
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold">{{ p.name }}</div>
+                            <div class="text-body-secondary">
+                                {% if p.part_number %}<span class="font-monospace">{{ p.part_number }}</span>{% endif %}
+                                {% if p.manufacturer %} · {{ p.manufacturer }}{% endif %}
+                                {% if p.supplier %} · {{ p.supplier.name }}{% endif %}
+                                {% if p.quantity %} · {{ p.quantity }}{% endif %}
+                            </div>
+                            {% set last = p.last_purchase %}
+                            {% if last %}<div class="text-body-tertiary"><a class="link-secondary" href="{{ url_for('purchases.purchase_detail', req_id=last.id) }}">{{ _("Zuletzt angefragt am {date}", date=last.created_at|date) }} · {{ last.status_label }}</a></div>{% endif %}
+                        </div>
+                        {% if current_user.can_edit %}
+                        <a class="btn btn-sm btn-outline-primary text-nowrap" href="{{ url_for('purchases.purchase_list', neu=1, teil=p.id) }}"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Bestellen") }}</a>
+                        <button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Bearbeiten') }}" data-bs-toggle="modal" data-bs-target="#partModal"
+                                data-edit='{{ {"id": p.id, "name": p.name, "part_number": p.part_number or "", "manufacturer": p.manufacturer or "", "supplier": p.supplier.name if p.supplier else "", "quantity": p.quantity or "", "note": p.note or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
+                        {% endif %}
+                    </div>
+                </li>
+                {% else %}
+                <li class="list-group-item small text-body-secondary">{{ _("Filter, Riemen, Messer … mit Teilenummer eintragen – dann ist Nachbestellen ein Klick.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card shadow-sm mb-4" id="dokumente">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-file-earmark-text me-1"></i>{{ _("Dokumente") }}</span>
+                {% if current_user.can_edit %}<button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#docUpload" aria-label="{{ _('Hochladen') }}"><i class="bi bi-upload"></i></button>{% endif %}
+            </div>
+            {% if current_user.can_edit %}
+            <div class="collapse" id="docUpload">
+                <form method="post" action="{{ url_for('machines.document_upload', machine_id=machine.id) }}" enctype="multipart/form-data" class="card-body border-bottom">
+                    {{ csrf() }}
+                    <input class="form-control form-control-sm mb-2" type="file" name="file" accept="application/pdf,image/jpeg,image/png" required aria-label="{{ _('Datei') }}">
+                    <input class="form-control form-control-sm mb-2" name="title" maxlength="150" placeholder="{{ _('Titel (leer = Dateiname)') }}" aria-label="{{ _('Titel') }}">
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" name="kind" aria-label="{{ _('Art') }}">
+                            {% for key, label in doc_kinds.items() %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-primary text-nowrap">{{ _("Hochladen") }}</button>
+                    </div>
+                    <div class="form-text">{{ _("PDF, JPEG oder PNG, höchstens 40 MB.") }}</div>
+                </form>
+            </div>
+            {% endif %}
+            <ul class="list-group list-group-flush">
+                {% for d in machine.documents %}
+                <li class="list-group-item small d-flex gap-2 align-items-center">
+                    <i class="bi {{ 'bi-file-earmark-pdf text-danger' if d.is_pdf else 'bi-file-earmark-image text-primary' }} fs-5"></i>
+                    <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{{ url_for('machines.document', doc_id=d.id) }}" target="_blank" rel="noopener">
+                        <div class="fw-semibold text-truncate">{{ d.title }}</div>
+                        <div class="text-body-secondary">{{ d.kind_label }} · {{ d.size|bytes }} · {{ d.created_at|date }}</div>
+                    </a>
+                    <a class="btn btn-sm btn-link text-body-secondary p-0" href="{{ url_for('machines.document', doc_id=d.id, download=1) }}" aria-label="{{ _('Herunterladen') }}"><i class="bi bi-download"></i></a>
+                    {% if current_user.is_admin or d.user_id == current_user.id %}
+                    <form method="post" action="{{ url_for('machines.document_delete', doc_id=d.id) }}">{{ csrf() }}
+                        <button class="btn btn-sm btn-link text-danger p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('„{title}“ löschen?', title=d.title) }}"><i class="bi bi-trash"></i></button></form>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item small text-body-secondary">{{ _("Bedienungsanleitung, TÜV-Bericht, Rechnungen … als PDF oder Foto ablegen.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
         <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ _("Daten") }}</div>
             <div class="card-body small">
@@ -409,6 +514,27 @@
 </div>
 <div class="edit-only d-none">
     <button type="submit" class="btn btn-sm btn-link text-danger p-0" formaction="" id="taskDelete" data-confirm="{{ _('Diese Wartung löschen?') }}"><i class="bi bi-trash me-1"></i>{{ _("Wartung löschen") }}</button>
+</div>
+{% endcall %}
+{% endif %}
+{% if current_user.can_edit %}
+{% call edit_modal("partModal", _("Ersatzteil hinzufügen"), _("Ersatzteil bearbeiten"), url_for('machines.part_save', machine_id=machine.id)) %}
+<div class="row g-2">
+    <div class="col-12"><label class="form-label" for="pt_name">{{ _("Teil") }}</label>
+        <input class="form-control" id="pt_name" name="name" required maxlength="150" placeholder="{{ _('z. B. Ölfilter Motor') }}"></div>
+    <div class="col-md-6"><label class="form-label" for="pt_number">{{ _("Teilenummer") }}</label>
+        <input class="form-control font-monospace" id="pt_number" name="part_number" maxlength="80"></div>
+    <div class="col-md-6"><label class="form-label" for="pt_manufacturer">{{ _("Hersteller") }}</label>
+        <input class="form-control" id="pt_manufacturer" name="manufacturer" maxlength="100"></div>
+    <div class="col-md-6"><label class="form-label" for="pt_supplier">{{ _("Lieferant") }}</label>
+        <input class="form-control" id="pt_supplier" name="supplier" maxlength="150" list="partSuppliers" autocomplete="off">
+        <datalist id="partSuppliers">{% for s in suppliers %}<option value="{{ s.name }}">{% endfor %}</datalist></div>
+    <div class="col-md-6"><label class="form-label" for="pt_qty">{{ _("Übliche Menge") }}</label>
+        <input class="form-control" id="pt_qty" name="quantity" maxlength="50" placeholder="{{ _('z. B. 2 Stück') }}"></div>
+    <div class="col-12"><label class="form-label" for="pt_note">{{ _("Notiz") }}</label>
+        <textarea class="form-control" id="pt_note" name="note" rows="2" maxlength="1000" placeholder="{{ _('z. B. Maße, Alternativnummer') }}"></textarea></div>
+    {% if current_user.is_admin %}<div class="col-12 edit-only">
+        <button class="btn btn-sm btn-outline-danger" name="delete" value="1" formnovalidate data-confirm="{{ _('Teil löschen?') }}"><i class="bi bi-trash me-1"></i>{{ _("Teil löschen") }}</button></div>{% endif %}
 </div>
 {% endcall %}
 {% endif %}

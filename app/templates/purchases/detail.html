@@ -45,7 +45,15 @@
                     {% if req.machine %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Maschine") }}</dt>
                     <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=req.machine_id) }}">{{ req.machine.name }}</a>
                         {% if req.machine_event %} · <a href="{{ url_for('machines.machine_detail', machine_id=req.machine_id) }}#logbuch">{{ _("Störung vom {date}", date=req.machine_event.date|date) }}</a>{% endif %}</dd>{% endif %}
-                    {% if req.supplier %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Lieferant") }}</dt><dd class="col-8">{{ req.supplier }}</dd>{% endif %}
+                    {% if req.supplier %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Lieferant") }}</dt>
+                    <dd class="col-8">{{ req.supplier }}
+                        {% set s = req.supplier_ref %}
+                        {% if s and current_user.is_buyer %}<div class="text-body-secondary">
+                            {% if s.phone %}<a href="tel:{{ s.phone|replace(' ', '') }}"><i class="bi bi-telephone"></i> {{ s.phone }}</a>{% endif %}
+                            {% if s.email %} · <a href="mailto:{{ s.email }}">{{ s.email }}</a>{% endif %}
+                            {% if s.customer_no %} · {{ _("Kd.-Nr. {no}", no=s.customer_no) }}{% endif %}</div>{% endif %}</dd>{% endif %}
+                    {% if req.part %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Teil") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=req.part.machine_id) }}#teile">{{ req.part.name }}</a>{% if req.part.part_number %} · {{ req.part.part_number }}{% endif %}</dd>{% endif %}
                     {% if req.order_number %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Bestellnummer") }}</dt><dd class="col-8">{{ req.order_number }}</dd>{% endif %}
                     {% if req.price is not none %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Preis") }}</dt><dd class="col-8">{{ req.price|money }}</dd>{% endif %}
                     {% if req.handled_by %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Bearbeitet von") }}</dt><dd class="col-8">{{ req.handled_by.name }} · {{ req.updated_at|datetime }}</dd>{% endif %}
@@ -118,7 +126,9 @@
                         </div>
                     </div>
                     <div class="col-12"><label class="form-label small" for="b_supplier">{{ _("Lieferant") }}</label>
-                        <input class="form-control form-control-sm" id="b_supplier" name="supplier" maxlength="150" value="{{ req.supplier or '' }}"></div>
+                        <input class="form-control form-control-sm" id="b_supplier" name="supplier" maxlength="150" value="{{ req.supplier or '' }}" list="supplierList" autocomplete="off">
+                        <datalist id="supplierList">{% for s in suppliers %}<option value="{{ s.name }}">{% endfor %}</datalist>
+                        <div class="form-text"><a href="{{ url_for('purchases.suppliers') }}">{{ _("Lieferanten verwalten") }}</a></div></div>
                     <div class="col-7"><label class="form-label small" for="b_number">{{ _("Bestellnummer") }}</label>
                         <input class="form-control form-control-sm" id="b_number" name="order_number" maxlength="80" value="{{ req.order_number or '' }}"></div>
                     <div class="col-5"><label class="form-label small" for="b_price">{{ _("Preis (€)") }}</label>

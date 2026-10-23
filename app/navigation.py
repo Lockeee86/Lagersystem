@@ -32,6 +32,7 @@ AREAS = [
     {"key": "feld", "label": N_("Feld & Hof"), "icon": "bi-map", "items": [
         item("fields.field_map", N_("Schläge"), "bi-map", prefixes=("fields.",)),
         item("machines.machine_list", N_("Maschinen"), "bi-gear-wide-connected", prefixes=("machines.",)),
+        item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
         item("main.weather_page", N_("Wetter"), "bi-cloud-sun"),
     ]},
     {"key": "verkauf", "label": N_("Verkauf"), "icon": "bi-truck", "items": [

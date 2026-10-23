@@ -1,8 +1,8 @@
-"""Suche über alle Bereiche: Kisten, Schläge, Maschinen, Lieferscheine, Kunden, Aufgaben."""
+"""Suche über alle Bereiche: Kisten, Schläge, Maschinen, Ersatzteile, Lieferscheine, Kunden, Aufgaben, Lieferanten."""
 from sqlalchemy import or_
 
 from . import machines, storage
-from .models import Box, Customer, Delivery, Machine, Plot, PurchaseRequest, Task
+from .models import Box, Customer, Delivery, Machine, MachineDocument, MachinePart, Plot, PurchaseRequest, Supplier, Task
 
 LIMIT = 20
 
@@ -42,6 +42,15 @@ def search(q, user):
                                                       PurchaseRequest.order_number.ilike(like),
                                                       PurchaseRequest.supplier.ilike(like)))
         .order_by(PurchaseRequest.created_at.desc()).limit(LIMIT).all(),
+        "parts": MachinePart.query.filter(or_(MachinePart.name.ilike(like), MachinePart.part_number.ilike(like),
+                                              MachinePart.manufacturer.ilike(like), MachinePart.note.ilike(like)))
+        .order_by(MachinePart.name).limit(LIMIT).all(),
+        "documents": MachineDocument.query.filter(or_(MachineDocument.title.ilike(like),
+                                                      MachineDocument.original_name.ilike(like)))
+        .order_by(MachineDocument.created_at.desc()).limit(LIMIT).all(),
+        "suppliers": Supplier.query.filter(or_(Supplier.name.ilike(like), Supplier.contact.ilike(like),
+                                               Supplier.customer_no.ilike(like)))
+        .order_by(Supplier.active.desc(), Supplier.name).limit(LIMIT).all(),
     }
     if user.is_admin:
         results["customers"] = Customer.query.filter(or_(Customer.name.ilike(like), Customer.number.ilike(like)))\

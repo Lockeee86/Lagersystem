@@ -4,7 +4,7 @@ Alle Zeitstempel werden in UTC gespeichert und erst bei der Anzeige
 in die lokale Zeitzone umgerechnet.
 """
 import secrets
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -156,6 +156,7 @@ PUSH_TOPICS = {
     "maintenance": {"label": N_("Wartung wird fällig"), "group": N_("Maschinen"), "who": lambda u: u.can_edit},
     "frost": {"label": N_("Frostwarnung"), "group": N_("Wetter"), "who": lambda u: True},
     "blight": {"label": N_("Krautfäule-Ampel springt auf Rot"), "group": N_("Wetter"), "who": lambda u: True},
+    "tank": {"label": N_("Hoftank wird leer"), "group": N_("Maschinen"), "who": lambda u: u.is_buyer},
 }
 
 
@@ -856,6 +857,8 @@ class PurchaseRequest(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     # vom Besteller
     supplier = db.Column(db.String(150))
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"))   # wenn aus dem Verzeichnis
+    part_id = db.Column(db.Integer, db.ForeignKey("machine_parts.id", ondelete="SET NULL"), index=True)
     order_number = db.Column(db.String(80))
     price = db.Column(db.Numeric(10, 2))
     inquired_on = db.Column(db.Date)                              # beim Lieferanten angefragt
@@ -872,6 +875,8 @@ class PurchaseRequest(db.Model):
     requested_by = db.relationship("User", foreign_keys=[requested_by_id])
     handled_by = db.relationship("User", foreign_keys=[handled_by_id])
     assignee = db.relationship("User", foreign_keys=[assignee_id])
+    supplier_ref = db.relationship("Supplier")
+    part = db.relationship("MachinePart", back_populates="purchases")
     photos = db.relationship("Photo", back_populates="purchase", order_by="Photo.id", cascade="all, delete-orphan")
 
     @property
@@ -889,3 +894,116 @@ class PurchaseRequest(db.Model):
     def can_handle(self, user):
         """Bearbeiten darf, wer übernommen hat, der Admin – oder jeder Besteller, solange niemand übernommen hat."""
         return user.is_buyer and (user.is_admin or self.assignee_id in (None, user.id))
+
+
+# --- Lieferanten, Ersatzteile, Dokumente, Tankbuch -------------------------------
+
+class Supplier(db.Model):
+    """Lieferant (Landhandel, Werkstatt, Teilehändler …) mit unserer Kundennummer."""
+    __tablename__ = "suppliers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False, unique=True)
+    contact = db.Column(db.String(100))                 # Ansprechpartner
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(120))
+    website = db.Column(db.String(200))
+    customer_no = db.Column(db.String(50))              # unsere Kundennummer dort
+    address = db.Column(db.Text)
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+
+class MachinePart(db.Model):
+    """Ersatzteil einer Maschine (Filter, Riemen, Messer …) – zum schnellen Nachbestellen."""
+    __tablename__ = "machine_parts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(150), nullable=False)
+    part_number = db.Column(db.String(80))
+    manufacturer = db.Column(db.String(100))
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"))
+    quantity = db.Column(db.String(50))                 # übliche Bestellmenge, z. B. „2 Stück“
+    note = db.Column(db.Text)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    machine = db.relationship("Machine", backref=db.backref("parts", order_by="MachinePart.name",
+                                                            cascade="all, delete-orphan", passive_deletes=True))
+    supplier = db.relationship("Supplier")
+    purchases = db.relationship("PurchaseRequest", back_populates="part",
+                                order_by="PurchaseRequest.created_at.desc()")
+
+    @property
+    def last_purchase(self):
+        return self.purchases[0] if self.purchases else None
+
+
+DOCUMENT_KINDS = {
+    "anleitung": N_("Bedienungsanleitung"),
+    "pruefung": N_("Prüfbericht / TÜV / UVV"),
+    "rechnung": N_("Rechnung"),
+    "teile": N_("Ersatzteilliste"),
+    "sonstiges": N_("Sonstiges"),
+}
+
+
+class MachineDocument(db.Model):
+    """PDF oder Bild an einer Maschine (unverändert im Upload-Verzeichnis unter `dokumente/`)."""
+    __tablename__ = "machine_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = db.Column(db.String(150), nullable=False)
+    kind = db.Column(db.String(20), nullable=False, default="sonstiges")
+    filename = db.Column(db.String(80), nullable=False, unique=True)
+    original_name = db.Column(db.String(200))
+    mimetype = db.Column(db.String(50), nullable=False)
+    size = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    machine = db.relationship("Machine", backref=db.backref("documents", order_by="MachineDocument.created_at.desc()",
+                                                            cascade="all, delete-orphan", passive_deletes=True))
+    user = db.relationship("User")
+
+    @property
+    def kind_label(self):
+        return _(DOCUMENT_KINDS.get(self.kind, self.kind))
+
+    @property
+    def is_pdf(self):
+        return self.mimetype == "application/pdf"
+
+
+FUEL_KINDS = {
+    "tanken": N_("Getankt"),            # aus dem Hoftank in eine Maschine
+    "lieferung": N_("Lieferung"),       # Tankwagen füllt den Hoftank
+    "peilung": N_("Peilung"),           # gemessener Füllstand (setzt den Stand neu)
+}
+
+
+class FuelEntry(db.Model):
+    """Tankbuch des Hoftanks (Diesel)."""
+    __tablename__ = "fuel_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(20), nullable=False, index=True)
+    date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    liters = db.Column(db.Numeric(10, 1), nullable=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), index=True)
+    counter = db.Column(db.Integer)                      # Zählerstand der Maschine beim Tanken
+    price_per_liter = db.Column(db.Numeric(6, 3))        # bei Lieferungen (netto oder brutto – wie auf der Rechnung)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"))
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    machine = db.relationship("Machine", backref=db.backref("fuel_entries", lazy="dynamic", passive_deletes=True))
+    supplier = db.relationship("Supplier")
+    user = db.relationship("User")
+
+    @property
+    def kind_label(self):
+        return _(FUEL_KINDS.get(self.kind, self.kind))

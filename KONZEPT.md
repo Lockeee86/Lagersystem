@@ -266,9 +266,21 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    · Frostwarnung (nachmittags, Frost in den nächsten 24 h) · Krautfäule-Ampel springt auf Rot.
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
-3. **Maschinen:** Tankbuch (ein Hoftank; Mitarbeiter tragen Liter + Zählerstand über den QR-Code ein, der Admin
-   die Tanklieferungen), Dokumente je Maschine (alle sehen und laden hoch), Teileliste je Maschine mit
-   „Nochmal bestellen“, Lieferantenverzeichnis.
+3. ✅ **Maschinen (0.19.0):**
+   - **Tankbuch** (Feld & Hof → Tankbuch): ein Hoftank. Mitarbeiter tanken auf der Maschinenseite (QR-Code) mit
+     Litern + Zählerstand (höherer Stand wird übernommen), Besteller tragen Lieferungen (Preis/l, Lieferant) und
+     Peilungen ein (setzt den Stand neu). Füllstand = letzte Peilung + Lieferungen − Tankungen. Tankgröße und
+     Warnschwelle stellt der Admin ein; beim Unterschreiten Push an die Besteller (Thema „Hoftank wird leer“).
+     Verbrauch l/h bzw. l/100 km aus den Zählerständen (Annahme: volltanken), Liter je Maschine und Jahr.
+   - **Ersatzteile** je Maschine (Name, Teilenummer, Hersteller, Lieferant, übliche Menge) mit „Bestellen“:
+     öffnet einen vorbefüllten Bestellwunsch, der mit dem Teil verknüpft ist; Lieferant wird vorgeschlagen.
+     Mitarbeiter legen an und ändern, löschen nur der Admin.
+   - **Dokumente** je Maschine (PDF, JPEG, PNG; Art: Anleitung, Prüfbericht/TÜV/UVV, Rechnung, Ersatzteilliste,
+     Sonstiges). Alle sehen und laden hoch, löschen der Hochladende oder der Admin. Typ wird am Inhalt geprüft,
+     Auslieferung mit `Content-Security-Policy: sandbox`.
+   - **Lieferanten** (Bestellungen → Lieferanten): Ansprechpartner, Telefon, E-Mail, Shop, unsere Kundennummer.
+     Besteller pflegen, Admin löscht (verwendete werden nur ausgeblendet). Auswahl in Bestellung, Teil, Lieferung.
+   - Suche findet Teilenummern, Dokumente und Lieferanten.
 4. **Kalender** mit Wartungen und erwarteten Lieferungen (Bestellungen), dazu Abo-Link (ICS) fürs Handy.
 
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.

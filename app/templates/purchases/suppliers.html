@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}{{ _("Lieferanten") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Lieferanten") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Händler, Werkstätten und Landhandel – mit Ansprechpartner und unserer Kundennummer.") }}</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('purchases.purchase_list') }}"><i class="bi bi-box-seam me-1"></i>{{ _("Bestellungen") }}</a>
+        {% if current_user.is_buyer %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#supplierModal" data-edit='{}'><i class="bi bi-plus-lg me-1"></i>{{ _("Lieferant") }}</button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="d-flex mb-3">
+    <a class="btn btn-sm ms-auto {{ 'btn-primary' if show_all else 'btn-outline-secondary' }}" href="{{ url_for('purchases.suppliers', alle=none if show_all else 1) }}">{{ _("Auch ausgeblendete") }}</a>
+</div>
+
+<div class="row g-3">
+    {% for s in items %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm h-100 {{ 'opacity-50' if not s.active }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between gap-2">
+                    <h2 class="h6 mb-1">{{ s.name }}</h2>
+                    {% if current_user.is_buyer %}
+                    <button class="btn btn-sm btn-link p-0 text-body-secondary" aria-label="{{ _('Bearbeiten') }}" data-bs-toggle="modal" data-bs-target="#supplierModal"
+                            data-edit='{{ {"id": s.id, "name": s.name, "contact": s.contact or "", "phone": s.phone or "", "email": s.email or "", "website": s.website or "", "customer_no": s.customer_no or "", "address": s.address or "", "note": s.note or "", "inactive": not s.active}|tojson }}'><i class="bi bi-pencil"></i></button>
+                    {% endif %}
+                </div>
+                {% if s.contact %}<div class="small">{{ s.contact }}</div>{% endif %}
+                <div class="small d-flex flex-column gap-1 mt-2">
+                    {% if s.phone %}<a href="tel:{{ s.phone|replace(' ', '') }}"><i class="bi bi-telephone me-1"></i>{{ s.phone }}</a>{% endif %}
+                    {% if s.email %}<a href="mailto:{{ s.email }}"><i class="bi bi-envelope me-1"></i>{{ s.email }}</a>{% endif %}
+                    {% if s.website %}<a href="{{ s.website }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-globe me-1"></i>{{ s.website|replace("https://", "")|replace("http://", "") }}</a>{% endif %}
+                    {% if s.customer_no %}<span class="text-body-secondary"><i class="bi bi-person-badge me-1"></i>{{ _("Kd.-Nr. {no}", no=s.customer_no) }}</span>{% endif %}
+                    {% if s.address %}<span class="text-body-secondary" style="white-space: pre-line"><i class="bi bi-geo-alt me-1"></i>{{ s.address }}</span>{% endif %}
+                    {% if s.note %}<span class="text-body-secondary" style="white-space: pre-line"><i class="bi bi-sticky me-1"></i>{{ s.note }}</span>{% endif %}
+                </div>
+                {% if current_user.is_admin %}
+                <form method="post" action="{{ url_for('purchases.supplier_delete', sup_id=s.id) }}" class="mt-2 text-end">{{ csrf() }}
+                    <button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('{name} löschen?', name=s.name) }}"><i class="bi bi-trash"></i> {{ _("Löschen") }}</button></form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><div class="card shadow-sm"><div class="card-body text-body-secondary">{{ _("Noch keine Lieferanten.") }}</div></div></div>
+    {% endfor %}
+</div>
+
+{% if current_user.is_buyer %}
+{% call edit_modal("supplierModal", _("Lieferant hinzufügen"), _("Lieferant bearbeiten"), url_for('purchases.supplier_save')) %}
+<div class="row g-2">
+    <div class="col-12"><label class="form-label" for="s_name">{{ _("Name") }}</label>
+        <input class="form-control" id="s_name" name="name" required maxlength="150" placeholder="{{ _('z. B. Landtechnik Meyer') }}"></div>
+    <div class="col-md-6"><label class="form-label" for="s_contact">{{ _("Ansprechpartner") }}</label>
+        <input class="form-control" id="s_contact" name="contact" maxlength="100"></div>
+    <div class="col-md-6"><label class="form-label" for="s_phone">{{ _("Telefon") }}</label>
+        <input class="form-control" id="s_phone" name="phone" type="tel" maxlength="50"></div>
+    <div class="col-md-6"><label class="form-label" for="s_email">{{ _("E-Mail") }}</label>
+        <input class="form-control" id="s_email" name="email" type="email" maxlength="120"></div>
+    <div class="col-md-6"><label class="form-label" for="s_customer">{{ _("Unsere Kundennummer") }}</label>
+        <input class="form-control" id="s_customer" name="customer_no" maxlength="50"></div>
+    <div class="col-12"><label class="form-label" for="s_website">{{ _("Webseite / Shop") }}</label>
+        <input class="form-control" id="s_website" name="website" maxlength="200"></div>
+    <div class="col-12"><label class="form-label" for="s_address">{{ _("Anschrift") }}</label>
+        <textarea class="form-control" id="s_address" name="address" rows="2" maxlength="1000"></textarea></div>
+    <div class="col-12"><label class="form-label" for="s_note">{{ _("Notiz") }}</label>
+        <textarea class="form-control" id="s_note" name="note" rows="2" maxlength="2000" placeholder="{{ _('z. B. Öffnungszeiten, liefert dienstags') }}"></textarea></div>
+    <div class="col-12 edit-only">
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="s_inactive" name="inactive" value="1">
+            <label class="form-check-label" for="s_inactive">{{ _("Ausblenden (nicht mehr in der Auswahl)") }}</label></div>
+    </div>
+</div>
+{% endcall %}
+{% endif %}
+{% endblock %}

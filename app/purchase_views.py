@@ -7,9 +7,10 @@ from flask_login import current_user, login_required
 from . import purchases, push, uploads
 from .extensions import db
 from .i18n import gettext as _
-from .models import PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, PurchaseRequest, User
+from .models import (PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, MachinePart, PurchaseRequest, Supplier,
+                     User)
 from .storage import StorageError
-from .utils import editor_required, flash_error, form_date, form_int, form_money, form_str
+from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
 
 bp = Blueprint("purchases", __name__)
 
@@ -41,10 +42,19 @@ def purchase_list():
     order = {s: i for i, s in enumerate(PURCHASE_STATUSES)}
     items.sort(key=lambda r: (order.get(r.status, 9), not r.urgent))
     event = db.session.get(MachineEvent, request.args.get("stoerung", type=int) or 0)
+    part = db.session.get(MachinePart, request.args.get("teil", type=int) or 0)
     prefill = {
         "machine_id": request.args.get("maschine", type=int) or (event.machine_id if event else None),
         "machine_event_id": event.id if event else None,
     }
+    if part is not None:
+        # „Nochmal bestellen“ aus der Teileliste
+        details = "\n".join(line for line in (
+            _("Teilenummer: {number}", number=part.part_number) if part.part_number else "",
+            _("Hersteller: {name}", name=part.manufacturer) if part.manufacturer else "",
+            part.note or "") if line)
+        prefill.update(machine_id=part.machine_id, part_id=part.id, title=part.name, quantity=part.quantity or "",
+                       details=details)
     return render_template(
         "purchases/list.html", items=items, status=status, who=who, statuses=PURCHASE_STATUSES,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all(), prefill=prefill,
@@ -65,7 +75,7 @@ def purchase_create():
             bool(request.form.get("urgent")),
             machine_id=machine_id if machine_id and db.session.get(Machine, machine_id) else None,
             machine_event_id=event_id if event_id and db.session.get(MachineEvent, event_id) else None,
-            photo_names=names,
+            photo_names=names, part=db.session.get(MachinePart, form_int("part_id") or 0),
         )
         db.session.commit()
         push.purchase_requested(req, current_user)
@@ -82,7 +92,7 @@ def purchase_create():
 @login_required
 def purchase_detail(req_id):
     return render_template("purchases/detail.html", req=_get(req_id), statuses=PURCHASE_STATUSES,
-                           buyers=purchases.buyers())
+                           buyers=purchases.buyers(), suppliers=purchases.suppliers())
 
 
 @bp.route("/bestellung/<int:req_id>/uebernehmen", methods=["POST"])
@@ -164,3 +174,58 @@ def purchase_delete(req_id):
     uploads.delete_files(names)
     flash(_("Bestellwunsch „{title}“ gelöscht.", title=req.title), "success")
     return redirect(url_for("purchases.purchase_list"))
+
+
+# --- Lieferanten ------------------------------------------------------------------
+
+SUPPLIER_FIELDS = {"contact": 100, "phone": 50, "email": 120, "website": 200, "customer_no": 50,
+                   "address": 1000, "note": 2000}
+
+
+@bp.route("/lieferanten")
+@login_required
+def suppliers():
+    show_all = request.args.get("alle") == "1"
+    return render_template("purchases/suppliers.html", items=purchases.suppliers(active_only=not show_all),
+                           show_all=show_all)
+
+
+@bp.route("/lieferanten", methods=["POST"])
+@login_required
+def supplier_save():
+    if not current_user.is_buyer:
+        abort(403)
+    sup_id = form_int("id")
+    supplier = db.session.get(Supplier, sup_id) if sup_id else Supplier()
+    if supplier is None:
+        abort(404)
+    try:
+        fields = {key: form_str(key, length) for key, length in SUPPLIER_FIELDS.items()}
+        website = fields["website"]
+        if website and not website.startswith(("http://", "https://")):
+            fields["website"] = "https://" + website
+        purchases.save_supplier(supplier, form_str("name", 150), **fields)
+        if sup_id:
+            supplier.active = not request.form.get("inactive")
+        db.session.commit()
+        flash(_("{name} gespeichert.", name=supplier.name), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("purchases.suppliers"))
+
+
+@bp.route("/lieferant/<int:sup_id>/loeschen", methods=["POST"])
+@admin_required
+def supplier_delete(sup_id):
+    supplier = db.session.get(Supplier, sup_id)
+    if supplier is None:
+        abort(404)
+    if purchases.supplier_in_use(supplier):
+        supplier.active = False
+        flash(_("{name} wird noch verwendet und wurde deshalb nur ausgeblendet.", name=supplier.name), "success")
+    else:
+        db.session.delete(supplier)
+        flash(_("{name} gelöscht.", name=supplier.name), "success")
+    db.session.commit()
+    return redirect(url_for("purchases.suppliers"))

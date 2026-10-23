@@ -52,6 +52,19 @@
     <span class="fw-semibold">{{ r.title }}</span> <span class="badge text-bg-{{ r.status_color }}">{{ r.status_label }}</span>
     <span class="small text-body-secondary">· {{ r.created_at|date }}</span></a>{% endfor %}
 {% endcall %}
+{% call group(_("Ersatzteile"), "bi-nut", results.parts) %}
+{% for p in results.parts %}<a class="list-group-item list-group-item-action" href="{{ url_for('machines.machine_detail', machine_id=p.machine_id) }}#teile">
+    <span class="fw-semibold">{{ p.name }}</span>{% if p.part_number %} <span class="font-monospace small">{{ p.part_number }}</span>{% endif %}
+    <span class="small text-body-secondary">· {{ p.machine.name }}</span></a>{% endfor %}
+{% endcall %}
+{% call group(_("Dokumente"), "bi-file-earmark-text", results.documents) %}
+{% for d in results.documents %}<a class="list-group-item list-group-item-action" href="{{ url_for('machines.document', doc_id=d.id) }}" target="_blank" rel="noopener">
+    <span class="fw-semibold">{{ d.title }}</span> <span class="small text-body-secondary">· {{ d.kind_label }} · {{ d.machine.name }}</span></a>{% endfor %}
+{% endcall %}
+{% call group(_("Lieferanten"), "bi-shop", results.suppliers) %}
+{% for s in results.suppliers %}<a class="list-group-item list-group-item-action" href="{{ url_for('purchases.suppliers') }}">
+    <span class="fw-semibold">{{ s.name }}</span>{% if s.phone %} <span class="small text-body-secondary">· {{ s.phone }}</span>{% endif %}</a>{% endfor %}
+{% endcall %}
 {% call group(_("Aufgaben"), "bi-list-check", results.tasks) %}
 {% for t in results.tasks %}<a class="list-group-item list-group-item-action" href="{{ url_for('tasks.task_detail', task_id=t.id) }}">
     <span class="fw-semibold {{ 'text-decoration-line-through text-body-secondary' if t.is_done }}">{{ t.title }}</span>
