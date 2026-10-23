@@ -21,7 +21,7 @@
 
 <div id="fuelForms">
 {% if current_user.can_edit %}
-<div class="collapse" id="fuelRefuel" data-bs-parent="#fuelForms">
+<div class="collapse {{ 'show' if request.args.get('tanken') }}" id="fuelRefuel" data-bs-parent="#fuelForms">
     <div class="card shadow-sm mb-4"><div class="card-body">
         <form method="post" action="{{ url_for('fuel.refuel') }}" class="row g-2 align-items-end">
             {{ csrf() }}

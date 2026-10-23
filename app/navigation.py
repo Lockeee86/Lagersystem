@@ -54,6 +54,7 @@ ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items
     item("admin.box_types", N_("Kistentypen"), "bi-box"),
     item("admin.users", N_("Benutzer"), "bi-people"),
     item("admin.data", N_("Import / Export"), "bi-arrow-down-up", endpoints=("admin.import_preview", "admin.import_apply")),
+    item("admin.tile_defaults", N_("Startseite"), "bi-grid-1x2"),
     item("admin.backups", N_("Datensicherung"), "bi-shield-check", endpoints=("admin.backup_now", "admin.backup_download")),
 ]}
 # Kurzbeschreibungen für die Kacheln der Verwaltungs-Startseite
@@ -67,6 +68,7 @@ ADMIN_HINTS = {
     "admin.users": N_("Konten, Rollen, Sprache"),
     "admin.data": N_("Excel-Vorlage, Import, Jahres-Export"),
     "admin.backups": N_("Nächtliche Sicherung, Stände herunterladen"),
+    "admin.tile_defaults": N_("Kacheln am Handy je Rolle"),
 }
 
 

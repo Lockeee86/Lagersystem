@@ -26,34 +26,38 @@
 </div>
 {% endif %}
 
-{# Am Handy: alle Bereiche als Kacheln (am PC übernimmt das die Leiste oben) #}
+{# Am Handy: Kacheln (Voreinstellung je Rolle + eigene Auswahl, siehe tiles.py); am PC übernimmt das die Leiste oben #}
 <div class="area-tiles d-lg-none">
-    <a class="area-tile" href="{{ url_for('main.warehouse_map') }}"><i class="bi bi-grid-3x3-gap"></i><span class="t">{{ _("Lager") }}</span>
-        <span class="s">{% for o in occupancy[:1] %}{{ _("{n} % belegt", n=o.percent) }}{% endfor %}</span></a>
-    <a class="area-tile" href="{{ url_for('main.boxes') }}"><i class="bi bi-boxes"></i><span class="t">{{ _("Kisten") }}</span>
-        <span class="s">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</span></a>
-    <a class="area-tile" href="{{ url_for('tasks.task_list') }}"><i class="bi bi-list-check"></i><span class="t">{{ _("Aufgaben") }}</span>
-        <span class="s">{{ ngettext("{n} für heute", "{n} für heute", due_tasks_now|length) }}</span>
-        {% if my_task_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}</a>
-    <a class="area-tile" href="{{ url_for('sales.deliveries') }}"><i class="bi bi-truck"></i><span class="t">{{ _("Verkauf") }}</span>
-        <span class="s">{{ ngettext("{n} Lieferschein offen", "{n} Lieferscheine offen", open_deliveries|length) }}</span></a>
-    <a class="area-tile" href="{{ url_for('machines.machine_list') }}"><i class="bi bi-gear-wide-connected"></i><span class="t">{{ _("Maschinen") }}</span>
-        {% if open_faults %}<span class="s warn">{{ ngettext("{n} Störung", "{n} Störungen", open_faults|length) }}</span>
-        {% elif due_tasks %}<span class="s warn">{{ ngettext("{n} Wartung fällig", "{n} Wartungen fällig", due_tasks|length) }}</span>
-        {% else %}<span class="s">{{ _("alles in Ordnung") }}</span>{% endif %}</a>
-    <a class="area-tile" href="{{ url_for('fields.field_map') }}"><i class="bi bi-map"></i><span class="t">{{ _("Schläge") }}</span>
-        <span class="s">{{ plot_stats.count }}{% if plot_stats.ha %} · {{ plot_stats.ha|num(1) }} ha{% endif %}</span></a>
-    <a class="area-tile" href="{{ url_for('purchases.purchase_list') }}"><i class="bi bi-box-seam"></i><span class="t">{{ _("Bestellungen") }}</span>
-        <span class="s">{% if purchase_arrived %}{{ ngettext("{n} ist da", "{n} sind da", purchase_arrived|length) }}{% elif current_user.is_buyer %}{{ ngettext("{n} offen", "{n} offen", purchase_open|length) }}{% else %}{{ _("Teil anfragen") }}{% endif %}</span>
-        {% if purchase_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}</a>
-    <a class="area-tile" href="{{ url_for('main.weather_page') }}"><i class="bi bi-cloud-sun"></i><span class="t">{{ _("Wetter") }}</span>
-        <span class="s">{% if weather and not weather.error and weather.current %}{{ weather.current.temp|num }} °C{% else %}–{% endif %}</span></a>
-    <a class="area-tile" href="{{ url_for('main.history') }}"><i class="bi bi-clock-history"></i><span class="t">{{ _("Verlauf") }}</span>
-        <span class="s">{{ _("Bewegungen") }}</span></a>
-    {% if current_user.is_admin %}
-    <a class="area-tile" href="{{ url_for('admin.index') }}"><i class="bi bi-sliders"></i><span class="t">{{ _("Verwaltung") }}</span>
-        <span class="s">{{ _("Hof, Lager, Benutzer …") }}</span></a>
-    {% endif %}
+    {% for key in tiles %}
+    {% set t = tile_catalog[key] %}
+    <a class="area-tile" href="{{ url_for(t.endpoint, **t.args) }}"><i class="bi {{ t.icon }}"></i><span class="t">{{ _(t.label) }}</span>
+        {% if key == "lager" %}<span class="s">{% for o in occupancy[:1] %}{{ _("{n} % belegt", n=o.percent) }}{% endfor %}</span>
+        {% elif key == "kisten" %}<span class="s">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</span>
+        {% elif key == "aufgaben" %}<span class="s">{{ ngettext("{n} für heute", "{n} für heute", due_tasks_now|length) }}</span>
+            {% if my_task_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}
+        {% elif key == "verkauf" %}<span class="s">{{ ngettext("{n} Lieferschein offen", "{n} Lieferscheine offen", open_deliveries|length) }}</span>
+        {% elif key == "maschinen" %}
+            {% if open_faults %}<span class="s warn">{{ ngettext("{n} Störung", "{n} Störungen", open_faults|length) }}</span>
+            {% elif due_tasks %}<span class="s warn">{{ ngettext("{n} Wartung fällig", "{n} Wartungen fällig", due_tasks|length) }}</span>
+            {% else %}<span class="s">{{ _("alles in Ordnung") }}</span>{% endif %}
+        {% elif key == "schlaege" %}<span class="s">{{ plot_stats.count }}{% if plot_stats.ha %} · {{ plot_stats.ha|num(1) }} ha{% endif %}</span>
+        {% elif key == "bestellungen" %}<span class="s">{% if purchase_arrived %}{{ ngettext("{n} ist da", "{n} sind da", purchase_arrived|length) }}{% elif current_user.is_buyer %}{{ ngettext("{n} offen", "{n} offen", purchase_open|length) }}{% else %}{{ _("Teil anfragen") }}{% endif %}</span>
+            {% if purchase_count %}<span class="cnt badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}
+        {% elif key == "wetter" %}<span class="s">{% if weather and not weather.error and weather.current %}{{ weather.current.temp|num }} °C{% else %}–{% endif %}</span>
+        {% elif key == "verlauf" %}<span class="s">{{ _("Bewegungen") }}</span>
+        {% elif key == "verwaltung" %}<span class="s">{{ _("Hof, Lager, Benutzer …") }}</span>
+        {% elif key == "scan" %}<span class="s">{{ _("Kiste oder Maschine") }}</span>
+        {% elif key in ("tanken", "tankbuch") %}{% set tank = tile_info(key) %}
+            {% if tank.has_entries %}<span class="s {{ 'warn' if tank.low }}">{{ _("{liters} l im Tank", liters=tank.liters|num(0)) }}</span>
+            {% else %}<span class="s">{{ _("Liter eintragen") }}</span>{% endif %}
+        {% elif key == "kalender" %}{% set n = tile_info(key) %}<span class="s">{{ ngettext("{n} Termin in 14 Tagen", "{n} Termine in 14 Tagen", n) }}</span>
+        {% elif key == "lieferanten" %}<span class="s">{{ tile_info(key) }}</span>
+        {% elif key == "kunden" %}<span class="s">{{ tile_info(key) }}</span>
+        {% elif key == "etiketten" %}<span class="s">{{ _("QR-Etiketten drucken") }}</span>
+        {% endif %}</a>
+    {% endfor %}
+    <a class="area-tile area-tile-edit" href="{{ url_for('main.tile_settings') }}"><i class="bi bi-plus-lg"></i><span class="t">{{ _("Anpassen") }}</span>
+        <span class="s">{{ _("Kacheln wählen") }}</span></a>
 </div>
 
 {% if due_tasks_now %}

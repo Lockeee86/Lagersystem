@@ -91,6 +91,9 @@ class User(UserMixin, db.Model):
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Geheimer Schlüssel für den Kalender-Abo-Link (leer = noch nie abonniert)
     calendar_token = db.Column(db.String(64), unique=True)
+    # Kacheln auf der Übersicht: Abweichungen von der Voreinstellung der Rolle (kommagetrennt, siehe tiles.py)
+    tiles_add = db.Column(db.String(400), nullable=False, default="", server_default="")
+    tiles_hide = db.Column(db.String(400), nullable=False, default="", server_default="")
     # Abgewählte Push-Themen, kommagetrennt (leer = alle passenden an)
     push_off = db.Column(db.String(300), nullable=False, default="", server_default="")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig

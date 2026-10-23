@@ -289,6 +289,13 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Kacheln auf der Übersicht (0.22.0)
+Die Kacheln am Handy sind einstellbar: Der Admin legt unter Verwaltung → Startseite fest, welche Kacheln jede Rolle
+sieht (Mitarbeiter z. B. Scannen und Tanken vorne). Jeder kann über „Anpassen“ Kacheln dazunehmen oder ausblenden;
+gespeichert wird nur die Abweichung, Änderungen der Voreinstellung kommen also trotzdem bei allen an.
+Reihenfolge = Katalog in `app/tiles.py`. Neue Kacheln: Scannen, Tanken (Füllstand), Kalender, Tankbuch,
+Lieferanten, Kunden, Etiketten.
+
 ### Logo (0.20.1 / 0.21.0)
 Standard-Logo: zwei Biogas-Fermenter mit Gaskuppel, Sonne, Kartoffelacker mit Pflanzenreihen (Entwurf A2).
 Eigenes Logo unter Verwaltung → Hof hochladen (PNG/JPEG/WebP): daraus entstehen Kopfzeile, Browser-Tab,

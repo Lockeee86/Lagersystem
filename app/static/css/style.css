@@ -556,3 +556,10 @@ body:not(.has-tabbar) {
 /* Logo-Vorschau (Verwaltung → Hof) */
 .logo-preview { object-fit: contain; background: repeating-conic-gradient(var(--bs-tertiary-bg) 0 25%, transparent 0 50%) 50% / 16px 16px;
     border: 1px solid var(--bs-border-color); border-radius: .5rem; }
+.area-tile-edit { border-style: dashed !important; background: transparent !important; color: var(--bs-secondary-color); }
+.area-tile-edit i { opacity: .7; }
+.tile-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+.tile-pick label { display: flex; align-items: center; gap: .5rem; padding: .7rem .8rem; border: 1px solid var(--bs-border-color);
+    border-radius: .8rem; background: var(--surface); cursor: pointer; font-weight: 600; }
+.tile-pick input:checked + label { border-color: var(--brand); background: rgba(var(--brand-rgb), .12); }
+.tile-pick label i { font-size: 1.3rem; color: var(--brand); }

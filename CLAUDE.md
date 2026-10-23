@@ -51,6 +51,8 @@ docker compose up --build -d
   `ics()`; `app/agenda_views.py` (Blueprint `agenda`, Abo über `User.calendar_token`)
 - `app/branding.py`: Logo (Standard aus `static/img/` oder eigenes aus `UPLOAD_DIR/branding/`), in Templates
   `logo_url("logo-64" | "logo-512" | "icon-180" …)`, Auslieferung über `/logo/<name>.png`
+- `app/tiles.py`: Kacheln der Übersicht (Katalog `CATALOG`, Voreinstellung je Rolle in `settings` `tiles_<rolle>`,
+  persönliche Abweichung `User.tiles_add`/`tiles_hide`); Untertitel je Kachel in `dashboard.html`
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
   Rechte über `PurchaseRequest.can_handle`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`

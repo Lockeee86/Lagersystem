@@ -1258,4 +1258,26 @@ MESSAGES = {
         'Własne logo jako PNG, JPEG lub WebP (najlepiej kwadratowe, co najmniej 512 × 512 pikseli, najlepiej z przezroczystym tłem). Powstaną z niego nagłówek, karta przeglądarki, strona logowania i ikona aplikacji na telefon. Wskazówka: znak bez napisu – tekst w nagłówku będzie bardzo mały.',
     'Wieder das Standard-Logo verwenden?': 'Wrócić do logo domyślnego?',
     'Standard-Logo verwenden': 'Użyj logo domyślnego',
+    # Kacheln auf der Übersicht
+    'Startseite': 'Strona startowa',
+    'Kacheln am Handy je Rolle': 'Kafelki na telefonie według roli',
+    'Voreinstellung gespeichert.': 'Zapisano ustawienia domyślne.',
+    'Kacheln auf die Voreinstellung zurückgesetzt.': 'Przywrócono domyślne kafelki.',
+    'Kacheln gespeichert.': 'Zapisano kafelki.',
+    'Tanken': 'Tankowanie',
+    '{n} Termine in 14 Tagen': ('{n} termin w ciągu 14 dni', '{n} terminy w ciągu 14 dni', '{n} terminów w ciągu 14 dni'),
+    'Kiste oder Maschine': 'Skrzynia lub maszyna',
+    '{liters} l im Tank': '{liters} l w zbiorniku',
+    'Liter eintragen': 'Wpisz litry',
+    'Anpassen': 'Dostosuj',
+    'Kacheln wählen': 'Wybierz kafelki',
+    'Kacheln anpassen': 'Dostosuj kafelki',
+    'Welche Kacheln möchtest du auf der Übersicht sehen? Vorausgewählt ist die Voreinstellung für deine Rolle.':
+        'Które kafelki chcesz widzieć w przeglądzie? Wstępnie zaznaczone są ustawienia domyślne dla twojej roli.',
+    'Voreinstellung': 'Ustawienie domyślne',
+    'Voreinstellung für deine Rolle': 'Ustawienie domyślne dla twojej roli',
+    'Voreinstellung wiederherstellen': 'Przywróć ustawienia domyślne',
+    'Welche Kacheln sieht jede Rolle am Handy auf der Übersicht? Jeder kann danach selbst Kacheln dazunehmen oder ausblenden.':
+        'Które kafelki widzi każda rola na telefonie w przeglądzie? Każdy może potem sam dodać lub ukryć kafelki.',
+    'Kachel': 'Kafelek',
 }

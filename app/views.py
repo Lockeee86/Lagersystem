@@ -1,5 +1,5 @@
 import io
-from datetime import date
+from datetime import date, timedelta
 
 import segno
 from flask import (Blueprint, Response, abort, flash, redirect, render_template, request,
@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import backup, machines, purchases, sales, search, storage, tasks, weather
+from . import agenda, backup, fuel, machines, purchases, sales, search, storage, tasks, tiles, weather
 from .extensions import db
 from .i18n import N_, gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -48,6 +48,21 @@ def commit_or_rollback():
 
 
 # --- Dashboard --------------------------------------------------------------
+
+def _tile_info(key):
+    """Zusatzangaben für Kacheln, die die Übersicht sonst nicht berechnet (nur bei Bedarf)."""
+    if key == "tanken" or key == "tankbuch":
+        return fuel.status()
+    if key == "kalender":
+        today = date.today()
+        return len(agenda.events(today, today + timedelta(days=14), today)[0])
+    if key == "lieferanten":
+        return len(purchases.suppliers())
+    if key == "kunden":
+        from .models import Customer
+        return Customer.query.count()
+    return None
+
 
 @bp.route("/")
 @login_required
@@ -102,8 +117,27 @@ def dashboard():
                            purchase_open=purchases.open_requests(current_user) if current_user.is_buyer else [],
                            purchase_arrived=purchases.arrived_for(current_user),
                            backup_alert=backup.needs_attention() if current_user.is_admin else None,
+                           tiles=tiles.for_user(current_user), tile_catalog=tiles.CATALOG, tile_info=_tile_info,
                            has_varieties=Variety.query.first() is not None,
                            has_plots=Plot.query.first() is not None)
+
+
+@bp.route("/startseite/kacheln", methods=["GET", "POST"])
+@login_required
+def tile_settings():
+    """Eigene Kachel-Auswahl für die Übersicht (Abweichung von der Voreinstellung der Rolle)."""
+    if request.method == "POST":
+        if request.form.get("reset"):
+            tiles.reset_user(current_user)
+            flash(_("Kacheln auf die Voreinstellung zurückgesetzt."), "success")
+        else:
+            tiles.save_user(current_user, request.form.getlist("tile"))
+            flash(_("Kacheln gespeichert."), "success")
+        db.session.commit()
+        return redirect(url_for("main.dashboard"))
+    return render_template("tiles.html", catalog=tiles.CATALOG, allowed=tiles.allowed(current_user),
+                           chosen=tiles.for_user(current_user), defaults=tiles.role_default(current_user.role),
+                           customized=bool(current_user.tiles_add or current_user.tiles_hide))
 
 
 # --- Wetter -----------------------------------------------------------------

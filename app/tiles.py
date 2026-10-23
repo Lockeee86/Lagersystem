@@ -1,0 +1,81 @@
+"""Kacheln auf der Übersicht (Handy): Voreinstellung je Rolle, jeder kann Kacheln dazunehmen oder ausblenden.
+
+Sichtbar = Voreinstellung der Rolle + eigene Zusätze − eigene ausgeblendete, nur was die Rolle darf,
+immer in der Reihenfolge des Katalogs. Ändert der Admin die Voreinstellung, bekommen alle die Änderung,
+die eigenen Zusätze/Ausblendungen bleiben erhalten.
+"""
+from .extensions import db
+from .i18n import N_
+from .models import ROLE_ADMIN, ROLE_BETRACHTER, ROLE_MITARBEITER, ROLES, Setting
+
+
+def tile(label, icon, endpoint, role=ROLE_BETRACHTER, **args):
+    return {"label": label, "icon": icon, "endpoint": endpoint, "args": args, "role": role}
+
+
+# Reihenfolge = Reihenfolge auf der Übersicht
+CATALOG = {
+    "scan": tile(N_("Scannen"), "bi-qr-code-scan", "main.scan", ROLE_MITARBEITER),
+    "tanken": tile(N_("Tanken"), "bi-fuel-pump", "fuel.tank", ROLE_MITARBEITER, tanken=1),
+    "aufgaben": tile(N_("Aufgaben"), "bi-list-check", "tasks.task_list"),
+    "lager": tile(N_("Lager"), "bi-grid-3x3-gap", "main.warehouse_map"),
+    "kisten": tile(N_("Kisten"), "bi-boxes", "main.boxes"),
+    "verkauf": tile(N_("Verkauf"), "bi-truck", "sales.deliveries"),
+    "maschinen": tile(N_("Maschinen"), "bi-gear-wide-connected", "machines.machine_list"),
+    "bestellungen": tile(N_("Bestellungen"), "bi-box-seam", "purchases.purchase_list"),
+    "kalender": tile(N_("Kalender"), "bi-calendar3", "agenda.month"),
+    "schlaege": tile(N_("Schläge"), "bi-map", "fields.field_map"),
+    "wetter": tile(N_("Wetter"), "bi-cloud-sun", "main.weather_page"),
+    "tankbuch": tile(N_("Tankbuch"), "bi-fuel-pump-diesel", "fuel.tank"),
+    "lieferanten": tile(N_("Lieferanten"), "bi-shop", "purchases.suppliers"),
+    "kunden": tile(N_("Kunden"), "bi-person-vcard", "sales.customers", ROLE_ADMIN),
+    "verlauf": tile(N_("Verlauf"), "bi-clock-history", "main.history"),
+    "etiketten": tile(N_("Etiketten"), "bi-qr-code", "main.labels", ROLE_ADMIN),
+    "verwaltung": tile(N_("Verwaltung"), "bi-sliders", "admin.index", ROLE_ADMIN),
+}
+
+DEFAULTS = {
+    ROLE_ADMIN: ["aufgaben", "lager", "kisten", "verkauf", "maschinen", "bestellungen", "kalender", "schlaege",
+                 "wetter", "verlauf", "verwaltung"],
+    ROLE_MITARBEITER: ["scan", "tanken", "aufgaben", "lager", "kisten", "maschinen", "bestellungen", "wetter"],
+    ROLE_BETRACHTER: ["lager", "kisten", "schlaege", "wetter", "verlauf"],
+}
+
+
+def _split(text):
+    return [k for k in (text or "").split(",") if k in CATALOG]
+
+
+def allowed(user):
+    """Kacheln, die der Benutzer überhaupt sehen darf (in Katalog-Reihenfolge)."""
+    return [key for key, t in CATALOG.items() if user.has_role(t["role"])]
+
+
+def role_default(role):
+    setting = db.session.get(Setting, f"tiles_{role}")
+    return _split(setting.value) if setting is not None and setting.value is not None else list(DEFAULTS[role])
+
+
+def save_role_default(role, keys):
+    Setting.put(f"tiles_{role}", ",".join(k for k in CATALOG if k in keys) or ",")   # „,“ = bewusst leer
+
+
+def for_user(user):
+    base = set(role_default(user.role)) | set(_split(user.tiles_add))
+    base -= set(_split(user.tiles_hide))
+    return [key for key in allowed(user) if key in base]
+
+
+def save_user(user, keys):
+    """Eigene Auswahl als Abweichung von der Voreinstellung speichern."""
+    chosen = {k for k in keys if k in allowed(user)}
+    default = set(role_default(user.role))
+    user.tiles_add = ",".join(k for k in CATALOG if k in chosen - default)
+    user.tiles_hide = ",".join(k for k in CATALOG if k in default - chosen)
+
+
+def reset_user(user):
+    user.tiles_add = user.tiles_hide = ""
+
+
+ROLE_ORDER = [r for r in (ROLE_ADMIN, ROLE_MITARBEITER, ROLE_BETRACHTER) if r in ROLES]

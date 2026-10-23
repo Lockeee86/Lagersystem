@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Kacheln anpassen") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Kacheln anpassen") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Welche Kacheln möchtest du auf der Übersicht sehen? Vorausgewählt ist die Voreinstellung für deine Rolle.") }}</p>
+    </div>
+</div>
+<form method="post" style="max-width: 48rem">
+    {{ csrf() }}
+    <div class="tile-pick mb-3">
+        {% for key in allowed %}
+        {% set t = catalog[key] %}
+        <div>
+            <input class="btn-check" type="checkbox" name="tile" value="{{ key }}" id="tile_{{ key }}" {% if key in chosen %}checked{% endif %}>
+            <label for="tile_{{ key }}"><i class="bi {{ t.icon }}"></i>{{ _(t.label) }}
+                {% if key in defaults %}<i class="bi bi-star-fill ms-auto small text-body-tertiary" style="font-size: .7rem" title="{{ _('Voreinstellung') }}"></i>{% endif %}</label>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="small text-body-secondary"><i class="bi bi-star-fill" style="font-size: .7rem"></i> = {{ _("Voreinstellung für deine Rolle") }}</p>
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+        {% if customized %}<button class="btn btn-outline-secondary" name="reset" value="1" formnovalidate>{{ _("Voreinstellung wiederherstellen") }}</button>{% endif %}
+        <a class="btn btn-link" href="{{ url_for('main.dashboard') }}">{{ _("Abbrechen") }}</a>
+    </div>
+</form>
+{% endblock %}

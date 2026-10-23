@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import backup, branding, fields, transfer, weather
+from . import backup, branding, fields, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -103,6 +103,21 @@ def logo_reset():
     db.session.commit()
     flash(_("Standard-Logo wird wieder verwendet."), "success")
     return redirect(url_for("admin.settings") + "#logo")
+
+
+@bp.route("/startseite", methods=["GET", "POST"])
+def tile_defaults():
+    """Voreinstellung der Kacheln je Rolle."""
+    if request.method == "POST":
+        for role in tiles.ROLE_ORDER:
+            tiles.save_role_default(role, request.form.getlist(f"tiles_{role}"))
+        db.session.commit()
+        flash(_("Voreinstellung gespeichert."), "success")
+        return redirect(url_for("admin.tile_defaults"))
+    from .models import ROLE_LEVEL
+    return render_template("admin/tiles.html", catalog=tiles.CATALOG, roles=tiles.ROLE_ORDER, role_labels=ROLES,
+                           defaults={r: tiles.role_default(r) for r in tiles.ROLE_ORDER},
+                           can_see=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.CATALOG[key]["role"]])
 
 
 # --- Lager ------------------------------------------------------------------
