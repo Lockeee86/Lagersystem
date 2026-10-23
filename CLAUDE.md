@@ -43,8 +43,9 @@ docker compose up --build -d
   `push.notify()` / die Auslöser (`task_assigned`, `fault_reported`, `purchase_*`) **nach dem Commit** aufrufen.
   Texte als `push.Msg("…", platzhalter=…)` – sie werden je Empfänger übersetzt (`i18n.force_locale`).
   In Tests landen Nachrichten in `push.outbox`. `app/push_views.py`: Abo, Themen, `/sw.js`, `/manifest.webmanifest`
-- `app/fuel.py`: Tankbuch (Tanken/Lieferung/Peilung, Füllstand `level()`, Verbrauch `consumption()`), committet nicht;
-  `app/fuel_views.py` (Blueprint `fuel`). Tanken an der Maschine: `machine_views.machine_refuel`
+- `app/fuel.py`: Tankbuch (Tanken/Lieferung/Peilung, Füllstand `level(tag)`, Verbrauch `consumption()`), committet nicht;
+  `app/fuel_views.py` (Blueprint `fuel`). Tanken an der Maschine: `machine_views.machine_refuel`.
+  `app/fuel_report.py`: Bericht für einen Zeitraum als Excel/PDF (immer Deutsch)
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
 - `app/agenda.py`: Kalender – Wartungen, Lieferungen, Aufgaben, Feiertage (`holidays()`) werden berechnet, eigene

@@ -99,11 +99,16 @@ def dip(user, liters, day=None, note=None):
 
 # --- Auswerten ------------------------------------------------------------------
 
-def level():
-    """Aktueller Füllstand in Litern (Decimal) und die letzte Peilung (oder None)."""
-    last_dip = FuelEntry.query.filter_by(kind="peilung").order_by(FuelEntry.date.desc(), FuelEntry.id.desc()).first()
+def level(day=None):
+    """Füllstand in Litern (Decimal) – aktuell oder am Ende von `day` – und die letzte Peilung davor (oder None)."""
+    dips = FuelEntry.query.filter_by(kind="peilung")
+    if day is not None:
+        dips = dips.filter(FuelEntry.date <= day)
+    last_dip = dips.order_by(FuelEntry.date.desc(), FuelEntry.id.desc()).first()
     query = db.session.query(FuelEntry.kind, func.coalesce(func.sum(FuelEntry.liters), 0)) \
         .filter(FuelEntry.kind.in_(("lieferung", "tanken")))
+    if day is not None:
+        query = query.filter(FuelEntry.date <= day)
     if last_dip is not None:
         query = query.filter(or_(FuelEntry.date > last_dip.date,
                                  and_(FuelEntry.date == last_dip.date, FuelEntry.id > last_dip.id)))

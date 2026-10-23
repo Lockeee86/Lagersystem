@@ -1336,4 +1336,12 @@ MESSAGES = {
     'keine Feiertage anzeigen': 'nie pokazuj świąt',
     'Gesetzliche Feiertage des Bundeslands. Feiertage nur einzelner Gemeinden sind nicht dabei.':
         'Ustawowe święta kraju związkowego. Święta obowiązujące tylko w niektórych gminach nie są uwzględnione.',
+    # Tankbuch-Export
+    'Export': 'Eksport',
+    'Jahr': 'Rok',
+    'oder von': 'lub od',
+    'bis': 'do',
+    'Excel': 'Excel',
+    'Mit Bestand am Anfang und Ende, Liter und Verbrauch je Maschine und allen Einträgen – z. B. für die Agrardiesel-Erstattung.':
+        'Ze stanem na początku i na końcu, litrami i zużyciem dla każdej maszyny oraz wszystkimi wpisami – np. do zwrotu podatku od oleju napędowego.',
 }

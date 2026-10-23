@@ -177,6 +177,33 @@
             </div>
             <div class="card-footer small text-body-secondary">{{ _("Verbrauch aus den Zählerständen beim Tanken (immer volltanken, dann stimmt er).") }}</div>
         </div>
+        {% if current_user.is_admin %}
+        <div class="card shadow-sm mt-4" id="export">
+            <div class="card-header"><i class="bi bi-download me-1"></i>{{ _("Export") }}</div>
+            <div class="card-body">
+                <form method="get" action="{{ url_for('fuel.export') }}" class="row g-2">
+                    <div class="col-6"><label class="form-label small" for="x_year">{{ _("Jahr") }}</label>
+                        <select class="form-select form-select-sm" id="x_year" name="jahr">
+                            {% for y in range(today.year, today.year - 6, -1) %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-6"><label class="form-label small" for="x_machine">{{ _("Maschine") }}</label>
+                        <select class="form-select form-select-sm" id="x_machine" name="maschine">
+                            <option value="">{{ _("alle") }}</option>
+                            {% for m in machines %}<option value="{{ m.id }}" {% if m.id == machine_id %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-6"><label class="form-label small" for="x_from">{{ _("oder von") }}</label>
+                        <input class="form-control form-control-sm" type="date" id="x_from" name="von"></div>
+                    <div class="col-6"><label class="form-label small" for="x_to">{{ _("bis") }}</label>
+                        <input class="form-control form-control-sm" type="date" id="x_to" name="bis"></div>
+                    <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                        <button class="btn btn-primary btn-sm" name="format" value="pdf" formtarget="_blank"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF") }}</button>
+                        <button class="btn btn-outline-primary btn-sm" name="format" value="xlsx"><i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ _("Excel") }}</button>
+                    </div>
+                    <div class="col-12 form-text">{{ _("Mit Bestand am Anfang und Ende, Liter und Verbrauch je Maschine und allen Einträgen – z. B. für die Agrardiesel-Erstattung.") }}</div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

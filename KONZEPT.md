@@ -289,6 +289,12 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Tankbuch-Export (0.23.2)
+Admins exportieren das Tankbuch (Tankbuch → Export) für ein Jahr oder einen Zeitraum, optional für eine Maschine,
+als PDF (Hofname/Anschrift, Bestand am Anfang/Ende, Lieferungen mit Kosten, Liter/Tankungen/Zählerstände/Verbrauch/
+Kosten je Maschine, alle Einträge, Unterschriftszeile) oder als Excel (Übersicht, Je Maschine, Einträge).
+Bewusst immer Deutsch (Dokument für Dritte, z. B. Agrardiesel-Erstattung).
+
 ### Wochenübersicht und Bundesland (0.23.1)
 Auf der Startseite (PC und Handy) die Karte „Diese Woche“: heute (hervorgehoben) und die nächsten 6 Tage mit
 eigenen Terminen, Feiertagen, Wartungen und Lieferungen – für alle gleich; Aufgaben stehen in ihrer eigenen Karte.

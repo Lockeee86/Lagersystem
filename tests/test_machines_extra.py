@@ -153,3 +153,37 @@ def test_documents(app, as_admin, as_worker, as_viewer, db, seed, tractor):
     as_worker.post(f"/dokument/{doc.id}/loeschen")
     assert MachineDocument.query.count() == 0
 
+
+
+def test_fuel_export(app, as_admin, as_worker, db, seed, tractor):
+    import io as _io
+    from openpyxl import load_workbook
+    admin = seed["admin"]
+    fuel.dip(admin, "1000", day=date(2025, 12, 31))
+    fuel.delivery(admin, "3000", Decimal("1.500"), day=date(2026, 2, 1))
+    fuel.refuel(tractor, admin, "200", counter=1010, day=date(2026, 3, 1))
+    fuel.refuel(tractor, admin, "150", counter=1020, day=date(2026, 3, 8))
+    fuel.refuel(tractor, admin, "99", counter=1030, day=date(2027, 1, 3))         # anderes Jahr
+    db.session.commit()
+
+    from app import fuel_report
+    report = fuel_report.build(date(2026, 1, 1), date(2026, 12, 31))
+    assert report["opening"] == Decimal("1000") and report["closing"] == Decimal("3650")
+    assert report["delivered"] == Decimal("3000") and report["refueled"] == Decimal("350")
+    row = report["machines"][0]
+    assert row["count"] == 2 and row["consumption"] == (15.0, "l/h") and row["cost"] == Decimal("525.00")
+    assert fuel_report.period_label(report) == "Jahr 2026"
+
+    assert as_worker.get("/tankbuch/export?jahr=2026").status_code == 403
+    r = as_admin.get("/tankbuch/export?jahr=2026&format=pdf")
+    assert r.status_code == 200 and r.mimetype == "application/pdf" and r.data.startswith(b"%PDF")
+    assert "tankbuch_2026.pdf" in r.headers["Content-Disposition"]
+    r = as_admin.get(f"/tankbuch/export?von=2026-03-01&bis=2026-03-31&maschine={tractor.id}&format=xlsx")
+    assert "tankbuch_20260301-20260331_" in r.headers["Content-Disposition"]
+    wb = load_workbook(_io.BytesIO(r.data))
+    assert wb.sheetnames == ["Übersicht", "Je Maschine", "Einträge"]
+    rows = list(wb["Einträge"].iter_rows(min_row=2, values_only=True))
+    assert len(rows) == 2 and rows[0][1] == "Getankt" and rows[0][5] == 200.0
+    assert wb["Je Maschine"]["E2"].value == 350.0
+    assert "Agrardiesel" in as_admin.get("/tankbuch").get_data(as_text=True)
+    assert "Agrardiesel" not in as_worker.get("/tankbuch").get_data(as_text=True)

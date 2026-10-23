@@ -1,14 +1,14 @@
 """Tankbuch: Füllstand des Hoftanks, Tanken, Lieferungen, Peilung, Liter je Maschine."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import fuel, purchases, push
+from . import fuel, fuel_report, purchases, push
 from .extensions import db
 from .i18n import gettext as _
-from .models import FUEL_KINDS, FuelEntry, Machine
+from .models import FUEL_KINDS, FuelEntry, Machine, Setting
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
@@ -129,3 +129,34 @@ def entry_delete(entry_id):
     db.session.commit()
     flash(_("Eintrag gelöscht."), "success")
     return redirect(request.referrer if (request.referrer or "").startswith(request.host_url) else url_for("fuel.tank"))
+
+
+@bp.route("/tankbuch/export")
+@admin_required
+def export():
+    """Tankbuch als Excel oder PDF – Jahr oder Zeitraum, optional nur eine Maschine."""
+    today = date.today()
+    year = request.args.get("jahr", type=int)
+    start, end = _arg_date("von"), _arg_date("bis")
+    if not (start and end):
+        year = year or today.year
+        start, end = date(year, 1, 1), date(year, 12, 31)
+    if end < start:
+        start, end = end, start
+    machine = db.session.get(Machine, request.args.get("maschine", type=int) or 0)
+    report = fuel_report.build(start, end, machine)
+    farm = Setting.all()
+    if request.args.get("format") == "xlsx":
+        return Response(fuel_report.build_xlsx(report, farm),
+                        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": f'attachment; filename="{fuel_report.filename(report, "xlsx")}"'})
+    return Response(fuel_report.build_pdf(report, farm), mimetype="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{fuel_report.filename(report, "pdf")}"'})
+
+
+def _arg_date(name):
+    value = request.args.get(name, "")
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date() if value else None
+    except ValueError:
+        return None
