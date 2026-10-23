@@ -205,7 +205,7 @@ def test_all_pages_render_in_polish(as_admin, db, seed):
 def test_plot_admin(as_admin, db, seed):
     as_admin.post("/admin/schlaege", data={"name": "Hofwiese", "area_ha": "2,5", "note": "Pacht"})
     plot = Plot.query.filter_by(name="Hofwiese").one()
-    assert str(plot.area_ha) == "2.50" and plot.active
+    assert str(plot.area_ha) == "2.5000" and plot.active
     # Doppelter Name (Groß/Klein egal) wird abgelehnt
     as_admin.post("/admin/schlaege", data={"name": "hofwiese"})
     assert Plot.query.count() == 2

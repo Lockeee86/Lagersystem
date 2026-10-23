@@ -38,6 +38,8 @@ docker compose up --build -d
   in Tests `weather._fetch` ersetzen (kein Netz)
 - `app/tasks.py`: Aufgaben (Zuteilung, Fälligkeit, Wiederholung `next_due`), committet nicht;
   `app/task_views.py` (Blueprint `tasks`). Makros aus `tasks/_macros.html` mit `with context` importieren.
+- `app/fields.py`: Schlagkartei (KML-Import mit Abgleich, Anbaujahre `PlotYear`, Ertrag t/ha), committet nicht;
+  `app/fields_views.py` (Blueprint `fields`), `app/static/js/schlagkarte.js` (Umrisse als SVG)
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,

@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import transfer, weather
+from . import fields, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -165,7 +165,7 @@ def _form_area():
         value = Decimal(raw)
     except InvalidOperation:
         return None
-    return value.quantize(Decimal("0.01")) if 0 < value < 100000 else None
+    return value.quantize(Decimal("0.0001")) if 0 < value < 100000 else None
 
 
 @bp.route("/schlaege", methods=["GET", "POST"])
@@ -191,7 +191,52 @@ def plots():
     items = Plot.query.order_by(Plot.active.desc(), Plot.name).all()
     counts = dict(db.session.query(Box.plot_id, func.count(Box.id))
                   .filter(Box.fill > 0).group_by(Box.plot_id))
-    return render_template("admin/plots.html", items=items, counts=counts)
+    return render_template("admin/plots.html", items=items, counts=counts, this_year=date.today().year)
+
+
+@bp.route("/schlaege/kml", methods=["POST"])
+def plots_kml_preview():
+    upload = request.files.get("file")
+    year = form_int("year", date.today().year, minimum=2000, maximum=2100)
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("admin.plots"))
+    data_bytes = upload.read()
+    try:
+        entries = fields.parse_kml(upload.filename, data_bytes)
+    except fields.FieldImportError as e:
+        flash_error(str(e))
+        return redirect(url_for("admin.plots"))
+    rows, missing = fields.plan_import(entries, year)
+    _cleanup_imports()
+    token = secrets.token_hex(16)
+    with open(os.path.join(_import_dir(), token), "wb") as f:
+        f.write(data_bytes)
+    session["kml_import"] = {"token": token, "name": upload.filename[:200], "year": year}
+    return render_template("admin/plots_kml_preview.html", rows=rows, missing=missing, year=year,
+                           filename=upload.filename, total_ha=sum(r["entry"]["area_ha"] for r in rows))
+
+
+@bp.route("/schlaege/kml/uebernehmen", methods=["POST"])
+def plots_kml_apply():
+    info, path = _pending_import("kml_import")
+    if not info:
+        flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
+        return redirect(url_for("admin.plots"))
+    with open(path, "rb") as f:
+        data_bytes = f.read()
+    try:
+        created, updated = fields.apply_import(fields.parse_kml(info["name"], data_bytes), info["year"])
+        db.session.commit()
+    except fields.FieldImportError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("admin.plots"))
+    os.remove(path)
+    session.pop("kml_import", None)
+    flash(_("Schlagkartei übernommen: {created} neu, {updated} aktualisiert.", created=created, updated=updated),
+          "success")
+    return redirect(url_for("fields.field_map", jahr=info["year"]))
 
 
 @bp.route("/schlaege/<int:p_id>/loeschen", methods=["POST"])
@@ -368,9 +413,9 @@ def _cleanup_imports():
             os.remove(path)
 
 
-def _pending_import():
+def _pending_import(key="import"):
     """Die hochgeladene Datei aus der Vorschau (oder None)."""
-    info = session.get("import") or {}
+    info = session.get(key) or {}
     token = info.get("token", "")
     if not re.fullmatch(r"[0-9a-f]{32}", token):
         return None, None

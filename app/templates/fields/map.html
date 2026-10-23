@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Schlagkarte") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Schläge") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Schlag", "{n} Schläge", rows|length) }} · {{ total_ha|num(2) }} ha</p>
+    </div>
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+        <select class="form-select form-select-sm w-auto" name="jahr" onchange="this.form.submit()" aria-label="{{ _('Anbaujahr') }}">
+            {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="onlyPotatoes" name="kartoffeln" value="1" {% if only_potatoes %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="onlyPotatoes">{{ _("nur Kartoffeln") }}</label>
+        </div>
+    </form>
+</div>
+
+{% if map_data %}
+<div class="card shadow-sm mb-3 overflow-hidden">
+    <div class="field-map" id="fieldMap">
+        <div class="field-map-tools btn-group-vertical">
+            <button class="btn btn-sm btn-light" type="button" id="zoomIn" aria-label="{{ _('Vergrößern') }}"><i class="bi bi-plus-lg"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="zoomOut" aria-label="{{ _('Verkleinern') }}"><i class="bi bi-dash-lg"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="zoomReset" aria-label="{{ _('Ganze Karte') }}"><i class="bi bi-arrows-fullscreen"></i></button>
+        </div>
+    </div>
+    <div class="card-body py-2 d-flex flex-wrap gap-3 small">
+        {% for l in legend %}
+        <span><span class="legend-swatch" style="background: {{ l.color }}"></span>{{ l.crop or _("ohne Kultur") }} <span class="text-body-secondary">{{ l.ha|num(1) }} ha</span></span>
+        {% endfor %}
+    </div>
+</div>
+{% elif current_user.is_admin %}
+<div class="alert alert-info">{{ _("Noch keine Schläge mit Umriss.") }} <a href="{{ url_for('admin.plots') }}">{{ _("Schlagkartei importieren (KML, z. B. aus Myfarm24)") }}</a></div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead><tr><th>{{ _("Nr.") }}</th><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th>{{ _("Kultur {year}", year=year) }}</th><th class="d-none d-md-table-cell">{{ _("Sorte") }}</th><th class="text-end">{{ _("Ertrag") }}</th></tr></thead>
+            <tbody>
+            {% for r in rows %}
+            <tr>
+                <td class="text-body-secondary">{{ r.plot.number or "" }}</td>
+                <td><a href="{{ url_for('fields.field_detail', plot_id=r.plot.id) }}">{{ r.plot.name }}</a></td>
+                <td class="text-end text-nowrap">{{ r.plot.area_ha|num(2) if r.plot.area_ha is not none else "–" }} ha</td>
+                <td>{% if r.year and r.year.crop %}<span class="legend-swatch" style="background: {{ r.color }}"></span>{{ r.year.crop }}{% else %}–{% endif %}</td>
+                <td class="d-none d-md-table-cell">{{ r.year.variety.name if r.year and r.year.variety else "" }}</td>
+                <td class="text-end text-nowrap">{% if r.t_ha %}<span class="fw-semibold">{{ r.t_ha|num(1) }} t/ha</span> <span class="small text-body-secondary">({{ r.kg|kg }})</span>{% elif r.kg %}{{ r.kg|kg }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="small text-body-tertiary mt-2">{{ _("Ertrag geschätzt aus den Kisten des Schlags (höchster Füllstand in der Saison × Kistengewicht).") }}</p>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/schlagkarte.js') }}?v={{ app_version }}"></script>
+<script>
+(function () {
+    var box = document.getElementById("fieldMap");
+    if (!box) return;
+    var map = Schlagkarte.create(box, {{ map_data|tojson }}, { url: "{{ url_for('fields.field_detail', plot_id=0) }}" });
+    document.getElementById("zoomIn").addEventListener("click", map.zoomIn);
+    document.getElementById("zoomOut").addEventListener("click", map.zoomOut);
+    document.getElementById("zoomReset").addEventListener("click", map.reset);
+})();
+</script>
+{% endblock %}

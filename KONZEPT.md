@@ -163,7 +163,18 @@ Offene Störungen und fällige Wartungen stehen auf der Übersicht.
 - **QR-Code an der Maschine** (gleiches Etikett-System wie Kisten): scannen → Stunden eintragen,
   Störung melden, Historie ansehen.
 
-### Baustein D – Schlagkartei & Ertrag
+### Baustein D – Schlagkartei & Ertrag (umgesetzt in 0.13.0)
+Umsetzung: Import der Schlagkartei aus Myfarm24 als KML/KMZ (Verwaltung → Schläge) mit Vorschau. Übernommen
+werden Name, Schlagnummer, Fläche (SchlagHa, 4 Nachkommastellen), Bodenart, Rotes Gebiet, Umriss, Kultur
+(Anbaujahr wählbar) und Vorfrucht (→ Kultur des Vorjahres, nur wenn dort leer). Abgleich beim erneuten
+Import: Nummer + Name → Name (Schlag ohne Nummer) → gleicher Umriss (umbenannt) → eindeutige Nummer.
+Schlagnummern und -namen sind in Myfarm24 nicht eindeutig (z. B. zweimal Nr. 7, zweimal „Obere Wiese“);
+doppelte Namen werden zu „Name (Nr)“. Schlagkarte als SVG ohne Kartenhintergrund (CSP), eingefärbt nach
+Kultur, mit Zoom und Verschieben. Schlagseite: Fruchtfolge je Jahr, Pflanzung (Sorte, Pflanzgut, Datum)
+und Rodung – Mitarbeiter dürfen eintragen, die Kultur ändert nur der Admin. Ertrag t/ha aus den Kisten
+(wie im Jahres-Export) geteilt durch die Fläche aus der Schlagkartei.
+Offen: Luftbild als Hintergrund (bräuchte einen Kartendienst und eine CSP-Ausnahme).
+
 - Schläge behalten ihren Namen über die Jahre (Fruchtfolge = je Jahr eine Kultur am Schlag).
 - **Umrisse auf einer Karte** (Luftbild), Import z. B. aus dem Agrarantrag (Shape/GeoJSON).
   Kartenkacheln müssen über die CSP erlaubt oder über den Server geholt werden.
@@ -204,7 +215,7 @@ Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü
 2. ✅ Maschinen & Wartung
 3. ✅ Wetter & Krautfäule
 4. ✅ Aufgaben (die Übersicht zeigt Aufgaben, Wetter, Maschinen und Lieferscheine – „Hof heute“)
-5. Schlagkartei & Ertrag
+5. ✅ Schlagkartei & Ertrag (Import aus Myfarm24)
 6. Lagerklima (Sensoren) – auf Wunsch zurückgestellt
 
 ## Noch offen
@@ -213,7 +224,7 @@ Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü
 2. Lieferschein: Muss ein Pflanzenpass-Etikett mitgedruckt werden oder reicht die Angabe auf dem Lieferschein?
    Gibt es eine Vorlage, wie der Lieferschein aussehen soll?
 3. Werden je Fahrzeug mehrere Kunden beliefert (ein Wiegevorgang, mehrere Lieferscheine)?
-4. Aus welchem Programm kommen Düngung/Pflanzenschutz, und kann es exportieren (Excel/CSV/ISOXML)?
+4. Düngung/Pflanzenschutz kommen aus Myfarm24 – welche Exporte (Excel/CSV/ISOXML) gibt es dort?
 5. Welche Sensoren genau (Vorschlag folgt mit Baustein B).
 
 Geklärt: WLAN im Lager ist gut (kein Offline-Modus nötig); Zugriff von unterwegs läuft über die eigene Domain mit HTTPS.

@@ -36,6 +36,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
 - **Aufgaben**: der Admin verteilt an eine oder mehrere Personen oder an alle, mit Termin, Priorität,
   Wiederholung (täglich, werktags, wöchentlich …) und Bezug zu Maschine, Lieferschein oder Lagerplatz;
   abhaken am Handy mit Notiz und Foto
+- **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur, Fruchtfolge,
+  Pflanzung und Rodung je Schlag, Ertrag in t/ha aus den Kisten
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)

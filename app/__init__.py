@@ -79,6 +79,7 @@ def create_app(config=None):
     from .sales_views import bp as sales_bp
     from .machine_views import bp as machines_bp
     from .task_views import bp as tasks_bp
+    from .fields_views import bp as fields_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -86,6 +87,7 @@ def create_app(config=None):
     app.register_blueprint(sales_bp)
     app.register_blueprint(machines_bp)
     app.register_blueprint(tasks_bp)
+    app.register_blueprint(fields_bp)
 
     from . import cli
     cli.register(app)

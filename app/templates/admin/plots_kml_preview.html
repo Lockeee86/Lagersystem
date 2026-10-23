@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Schlagkartei importieren") }}{% endblock %}
+{% set labels = {"neu": _("neu"), "name": _("Name"), "number": _("Nummer"), "area": _("Fläche"), "soil": _("Boden"), "boundary": _("Umriss"), "crop": _("Kultur")} %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Schlagkartei importieren") }}</h1>
+        <p class="text-body-secondary mb-0">{{ filename }} · {{ _("Anbaujahr {year}", year=year) }} ·
+            {{ ngettext("{n} Schlag", "{n} Schläge", rows|length) }} · {{ total_ha|num(2) }} ha</p>
+    </div>
+</div>
+
+{% set new = rows|selectattr("plot", "none")|list %}
+{% set changed = rows|rejectattr("plot", "none")|selectattr("changes")|list %}
+<div class="alert alert-info">
+    {{ _("Neu: {new} · geändert: {changed} · unverändert: {same}", new=new|length, changed=changed|length, same=rows|length - new|length - changed|length) }}
+</div>
+{% if missing %}
+<div class="alert alert-warning small">
+    <strong>{{ _("Nicht mehr in der Datei:") }}</strong> {{ missing|map(attribute='label')|join(", ") }}.
+    {{ _("Diese Schläge bleiben unverändert. Wenn sie nicht mehr bewirtschaftet werden, unter Schläge auf „inaktiv“ setzen.") }}
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('admin.plots_kml_apply') }}" class="mb-3 d-flex gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.plots') }}">{{ _("Abbrechen") }}</a>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>{{ _("Nr.") }}</th><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th>{{ _("Kultur {year}", year=year) }}</th><th class="d-none d-md-table-cell">{{ _("Vorfrucht") }}</th><th class="d-none d-lg-table-cell">{{ _("Boden") }}</th><th>{{ _("Änderung") }}</th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+            {% set e = row.entry %}
+            <tr>
+                <td>{{ e.number or "" }}</td>
+                <td>{{ e.name }}{% if row.plot and row.plot.name != e.name %} <span class="small text-body-secondary">({{ _("bisher {name}", name=row.plot.name) }})</span>{% endif %}</td>
+                <td class="text-end text-nowrap">{{ e.area_ha|num(2) }} ha</td>
+                <td>{{ e.crop or "–" }}</td>
+                <td class="d-none d-md-table-cell small text-body-secondary">{{ e.prev_crop or "–" }}</td>
+                <td class="d-none d-lg-table-cell small text-body-secondary">{{ e.soil or "" }}{% if e.red_area %} · <span class="text-danger">{{ _("Rotes Gebiet") }}</span>{% endif %}</td>
+                <td>
+                    {% if not row.plot %}<span class="badge text-bg-success">{{ _("neu") }}</span>
+                    {% elif row.changes %}{% for c in row.changes %}<span class="badge text-bg-warning me-1">{{ labels[c] }}</span>{% endfor %}
+                    {% else %}<span class="small text-body-tertiary">{{ _("unverändert") }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

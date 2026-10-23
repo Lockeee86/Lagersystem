@@ -7,7 +7,29 @@
     <h1>{{ _("Schläge") }}</h1>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#plotModal" data-edit='{"active": true}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Schlag") }}</button>
 </div>
-<p class="text-body-secondary">{{ _("Die Schläge stehen beim Befüllen einer Kiste zur Auswahl.") }}</p>
+<p class="text-body-secondary">{{ _("Die Schläge stehen beim Befüllen einer Kiste zur Auswahl.") }}
+    <a href="{{ url_for('fields.field_map') }}"><i class="bi bi-map me-1"></i>{{ _("Zur Schlagkarte") }}</a></p>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-cloud-upload me-1"></i>{{ _("Schlagkartei importieren (KML, z. B. aus Myfarm24)") }}</div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('admin.plots_kml_preview') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-6">
+                <label class="form-label" for="kml_file">{{ _("KML- oder KMZ-Datei") }}</label>
+                <input class="form-control" type="file" id="kml_file" name="file" accept=".kml,.kmz" required>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="kml_year">{{ _("Anbaujahr der Kultur") }}</label>
+                <input class="form-control" type="number" id="kml_year" name="year" min="2000" max="2100" value="{{ this_year }}" required>
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-primary w-100"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
+            </div>
+            <div class="col-12 form-text">{{ _("Vorhandene Schläge werden über Nummer und Name wiedererkannt und aktualisiert. Pflanzung, Rodung und Sorten bleiben erhalten. Die Vorfrucht wird als Kultur des Vorjahres eingetragen, wenn dort noch nichts steht.") }}</div>
+        </form>
+    </div>
+</div>
 {% if items %}
 <div class="card shadow-sm">
     <div class="table-responsive">
@@ -15,10 +37,16 @@
             <thead><tr><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("Befüllte Kisten") }}</th><th class="d-none d-md-table-cell">{{ _("Notiz") }}</th><th></th></tr></thead>
             <tbody>
             {% for p in items %}
-            {% set area = ('%.2f'|format(p.area_ha))|replace('.', ',') if p.area_ha is not none else '' %}
+            {% set area = ('%.4f'|format(p.area_ha))|replace('.', ',') if p.area_ha is not none else '' %}
             <tr class="{% if not p.active %}opacity-50{% endif %}">
-                <td class="fw-medium">{{ p.name }}{% if not p.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</td>
-                <td class="text-end text-nowrap">{% if area %}{{ area }} ha{% else %}–{% endif %}</td>
+                <td class="fw-medium">
+                    <a class="text-reset" href="{{ url_for('fields.field_detail', plot_id=p.id) }}">{{ p.name }}</a>
+                    {% if p.number %}<span class="small text-body-secondary">{{ _("Nr. {n}", n=p.number) }}</span>{% endif %}
+                    {% if p.boundary %}<i class="bi bi-bounding-box text-body-tertiary" title="{{ _('mit Umriss') }}"></i>{% endif %}
+                    {% if not p.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}
+                    {% set y = p.year(this_year) %}{% if y and y.crop %}<div class="small text-body-secondary">{{ y.crop }}</div>{% endif %}
+                </td>
+                <td class="text-end text-nowrap">{% if p.area_ha is not none %}{{ p.area_ha|num(2) }} ha{% else %}–{% endif %}</td>
                 <td class="text-end"><a href="{{ url_for('main.boxes', schlag=p.id, status='befuellt') }}">{{ counts.get(p.id, 0) }}</a></td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ p.note or '' }}</td>
                 <td class="text-end text-nowrap">

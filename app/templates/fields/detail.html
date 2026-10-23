@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ plot.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1>{{ plot.name }}</h1>
+        <p class="text-body-secondary mb-0">
+            {% if plot.number %}{{ _("Nr. {n}", n=plot.number) }} · {% endif %}{{ plot.area_ha|num(2) if plot.area_ha is not none else "–" }} ha
+            {% if plot.soil %} · {{ plot.soil }}{% endif %}
+            {% if plot.red_area %} · <span class="text-danger">{{ _("Rotes Gebiet") }}</span>{% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('fields.field_map') }}"><i class="bi bi-map me-1"></i>{{ _("Schlagkarte") }}</a>
+        {% if stored %}<a class="btn btn-outline-primary" href="{{ url_for('main.boxes', schlag=plot.id, status='befuellt') }}"><i class="bi bi-boxes me-1"></i>{{ ngettext("{n} Kiste", "{n} Kisten", stored) }}</a>{% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        {% if map_data %}
+        <div class="card shadow-sm mb-4 overflow-hidden">
+            <div class="field-map field-map-small" id="fieldMap"></div>
+            {% if outline_ha and plot.area_ha and (outline_ha / plot.area_ha|float - 1)|abs > 0.1 %}
+            <div class="card-body py-2 small text-body-secondary"><i class="bi bi-info-circle me-1"></i>{{ _("Laut Umriss {ha} ha – der Umriss umfasst vermutlich mehr als die Schlagfläche.", ha=outline_ha|num(2)) }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% if plot.note %}<div class="card shadow-sm mb-4"><div class="card-body small" style="white-space: pre-line">{{ plot.note }}</div></div>{% endif %}
+    </div>
+
+    <div class="col-lg-7">
+        <h2 class="h5">{{ _("Fruchtfolge und Ertrag") }}</h2>
+        {% for h in history %}
+        {% set e = h.entry %}
+        <div class="card shadow-sm mb-3" id="jahr-{{ h.year }}">
+            <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <span><span class="fw-semibold">{{ h.year }}</span> · {{ e.crop if e and e.crop else _("keine Kultur eingetragen") }}{% if e and e.variety %} · {{ e.variety.name }}{% endif %}</span>
+                {% if h.t_ha %}<span class="badge text-bg-success fs-6">{{ h.t_ha|num(1) }} t/ha</span>{% endif %}
+            </div>
+            <div class="card-body small">
+                {% if e and (e.planted_on or e.harvested_on or e.seed_note or e.note) %}
+                <dl class="row mb-2">
+                    {% if e.planted_on %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Gepflanzt") }}</dt><dd class="col-8">{{ e.planted_on|date }}</dd>{% endif %}
+                    {% if e.seed_note %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Pflanzgut") }}</dt><dd class="col-8">{{ e.seed_note }}</dd>{% endif %}
+                    {% if e.harvested_on %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Gerodet") }}</dt><dd class="col-8">{{ e.harvested_on|date }}</dd>{% endif %}
+                    {% if e.note %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Notiz") }}</dt><dd class="col-8" style="white-space: pre-line">{{ e.note }}</dd>{% endif %}
+                </dl>
+                {% endif %}
+                {% if h.kg %}
+                <div class="mb-2">{{ _("Ernte geschätzt: {kg} aus {n} Kisten", kg=h.kg|kg, n=h.boxes) }}
+                    {% if h.varieties|length > 1 %}<span class="text-body-secondary">({% for name, kg in h.varieties.items() %}{{ name }} {{ kg|kg }}{{ ", " if not loop.last }}{% endfor %})</span>{% endif %}
+                </div>
+                {% endif %}
+                {% if current_user.can_edit %}
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#form{{ h.year }}"><i class="bi bi-pencil me-1"></i>{{ _("Pflanzung / Rodung eintragen") }}</button>
+                <form class="collapse mt-3" id="form{{ h.year }}" method="post" action="{{ url_for('fields.field_year_save', plot_id=plot.id) }}">
+                    {{ csrf() }}
+                    <input type="hidden" name="year" value="{{ h.year }}">
+                    <div class="row g-2">
+                        {% if current_user.is_admin %}
+                        <div class="col-12">
+                            <label class="form-label" for="crop{{ h.year }}">{{ _("Kultur") }}</label>
+                            <input class="form-control form-control-sm" id="crop{{ h.year }}" name="crop" maxlength="100" value="{{ e.crop if e and e.crop else '' }}" placeholder="{{ _('z. B. Kartoffel (Pflanz)') }}">
+                        </div>
+                        {% endif %}
+                        <div class="col-6">
+                            <label class="form-label" for="variety{{ h.year }}">{{ _("Sorte") }}</label>
+                            <select class="form-select form-select-sm" id="variety{{ h.year }}" name="variety_id">
+                                <option value="">–</option>
+                                {% for v in varieties %}<option value="{{ v.id }}" {% if e and e.variety_id == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="seed{{ h.year }}">{{ _("Pflanzgut") }}</label>
+                            <input class="form-control form-control-sm" id="seed{{ h.year }}" name="seed_note" maxlength="200" value="{{ e.seed_note if e and e.seed_note else '' }}" placeholder="{{ _('z. B. eigene Partie, Stufe E, 2,5 t/ha') }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="planted{{ h.year }}">{{ _("Gepflanzt am") }}</label>
+                            <input class="form-control form-control-sm" type="date" id="planted{{ h.year }}" name="planted_on" value="{{ e.planted_on.isoformat() if e and e.planted_on else '' }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="harvested{{ h.year }}">{{ _("Gerodet am") }}</label>
+                            <input class="form-control form-control-sm" type="date" id="harvested{{ h.year }}" name="harvested_on" value="{{ e.harvested_on.isoformat() if e and e.harvested_on else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="note{{ h.year }}">{{ _("Notiz") }}</label>
+                            <textarea class="form-control form-control-sm" id="note{{ h.year }}" name="note" rows="2">{{ e.note if e and e.note else '' }}</textarea>
+                        </div>
+                        <div class="col-12"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if map_data %}
+<script src="{{ url_for('static', filename='js/schlagkarte.js') }}?v={{ app_version }}"></script>
+<script>Schlagkarte.create(document.getElementById("fieldMap"), {{ map_data|tojson }}, { labels: false });</script>
+{% endif %}
+{% endblock %}

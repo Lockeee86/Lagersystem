@@ -198,14 +198,61 @@ class Variety(db.Model):
 
 
 class Plot(db.Model):
-    """Schlag (Ackerfläche), von dem die Kartoffeln stammen."""
+    """Schlag (Ackerfläche). Kann aus der Schlagkartei (KML, z. B. Myfarm24) importiert werden."""
     __tablename__ = "plots"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    area_ha = db.Column(db.Numeric(7, 2))
+    number = db.Column(db.String(20))           # Schlagnummer aus der Schlagkartei (nicht eindeutig!)
+    area_ha = db.Column(db.Numeric(9, 4))
+    soil = db.Column(db.String(60))             # Bodenart
+    red_area = db.Column(db.Boolean)            # Rotes Gebiet (Düngeverordnung)
+    # Umriss als JSON: Liste von Ringen, je Ring [[länge, breite], …] (WGS 84)
+    boundary = db.Column(db.Text)
     note = db.Column(db.Text)
     active = db.Column(db.Boolean, nullable=False, default=True)
+
+    years = db.relationship("PlotYear", back_populates="plot", order_by="PlotYear.year.desc()",
+                            cascade="all, delete-orphan")
+
+    @property
+    def label(self):
+        return f"{self.name} ({self.number})" if self.number else self.name
+
+    @property
+    def rings(self):
+        import json
+        try:
+            return json.loads(self.boundary) if self.boundary else []
+        except ValueError:
+            return []
+
+    def year(self, year):
+        return next((y for y in self.years if y.year == year), None)
+
+
+class PlotYear(db.Model):
+    """Ein Anbaujahr auf einem Schlag: Kultur (aus der Schlagkartei), Pflanzung und Rodung (in der App)."""
+    __tablename__ = "plot_years"
+    __table_args__ = (db.UniqueConstraint("plot_id", "year", name="uq_plot_year"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id", ondelete="CASCADE"), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False)
+    crop = db.Column(db.String(100))
+    crop_eppo = db.Column(db.String(10))        # EPPO-Code, z. B. SOLTU = Kartoffel
+    variety_id = db.Column(db.Integer, db.ForeignKey("varieties.id"))
+    planted_on = db.Column(db.Date)
+    seed_note = db.Column(db.String(200))       # Pflanzgut, z. B. Partie/Stufe/Menge
+    harvested_on = db.Column(db.Date)
+    note = db.Column(db.Text)
+
+    plot = db.relationship("Plot", back_populates="years")
+    variety = db.relationship("Variety")
+
+    @property
+    def is_potato(self):
+        return self.crop_eppo == "SOLTU" or "kartoffel" in (self.crop or "").lower()
 
 
 class SeedClass(db.Model):
