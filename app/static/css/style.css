@@ -667,3 +667,4 @@ body:not(.has-tabbar) {
     .task-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .task-item { padding-top: .6rem; padding-bottom: .6rem; }
 }
+.task-item.collapse.show { display: flex; }

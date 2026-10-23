@@ -356,6 +356,9 @@ drei Navigationswege (Kacheln, Reiterleiste oben, Leiste unten). Entscheidungen 
   und Wetter, darunter die Lagerzahlen. Die Einzelkarten (Aufgaben heute, Bestellungen, Maschinen, Lieferscheine,
   Datensicherung) sind weg – ihr Inhalt steht in „Jetzt wichtig“ (für Besteller zusätzlich Bestellwünsche, die noch
   niemand übernommen hat). Tablet hoch nutzt die Handy-Ansicht, ab 992 px die PC-Ansicht.
+- 0.29.1: **Aufgaben als eigener Block** unter „Jetzt wichtig“ (überfällig, heute, ohne Termin; mit Haken zum
+  Abhaken, „Neue Aufgabe“, „Alle Aufgaben“; 5 sichtbar am Handy, 8 am PC). „Jetzt wichtig“ enthält keine Aufgaben mehr;
+  Störungen mit fälliger Aufgabe stehen nur bei den Aufgaben.
 
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im

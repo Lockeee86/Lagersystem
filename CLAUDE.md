@@ -79,7 +79,7 @@ docker compose up --build -d
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste (PC) und auf den Bereichsseiten (Handy,
   `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`). `app/search.py`: Suche
 - Handy: untere Leiste in `base.html` (`mobile_tab`, Zurück-Link `mobile_crumb`), Startseite mit „Jetzt wichtig“
-  (`views._important`) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
+  (`views._important`, ohne Aufgaben – die haben einen eigenen Block) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
   `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).
   Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),

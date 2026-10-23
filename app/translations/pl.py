@@ -1464,9 +1464,6 @@ MESSAGES = {
     'Mein Konto': 'Moje konto',
     'fehlgeschlagen': 'nieudana',
     'seit über einem Tag keine': 'brak od ponad doby',
-    'überfällig seit {date}': 'zaległe od {date}',
-    'ohne Termin': 'bez terminu',
-    'heute': 'dziś',
     '{number} verladen': 'Załadować {number}',
     '{title} ist da': '{title} dotarło',
     'Bestellung': 'Zamówienie',
@@ -1566,4 +1563,6 @@ MESSAGES = {
     'Besatz {v} %': 'Zanieczyszczenia {v} %',
     'Eingelagert (Schüttgut, gewogen): {kg}': 'Złożono (towar sypki, ważony): {kg}',
     '{n} Big Bags': ('{n} big bag', '{n} big bagi', '{n} big bagów'),
+    '{n} weitere Aufgaben': ('{n} kolejne zadanie', '{n} kolejne zadania', '{n} kolejnych zadań'),
+    'Für heute keine Aufgaben offen.': 'Na dziś brak otwartych zadań.',
 }

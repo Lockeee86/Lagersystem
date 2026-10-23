@@ -30,7 +30,10 @@ def test_mobile_start_and_tabbar(as_worker, as_admin, db, seed):
     tasks.create_task(seed["admin"], title="Zaun reparieren", assignees=[seed["worker"]], important=True)
     db.session.commit()
     html = as_worker.get("/").get_data(as_text=True)
-    assert "Zaun reparieren" in html and "dot-danger" in html
+    # Aufgaben stehen in einem eigenen Block (mit Haken), nicht mehr in „Jetzt wichtig“
+    tasks_block = html[html.index('hub-heading mt-0">Aufgaben'):]
+    assert "Zaun reparieren" in tasks_block and "/aufgabe/" in tasks_block and "erledigt" in tasks_block
+    assert "Alles erledigt" in html and "dot-danger" not in html
 
 
 def test_area_pages(as_worker, as_admin, as_viewer, seed):

@@ -87,9 +87,10 @@ def _tile_info(key):
 
 
 def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=()):
-    """„Jetzt wichtig“ auf der Startseite am Handy: eine Liste statt einzelner Karten, Dringendes zuerst.
-    Je Eintrag {level: danger|warning|success, title, sub, url}. Störungen, zu denen es schon eine Aufgabe gibt,
-    erscheinen nur einmal (als Aufgabe). `unclaimed`: Bestellwünsche, die noch niemand übernommen hat (Besteller)."""
+    """„Jetzt wichtig“ auf der Startseite: eine Liste statt einzelner Karten, Dringendes zuerst.
+    Je Eintrag {level: danger|warning|success, title, sub, url}. Aufgaben stehen in einem eigenen Block darunter;
+    Störungen, zu denen es schon eine fällige Aufgabe gibt, erscheinen nur dort. `unclaimed`: Bestellwünsche, die
+    noch niemand übernommen hat (Besteller)."""
     items = []
     if backup_alert:
         items.append({"level": "danger", "title": _("Datensicherung"),
@@ -100,18 +101,6 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
         if e.id not in task_faults:
             items.append({"level": "danger", "title": e.machine.name, "sub": _("Störung") + (f" · {e.text}" if e.text else ""),
                           "url": url_for("machines.machine_detail", machine_id=e.machine_id) + "#logbuch"})
-    for t in due_now:
-        overdue = t.due_on is not None and t.due_on < today
-        if overdue:
-            sub = _("überfällig seit {date}", date=fmt_date(t.due_on))
-        elif t.due_on is None:
-            sub = _("ohne Termin")
-        else:
-            sub = _("heute")
-        if t.machine:
-            sub += f" · {t.machine.name}"
-        items.append({"level": "danger" if overdue or t.important else "warning", "title": t.title, "sub": sub,
-                      "url": url_for("tasks.task_detail", task_id=t.id)})
     for task, status in due_maintenance:
         if status["state"] == "overdue":
             items.append({"level": "warning", "title": f"{task.machine.name}: {task.name}", "sub": _("Wartung überfällig"),
@@ -195,7 +184,7 @@ def dashboard():
     important = _important(due_now, faults, due_maintenance, open_deliveries if current_user.can_edit else [],
                            arrived, backup_alert, today, unclaimed)
     response = make_response(render_template(
-        "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults,
+        "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
         weather=weather.get_weather(), show_blight=weather.blight_in_season(), today=today,
         tank=fuel.status() if current_user.can_edit else None,
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,

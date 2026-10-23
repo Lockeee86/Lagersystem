@@ -46,7 +46,7 @@
     <a class="quick-item" href="{{ url_for('main.tile_settings') }}"><span class="quick-icon quick-edit"><i class="bi bi-plus-lg"></i></span><span>{{ _("Anpassen") }}</span></a>
 </div>
 
-{# Handy: untereinander; PC: links „Jetzt wichtig“, rechts Termine und Wetter #}
+{# Handy: untereinander; PC: links „Jetzt wichtig“ und Aufgaben, rechts Termine und Wetter #}
 <div class="row g-lg-4">
 <div class="col-lg-7">
 <section class="mb-4">
@@ -69,6 +69,34 @@
     {% endif %}
     {% else %}
     <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Alles erledigt – nichts Dringendes.") }}</div></div>
+    {% endif %}
+</section>
+
+{% from "tasks/_macros.html" import task_item with context %}
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Aufgaben") }}{% if due_tasks_now %} <span class="badge rounded-pill text-bg-secondary">{{ due_tasks_now|length }}</span>{% endif %}</h2>
+        <span class="small d-flex gap-3">
+            {% if current_user.can_edit %}<a href="{{ url_for('tasks.task_list', neu=1) }}"><i class="bi bi-plus-lg"></i> {{ _("Neue Aufgabe") }}</a>{% endif %}
+            <a href="{{ url_for('tasks.task_list') }}">{{ _("Alle Aufgaben") }}</a>
+        </span>
+    </div>
+    {% if due_tasks_now %}
+    <div class="hub-list">
+        <ul class="list-group list-group-flush dashboard-tasks">
+            {% for task in due_tasks_now %}
+            {{ task_item(task, today, url_for('main.dashboard'), ('collapse more-tasks' ~ (' d-lg-flex' if loop.index <= 8 else '')) if loop.index > 5 else '') }}
+            {% endfor %}
+        </ul>
+    </div>
+    {% if due_tasks_now|length > 5 %}
+    <button class="btn btn-link btn-sm px-0 {{ 'd-lg-none' if due_tasks_now|length <= 8 }}" type="button" data-bs-toggle="collapse" data-bs-target=".more-tasks" aria-expanded="false">
+        <span class="d-lg-none">{{ ngettext("{n} weitere Aufgabe", "{n} weitere Aufgaben", due_tasks_now|length - 5) }}</span>
+        {% if due_tasks_now|length > 8 %}<span class="d-none d-lg-inline">{{ ngettext("{n} weitere Aufgabe", "{n} weitere Aufgaben", due_tasks_now|length - 8) }}</span>{% endif %}
+    </button>
+    {% endif %}
+    {% else %}
+    <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Für heute keine Aufgaben offen.") }}</div></div>
     {% endif %}
 </section>
 </div>
