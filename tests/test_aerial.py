@@ -193,3 +193,30 @@ def test_wms_111(app, db, seed, monkeypatch, tmp_path):
     getmap = next(u for u in urls if "GetMap" in u)
     assert "VERSION=1.1.1" in getmap and "SRS=EPSG%3A4326" in getmap and "BBOX=10.1%2C52.3%2C10.2%2C52.35" in getmap
     aerial.clear_capabilities()
+
+
+MAINTENANCE = b"""<html>
+<head>
+<title>
+Wartungsarbeiten
+</title>
+</head>
+<frameset cols="200,*"><frame src="/error_path/wappen.htm" name="Wappen" scrolling="no" noresize></frameset></html>"""
+
+
+def test_maintenance_page(app, as_admin, db, seed, monkeypatch, tmp_path):
+    app.config["AERIAL_CACHE_DIR"] = str(tmp_path / "cache")
+    aerial.clear_capabilities()
+    tries = []
+
+    def fake(url):
+        tries.append(url)
+        return MAINTENANCE, "text/html"
+    monkeypatch.setattr(aerial, "_download", fake)
+    monkeypatch.setattr(aerial, "_resolve", lambda host, port: ["192.0.2.10"])
+    monkeypatch.setattr(aerial, "_connect", lambda host, port: None)
+    text = as_admin.get("/luftbild/test?info=1").get_data(as_text=True)
+    assert "Webseite statt mit Daten: „Wartungsarbeiten“" in text
+    assert "Testbild am Hof-Standort: FEHLER" in text and "Wartungsarbeiten" in text
+    assert len(tries) == 1                    # nach der Wartungsseite nicht gleich noch einmal gefragt
+    aerial.clear_capabilities()

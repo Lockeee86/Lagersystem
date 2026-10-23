@@ -317,6 +317,8 @@ und macht eine Testabfrage am Hof-Standort.
 blieben sonst hängen, und „Dienst prüfen“ lief in die 60-s-Grenze von Gunicorn → 502 über Cloudflare). Fehler
 liefern 424 bzw. 200 (Testseite) statt 502 – 502/504 ersetzt Cloudflare durch die eigene Fehlerseite. „Dienst
 prüfen“ misst DNS, Verbindung, Capabilities und Testbild einzeln mit Dauer und bricht beim ersten Netzfehler ab.
+0.27.6: Antwortet der Dienst mit einer Webseite (z. B. Wartungsseite des LGLN), meldet die App deren Titel
+(„Der Dienst antwortet mit einer Webseite statt mit Daten: „Wartungsarbeiten““) und fragt 2 Minuten nicht erneut.
 
 ### Wochenübersicht: Alle / Meine (0.27.2)
 Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im

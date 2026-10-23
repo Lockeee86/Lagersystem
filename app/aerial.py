@@ -94,6 +94,16 @@ def _project(crs, lon, lat):
 
 # --- GetCapabilities ----------------------------------------------------------------------
 
+def _html_title(data):
+    """Antwortet der Dienst mit einer Webseite (z. B. „Wartungsarbeiten“), deren Titel – sonst None."""
+    head = data[:3000].lstrip().lower()
+    if not (head.startswith(b"<html") or head.startswith(b"<!doctype html")):
+        return None
+    m = re.search(rb"<title[^>]*>(.*?)</title>", data[:3000], re.IGNORECASE | re.DOTALL)
+    title = m.group(1).decode("utf-8", "replace").strip() if m else ""
+    return " ".join(title.split())[:120] or "ohne Titel"
+
+
 def _local(tag):
     return tag.rsplit("}", 1)[-1]
 
@@ -102,6 +112,9 @@ def _parse_capabilities(data, layer):
     """{"crs": [...], "formats": [...], "found": bool, "version": "1.3.0"} für den Layer (CRS werden von
     übergeordneten Layern geerbt). WMS 1.1.1 beginnt mit einer DOCTYPE-Zeile (DTD) – die ist harmlos und wird
     entfernt (ElementTree lädt keine externen DTDs); Entity-Definitionen werden abgelehnt."""
+    title = _html_title(data)
+    if title is not None:
+        raise AerialError(f"Der Dienst antwortet mit einer Webseite statt mit Daten: „{title}“")
     if b"<!ENTITY" in data.upper():
         raise AerialError("Capabilities mit Entity-Definitionen werden nicht gelesen")
     data = re.sub(rb"<!DOCTYPE[^>\[]*(\[[^\]]*\])?\s*>", b"", data, count=1, flags=re.IGNORECASE)
@@ -158,6 +171,8 @@ def capabilities(source):
         caps, ttl, error = None, CAPS_ERROR_SECONDS, f"{type(e).__name__}: {e}"
         if isinstance(e, OSError) and not hasattr(e, "code"):     # Netz/Zeitüberschreitung, kein HTTP-Status
             _mark_down(source, e)
+        elif "Webseite statt" in str(e):                          # z. B. Wartungsseite
+            _mark_down(source, str(e).split(": ", 1)[-1])
     with _caps_lock:
         _caps[key] = (time.monotonic(), ttl, caps, error)
     return caps
@@ -403,6 +418,10 @@ def image(bbox, width, height):
         if not hasattr(e, "code"):
             _mark_down(source, e)
         raise AerialError(str(e)) from None
+    title = _html_title(data or b"")
+    if title is not None:
+        _mark_down(source, f"„{title}“")
+        raise AerialError(f"Der Dienst antwortet mit einer Webseite statt mit einem Bild: „{title}“")
     if not content_type.startswith("image/") or len(data) < 100:
         # WMS-Dienste melden Fehler als XML-Text
         raise AerialError((data[:300].decode("utf-8", "replace") if data else "leere Antwort").strip()
