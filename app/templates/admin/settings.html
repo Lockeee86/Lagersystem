@@ -50,4 +50,27 @@
     </div>
     <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
 </form>
+
+<div class="card shadow-sm mt-4" id="logo" style="max-width: 40rem">
+    <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Logo") }}</div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <img src="{{ logo_url('logo-512') }}" alt="" width="96" height="96" class="logo-preview">
+            <img src="{{ logo_url('icon-192') }}" alt="" width="60" height="60" class="logo-preview rounded-4" title="{{ _('App-Icon') }}">
+            <img src="{{ logo_url('logo-64') }}" alt="" width="30" height="30" title="{{ _('Kopfzeile') }}">
+        </div>
+        <p class="small text-body-secondary">{{ _("Eigenes Logo als PNG, JPEG oder WebP (am besten quadratisch, mindestens 512 × 512 Pixel, gern mit durchsichtigem Hintergrund). Daraus entstehen Kopfzeile, Browser-Tab, Login-Seite und das App-Icon fürs Handy. Tipp: ein Zeichen ohne Schriftzug – Schrift wird in der Kopfzeile sehr klein.") }}</p>
+        <form method="post" action="{{ url_for('admin.logo_upload') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="form-control" style="max-width: 22rem" type="file" name="logo" accept="image/png,image/jpeg,image/webp" required aria-label="{{ _('Logo') }}">
+            <button class="btn btn-primary"><i class="bi bi-upload me-1"></i>{{ _("Hochladen") }}</button>
+        </form>
+        {% if custom_logo %}
+        <form method="post" action="{{ url_for('admin.logo_reset') }}" class="mt-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-secondary" data-confirm="{{ _('Wieder das Standard-Logo verwenden?') }}">{{ _("Standard-Logo verwenden") }}</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

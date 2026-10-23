@@ -10,12 +10,13 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import backup, fields, transfer, weather
+from . import backup, branding, fields, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
 from .models import (ROLE_ADMIN, ROLES, SORT_USAGES, Box, BoxType, Movement, Plot, SeedClass, Setting, User,
                      Variety, Warehouse)
+from .storage import StorageError
 from .utils import admin_required, flash_error, form_int, form_str
 
 bp = Blueprint("admin", __name__)
@@ -78,6 +79,30 @@ def settings():
             return redirect(url_for("admin.settings"))
         return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS)
     return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS)
+
+
+@bp.route("/logo", methods=["POST"])
+def logo_upload():
+    upload = request.files.get("logo")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+    else:
+        try:
+            branding.save(upload)
+            db.session.commit()
+            flash(_("Logo gespeichert."), "success")
+        except StorageError as e:
+            db.session.rollback()
+            flash_error(str(e))
+    return redirect(url_for("admin.settings") + "#logo")
+
+
+@bp.route("/logo/standard", methods=["POST"])
+def logo_reset():
+    branding.reset()
+    db.session.commit()
+    flash(_("Standard-Logo wird wieder verwendet."), "success")
+    return redirect(url_for("admin.settings") + "#logo")
 
 
 # --- Lager ------------------------------------------------------------------

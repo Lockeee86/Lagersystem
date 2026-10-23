@@ -552,3 +552,7 @@ body:not(.has-tabbar) {
 .agenda-chip { display: block; font-size: .72rem; line-height: 1.25; padding: .15rem .35rem; margin-bottom: .2rem;
     border-radius: .35rem; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda-chip:hover { filter: brightness(.95); }
+
+/* Logo-Vorschau (Verwaltung → Hof) */
+.logo-preview { object-fit: contain; background: repeating-conic-gradient(var(--bs-tertiary-bg) 0 25%, transparent 0 50%) 50% / 16px 16px;
+    border: 1px solid var(--bs-border-color); border-radius: .5rem; }

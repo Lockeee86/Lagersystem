@@ -289,6 +289,12 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
 Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
 Nicht gewünscht: Reservierungen für Kunden.
 
+### Logo (0.20.1 / 0.21.0)
+Standard-Logo: zwei Biogas-Fermenter mit Gaskuppel, Sonne, Kartoffelacker mit Pflanzenreihen (Entwurf A2).
+Eigenes Logo unter Verwaltung → Hof hochladen (PNG/JPEG/WebP): daraus entstehen Kopfzeile, Browser-Tab,
+Login-Seite, App-Icons (mit weißem Grund und Rand) und das Bild in Push-Nachrichten; „Standard-Logo verwenden“
+setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
+
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.

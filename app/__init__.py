@@ -7,7 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
 from .models import FILL_LEVELS, ROLES, SORT_USAGES, Setting, User
-from . import navigation, utils
+from . import branding, navigation, utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
 
@@ -87,6 +87,7 @@ def create_app(config=None):
     from .push_views import bp as push_bp
     from .fuel_views import bp as fuel_bp
     from .agenda_views import bp as agenda_bp
+    from .branding import bp as branding_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -99,6 +100,7 @@ def create_app(config=None):
     app.register_blueprint(push_bp)
     app.register_blueprint(fuel_bp)
     app.register_blueprint(agenda_bp)
+    app.register_blueprint(branding_bp)
 
     from . import cli
     cli.register(app)
@@ -140,6 +142,8 @@ def create_app(config=None):
             "ROLES": ROLES,
             "SORT_USAGES": SORT_USAGES,
             "app_version": app.config["APP_VERSION"],
+            "logo_url": branding.url,
+            "custom_logo": branding.version() is not None,
             "LANGUAGES": LANGUAGES,
             "LANGUAGE_FLAGS": LANGUAGE_FLAGS,
         }
@@ -147,7 +151,7 @@ def create_app(config=None):
     @app.before_request
     def require_setup():
         """Solange kein Benutzer existiert, führt jeder Weg zur Ersteinrichtung."""
-        if request.endpoint in ("auth.setup", "static", "api.health"):
+        if request.endpoint in ("auth.setup", "static", "api.health", "branding.logo"):
             return None
         if not app.config.get("_setup_done"):
             if db.session.query(User.id).first() is None:

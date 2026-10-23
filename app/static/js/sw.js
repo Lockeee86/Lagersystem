@@ -11,8 +11,8 @@ self.addEventListener("push", function (e) {
         body: data.body || "",
         tag: data.tag || undefined,
         renotify: !!data.tag,
-        icon: "/static/img/icon-192.png",
-        badge: "/static/img/icon-192.png",
+        icon: "/logo/icon-192.png",
+        badge: "/logo/icon-192.png",
         data: { url: data.url || "/" }
     }));
 });

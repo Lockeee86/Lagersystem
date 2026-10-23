@@ -1246,4 +1246,16 @@ MESSAGES = {
     'Neuen Link erstellen? Der alte hört dann auf zu funktionieren.': 'Utworzyć nowy link? Stary przestanie działać.',
     'Neuen Link erstellen': 'Utwórz nowy link',
     'fällig seit {date}': 'zaległe od {date}',
+    # Eigenes Logo
+    'Das Logo muss ein Bild sein (PNG, JPEG oder WebP).': 'Logo musi być obrazem (PNG, JPEG lub WebP).',
+    'Das Logo ist zu klein – bitte mindestens {n} × {n} Pixel.': 'Logo jest za małe – co najmniej {n} × {n} pikseli.',
+    'Logo gespeichert.': 'Zapisano logo.',
+    'Standard-Logo wird wieder verwendet.': 'Ponownie używane jest logo domyślne.',
+    'Logo': 'Logo',
+    'App-Icon': 'Ikona aplikacji',
+    'Kopfzeile': 'Nagłówek',
+    'Eigenes Logo als PNG, JPEG oder WebP (am besten quadratisch, mindestens 512 × 512 Pixel, gern mit durchsichtigem Hintergrund). Daraus entstehen Kopfzeile, Browser-Tab, Login-Seite und das App-Icon fürs Handy. Tipp: ein Zeichen ohne Schriftzug – Schrift wird in der Kopfzeile sehr klein.':
+        'Własne logo jako PNG, JPEG lub WebP (najlepiej kwadratowe, co najmniej 512 × 512 pikseli, najlepiej z przezroczystym tłem). Powstaną z niego nagłówek, karta przeglądarki, strona logowania i ikona aplikacji na telefon. Wskazówka: znak bez napisu – tekst w nagłówku będzie bardzo mały.',
+    'Wieder das Standard-Logo verwenden?': 'Wrócić do logo domyślnego?',
+    'Standard-Logo verwenden': 'Użyj logo domyślnego',
 }

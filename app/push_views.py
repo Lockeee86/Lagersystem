@@ -4,7 +4,7 @@ import json
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 
-from . import push
+from . import branding, push
 from .extensions import db
 from .i18n import gettext as _
 from .models import PushSubscription, Setting
@@ -24,15 +24,13 @@ def service_worker():
 def manifest():
     """App-Beschreibung für „Zum Startbildschirm hinzufügen“ – mit dem Hofnamen."""
     name = Setting.all().get("farm_name") or "Lagersystem"
-    version = current_app.config.get("APP_VERSION", "")
-    icon = lambda size: {"src": url_for("static", filename=f"img/icon-{size}.png", v=version),   # noqa: E731
-                         "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any"}
+    icon = lambda size: {"src": branding.url(f"icon-{size}"), "sizes": f"{size}x{size}",   # noqa: E731
+                         "type": "image/png", "purpose": "any"}
     data = {
         "id": "/", "name": name, "short_name": name if len(name) <= 12 else name.split()[-1][:12],
         "start_url": "/", "scope": "/", "display": "standalone",
         "background_color": "#f4f0e6", "theme_color": "#3f5a2a",
-        "icons": [icon(192), icon(512), {**icon(512), "purpose": "maskable"},
-                  {"src": url_for("static", filename="img/icon.svg", v=version), "sizes": "any", "type": "image/svg+xml"}],
+        "icons": [icon(192), icon(512), {**icon(512), "purpose": "maskable"}],
     }
     response = current_app.response_class(json.dumps(data), mimetype="application/manifest+json")
     response.headers["Cache-Control"] = "no-cache"
