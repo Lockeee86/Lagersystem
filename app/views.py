@@ -73,6 +73,9 @@ def _tile_info(key):
         return sum(1 for e in items if e["kind"] != "feiertag")
     if key == "lieferanten":
         return len(purchases.suppliers())
+    if key == "pflanzenschutz":
+        from . import fielddoc
+        return sum(1 for r in fielddoc.protection_overview(date.today().year)[0] if r["running"])
     if key == "kunden":
         from .models import Customer
         return Customer.query.count()

@@ -31,6 +31,8 @@
         {% for l in legend %}
         <span><span class="legend-swatch" style="background: {{ l.color }}"></span>{{ l.crop or _("ohne Kultur") }} <span class="text-body-secondary">{{ l.ha|num(1) }} ha</span></span>
         {% endfor %}
+        {% set pts = map_data|selectattr("point")|list %}
+        {% if pts %}<span class="text-body-secondary"><i class="bi bi-circle-fill me-1" style="font-size: .6rem"></i>{{ ngettext("{n} Schlag ohne Umriss (Lage aus der Schlagdokumentation)", "{n} Schläge ohne Umriss (Lage aus der Schlagdokumentation)", pts|length) }}</span>{% endif %}
     </div>
 </div>
 {% elif current_user.is_admin %}

@@ -273,6 +273,9 @@ class Plot(db.Model):
     k_class = db.Column(db.String(5))
     mg_value = db.Column(db.Numeric(6, 2))      # mg/100 g Boden
     soil_test_on = db.Column(db.Date)
+    # Lage laut Schlagdokumentation (WGS 84) – Punkt auf der Karte, solange kein Umriss da ist
+    lat = db.Column(db.Numeric(9, 6))
+    lon = db.Column(db.Numeric(9, 6))
     # Umriss als JSON: Liste von Ringen, je Ring [[länge, breite], …] (WGS 84)
     boundary = db.Column(db.Text)
     note = db.Column(db.Text)
@@ -368,6 +371,17 @@ class FieldMeasure(db.Model):
     @property
     def kind_label(self):
         return _(FIELD_MEASURE_KINDS.get(self.kind, self.kind))
+
+
+class PesticideProduct(db.Model):
+    """Pflanzenschutzmittel mit Wartezeit (Tage zwischen letzter Anwendung und Ernte) – vom Admin gepflegt.
+    Gilt, wenn die Bemerkung der Anwendung keine Wartezeit nennt („Wartezeit 14 Tage“ bzw. „Wartezeit F“)."""
+    __tablename__ = "pesticide_products"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    wait_days = db.Column(db.Integer)           # None = unbekannt, 0 = keine Wartezeit
+    covered = db.Column(db.Boolean, nullable=False, default=False)   # „F“: durch den Anwendungszeitpunkt abgedeckt
 
 
 class SeedClass(db.Model):

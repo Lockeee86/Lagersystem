@@ -52,6 +52,7 @@
             {% else %}<span class="s">{{ _("Liter eintragen") }}</span>{% endif %}
         {% elif key == "kalender" %}{% set n = tile_info(key) %}<span class="s">{{ ngettext("{n} Termin in 14 Tagen", "{n} Termine in 14 Tagen", n) }}</span>
         {% elif key == "lieferanten" %}<span class="s">{{ tile_info(key) }}</span>
+        {% elif key == "pflanzenschutz" %}{% set n = tile_info(key) %}<span class="s {{ 'warn' if n }}">{% if n %}{{ ngettext("{n} Wartezeit läuft", "{n} Wartezeiten laufen", n) }}{% else %}{{ _("keine Wartezeit") }}{% endif %}</span>
         {% elif key == "kunden" %}<span class="s">{{ tile_info(key) }}</span>
         {% elif key == "etiketten" %}<span class="s">{{ _("QR-Etiketten drucken") }}</span>
         {% endif %}</a>

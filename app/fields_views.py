@@ -59,13 +59,14 @@ def field_detail(plot_id):
     if plot is None:
         abort(404)
     this_year = date.today().year
+    known = fielddoc.products()
     history = []
     for y in sorted({py.year for py in plot.years} | {this_year}, reverse=True):
         entry = plot.year(y)
         kg = fields.yields(y).get(plot.id, {})
         history.append({"year": y, "entry": entry, "kg": kg.get("kg"), "boxes": kg.get("boxes"),
                         "varieties": kg.get("varieties", {}), "t_ha": fields.t_per_ha(kg.get("kg"), plot.area_ha),
-                        "doc": fielddoc.summary(entry)})
+                        "doc": fielddoc.summary(entry), "protection": fielddoc.protection(entry, known)})
     outline_ha = sum(fields.ring_area_ha(r) for r in plot.rings) if plot.rings else None
     stored = Box.query.filter(Box.plot_id == plot.id, Box.fill > 0).count()
     return render_template(
@@ -108,6 +109,38 @@ def field_year_save(plot_id):
     db.session.commit()
     flash(_("{plot}: Anbaujahr {year} gespeichert.", plot=plot.name, year=year), "success")
     return redirect(url_for("fields.field_detail", plot_id=plot.id) + "#jahr-" + str(year))
+
+
+# --- Pflanzenschutz -------------------------------------------------------------------
+
+@bp.route("/pflanzenschutz")
+@login_required
+def protection():
+    """Pflanzenschutz im Erntejahr über alle Schläge: laufende Wartezeiten und eingesetzte Mittel."""
+    year, years = _year_arg()
+    rows, used = fielddoc.protection_overview(year)
+    if request.args.get("laufend") == "1":
+        rows = [r for r in rows if r["running"]]
+    return render_template("fields/protection.html", year=year, years=years, rows=rows, used=used,
+                           only_running=request.args.get("laufend") == "1", today=date.today())
+
+
+@bp.route("/pflanzenschutz/mittel", methods=["POST"])
+@admin_required
+def protection_product():
+    """Wartezeit eines Mittels pflegen (gilt, wenn die Bemerkung in Myfarm24 keine nennt)."""
+    name = form_str("name", 150)
+    covered = request.form.get("wait", "").strip().upper() == "F"
+    days = None if covered else form_int("wait", minimum=0, maximum=365)
+    try:
+        fielddoc.save_product(name, days, covered)
+    except fields.FieldImportError as e:
+        flash(str(e), "danger")
+    else:
+        db.session.commit()
+        flash(_("Wartezeit für „{name}“ gespeichert.", name=name), "success")
+    year = form_int("year", minimum=2000, maximum=2100)
+    return redirect(url_for("fields.protection", jahr=year) + "#mittel")
 
 
 # --- Luftbild -----------------------------------------------------------------------

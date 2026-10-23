@@ -81,7 +81,7 @@
                     {% if h.varieties|length > 1 %}<span class="text-body-secondary">({% for name, kg in h.varieties.items() %}{{ name }} {{ kg|kg }}{{ ", " if not loop.last }}{% endfor %})</span>{% endif %}
                 </div>
                 {% endif %}
-                {% if h.doc.groups %}<div class="mb-3">{{ measures(h.doc, e, kinds) }}</div>{% endif %}
+                {% if h.doc.groups %}<div class="mb-3">{{ measures(h.doc, e, kinds, h.protection) }}</div>{% endif %}
                 {% if current_user.can_edit %}
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#form{{ h.year }}"><i class="bi bi-pencil me-1"></i>{{ _("Pflanzung / Rodung eintragen") }}</button>
                 <form class="collapse mt-3" id="form{{ h.year }}" method="post" action="{{ url_for('fields.field_year_save', plot_id=plot.id) }}">

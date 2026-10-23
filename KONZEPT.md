@@ -301,8 +301,18 @@ Schläge (in Myfarm24 ohne Umriss in der KML, z. B. Teilschläge, Grünland) wer
 erneuten Import werden die importierten Maßnahmen des Jahres ersetzt, in der App erfasste bleiben.
 Schlagseite: Boden-Karte, je Anbaujahr Maßnahmen aufklappbar, Nährstoffsumme und N anrechenbar gegen den Bedarf
 (Myfarm24 summiert ungerundet, daher ±1 kg/ha Abweichung möglich).
-Später möglich: Pflanzenschutz-Übersicht über alle Schläge (Wartezeiten vor der Ernte), Maschinen aus
-„Arbeiten / Maschinen“ den Maschinen der App zuordnen, Standortpunkt für Schläge ohne Umriss.
+Später möglich: Maschinen aus „Arbeiten / Maschinen“ den Maschinen der App zuordnen.
+
+### Pflanzenschutz-Übersicht und Lage ohne Umriss (0.26.0)
+Feld & Hof → Pflanzenschutz: je Erntejahr alle Schläge mit Anwendungen, letzte Anwendung, Ende der Wartezeit
+(laufende zuerst, „noch n Tage“; nach dem Erntedatum „geerntet“) und Mittel ohne bekannte Wartezeit. Die Wartezeit
+kommt aus der Myfarm24-Bemerkung („Wartezeit 14 Tage“, „Wartezeit F“ = durch den Anwendungszeitpunkt abgedeckt);
+in der Datei steht sie nur bei einem Teil der Anwendungen, deshalb pflegt der Admin in der Liste „Eingesetzte
+Mittel“ eine Wartezeit je Mittel (`PesticideProduct`, gilt für alle Kulturen – Hinweis auf der Seite). Die Liste
+zeigt auch Anwendungen, Fläche und Gesamtmenge je Mittel. Auf der Schlagseite steht „Wartezeit bis …“ beim
+Pflanzenschutz, auf der Übersicht gibt es die Kachel „Pflanzenschutz“ (Anzahl laufender Wartezeiten).
+Schläge ohne Umriss erscheinen als Punkt auf der Schlagkarte (Lage aus der Schlagdokumentation, „Geografische
+Lage des Schlages“, `Plot.lat/lon`); kommt der Umriss später per KML, gilt der Umriss.
 
 ### Luftbild unter der Schlagkarte (0.24.0)
 Die Schlagkarte (und die kleine Karte auf der Schlagseite) zeigt ein Luftbild unter den Umrissen; Schalter rechts

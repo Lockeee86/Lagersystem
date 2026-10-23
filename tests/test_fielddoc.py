@@ -185,3 +185,82 @@ def test_fmt_qty():
     assert [fmt_qty(v) for v in (Decimal("4.500"), Decimal("15"), 80, None, Decimal("0.25"))] == \
         ["4,5", "15", "80", "", "0,25"]
     assert fmt_qty(Decimal("130.0"), 0) == "130" and fmt_qty(Decimal("-0.0"), 1) == "0" and fmt_qty(2.5, 1) == "2,5"
+
+
+def test_point_on_map(db, seed):
+    year, entries = fielddoc.parse_csv(data())
+    assert (entries[0]["lat"], entries[0]["lon"]) == (Decimal("52.4"), Decimal("10.5"))
+    assert entries[1]["lat"] is None
+    fielddoc.apply_import(entries, year)
+    db.session.commit()
+    koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
+    (item,) = fields.map_data([koppel, Plot.query.filter_by(name="Bachfeld").one()], 2026)   # Bachfeld: keine Lage
+    assert item["point"] == [10.5, 52.4] and item["rings"] == []
+    # Kommt später der Umriss aus der KML, gilt der Umriss
+    fields.apply_import(fields.parse_kml("x.kml", kml(("Hofkoppel (2)", "1", "6.5", "Kartoffel", "SOLTU", "", "N"))),
+                        2026)
+    (item,) = fields.map_data([koppel], 2026)
+    assert item["point"] is None and item["rings"]
+
+
+PSM = CSV.replace("16.05.26;09;Mittel A;6,5;2,5;l;Unkräuter, Wartezeit F\n",
+                  "16.05.26;09;Mittel A;6,5;2,5;l;Unkräuter, Wartezeit F\n"
+                  "20.07.26;;Mittel B;6,5;0,5;l;Krautfäule, Wartezeit 7 Tage\n"
+                  "01.08.26;;Mittel C;6,5;1;kg;\n")
+
+
+def test_waiting_periods(db, seed):
+    fielddoc.apply_import(fielddoc.parse_csv(data(PSM))[1], 2026)
+    db.session.commit()
+    koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
+    entry = koppel.year(2026)
+    assert fielddoc.note_wait("Blattläuse, Wartezeit 14 Tage") == 14 and fielddoc.note_wait("Wartezeit F") == "F"
+    assert fielddoc.note_wait("Benetzung") is None
+
+    info = fielddoc.protection(entry, fielddoc.products(), today=date(2026, 7, 22))
+    assert info["count"] == 3 and info["last"].name == "Mittel C"
+    assert info["until"] == date(2026, 7, 27) and info["running"] and info["days_left"] == 5
+    assert info["unknown"] == ["Mittel C"]
+
+    # Wartezeit für Mittel C pflegen (Groß-/Kleinschreibung egal) → längste Wartezeit zählt
+    fielddoc.save_product("mittel c", 21, False)
+    db.session.commit()
+    info = fielddoc.protection(entry, fielddoc.products(), today=date(2026, 7, 22))
+    assert info["until"] == date(2026, 8, 22) and not info["unknown"]
+    info = fielddoc.protection(entry, fielddoc.products(), today=date(2026, 8, 22))
+    assert not info["running"] and info["days_left"] == 0
+    fielddoc.save_product("Mittel C", None, True)            # „F“
+    info = fielddoc.protection(entry, fielddoc.products(), today=date(2026, 7, 22))
+    assert info["until"] == date(2026, 7, 27) and not info["unknown"]
+    fielddoc.save_product("Mittel C", None, False)           # leer → wieder unbekannt
+    db.session.commit()
+    assert fielddoc.products() == {}
+    entry.harvested_on = date(2026, 7, 21)
+    assert fielddoc.protection(entry, {}, today=date(2026, 7, 22))["harvested"]
+    assert not fielddoc.protection(entry, {}, today=date(2026, 7, 22))["running"]
+
+    rows, used = fielddoc.protection_overview(2026, today=date(2026, 7, 22))
+    assert [r["plot"].name for r in rows] == ["Hofkoppel (2)"]
+    assert [u["name"] for u in used] == ["Mittel A", "Mittel B", "Mittel C"]
+    b = used[1]
+    assert b["count"] == 1 and b["area"] == Decimal("6.5") and b["amounts"] == {"l": Decimal("3.25")}
+    assert b["note_waits"] == [7]
+
+
+def test_protection_pages(as_admin, as_worker, as_viewer, db, seed):
+    fielddoc.apply_import(fielddoc.parse_csv(data(PSM))[1], 2026)
+    db.session.commit()
+    html = as_viewer.get("/pflanzenschutz?jahr=2026").get_data(as_text=True)
+    assert "Hofkoppel (2)" in html and "Mittel C" in html and "1 Mittel ohne Wartezeit" in html
+    assert 'name="wait"' not in html                         # nur der Admin pflegt Wartezeiten
+    assert "Eingesetzte Mittel" in as_viewer.get("/pflanzenschutz?jahr=2026&laufend=1").get_data(as_text=True)
+    assert as_worker.post("/pflanzenschutz/mittel", data={"name": "Mittel C", "wait": "14"}).status_code == 403
+    r = as_admin.post("/pflanzenschutz/mittel", data={"name": "Mittel C", "wait": "14", "year": "2026"})
+    assert r.headers["Location"].endswith("/pflanzenschutz?jahr=2026#mittel")
+    assert fielddoc.products()["mittel c"].wait_days == 14
+    as_admin.post("/pflanzenschutz/mittel", data={"name": "Mittel C", "wait": "f", "year": "2026"})
+    assert fielddoc.products()["mittel c"].covered
+    html = as_admin.get("/pflanzenschutz?jahr=2026").get_data(as_text=True)
+    assert 'value="F"' in html and "Mittel ohne Wartezeit" not in html
+    koppel = Plot.query.filter_by(name="Hofkoppel (2)").one()
+    assert as_viewer.get(f"/schlag/{koppel.id}").status_code == 200

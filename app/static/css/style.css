@@ -579,3 +579,5 @@ body:not(.has-tabbar) {
 .field-doc > summary { cursor: pointer; padding: .25rem 0; }
 .field-doc .table { margin-top: .25rem; }
 .field-doc .table td, .field-doc .table th { white-space: normal; }
+.field-point, .field-map-svg.with-aerial .field-point { fill-opacity: .95; stroke-dasharray: none; }
+.field-map-svg.with-aerial .field-point { stroke: #fff; }

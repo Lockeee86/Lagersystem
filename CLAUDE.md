@@ -66,6 +66,8 @@ docker compose up --build -d
   `app/fields_views.py` (Blueprint `fields`), `app/static/js/schlagkarte.js` (Umrisse als SVG).
   `app/fielddoc.py`: Myfarm24-Schlagdokumentation (CSV) → Stammdaten, `PlotYear`, Maßnahmen `FieldMeasure`
   (`source="myfarm"` wird beim Re-Import ersetzt), Abgleich über `fields._match`; Anzeige `fields/_doc.html`.
+  Wartezeiten: `fielddoc.protection()` / `protection_overview()` (Bemerkung „Wartezeit n Tage/F“, sonst
+  `PesticideProduct`), Seite `fields.protection` (`/pflanzenschutz`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
 - `app/navigation.py`: Bereiche (Übersicht, Lager, Feld & Hof, Verkauf) mit Unterpunkten und die Verwaltung –
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste und Kacheln. `app/search.py`: Suche

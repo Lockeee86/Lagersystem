@@ -288,7 +288,9 @@ def map_data(plots, year):
     """JSON für die Schlagkarte (Projektion übernimmt das JavaScript)."""
     items = []
     for p in plots:
-        if not p.rings:
+        # ohne Umriss: Punkt aus der Schlagdokumentation (falls vorhanden)
+        point = [float(p.lon), float(p.lat)] if not p.rings and p.lat is not None and p.lon is not None else None
+        if not p.rings and not point:
             continue
         y = p.year(year)
         crop = y.crop if y else None
@@ -296,6 +298,7 @@ def map_data(plots, year):
             "id": p.id, "name": p.name, "number": p.number or "",
             "ha": float(p.area_ha) if p.area_ha is not None else None,
             "crop": crop or "", "color": crop_color(crop, y.crop_eppo if y else None), "rings": p.rings,
+            "point": point,
         })
     return items
 

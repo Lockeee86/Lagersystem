@@ -1,7 +1,8 @@
 /* Schlagkarte: alle Schlag-Umrisse als SVG, auf Wunsch mit Luftbild darunter.
  *
  * Daten (aus fields.map_data):
- *   [{ id, name, number, ha, crop, color, rings: [[[länge, breite], …], …] }, …]
+ *   [{ id, name, number, ha, crop, color, rings: [[[länge, breite], …], …], point: [länge, breite] | null }, …]
+ *   Schläge ohne Umriss, aber mit Lage aus der Schlagdokumentation, erscheinen als Punkt.
  * Optionen: { url: "/schlag/0" (0 wird durch die ID ersetzt), labels: true, interactive: true,
  *             aerial: { url: "/luftbild", credit: "© …", on: true } }
  * Das Luftbild kommt über den eigenen Server (CSP erlaubt nur 'self') für den gerade sichtbaren Ausschnitt in
@@ -24,7 +25,10 @@ window.Schlagkarte = (function () {
 
         // Flächentreue genügt hier: Länge mit cos(Breite) stauchen (Equirektangular um die Kartenmitte)
         var lats = [], lons = [];
-        items.forEach(function (it) { it.rings.forEach(function (r) { r.forEach(function (p) { lons.push(p[0]); lats.push(p[1]); }); }); });
+        items.forEach(function (it) {
+            it.rings.forEach(function (r) { r.forEach(function (p) { lons.push(p[0]); lats.push(p[1]); }); });
+            if (it.point) { lons.push(it.point[0]); lats.push(it.point[1]); }
+        });
         var lat0 = (Math.min.apply(null, lats) + Math.max.apply(null, lats)) / 2;
         var k = Math.cos(lat0 * Math.PI / 180), scale = 100000;
         function project(p) { return [p[0] * k * scale, -p[1] * scale]; }
@@ -32,27 +36,39 @@ window.Schlagkarte = (function () {
         var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         items.forEach(function (it) {
             it.projected = it.rings.map(function (r) { return r.map(project); });
+            if (it.point) it.projected.push([project(it.point)]);
             it.projected.forEach(function (r) { r.forEach(function (p) {
                 minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
                 minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
             }); });
         });
         var pad = Math.max(maxX - minX, maxY - minY) * 0.04 || 10;
+        // nur ein Punkt (oder sehr kleine Fläche): mindestens etwa 600 m Ausschnitt
+        var grow = Math.max(0, (800 - (maxX - minX + 2 * pad)) / 2, (800 - (maxY - minY + 2 * pad)) / 2);
+        pad += grow;
         var full = { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad };
         var view = { x: full.x, y: full.y, w: full.w, h: full.h };
 
         var svg = el("svg", { "class": "field-map-svg", preserveAspectRatio: "xMidYMid meet" });
         var photo = el("g", { "class": "field-aerial" });
-        var shapes = el("g"), labels = el("g", { "class": "field-labels" });
+        var shapes = el("g"), labels = el("g", { "class": "field-labels" }), points = [];
         svg.appendChild(photo);
         svg.appendChild(shapes);
         svg.appendChild(labels);
 
         items.forEach(function (it) {
-            var d = it.projected.map(function (r) {
-                return "M" + r.map(function (p) { return p[0].toFixed(1) + " " + p[1].toFixed(1); }).join("L") + "Z";
-            }).join("");
-            var path = el("path", { d: d, fill: it.color, "class": "field-shape", "data-id": it.id });
+            var path;
+            if (!it.rings.length) {
+                var c = it.projected[0][0];
+                path = el("circle", { cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: 5, fill: it.color,
+                                      "class": "field-shape field-point", "data-id": it.id });
+                points.push(path);
+            } else {
+                var d = it.projected.map(function (r) {
+                    return "M" + r.map(function (p) { return p[0].toFixed(1) + " " + p[1].toFixed(1); }).join("L") + "Z";
+                }).join("");
+                path = el("path", { d: d, fill: it.color, "class": "field-shape", "data-id": it.id });
+            }
             var title = el("title");
             title.textContent = it.name + (it.number ? " (" + it.number + ")" : "") +
                 (it.ha ? " · " + String(it.ha.toFixed(2)).replace(".", ",") + " ha" : "") + (it.crop ? " · " + it.crop : "");
@@ -65,6 +81,7 @@ window.Schlagkarte = (function () {
                 ring.forEach(function (p) { cx += p[0]; cy += p[1]; });
                 var text = el("text", { x: cx / ring.length, y: cy / ring.length, "class": "field-label" });
                 text.textContent = it.number || it.name;
+                if (!it.rings.length) text.setAttribute("dy", "-1.2em");   // über den Punkt
                 labels.appendChild(text);
             }
         });
@@ -130,6 +147,7 @@ window.Schlagkarte = (function () {
             // Schrift- und Linienstärke in Bildschirmpixeln konstant halten
             var px = view.w / (svg.clientWidth || 600);
             svg.style.setProperty("--px", px);
+            points.forEach(function (c) { c.setAttribute("r", (7 * px).toFixed(2)); });
             // Nummern erst ab etwa 3-facher Vergrößerung, sonst verdecken sie die kleinen Schläge
             var zoomed = view.w < full.w / 3;
             labels.style.display = opts.labels !== false && (zoomed || items.length < 4) ? "" : "none";

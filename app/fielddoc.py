@@ -11,13 +11,13 @@ Beim erneuten Import werden die importierten Maßnahmen eines Anbaujahrs ersetzt
 von Myfarm24, ohne doppelt zu zählen.
 """
 import re
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from .extensions import db
 from .fields import FieldImportError, _match, _numbered_name, _same_name
 from .i18n import gettext as _
-from .models import FieldMeasure, NUTRIENTS, Plot, PlotYear, Variety
+from .models import FieldMeasure, NUTRIENTS, PesticideProduct, Plot, PlotYear, Variety
 
 SOURCE = "myfarm"
 YEAR_RE = re.compile(r"Schlagdokumentation\s+Erntejahr\s+(\d{4})")
@@ -31,6 +31,9 @@ SECTIONS = {
     "Personen:": "person",
 }
 NO_VALUE = {"", "keine angabe", "-", "keine"}
+POINT_RE = re.compile(r"N\s*(\d{1,2}(?:[.,]\d+)?)\s*,\s*E\s*(\d{1,3}(?:[.,]\d+)?)")
+WAIT_DAYS_RE = re.compile(r"Wartezeit\s*:?\s*(\d{1,3})\s*Tag", re.IGNORECASE)
+WAIT_COVERED_RE = re.compile(r"Wartezeit\s*:?\s*F\b", re.IGNORECASE)
 
 
 def _text(value, length):
@@ -112,7 +115,7 @@ def _new_entry(match):
             "crop": None, "variety": None, "prev_crop": None, "prev_prev_crop": None, "n_demand": None,
             "planted_on": None, "harvested_on": None, "soil": None, "red_area": None, "ph": None,
             "p_class": None, "k_class": None, "mg_value": None, "soil_test_on": None, "catch_crop": None,
-            "measures": []}
+            "lat": None, "lon": None, "measures": []}
 
 
 def _header(e, key, value, cols):
@@ -157,6 +160,12 @@ def _header(e, key, value, cols):
         e["soil_test_on"] = _date(value)     # die erste Analyse ist die Bodenuntersuchung, die zweite N-min
     elif key == "Zwischenfrucht":
         e["catch_crop"] = _text(value, 100)
+    elif key.startswith("Geografische Lage"):
+        m = POINT_RE.search(value)
+        if m:
+            lat, lon = (Decimal(v.replace(",", ".")) for v in m.groups())
+            if 0 < lat <= 90 and 0 <= lon <= 180:
+                e["lat"], e["lon"] = lat.quantize(Decimal("0.000001")), lon.quantize(Decimal("0.000001"))
 
 
 def parse_csv(data):
@@ -269,7 +278,8 @@ def apply_import(entries, year, create=True):
         plot.number = e["number"]
         plot.myfarm_id = e["myfarm_id"] or plot.myfarm_id
         plot.flik = e["flik"] or plot.flik
-        for key in ("area_ha", "soil", "red_area", "ph", "p_class", "k_class", "mg_value", "soil_test_on"):
+        for key in ("area_ha", "soil", "red_area", "ph", "p_class", "k_class", "mg_value", "soil_test_on",
+                    "lat", "lon"):
             if e[key] is not None:
                 setattr(plot, key, e[key])
 
@@ -310,3 +320,106 @@ def summary(entry):
     nutrients = {k: sum((getattr(m, k) or 0) for m in fert) for k in NUTRIENTS} if fert else None
     hours = sum((m.amount or 0) for m in groups.get("person", []))
     return {"groups": groups, "nutrients": nutrients, "hours": hours}
+
+
+# --- Pflanzenschutz: Wartezeiten ----------------------------------------------------
+
+def products():
+    """Gepflegte Mittel {name.casefold(): PesticideProduct}."""
+    return {p.name.casefold(): p for p in PesticideProduct.query.all()}
+
+
+def note_wait(note):
+    """Wartezeit aus der Bemerkung: Tage (int), "F" oder None."""
+    m = WAIT_DAYS_RE.search(note or "")
+    if m:
+        return int(m.group(1))
+    return "F" if WAIT_COVERED_RE.search(note or "") else None
+
+
+def wait_of(measure, known):
+    """Wartezeit einer Anwendung: Tage (int), "F" (durch den Anwendungszeitpunkt abgedeckt) oder None (unbekannt).
+    Die Bemerkung aus Myfarm24 geht vor, sonst gilt die gepflegte Mittel-Liste."""
+    wait = note_wait(measure.note)
+    if wait is not None:
+        return wait
+    product = known.get(measure.name.casefold())
+    if product is None:
+        return None
+    if product.covered:
+        return "F"
+    return product.wait_days
+
+
+def protection(entry, known, today=None):
+    """Pflanzenschutz eines Anbaujahrs: letzte Anwendung, Ende der Wartezeit, Mittel ohne bekannte Wartezeit."""
+    today = today or date.today()
+    items = [m for m in (entry.measures if entry else []) if m.kind == "pflanzenschutz" and m.done_on]
+    if not items:
+        return None
+    until, unknown = None, []
+    for m in items:
+        wait = wait_of(m, known)
+        if isinstance(wait, int):
+            end = m.done_on + timedelta(days=wait)
+            if until is None or end > until:
+                until = end
+        elif wait is None and m.name not in unknown:
+            unknown.append(m.name)
+    harvested = entry.harvested_on is not None and entry.harvested_on <= today
+    return {"count": len(items), "last": max(items, key=lambda m: (m.done_on, m.id or 0)), "until": until,
+            "running": until is not None and until > today and not harvested,
+            "days_left": (until - today).days if until and until > today else 0,
+            "unknown": unknown, "harvested": harvested}
+
+
+def protection_overview(year, today=None):
+    """Alle Schläge mit Pflanzenschutz im Erntejahr und die eingesetzten Mittel (Anzahl, Fläche, Menge)."""
+    known = products()
+    entries = (PlotYear.query.filter_by(year=year)
+               .join(FieldMeasure, FieldMeasure.plot_year_id == PlotYear.id)
+               .filter(FieldMeasure.kind == "pflanzenschutz").distinct().all())
+    rows = []
+    for entry in entries:
+        info = protection(entry, known, today)
+        if info:
+            rows.append({"plot": entry.plot, "entry": entry, **info})
+    # laufende Wartezeiten zuerst (die längste oben), dann nach Schlag
+    rows.sort(key=lambda r: (not r["running"], -(r["days_left"] or 0), r["plot"].name.casefold()))
+    used = {}
+    for row in rows:
+        for m in row["entry"].measures:
+            if m.kind != "pflanzenschutz":
+                continue
+            u = used.setdefault(m.name.casefold(), {"name": m.name, "count": 0, "area": Decimal(0), "amounts": {},
+                                                    "plots": set(), "note_waits": set()})
+            u["count"] += 1
+            u["plots"].add(row["plot"].id)
+            if m.area_ha:
+                u["area"] += m.area_ha
+                if m.amount and m.unit:
+                    u["amounts"][m.unit] = u["amounts"].get(m.unit, Decimal(0)) + m.area_ha * m.amount
+            wait = note_wait(m.note)
+            if wait is not None:
+                u["note_waits"].add(wait)
+    for u in used.values():
+        u["product"] = known.get(u["name"].casefold())
+        u["note_waits"] = sorted(u["note_waits"], key=str)
+    return rows, sorted(used.values(), key=lambda u: u["name"].casefold())
+
+
+def save_product(name, wait_days, covered):
+    """Wartezeit eines Mittels setzen (committet nicht). Ohne Angabe wird der Eintrag entfernt."""
+    name = (name or "").strip()[:150]
+    if not name:
+        raise FieldImportError(_("Bitte einen Namen angeben."))
+    product = products().get(name.casefold())
+    if wait_days is None and not covered:
+        if product is not None:
+            db.session.delete(product)
+        return None
+    if product is None:
+        product = PesticideProduct(name=name)
+        db.session.add(product)
+    product.wait_days, product.covered = (None if covered else wait_days), bool(covered)
+    return product

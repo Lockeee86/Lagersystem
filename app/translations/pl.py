@@ -1408,4 +1408,31 @@ MESSAGES = {
     'Dauer': 'Czas trwania',
     'Gesät': 'Wysiano',
     'Geerntet': 'Zebrano',
+
+    # Pflanzenschutz-Übersicht, Lage der Schläge
+    'Wartezeit für „{name}“ gespeichert.': 'Zapisano okres karencji dla „{name}”.',
+    '{n} Wartezeiten laufen': ('{n} okres karencji trwa', '{n} okresy karencji trwają', '{n} okresów karencji trwa'),
+    'keine Wartezeit': 'brak karencji',
+    '{n} Tage': ('{n} dzień', '{n} dni', '{n} dni'),
+    '{n} Mittel ohne Wartezeit': ('{n} środek bez karencji', '{n} środki bez karencji', '{n} środków bez karencji'),
+    'nur laufende Wartezeiten': 'tylko trwające karencje',
+    'Letzte Anwendung': 'Ostatni zabieg',
+    'Anwendungen': 'Zabiegi',
+    'Wartezeit bis': 'Karencja do',
+    'geerntet': 'zebrano',
+    'abgelaufen': 'minęła',
+    'Keine Pflanzenschutz-Anwendungen in diesem Jahr.': 'Brak zabiegów ochrony roślin w tym roku.',
+    'Eingesetzte Mittel': 'Użyte środki',
+    'Die Wartezeit kommt aus der Bemerkung in Myfarm24 („Wartezeit 14 Tage“, „Wartezeit F“). Fehlt sie dort, gilt die Angabe hier. Wartezeiten hängen von der Kultur ab – im Zweifel die Gebrauchsanleitung prüfen. F = durch den Anwendungszeitpunkt abgedeckt.':
+        'Okres karencji pochodzi z uwagi w Myfarm24 („Wartezeit 14 Tage”, „Wartezeit F”). Jeśli go tam brak, obowiązuje wartość podana tutaj. Karencja zależy od uprawy – w razie wątpliwości sprawdź etykietę. F = zapewniona przez termin zabiegu.',
+    'Wartezeit': 'Karencja',
+    'laut Myfarm24:': 'wg Myfarm24:',
+    'Tage': 'Dni',
+    'Wartezeit in Tagen oder F': 'Karencja w dniach lub F',
+    'Wartezeit bis {date}': 'Karencja do {date}',
+    'Wartezeit abgelaufen': 'Karencja minęła',
+    '{n} Schläge ohne Umriss (Lage aus der Schlagdokumentation)': (
+        '{n} pole bez granic (położenie z dokumentacji pól)',
+        '{n} pola bez granic (położenie z dokumentacji pól)',
+        '{n} pól bez granic (położenie z dokumentacji pól)'),
 }

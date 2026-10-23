@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Pflanzenschutz") }}{% endblock %}
+{% macro wait_label(w) %}{% if w == "F" %}F{% else %}{{ ngettext("{n} Tag", "{n} Tage", w) }}{% endif %}{% endmacro %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Pflanzenschutz") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Erntejahr {year}", year=year) }} · {{ ngettext("{n} Schlag", "{n} Schläge", rows|length) }}</p>
+    </div>
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+        <select class="form-select form-select-sm w-auto" name="jahr" onchange="this.form.submit()" aria-label="{{ _('Anbaujahr') }}">
+            {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="onlyRunning" name="laufend" value="1" {% if only_running %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="onlyRunning">{{ _("nur laufende Wartezeiten") }}</label>
+        </div>
+    </form>
+</div>
+
+{% if rows %}
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>{{ _("Schlag") }}</th><th class="d-none d-md-table-cell">{{ _("Kultur") }}</th><th>{{ _("Letzte Anwendung") }}</th><th class="text-end d-none d-sm-table-cell">{{ _("Anwendungen") }}</th><th>{{ _("Wartezeit bis") }}</th></tr></thead>
+            <tbody>
+            {% for r in rows %}
+            <tr>
+                <td><a class="fw-medium" href="{{ url_for('fields.field_detail', plot_id=r.plot.id) }}#jahr-{{ year }}">{{ r.plot.name }}</a>
+                    {% if r.plot.number %}<span class="small text-body-secondary">{{ _("Nr. {n}", n=r.plot.number) }}</span>{% endif %}
+                    <div class="small text-body-secondary d-md-none">{{ r.entry.crop or "" }}</div></td>
+                <td class="d-none d-md-table-cell small">{{ r.entry.crop or "–" }}</td>
+                <td class="small"><span class="text-nowrap">{{ r.last.done_on|date }}</span> · {{ r.last.name }}</td>
+                <td class="text-end d-none d-sm-table-cell">{{ r.count }}</td>
+                <td class="small">
+                    {% if r.harvested %}<span class="badge text-bg-secondary">{{ _("geerntet") }}</span>
+                    {% elif r.running %}<span class="badge text-bg-danger">{{ r.until|date }}</span>
+                        <div class="text-danger">{{ ngettext("noch {n} Tag", "noch {n} Tage", r.days_left) }}</div>
+                    {% elif r.until %}<span class="badge text-bg-success">{{ _("abgelaufen") }}</span> <span class="text-body-secondary">{{ r.until|date }}</span>
+                    {% else %}<span class="text-body-secondary">–</span>{% endif %}
+                    {% if r.unknown and not r.harvested %}<div class="text-warning-emphasis" title="{{ r.unknown|join(', ') }}"><i class="bi bi-exclamation-triangle me-1"></i>{{ ngettext("{n} Mittel ohne Wartezeit", "{n} Mittel ohne Wartezeit", r.unknown|length) }}</div>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-shield-plus"></i><p>{{ _("Keine Pflanzenschutz-Anwendungen in diesem Jahr.") }}
+    {% if current_user.is_admin %}<a href="{{ url_for('admin.plots') }}">{{ _("Schlagdokumentation importieren") }}</a>{% endif %}</p></div>
+{% endif %}
+
+{% if used %}
+<h2 class="h5" id="mittel">{{ _("Eingesetzte Mittel") }}</h2>
+<p class="small text-body-secondary">{{ _("Die Wartezeit kommt aus der Bemerkung in Myfarm24 („Wartezeit 14 Tage“, „Wartezeit F“). Fehlt sie dort, gilt die Angabe hier. Wartezeiten hängen von der Kultur ab – im Zweifel die Gebrauchsanleitung prüfen. F = durch den Anwendungszeitpunkt abgedeckt.") }}</p>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>{{ _("Mittel") }}</th><th class="text-end">{{ _("Anwendungen") }}</th><th class="text-end d-none d-sm-table-cell">{{ _("Fläche") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Menge") }}</th><th>{{ _("Wartezeit") }}</th></tr></thead>
+            <tbody>
+            {% for u in used %}
+            {% set p = u.product %}
+            <tr>
+                <td>{{ u.name }}<div class="small text-body-secondary">{{ ngettext("{n} Schlag", "{n} Schläge", u.plots|length) }}</div></td>
+                <td class="text-end">{{ u.count }}</td>
+                <td class="text-end text-nowrap d-none d-sm-table-cell">{{ u.area|qty(2) }} ha</td>
+                <td class="text-end text-nowrap d-none d-md-table-cell">{% for unit, amount in u.amounts.items() %}{{ amount|qty(2) }} {{ unit }}{{ "<br>"|safe if not loop.last }}{% endfor %}</td>
+                <td class="small">
+                    {% if u.note_waits %}<div class="text-body-secondary">{{ _("laut Myfarm24:") }} {% for w in u.note_waits %}{{ wait_label(w) }}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+                    {% if current_user.is_admin %}
+                    <form method="post" action="{{ url_for('fields.protection_product') }}" class="d-flex gap-1 align-items-center">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="name" value="{{ u.name }}">
+                        <input type="hidden" name="year" value="{{ year }}">
+                        <input class="form-control form-control-sm" style="width: 5.5rem" name="wait" maxlength="3" inputmode="numeric"
+                               value="{% if p and p.covered %}F{% elif p and p.wait_days is not none %}{{ p.wait_days }}{% endif %}"
+                               placeholder="{{ _('Tage') }}" aria-label="{{ _('Wartezeit in Tagen oder F') }}">
+                        <button class="btn btn-sm btn-outline-primary" aria-label="{{ _('Speichern') }}"><i class="bi bi-check-lg"></i></button>
+                    </form>
+                    {% elif p %}{{ wait_label("F" if p.covered else p.wait_days) if p.covered or p.wait_days is not none }}{% elif not u.note_waits %}–{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

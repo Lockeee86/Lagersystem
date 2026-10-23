@@ -25,6 +25,7 @@ CATALOG = {
     "bestellungen": tile(N_("Bestellungen"), "bi-box-seam", "purchases.purchase_list"),
     "kalender": tile(N_("Kalender"), "bi-calendar3", "agenda.month"),
     "schlaege": tile(N_("Schläge"), "bi-map", "fields.field_map"),
+    "pflanzenschutz": tile(N_("Pflanzenschutz"), "bi-shield-plus", "fields.protection"),
     "wetter": tile(N_("Wetter"), "bi-cloud-sun", "main.weather_page"),
     "tankbuch": tile(N_("Tankbuch"), "bi-fuel-pump-diesel", "fuel.tank"),
     "lieferanten": tile(N_("Lieferanten"), "bi-shop", "purchases.suppliers"),

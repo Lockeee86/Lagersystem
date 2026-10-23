@@ -46,7 +46,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
   trägt Status, Lieferant, Preis und Liefertermin ein (Neu → Angefragt → Bestellt → Geliefert → Erledigt / Abgelehnt)
 - **Schlagkartei**: Import aus Myfarm24 (KML) mit Umrissen, Schlagkarte nach Kultur mit Luftbild, Fruchtfolge,
   Pflanzung und Rodung je Schlag, Ertrag in t/ha aus den Kisten; Schlagdokumentation aus Myfarm24 (CSV) mit
-  Bodenuntersuchung, Aussaat, Düngung (Nährstoffe gegen N-Bedarf), Pflanzenschutz, Arbeiten und Personen
+  Bodenuntersuchung, Aussaat, Düngung (Nährstoffe gegen N-Bedarf), Pflanzenschutz, Arbeiten und Personen;
+  Pflanzenschutz-Übersicht mit Wartezeiten bis zur Ernte, Schläge ohne Umriss als Punkt auf der Karte
 - **QR-Etiketten als PDF** (A4: 3 × 8, 2 × 4 oder 2 × 2 große Schilder)
 - **Benutzer & Rollen**: Admin, Mitarbeiter, Betrachter
 - **Sprachen: Deutsch und Polnisch**, je Benutzer einstellbar (Einstellungen, Benutzermenü oder Login-Seite)
