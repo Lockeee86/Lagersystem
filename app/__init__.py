@@ -53,6 +53,9 @@ def create_app(config=None):
             os.path.dirname(os.path.dirname(__file__)), "data", "uploads"),
         WEATHER_API_URL=os.environ.get("WEATHER_API_URL", "https://api.brightsky.dev/weather"),
         WEATHER_TIMEOUT=float(os.environ.get("WEATHER_TIMEOUT", "6")),
+        # Datensicherung (leer = aus); im Stack ein Volume, das auf das NAS zeigen kann
+        BACKUP_DIR=os.environ.get("BACKUP_DIR") or None,
+        BACKUP_HOUR=int(os.environ.get("BACKUP_HOUR", "3")),
     )
     if config:
         app.config.update(config)
@@ -102,6 +105,7 @@ def create_app(config=None):
         kg=utils.fmt_kg,
         money=utils.fmt_money,
         num=utils.fmt_num,
+        bytes=utils.fmt_bytes,
         weekday=utils.fmt_weekday,
         textcolor=utils.text_color_for,
     )

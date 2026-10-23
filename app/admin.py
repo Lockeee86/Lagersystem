@@ -6,11 +6,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template, request,
-                   session, url_for)
+                   send_file, session, url_for)
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import fields, transfer, weather
+from . import backup, fields, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -521,3 +521,30 @@ def import_apply():
     session.pop("import", None)
     flash(ngettext("{n} Zeile importiert.", "{n} Zeilen importiert.", len(results)), "success")
     return redirect(url_for("admin.data"))
+
+
+# --- Datensicherung -----------------------------------------------------------
+
+@bp.route("/sicherung")
+def backups():
+    return render_template("admin/backup.html", info=backup.overview())
+
+
+@bp.route("/sicherung/jetzt", methods=["POST"])
+def backup_now():
+    if not backup.backup_dir():
+        flash_error(_("Die Datensicherung ist nicht eingerichtet (BACKUP_DIR fehlt)."))
+    elif backup.is_running():
+        flash_error(_("Es läuft bereits eine Sicherung."))
+    else:
+        backup.run_in_background(current_app._get_current_object())
+        flash(_("Sicherung gestartet."), "success")
+    return redirect(url_for("admin.backups"))
+
+
+@bp.route("/sicherung/<name>")
+def backup_download(name):
+    path = backup.backup_path(name)
+    if path is None:
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=name, mimetype="application/octet-stream")

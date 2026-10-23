@@ -36,6 +36,9 @@ docker compose up --build -d
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`)
 - `app/weather.py`: Wetter über Bright Sky (DWD), Zwischenspeicher im Speicher, Frost und Krautfäule (Hutton);
   in Tests `weather._fetch` ersetzen (kein Netz)
+- `app/backup.py`: Datensicherung nach `BACKUP_DIR` (pg_dump bzw. SQLite-Kopie, Fotos spiegeln, Aufbewahrung
+  `to_delete`, Status in `status.json`). Zeitplan als Thread aus `gunicorn.conf.py` (`post_worker_init`),
+  Konsole: `flask backup-now`, `flask backup-restore`
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
   Rechte über `PurchaseRequest.can_handle`), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`

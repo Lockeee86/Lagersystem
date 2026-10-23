@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Datensicherung") }}{% endblock %}
+{% block styles %}{% if info.running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Datensicherung") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Jede Nacht ab {hour} Uhr: Datenbank und alle Fotos/Dokumente. Aufbewahrt werden 14 Tage und je ein Stand pro Monat für ein Jahr.", hour=info.hour) }}</p>
+    </div>
+    {% if info.configured %}
+    <form method="post" action="{{ url_for('admin.backup_now') }}">{{ csrf() }}
+        <button class="btn btn-primary" {% if info.running %}disabled{% endif %}><i class="bi bi-shield-check me-1"></i>{{ _("Jetzt sichern") }}</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if not info.configured %}
+<div class="alert alert-warning">
+    <strong>{{ _("Nicht eingerichtet.") }}</strong>
+    {{ _("Im Stack fehlt die Umgebungsvariable BACKUP_DIR mit einem Sicherungs-Volume. Wie das geht (auch mit NAS), steht in der README.") }}
+</div>
+{% else %}
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4 {{ 'border-danger' if info.failed or info.stale else 'border-success-subtle' }}">
+            <div class="card-body">
+                {% if info.running %}
+                <div class="d-flex align-items-center gap-2 mb-3"><span class="spinner-border spinner-border-sm"></span>{{ _("Sicherung läuft …") }}</div>
+                {% elif info.failed %}
+                <div class="text-danger fw-semibold mb-2"><i class="bi bi-shield-exclamation me-1"></i>{{ _("Letzte Sicherung fehlgeschlagen") }}</div>
+                <pre class="small bg-body-tertiary p-2 rounded mb-3" style="white-space: pre-wrap">{{ info.status.error }}</pre>
+                {% elif info.last_success %}
+                <div class="{{ 'text-danger' if info.stale else 'text-success' }} fw-semibold mb-3"><i class="bi bi-shield-check me-1"></i>{{ _("Gesichert") }}</div>
+                {% else %}
+                <div class="text-body-secondary mb-3">{{ _("Noch keine Sicherung gelaufen.") }}</div>
+                {% endif %}
+                <dl class="row small mb-0">
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Letzte erfolgreiche") }}</dt>
+                    <dd class="col-6">{{ info.last_success|datetime if info.last_success else "–" }}</dd>
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Letzter Versuch") }}</dt>
+                    <dd class="col-6">{{ info.last_run|datetime if info.last_run else "–" }}</dd>
+                    {% if info.status.size %}
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Größe Datenbank") }}</dt>
+                    <dd class="col-6">{{ info.status.size|bytes }}</dd>
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Neue Fotos/Dokumente") }}</dt>
+                    <dd class="col-6">{{ info.status.files_copied }}</dd>
+                    {% endif %}
+                    {% if info.disk %}
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Frei auf dem Sicherungsziel") }}</dt>
+                    <dd class="col-6">{{ info.disk.free|bytes }} / {{ info.disk.total|bytes }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Zurückspielen") }}</div>
+            <div class="card-body small">
+                <p>{{ _("Zurückspielen ersetzt alle Daten und geht deshalb nur über die Konsole des web-Containers (Portainer → Container → Console):") }}</p>
+                <pre class="bg-body-tertiary p-2 rounded mb-2" style="white-space: pre-wrap">flask backup-restore /backup/db/{{ info.backups[0].name if info.backups else "lager-JJJJ-MM-TT_HHMM.dump" }}</pre>
+                <p class="mb-0 text-body-secondary">{{ _("Fotos und Dokumente liegen im Sicherungsordner unter „dateien“ und werden bei Bedarf einfach zurückkopiert.") }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header">{{ ngettext("{n} Stand", "{n} Stände", info.backups|length) }}</div>
+            <div class="list-group list-group-flush">
+                {% for b in info.backups %}
+                <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center small" href="{{ url_for('admin.backup_download', name=b.name) }}">
+                    <span><i class="bi bi-database me-2"></i>{{ b.created|datetime }}</span>
+                    <span class="text-body-secondary">{{ b.size|bytes }} <i class="bi bi-download ms-2"></i></span>
+                </a>
+                {% else %}
+                <div class="list-group-item text-body-secondary small">{{ _("Noch keine Stände.") }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1033,4 +1033,35 @@ MESSAGES = {
     'Neu': 'Nowe',
     'Gemeldet': 'Zgłoszone',
     'Angefragt am': 'Zapytanie z dnia',
+    # Datensicherung
+    'Datensicherung': 'Kopia zapasowa',
+    'Nächtliche Sicherung, Stände herunterladen': 'Nocna kopia, pobieranie kopii',
+    'Die Datensicherung ist nicht eingerichtet (BACKUP_DIR fehlt).': 'Kopia zapasowa nie jest skonfigurowana (brak BACKUP_DIR).',
+    'Es läuft bereits eine Sicherung.': 'Kopia zapasowa jest już w toku.',
+    'Sicherung gestartet.': 'Rozpoczęto tworzenie kopii.',
+    'Die Datensicherung ist fehlgeschlagen.': 'Tworzenie kopii zapasowej nie powiodło się.',
+    'Seit über einem Tag keine erfolgreiche Datensicherung.': 'Od ponad doby brak udanej kopii zapasowej.',
+    'Ansehen': 'Zobacz',
+    'Jede Nacht ab {hour} Uhr: Datenbank und alle Fotos/Dokumente. Aufbewahrt werden 14 Tage und je ein Stand pro Monat für ein Jahr.':
+        'Każdej nocy od godz. {hour}: baza danych i wszystkie zdjęcia/dokumenty. Przechowywane jest 14 dni oraz jedna kopia na miesiąc przez rok.',
+    'Jetzt sichern': 'Utwórz kopię teraz',
+    'Nicht eingerichtet.': 'Nie skonfigurowano.',
+    'Im Stack fehlt die Umgebungsvariable BACKUP_DIR mit einem Sicherungs-Volume. Wie das geht (auch mit NAS), steht in der README.':
+        'W stacku brakuje zmiennej BACKUP_DIR z wolumenem na kopie. Opis (także dla NAS) jest w README.',
+    'Sicherung läuft …': 'Tworzenie kopii …',
+    'Letzte Sicherung fehlgeschlagen': 'Ostatnia kopia nie powiodła się',
+    'Gesichert': 'Zabezpieczone',
+    'Noch keine Sicherung gelaufen.': 'Nie wykonano jeszcze kopii.',
+    'Letzte erfolgreiche': 'Ostatnia udana',
+    'Letzter Versuch': 'Ostatnia próba',
+    'Größe Datenbank': 'Rozmiar bazy',
+    'Neue Fotos/Dokumente': 'Nowe zdjęcia/dokumenty',
+    'Frei auf dem Sicherungsziel': 'Wolne miejsce na kopie',
+    'Zurückspielen': 'Przywracanie',
+    'Zurückspielen ersetzt alle Daten und geht deshalb nur über die Konsole des web-Containers (Portainer → Container → Console):':
+        'Przywrócenie zastępuje wszystkie dane, dlatego jest możliwe tylko przez konsolę kontenera web (Portainer → Container → Console):',
+    'Fotos und Dokumente liegen im Sicherungsordner unter „dateien“ und werden bei Bedarf einfach zurückkopiert.':
+        'Zdjęcia i dokumenty znajdują się w folderze kopii w „dateien” i w razie potrzeby wystarczy je skopiować z powrotem.',
+    '{n} Stände': ('{n} kopia', '{n} kopie', '{n} kopii'),
+    'Noch keine Stände.': 'Brak kopii.',
 }

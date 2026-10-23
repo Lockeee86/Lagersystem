@@ -69,6 +69,14 @@
 </div>
 {% endif %}
 
+{% if backup_alert %}
+<div class="alert alert-danger d-flex gap-2 align-items-center">
+    <i class="bi bi-shield-exclamation"></i>
+    <div class="small flex-grow-1">{{ _("Die Datensicherung ist fehlgeschlagen.") if backup_alert == "failed" else _("Seit über einem Tag keine erfolgreiche Datensicherung.") }}</div>
+    <a class="btn btn-sm btn-outline-danger" href="{{ url_for('admin.backups') }}">{{ _("Ansehen") }}</a>
+</div>
+{% endif %}
+
 {% if purchase_arrived %}
 <div class="alert alert-success d-flex gap-2 align-items-start">
     <i class="bi bi-box-seam"></i>

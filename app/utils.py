@@ -192,6 +192,16 @@ def fmt_kg(value):
     return f"{value:,} kg".replace(",", thousands)
 
 
+def fmt_bytes(value):
+    """Dateigröße: 532 B, 12,3 kB, 4,5 MB, 1,2 GB"""
+    if value is None:
+        return "–"
+    for unit in ("B", "kB", "MB", "GB"):
+        if value < 1000 or unit == "GB":
+            return f"{fmt_num(value, 0 if unit == 'B' else 1)} {unit}"
+        value /= 1000
+
+
 def fmt_num(value, digits=0):
     """12.34 → "12" bzw. mit digits=1 → "12,3" (deutsches Komma)"""
     if value is None:

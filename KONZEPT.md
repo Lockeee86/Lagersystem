@@ -250,6 +250,26 @@ Bereichs-Kacheln, Leiste unten Start · Lager · Scannen · Aufgaben · Suche. D
 Schläge, Maschinen, Lieferscheine, Kunden und Aufgaben; ein genauer Kisten-/Maschinencode oder eine
 Lieferscheinnummer öffnet direkt die Seite.
 
+## Ausbau, Runde 2 (Oktober 2026)
+
+Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kalender.
+
+1. ✅ **Datensicherung (0.17.0):** jede Nacht ab 3 Uhr Datenbank (pg_dump) + Fotos/Dokumente (nur neue)
+   nach `/backup`; 14 Tage + je ein Stand pro Monat für ein Jahr. Ziel später ein NAS (wie es angebunden
+   wird, ist noch offen – SMB, NFS oder gemounteter Ordner sind vorbereitet, siehe README). Verwaltung →
+   Datensicherung zeigt Status, „Jetzt sichern“, Download; Admins sehen auf der Übersicht eine Warnung,
+   wenn die Sicherung fehlschlägt oder älter als 36 Stunden ist. Zurückspielen nur über die Konsole.
+2. **Push-Nachrichten + App auf dem Startbildschirm (PWA):** Aufgaben, Bestellungen, Maschinen (Störung,
+   Wartung fällig), Wetter (Frost, Krautfäule rot). **Jeder wählt selbst**, welche Nachrichten er bekommt.
+   Läuft über die eigene Domain mit HTTPS.
+3. **Maschinen:** Tankbuch (ein Hoftank; Mitarbeiter tragen Liter + Zählerstand über den QR-Code ein, der Admin
+   die Tanklieferungen), Dokumente je Maschine (alle sehen und laden hoch), Teileliste je Maschine mit
+   „Nochmal bestellen“, Lieferantenverzeichnis.
+4. **Kalender** mit Wartungen und erwarteten Lieferungen (Bestellungen), dazu Abo-Link (ICS) fürs Handy.
+
+Später: Lagerkontrolle als Rundgang, Inventur per Scan, Rückverfolgung als PDF, Schwund & Sortierung.
+Nicht gewünscht: Reservierungen für Kunden.
+
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.

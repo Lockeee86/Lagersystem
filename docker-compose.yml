@@ -11,8 +11,12 @@ services:
       - TRUSTED_PROXIES=${TRUSTED_PROXIES:-1}
       - TZ=${TZ:-Europe/Berlin}
       - UPLOAD_DIR=/app/data/uploads
+      - BACKUP_DIR=/backup
+      - BACKUP_HOUR=${BACKUP_HOUR:-3}
     volumes:
       - uploads:/app/data
+      # Datensicherung – zum Umstellen auf ein NAS siehe README („Datensicherung“)
+      - ${BACKUP_PATH:-backups}:/backup
     depends_on:
       db:
         condition: service_healthy
@@ -45,3 +49,4 @@ services:
 volumes:
   postgres_data:
   uploads:
+  backups:

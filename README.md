@@ -62,6 +62,8 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
    | `COOKIE_SECURE` | `false` / `true` | `true`, sobald nur noch über HTTPS zugegriffen wird |
    | `TRUSTED_PROXIES` | `1` | Anzahl Reverse Proxies vor der App, `0` ohne Proxy |
    | `TZ` | `Europe/Berlin` | Zeitzone |
+   | `BACKUP_HOUR` | `3` | Uhrzeit der nächtlichen Datensicherung |
+   | `BACKUP_PATH` | `/mnt/nas/lagersystem` | Optional: Sicherungsordner auf dem Server (z. B. eingehängtes NAS), siehe „Datensicherung“ |
 
 3. **Deploy the stack**, danach `http://<server>:5050` öffnen
 4. Die **Ersteinrichtung** startet automatisch: erstes Admin-Konto und Lagermaße angeben
@@ -70,7 +72,7 @@ Konzept und geplante Ausbaustufen: [KONZEPT.md](KONZEPT.md)
    (Reihen lassen sich pro Lager mit Zahlen statt Buchstaben beschriften: Verwaltung → Lager)
 
 Beim Start spielt der Container automatisch alle Datenbank-Migrationen ein. Updates gehen
-deshalb einfach per **Pull and redeploy**, die Daten bleiben in den Volumes `postgres_data` (Datenbank) und `uploads` (Fotos) erhalten.
+deshalb einfach per **Pull and redeploy**, die Daten bleiben in den Volumes `postgres_data` (Datenbank), `uploads` (Fotos) und `backups` (Datensicherung) erhalten.
 
 ### Zugriff von unterwegs / Kamera-Scan
 
@@ -101,11 +103,46 @@ flask --app wsgi reset-password <benutzername>
 flask --app wsgi create-admin <benutzername>
 ```
 
-### Backup
+### Datensicherung
+
+Die App sichert **jede Nacht ab 3 Uhr** (`BACKUP_HOUR`) die Datenbank und alle Fotos/Dokumente
+nach `/backup` im Container. Aufbewahrt werden die letzten 14 Tage und je ein Stand pro Monat für ein Jahr.
+Status, „Jetzt sichern“ und Download der Stände: **Verwaltung → Datensicherung**. Schlägt eine Sicherung fehl
+oder ist die letzte älter als 36 Stunden, sehen Admins einen Hinweis auf der Übersicht.
+
+Im Sicherungsordner liegen:
+
+- `db/lager-JJJJ-MM-TT_HHMM.dump`: Datenbank (PostgreSQL-Format, `pg_restore`)
+- `dateien/`: Kopie aller Fotos und Dokumente (nur neue werden kopiert, gelöschte bleiben erhalten)
+
+**Ziel festlegen:** Ohne weitere Angabe landet alles im Docker-Volume `backups` auf dem Server. Besser ist ein
+zweites Gerät (NAS), damit ein Plattenausfall des Servers nicht auch die Sicherung trifft:
+
+- **NAS ist schon am Server eingehängt** (z. B. unter `/mnt/nas`): in Portainer `BACKUP_PATH=/mnt/nas/lagersystem`
+  setzen. Der Ordner muss für den Benutzer mit der ID 1000 beschreibbar sein (`chown 1000 /mnt/nas/lagersystem`).
+- **SMB-Freigabe** (Synology, QNAP, Fritzbox …) direkt im Stack: In `docker-compose.yml` den Eintrag `backups:`
+  unter `volumes:` ersetzen durch
+
+  ```yaml
+  backups:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: "//192.168.1.20/backup/lagersystem"
+      o: "username=lager,password=${NAS_PASSWORD},uid=1000,gid=1000,vers=3.0"
+  ```
+
+  und `NAS_PASSWORD` als Umgebungsvariable eintragen.
+- **NFS:** wie SMB, mit `type: nfs`, `device: ":/volume1/backup/lagersystem"`, `o: "addr=192.168.1.20,rw,nfsvers=4"`.
+
+**Zurückspielen** (ersetzt alle Daten!): Portainer → Container `lagersystem-web` → Console:
 
 ```sh
-docker exec lagersystem-db pg_dump -U lager lager > lager-backup.sql
+flask --app wsgi backup-restore /backup/db/lager-2026-10-23_0300.dump
 ```
+
+Danach den Container neu starten. Fotos bei Bedarf aus `dateien/` nach `/app/data/uploads` zurückkopieren.
+Sofort sichern geht auch über die Konsole: `flask --app wsgi backup-now`.
 
 ## Entwicklung
 
