@@ -1470,4 +1470,6 @@ MESSAGES = {
     'Die Monatswerte konnten gerade nicht geladen werden.': 'Nie udało się teraz pobrać wartości miesięcznych.',
     'bis gestern': 'do wczoraj',
     'Für einzelne Monate fehlen Messwerte.': 'Dla niektórych miesięcy brakuje pomiarów.',
+    'Welche Termine': 'Które terminy',
+    'In den nächsten 7 Tagen hast du keine Termine.': 'W ciągu najbliższych 7 dni nie masz terminów.',
 }

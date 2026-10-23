@@ -2,7 +2,7 @@ import io
 from datetime import date, timedelta
 
 import segno
-from flask import (Blueprint, Response, abort, flash, redirect, render_template, request,
+from flask import (Blueprint, Response, abort, flash, make_response, redirect, render_template, request,
                    url_for)
 from flask_login import current_user, login_required
 from sqlalchemy import or_
@@ -49,10 +49,14 @@ def commit_or_rollback():
 
 # --- Dashboard --------------------------------------------------------------
 
-def _week(days=7):
-    """Wochenübersicht für die Startseite: Termine, Feiertage, Wartungen, Lieferungen (Aufgaben haben eine eigene Karte)."""
+WEEK_COOKIE = "woche"
+
+
+def _week(days=7, mine_only=False):
+    """Wochenübersicht für die Startseite: Termine, Feiertage, Wartungen, Lieferungen (Aufgaben haben eine eigene Karte).
+    `mine_only`: nur eigene Termine (wie „Nur meine“ im Kalender), Feiertage bleiben."""
     today = date.today()
-    items, _undated = agenda.events(today, today + timedelta(days=days - 1), today, current_user)
+    items, _undated = agenda.events(today, today + timedelta(days=days - 1), today, current_user, mine_only=mine_only)
     result = []
     for offset in range(days):
         day = today + timedelta(days=offset)
@@ -126,7 +130,11 @@ def dashboard():
         "filled_not_stored": sum(1 for b in boxes if not b.is_empty and not b.is_stored),
     }
     recent = Movement.query.order_by(Movement.created_at.desc()).limit(12).all()
-    return render_template("dashboard.html", occupancy=occupancy, varieties=varieties,
+    choice = request.args.get(WEEK_COOKIE)
+    if choice not in ("alle", "meine"):
+        choice = None
+    week_mine = (choice or request.cookies.get(WEEK_COOKIE)) == "meine"
+    response = make_response(render_template("dashboard.html", week_mine=week_mine, occupancy=occupancy, varieties=varieties,
                            max_kg=max_kg, stats=stats, recent=recent, open_deliveries=sales.open_deliveries(),
                            due_tasks=machines.due_tasks(), open_faults=machines.open_faults(),
                            weather=weather.get_weather(), show_blight=weather.blight_in_season(),
@@ -136,9 +144,13 @@ def dashboard():
                            purchase_arrived=purchases.arrived_for(current_user),
                            backup_alert=backup.needs_attention() if current_user.is_admin else None,
                            tiles=tiles.for_user(current_user), tile_catalog=tiles.CATALOG, tile_info=_tile_info,
-                           week=_week(),
+                           week=_week(mine_only=week_mine),
                            has_varieties=Variety.query.first() is not None,
-                           has_plots=Plot.query.first() is not None)
+                           has_plots=Plot.query.first() is not None))
+    if choice:
+        response.set_cookie(WEEK_COOKIE, choice, max_age=365 * 24 * 3600, samesite="Lax", httponly=True,
+                            secure=request.is_secure)
+    return response
 
 
 @bp.route("/startseite/kacheln", methods=["GET", "POST"])

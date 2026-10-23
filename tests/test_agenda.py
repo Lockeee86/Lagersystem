@@ -117,6 +117,18 @@ def test_state_setting_and_week(app, as_admin, as_worker, db, seed):
     html = as_worker.get("/").get_data(as_text=True)
     assert "Diese Woche" in html and "Tierarzt im Stall" in html and "week-today" in html
 
+    # Auswahl „Alle“ / „Nur meine“ (Standard: alle), wird im Cookie gemerkt
+    as_admin.post("/kalender/termin", data={"title": "Bankgespräch", "all_day": "1", "start_date": date.today().isoformat(),
+                                            "participant_ids": [str(seed["admin"].id)]})
+    html = as_worker.get("/").get_data(as_text=True)
+    assert "Bankgespräch" in html and "Tierarzt im Stall" in html
+    html = as_worker.get("/?woche=meine").get_data(as_text=True)
+    assert "Bankgespräch" not in html and "Tierarzt im Stall" in html
+    assert "Bankgespräch" not in as_worker.get("/").get_data(as_text=True)          # gemerkt
+    assert "Bankgespräch" in as_admin.get("/?woche=meine").get_data(as_text=True)    # für den Admin ist es seiner
+    assert "Bankgespräch" in as_worker.get("/?woche=alle").get_data(as_text=True)
+    assert "Bankgespräch" in as_worker.get("/?woche=quatsch").get_data(as_text=True)
+
 
 def test_entries_and_tasks(app, as_admin, as_worker, as_viewer, db, seed):
     from app import tasks

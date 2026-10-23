@@ -64,9 +64,15 @@
 {% from "agenda/_macros.html" import when %}
 {% set week_has = week|selectattr("events")|list %}
 <div class="card shadow-sm mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-calendar-week me-1"></i>{{ _("Diese Woche") }}</span>
-        <a class="small" href="{{ url_for('agenda.month') }}">{{ _("Kalender") }}</a>
+    <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <span class="text-nowrap"><i class="bi bi-calendar-week me-1"></i>{{ _("Diese Woche") }}</span>
+        <span class="d-flex align-items-center gap-2 text-nowrap">
+            <span class="btn-group btn-group-sm" role="group" aria-label="{{ _('Welche Termine') }}">
+                <a class="btn {{ 'btn-outline-secondary' if week_mine else 'btn-primary' }}" href="{{ url_for('main.dashboard', woche='alle') }}" {% if not week_mine %}aria-current="true"{% endif %}>{{ _("Alle") }}</a>
+                <a class="btn {{ 'btn-primary' if week_mine else 'btn-outline-secondary' }}" href="{{ url_for('main.dashboard', woche='meine') }}" {% if week_mine %}aria-current="true"{% endif %} title="{{ _('Nur meine') }}"><i class="bi bi-person me-1"></i>{{ _("Meine") }}</a>
+            </span>
+            <a class="small" href="{{ url_for('agenda.month', nur='meine' if week_mine else none) }}">{{ _("Kalender") }}</a>
+        </span>
     </div>
     {% if week_has %}
     <div class="list-group list-group-flush week-list">
@@ -90,7 +96,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="card-body small text-body-secondary">{{ _("In den nächsten 7 Tagen steht nichts im Kalender.") }}</div>
+    <div class="card-body small text-body-secondary">{{ _("In den nächsten 7 Tagen hast du keine Termine.") if week_mine else _("In den nächsten 7 Tagen steht nichts im Kalender.") }}</div>
     {% endif %}
 </div>
 

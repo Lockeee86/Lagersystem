@@ -303,6 +303,11 @@ Schlagseite: Boden-Karte, je Anbaujahr Maßnahmen aufklappbar, Nährstoffsumme u
 (Myfarm24 summiert ungerundet, daher ±1 kg/ha Abweichung möglich).
 Später möglich: Maschinen aus „Arbeiten / Maschinen“ den Maschinen der App zuordnen.
 
+### Wochenübersicht: Alle / Meine (0.27.2)
+Die Karte „Diese Woche“ auf der Startseite hat einen Umschalter „Alle“ (Standard) / „Meine“ – wie „Nur meine“ im
+Kalender (eigene Termine, Termine für alle, eigene Aufgaben/Wartungen; Feiertage bleiben). Die Wahl merkt sich der
+Browser (Cookie `woche`, ein Jahr).
+
 ### Niederschlag seit Jahresbeginn (0.27.1)
 Die Wetterseite zeigt unter „Niederschlag“ die Summe seit 1. Januar und ein Balkendiagramm je Monat.
 Abgeschlossene Monate werden einzeln bei Bright Sky abgefragt und im Speicher gehalten (endgültig 3 Tage nach
