@@ -97,3 +97,52 @@ def test_pages_and_rights(as_admin, as_worker, as_viewer, db, seed):
     as_admin.post(f"/aufgabe/{foreign.id}/loeschen")
     assert db.session.get(Task, foreign.id) is None and follow.previous_id is None
     assert as_admin.get("/aufgaben?neu=1&maschine=%d" % m.id).status_code == 200
+
+
+def test_task_from_fault_and_maintenance(as_admin, as_worker, db, seed):
+    from app.models import MachineEvent
+    m = machines.create_machine("Fendt 724", "schlepper", seed["admin"], counter_unit="h")
+    machines.set_counter(m, 4210, seed["admin"])
+    db.session.commit()
+
+    # Admin meldet Störung und legt gleich die Aufgabe für Max an
+    as_admin.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Hydraulik verliert Öl\nvorne links",
+                                                    "as_task": "1", "assignee_ids": [str(seed["worker"].id)],
+                                                    "task_important": "1"})
+    fault = MachineEvent.query.filter_by(kind="stoerung").one()
+    t = Task.query.one()
+    assert t.title == "Fendt 724: Hydraulik verliert Öl" and t.machine_event_id == fault.id
+    assert t.assignees == [seed["worker"]] and t.important and t.due_on == date.today() and t.machine_id == m.id
+    assert "Aufgabe offen" in as_admin.get(f"/maschine/{m.id}").get_data(as_text=True)
+    assert "Hydraulik verliert" in as_worker.get("/").get_data(as_text=True)
+
+    # Mitarbeiter hakt die Aufgabe ab → Störung ist behoben
+    as_worker.post(f"/aufgabe/{t.id}/erledigt", data={"note": "Schlauch getauscht"})
+    assert t.is_done and fault.resolved_at is not None and not machines.open_faults()
+
+    # Ohne Haken: nur Störung; Mitarbeiter können keine Aufgabe erzeugen
+    as_worker.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Licht defekt", "as_task": "1"})
+    fault2 = MachineEvent.query.filter_by(kind="stoerung", resolved_at=None).one()
+    assert Task.query.count() == 1
+    # Aufgabe nachträglich aus der Störung (vorbefüllt) – Störung an der Maschine erledigen schließt sie
+    html = as_admin.get(f"/aufgaben?neu=1&stoerung={fault2.id}").get_data(as_text=True)
+    assert "Fendt 724: Licht defekt" in html and f'name="machine_event_id" value="{fault2.id}"' in html
+    as_admin.post("/aufgaben/neu", data={"title": "Fendt 724: Licht defekt", "machine_event_id": str(fault2.id),
+                                         "machine_id": str(m.id)})
+    t2 = Task.query.filter_by(machine_event_id=fault2.id).one()
+    as_worker.post(f"/maschine/{m.id}/eintrag/{fault2.id}/erledigt")
+    assert t2.is_done and fault2.resolved_at is not None
+
+    # Fällige Wartung als Aufgabe: Abhaken trägt die Wartung mit dem aktuellen Zählerstand ein
+    oil = next(x for x in m.tasks if x.name == "Motoröl und Filter")
+    oil.last_done_on, oil.last_done_counter = date(2026, 3, 1), 3760
+    db.session.commit()
+    html = as_admin.get(f"/maschine/{m.id}").get_data(as_text=True)
+    assert f"/aufgaben?neu=1&amp;wartung={oil.id}" in html
+    html = as_admin.get(f"/aufgaben?neu=1&wartung={oil.id}").get_data(as_text=True)
+    assert "Fendt 724: Motoröl und Filter" in html
+    as_admin.post("/aufgaben/neu", data={"title": "Fendt 724: Motoröl und Filter", "maintenance_task_id": str(oil.id)})
+    t3 = Task.query.filter_by(maintenance_task_id=oil.id).one()
+    as_worker.post(f"/aufgabe/{t3.id}/erledigt")
+    assert oil.last_done_on == date.today() and oil.last_done_counter == 4210
+    assert MachineEvent.query.filter_by(kind="wartung").one().text == "Fendt 724: Motoröl und Filter"

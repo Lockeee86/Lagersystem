@@ -27,6 +27,11 @@
                     <dd class="col-8">{{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</dd>
                     {% if task.machine %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Maschine") }}</dt>
                     <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}">{{ task.machine.name }}</a></dd>{% endif %}
+                    {% if task.machine_event %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Störung") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=task.machine_event.machine_id) }}#logbuch">{{ _("Störung vom {date}", date=task.machine_event.date|date) }}</a>
+                        {% if task.machine_event.resolved_at %}<span class="badge text-bg-success">{{ _("behoben") }}</span>{% else %}<span class="badge text-bg-danger">{{ _("offen") }}</span>{% endif %}</dd>{% endif %}
+                    {% if task.maintenance_task %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Wartung") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=task.maintenance_task.machine_id) }}#wartungen">{{ task.maintenance_task.name }}</a></dd>{% endif %}
                     {% if task.delivery %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Lieferschein") }}</dt>
                     <dd class="col-8"><a href="{{ url_for('sales.delivery_detail', delivery_id=task.delivery_id) }}">{{ task.delivery.number }} · {{ task.delivery.customer.name }}</a></dd>{% endif %}
                     {% if task.location_label %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Lagerplatz") }}</dt>

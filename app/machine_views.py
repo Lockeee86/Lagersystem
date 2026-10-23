@@ -12,7 +12,7 @@ from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
 from .models import (COUNTER_UNITS, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, Machine, MachineEvent,
-                     MaintenanceTask, Photo)
+                     MaintenanceTask, Photo, User)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
@@ -122,10 +122,14 @@ def machine_detail(machine_id):
         events = events.filter(MachineEvent.kind == kind)
     page = events.paginate(per_page=30, error_out=False)
     total_cost = sum(e.cost or 0 for e in machine.events.filter(MachineEvent.cost.isnot(None)))
+    open_tasks = tasks.for_machine(machine.id)
     page_args = MultiDict(request.args)
     page_args["machine_id"] = machine.id
     return render_template("machines/detail.html", machine=machine, tasks=maintenance, page=page, kind=kind,
-                           page_args=page_args, open_tasks=tasks.for_machine(machine.id), today=date.today(),
+                           page_args=page_args, open_tasks=open_tasks, today=date.today(),
+                           assignable=tasks.assignable_users(),
+                           fault_tasks={t.machine_event_id: t for t in open_tasks if t.machine_event_id},
+                           maint_tasks={t.maintenance_task_id: t for t in open_tasks if t.maintenance_task_id},
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
                            faults=[e for e in machines.open_faults() if e.machine_id == machine.id],
                            total_cost=total_cost, label_formats=LABEL_FORMATS)
@@ -170,6 +174,7 @@ def task_done(machine_id, task_id):
         abort(404)
 
     def action(names):
+        tasks.close_linked(current_user, maintenance=task)
         machines.complete_task(task, current_user, form_date("date"),
                                form_int("counter", minimum=0, maximum=10_000_000), form_str("text", 2000),
                                _form_cost() if current_user.is_admin else None, names)
@@ -184,9 +189,20 @@ def machine_event(machine_id):
     kind = form_str("kind", 20)
 
     def action(names):
-        machines.add_event(machine, kind, current_user, form_date("date"), form_str("text", 4000),
-                           _form_cost() if current_user.is_admin else None,
-                           form_int("counter", minimum=0, maximum=10_000_000), names)
+        text = form_str("text", 4000)
+        event = machines.add_event(machine, kind, current_user, form_date("date"), text,
+                                   _form_cost() if current_user.is_admin else None,
+                                   form_int("counter", minimum=0, maximum=10_000_000), names)
+        if kind == "stoerung" and current_user.is_admin and request.form.get("as_task"):
+            db.session.flush()
+            ids = {int(v) for v in request.form.getlist("assignee_ids") if v.isdigit()}
+            tasks.create_task(
+                current_user, title=tasks.title_for(machine, text), description=text,
+                due_on=form_date("task_due") or date.today(), important=bool(request.form.get("task_important")),
+                assignees=User.query.filter(User.id.in_(ids)).all() if ids else [],
+                machine_id=machine.id, machine_event_id=event.id,
+            )
+            return _("Störung gemeldet und als Aufgabe angelegt.")
         if kind == "stoerung":
             return _("Störung gemeldet.")
         return _("Eintrag gespeichert.")
@@ -202,6 +218,7 @@ def fault_resolved(machine_id, event_id):
         abort(404)
     try:
         machines.resolve_fault(event, current_user)
+        tasks.close_linked(current_user, event=event)
         db.session.commit()
         flash(_("Störung als behoben markiert."), "success")
     except StorageError as e:

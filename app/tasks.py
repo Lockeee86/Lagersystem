@@ -8,6 +8,7 @@ from sqlalchemy import or_
 
 from .extensions import db
 from .i18n import gettext as _
+from . import machines
 from .machines import add_months
 from .models import RECURRENCES, ROLE_MITARBEITER, Photo, Task, User, task_assignees, utcnow
 from .storage import StorageError
@@ -48,7 +49,8 @@ def next_due(due_on, recurrence, today=None):
 
 
 def apply_fields(task, title, description=None, due_on=None, important=False, recurrence=None, assignees=(),
-                 machine_id=None, delivery_id=None, warehouse_id=None, row=None):
+                 machine_id=None, delivery_id=None, warehouse_id=None, row=None, machine_event_id=None,
+                 maintenance_task_id=None):
     title = (title or "").strip()
     if not title:
         raise StorageError(_("Bitte einen Titel angeben."))
@@ -63,6 +65,8 @@ def apply_fields(task, title, description=None, due_on=None, important=False, re
     task.machine_id, task.delivery_id = machine_id, delivery_id
     task.warehouse_id = warehouse_id
     task.row = row if warehouse_id else None
+    if machine_event_id or maintenance_task_id:
+        task.machine_event_id, task.maintenance_task_id = machine_event_id, maintenance_task_id
     return task
 
 
@@ -82,6 +86,11 @@ def complete_task(task, user, note=None, photo_names=None):
     task.done_note = note or None
     for name in photo_names or []:
         task.photos.append(Photo(filename=name, user_id=user.id if user else None))
+    # Verknüpfte Störung bzw. Wartung an der Maschine gleich mit erledigen
+    if task.machine_event and task.machine_event.is_open_fault:
+        machines.resolve_fault(task.machine_event, user)
+    if task.maintenance_task:
+        machines.complete_task(task.maintenance_task, user, text=note or task.title)
     follow_up = None
     if task.recurrence:
         follow_up = Task(
@@ -160,3 +169,30 @@ def for_machine(machine_id):
 
 def for_delivery(delivery_id):
     return sorted(Task.query.filter_by(delivery_id=delivery_id, done_at=None), key=_sort_key)
+
+
+def open_linked(event=None, maintenance=None):
+    """Offene Aufgabe zu einer Störung bzw. Wartung (oder None)."""
+    query = Task.query.filter(Task.done_at.is_(None))
+    if event is not None:
+        return query.filter(Task.machine_event_id == event.id).first()
+    return query.filter(Task.maintenance_task_id == maintenance.id).first()
+
+
+def close_linked(user, event=None, maintenance=None):
+    """Störung/Wartung wurde an der Maschine erledigt → zugehörige offene Aufgaben abhaken (ohne Rückwirkung)."""
+    query = Task.query.filter(Task.done_at.is_(None))
+    query = query.filter(Task.machine_event_id == event.id) if event is not None \
+        else query.filter(Task.maintenance_task_id == maintenance.id)
+    closed = 0
+    for task in query:
+        task.done_at, task.done_by_id = utcnow(), user.id if user else None
+        closed += 1
+    db.session.flush()
+    return closed
+
+
+def title_for(machine, text):
+    """Titel für eine Aufgabe aus einer Störung: „Maschine: erste Zeile der Beschreibung“."""
+    first = (text or "").strip().splitlines()[0].strip() if (text or "").strip() else ""
+    return f"{machine.name}: {first}"[:200] if first else machine.name[:200]

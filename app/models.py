@@ -736,6 +736,9 @@ class Task(db.Model):
     delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id", ondelete="SET NULL"))
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"))
     row = db.Column(db.Integer)
+    # Aus einer Störung bzw. fälligen Wartung entstanden: Abhaken erledigt beides
+    machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"), index=True)
+    maintenance_task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"), index=True)
     # Erledigt
     done_at = db.Column(db.DateTime(timezone=True), index=True)
     done_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
@@ -748,6 +751,8 @@ class Task(db.Model):
     machine = db.relationship("Machine")
     delivery = db.relationship("Delivery")
     warehouse = db.relationship("Warehouse")
+    machine_event = db.relationship("MachineEvent")
+    maintenance_task = db.relationship("MaintenanceTask")
     done_by = db.relationship("User", foreign_keys=[done_by_id])
     created_by = db.relationship("User", foreign_keys=[created_by_id])
     photos = db.relationship("Photo", back_populates="task", order_by="Photo.id", cascade="all, delete-orphan")

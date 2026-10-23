@@ -950,4 +950,12 @@ MESSAGES = {
     'Nichts gefunden für „{q}“.': 'Nic nie znaleziono dla „{q}”.',
     'Bereiche': 'Obszary',
     'Suchen …': 'Szukaj …',
+    # Aufgaben aus Maschinen
+    'Störung gemeldet und als Aufgabe angelegt.': 'Zgłoszono usterkę i dodano zadanie.',
+    'Verknüpft mit der Störung': 'Powiązane z usterką',
+    'Verknüpft mit der Wartung': 'Powiązane z przeglądem',
+    'beim Abhaken wird sie an der Maschine mit erledigt.': 'po odhaczeniu zostanie też zamknięte przy maszynie.',
+    'Als Aufgabe anlegen, damit sich jemand darum kümmert': 'Dodaj jako zadanie, żeby ktoś się tym zajął',
+    'Aufgabe offen': 'Zadanie otwarte',
+    'Als Aufgabe verteilen': 'Przydziel jako zadanie',
 }

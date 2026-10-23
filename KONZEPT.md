@@ -218,6 +218,12 @@ Menüpunkt (Handy: unten statt „Verlauf“, der Verlauf steht im Benutzermenü
 5. ✅ Schlagkartei & Ertrag (Import aus Myfarm24)
 6. Lagerklima (Sensoren) – auf Wunsch zurückgestellt
 
+### Aufgaben aus Störungen und Wartungen (0.15.0)
+Beim Melden einer Störung kann der Admin direkt eine Aufgabe anlegen (Zuständige, Termin, wichtig); offene
+Störungen und fällige Wartungen haben einen Knopf „Aufgabe“ (Formular vorbefüllt). Aufgabe und Störung/Wartung
+sind verknüpft: Abhaken der Aufgabe erledigt die Störung bzw. trägt die Wartung mit aktuellem Zählerstand ein;
+umgekehrt schließt „Behoben“/„Erledigt“ an der Maschine die offene Aufgabe.
+
 ### Navigation (0.14.0)
 PC: vier Bereiche oben (Übersicht, Lager, Feld & Hof, Verkauf), darunter die Unterpunkte des Bereichs;
 rechts Suche, Aufgaben, Verwaltung (Zahnrad, nur Admin) und ein schlankes Benutzermenü (Einstellungen,

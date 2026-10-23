@@ -37,17 +37,25 @@
 <form method="post" action="{{ action }}" class="row g-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="back" value="{{ back }}">
+    {% if not task and (prefill.get('machine_event_id') or prefill.get('maintenance_task_id')) %}
+    <input type="hidden" name="machine_event_id" value="{{ prefill.get('machine_event_id') or '' }}">
+    <input type="hidden" name="maintenance_task_id" value="{{ prefill.get('maintenance_task_id') or '' }}">
+    <div class="col-12"><div class="alert alert-info small py-2 mb-0"><i class="bi bi-link-45deg me-1"></i>
+        {{ _("Verknüpft mit der Störung") if prefill.get('machine_event_id') else _("Verknüpft mit der Wartung") }} –
+        {{ _("beim Abhaken wird sie an der Maschine mit erledigt.") }}</div></div>
+    {% endif %}
     <div class="col-12">
         <label class="form-label" for="t_title">{{ _("Aufgabe") }}</label>
-        <input class="form-control" id="t_title" name="title" required maxlength="200" value="{{ task.title if task else '' }}" placeholder="{{ _('z. B. Reihe 4 umlagern') }}">
+        <input class="form-control" id="t_title" name="title" required maxlength="200" value="{{ task.title if task else prefill.get('title', '') }}" placeholder="{{ _('z. B. Reihe 4 umlagern') }}">
     </div>
     <div class="col-12">
         <label class="form-label" for="t_desc">{{ _("Beschreibung") }}</label>
-        <textarea class="form-control" id="t_desc" name="description" rows="2" maxlength="4000">{{ task.description or '' if task else '' }}</textarea>
+        <textarea class="form-control" id="t_desc" name="description" rows="2" maxlength="4000">{{ (task.description or '') if task else prefill.get('description', '') }}</textarea>
     </div>
     <div class="col-6 col-md-4">
         <label class="form-label" for="t_due">{{ _("Fällig am") }}</label>
-        <input class="form-control" type="date" id="t_due" name="due_on" value="{{ task.due_on.isoformat() if task and task.due_on else '' }}">
+        {% set due = task.due_on if task else prefill.get('due_on') %}
+        <input class="form-control" type="date" id="t_due" name="due_on" value="{{ due.isoformat() if due else '' }}">
     </div>
     <div class="col-6 col-md-4">
         <label class="form-label" for="t_rec">{{ _("Wiederholen") }}</label>
@@ -58,7 +66,7 @@
     </div>
     <div class="col-12 col-md-4 d-flex align-items-end">
         <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="t_imp" name="important" value="1" {% if task and task.important %}checked{% endif %}>
+            <input class="form-check-input" type="checkbox" id="t_imp" name="important" value="1" {% if (task and task.important) or (not task and prefill.get('important')) %}checked{% endif %}>
             <label class="form-check-label" for="t_imp">{{ _("Wichtig") }}</label>
         </div>
     </div>
