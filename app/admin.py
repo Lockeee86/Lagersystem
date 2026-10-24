@@ -149,7 +149,7 @@ def warehouses():
             wh.name, wh.rows, wh.slots, wh.max_levels = name, rows, slots, levels
             wh.note = form_str("note", 2000) or None
             wh.numeric_rows = bool(request.form.get("numeric_rows"))
-            wh.rows_bottom_up = bool(request.form.get("rows_bottom_up"))
+            wh.rows_bottom_up = request.form.get("rows_bottom_up") == "1"
             wh.site_id = sites.from_form(request.form.get("site_id"))
             db.session.add(wh)
             db.session.commit()

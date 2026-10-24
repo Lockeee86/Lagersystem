@@ -512,7 +512,6 @@ MESSAGES = {
     "wie bei der Sorte": "jak dla odmiany",
     "Standard": "Domyślne",
     "Reihen mit Zahlen beschriften (1, 2, 3 … statt A, B, C …)": "Numeruj rzędy cyframi (1, 2, 3 … zamiast A, B, C …)",
-    "Erste Reihe in der Karte unten anzeigen": "Pokaż pierwszy rząd na dole mapy",
     "Einstellungen gespeichert.": "Ustawienia zapisane.",
     "Hofname": "Nazwa gospodarstwa",
     "Anschrift": "Adres",
@@ -1682,4 +1681,9 @@ MESSAGES = {
     'Bild entfernen': 'Usuń zdjęcie',
     'Bild entfernt.': 'Zdjęcie usunięte.',
     'Bild gespeichert.': 'Zdjęcie zapisane.',
+    'Reihenfolge der Reihen': 'Kolejność rzędów',
+    'A … n – erste Reihe oben bzw. hinten': 'A … n – pierwszy rząd u góry lub z tyłu',
+    'n … A – erste Reihe unten bzw. vorne': 'n … A – pierwszy rząd na dole lub z przodu',
+    'Gilt für Karte, Liste und 3D-Ansicht – so einstellen, wie die Reihen in der Halle vom Tor aus liegen.': 'Dotyczy mapy, listy i widoku 3D – ustaw tak, jak rzędy leżą w hali patrząc od bramy.',
+    'Reihen {first} … {last}': 'Rzędy {first} … {last}',
 }

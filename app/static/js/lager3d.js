@@ -32,7 +32,8 @@ window.Lager3D = (function () {
 
         // Reihe r / Platz s (1-basiert) → Bodenkoordinaten je nach Blickrichtung
         function place(r, s) {
-            var R = data.rows, S = data.slots, x = s - 1, y = r - 1;
+            // „Erste Reihe unten“ (Verwaltung): Reihe A vorne, sonst hinten – wie in Karte und Liste
+            var R = data.rows, S = data.slots, x = s - 1, y = data.bottomUp ? R - r : r - 1;
             if (rot === 1) return [R - 1 - y, x];
             if (rot === 2) return [S - 1 - x, R - 1 - y];
             if (rot === 3) return [y, S - 1 - x];

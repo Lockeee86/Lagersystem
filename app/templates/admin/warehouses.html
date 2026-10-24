@@ -17,12 +17,13 @@
                     <span class="badge text-bg-light border align-self-start">{{ counts.get(wh.id, 0) }} / {{ wh.capacity }}</span>
                 </div>
                 <p class="text-body-secondary mb-2">{{ _("{rows} Reihen ({first}–{last}) × {slots} Plätze × {levels} Ebenen", rows=wh.rows, first=wh.row_label(1), last=wh.row_label(wh.rows), slots=wh.slots, levels=wh.max_levels) }}</p>
+                <p class="small text-body-secondary mb-1"><i class="bi bi-sort-alpha-down me-1"></i>{{ _("Reihen {first} … {last}", first=wh.display_rows()[0][1], last=wh.display_rows()[-1][1]) }}</p>
                 {% if wh.site %}<p class="small mb-1"><i class="bi bi-buildings me-1"></i>{{ wh.site.name }}</p>{% endif %}
                 {% if wh.note %}<p class="small">{{ wh.note }}</p>{% endif %}
             </div>
             <div class="card-footer d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#whModal"
-                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "numeric_rows": wh.numeric_rows, "rows_bottom_up": wh.rows_bottom_up, "note": wh.note or "", "site_id": wh.site_id or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
+                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "numeric_rows": wh.numeric_rows, "rows_bottom_up": "1" if wh.rows_bottom_up else "0", "note": wh.note or "", "site_id": wh.site_id or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
                 <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.warehouse_map', warehouse_id=wh.id) }}"><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Karte") }}</a>
                 {% if not counts.get(wh.id) %}
                 <form method="post" action="{{ url_for('admin.warehouse_delete', wh_id=wh.id) }}" class="ms-auto">
@@ -62,9 +63,13 @@
     <input class="form-check-input" type="checkbox" id="wh_numeric" name="numeric_rows" value="1">
     <label class="form-check-label" for="wh_numeric">{{ _("Reihen mit Zahlen beschriften (1, 2, 3 … statt A, B, C …)") }}</label>
 </div>
-<div class="form-check mb-3">
-    <input class="form-check-input" type="checkbox" id="wh_bottom_up" name="rows_bottom_up" value="1">
-    <label class="form-check-label" for="wh_bottom_up">{{ _("Erste Reihe in der Karte unten anzeigen") }}</label>
+<div class="mb-3">
+    <label class="form-label" for="wh_bottom_up">{{ _("Reihenfolge der Reihen") }}</label>
+    <select class="form-select" id="wh_bottom_up" name="rows_bottom_up">
+        <option value="0">{{ _("A … n – erste Reihe oben bzw. hinten") }}</option>
+        <option value="1">{{ _("n … A – erste Reihe unten bzw. vorne") }}</option>
+    </select>
+    <div class="form-text">{{ _("Gilt für Karte, Liste und 3D-Ansicht – so einstellen, wie die Reihen in der Halle vom Tor aus liegen.") }}</div>
 </div>
 {% if any_sites() %}<div class="mb-3">{{ site_select(id="wh_site") }}</div>{% endif %}
 <div>

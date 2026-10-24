@@ -280,6 +280,17 @@ def test_rows_bottom_up(as_admin, db, seed):
     assert seed["wh"].display_rows() == [(3, "C"), (2, "B"), (1, "A")]
     html = as_admin.get(f"/lager/{seed['wh'].id}?ansicht=karte").get_data(as_text=True)
     assert html.index('row-head">C<') < html.index('row-head">A<')
+    # 3D-Ansicht und Liste in derselben Reihenfolge, Verwaltung zeigt sie an
+    html = as_admin.get(f"/lager/{seed['wh'].id}?ansicht=3d").get_data(as_text=True)
+    assert '"bottomUp": true' in html
+    html = as_admin.get(f"/lager/{seed['wh'].id}?ansicht=liste").get_data(as_text=True)
+    assert html.index("Reihe C") < html.index("Reihe A")
+    assert "Reihen C … A" in as_admin.get("/admin/lager").get_data(as_text=True)
+    # zurück auf A … n („0“ zählt nicht als an)
+    as_admin.post("/admin/lager", data={"id": seed["wh"].id, "name": "Halle 1", "rows": 3, "slots": 4,
+                                        "max_levels": 5, "rows_bottom_up": "0"})
+    assert not seed["wh"].rows_bottom_up
+    assert '"bottomUp": false' in as_admin.get(f"/lager/{seed['wh'].id}?ansicht=3d").get_data(as_text=True)
 
 
 def test_season_date_guess():

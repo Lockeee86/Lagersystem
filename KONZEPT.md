@@ -279,6 +279,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Reihenfolge der Reihen** (0.31.7, Verwaltung → Kartoffellager): „A … n“ (erste Reihe oben/hinten) oder „n … A“
+   (erste Reihe unten/vorne) – gilt gleich für Karte, Liste und 3D-Ansicht (`Warehouse.rows_bottom_up`).
    **Titelbild je Maschine** (0.31.6): auf der Maschinenseite oben (Mitarbeiter: „Bild hinzufügen/ändern“, Kamera
    oder Galerie), in der Maschinenliste als quadratische Vorschau (ohne Bild das Symbol der Art). `Machine.image`,
    Vorschau `uploads.save_with_thumb` / `thumb_name`; beim Ersetzen/Entfernen verschwinden die alten Dateien.

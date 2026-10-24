@@ -261,7 +261,7 @@ class Warehouse(db.Model):
         return [(r, self.row_label(r)) for r in range(1, self.rows + 1)]
 
     def display_rows(self):
-        """Reihen in der Anzeigereihenfolge der Karte (bei `rows_bottom_up` A unten)."""
+        """Reihen in der Anzeigereihenfolge von Karte und Liste (bei `rows_bottom_up` A unten; 3D: A vorne)."""
         labels = self.row_labels()
         return labels[::-1] if self.rows_bottom_up else labels
 
