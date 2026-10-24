@@ -65,6 +65,8 @@ def test_admin_and_assignment(as_admin, as_worker, db, seed, two_sites):
     as_admin.post("/admin/schlaege/betrieb", data={"plot_ids": [str(seed["plot"].id), str(other.id)],
                                                       "site_id": str(sued.id)})
     assert {p.site_id for p in Plot.query} == {sued.id}
+    from app.models import AuditEntry
+    assert AuditEntry.query.filter_by(table="plots", label="Sonnenacker").one().changes == {"site_id": [None, sued.id]}
 
     # Lager, Schüttlager, Maschine, Tank
     wh = seed["wh"]

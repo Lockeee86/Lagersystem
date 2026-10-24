@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import aerial, agenda, backup, branding, fielddoc, fields, sites, tiles, transfer, weather
+from . import aerial, agenda, audit, backup, branding, fielddoc, fields, sites, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -265,7 +265,8 @@ def plots_assign_site():
         flash_error(_("Bitte mindestens einen Schlag markieren."))
         return redirect(url_for("admin.plots"))
     site_id = sites.from_form(request.form.get("site_id"))
-    Plot.query.filter(Plot.id.in_(ids)).update({"site_id": site_id}, synchronize_session=False)
+    for plot in Plot.query.filter(Plot.id.in_(ids)):       # einzeln, damit es im Änderungsprotokoll steht
+        plot.site_id = site_id
     db.session.commit()
     flash(ngettext("{n} Schlag zugeordnet.", "{n} Schläge zugeordnet.", len(ids)), "success")
     return redirect(url_for("admin.plots"))
@@ -303,7 +304,10 @@ def plots_kml_apply():
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
-        created, updated = fields.apply_import(fields.parse_kml(info["name"], data_bytes), info["year"])
+        with audit.paused():
+            created, updated = fields.apply_import(fields.parse_kml(info["name"], data_bytes), info["year"])
+            db.session.flush()
+        audit.note("plots", info["name"], {"created": created, "updated": updated, "year": info["year"]})
         db.session.commit()
     except fields.FieldImportError as e:
         db.session.rollback()
@@ -353,7 +357,10 @@ def plots_csv_apply():
         data_bytes = f.read()
     try:
         year, entries = fielddoc.parse_csv(data_bytes)
-        stats = fielddoc.apply_import(entries, year, create=bool(request.form.get("create")))
+        with audit.paused():
+            stats = fielddoc.apply_import(entries, year, create=bool(request.form.get("create")))
+            db.session.flush()
+        audit.note("field_measures", f"Myfarm24 {year}", {k: stats[k] for k in ("created", "updated", "measures")})
         db.session.commit()
     except fields.FieldImportError as e:
         db.session.rollback()
@@ -400,7 +407,10 @@ def plots_plan_apply():
         data_bytes = f.read()
     try:
         years, entries = fielddoc.parse_plan(data_bytes)
-        stats = fielddoc.apply_rotation(entries, years, create=bool(request.form.get("create")))
+        with audit.paused():
+            stats = fielddoc.apply_rotation(entries, years, create=bool(request.form.get("create")))
+            db.session.flush()
+        audit.note("plot_years", f"{years[0]}–{years[-1]}", {k: stats[k] for k in ("created", "updated")})
         db.session.commit()
     except fields.FieldImportError as e:
         db.session.rollback()
@@ -460,6 +470,30 @@ def site_delete(s_id):
         flash(_("„{name}“ ist noch zugeordnet und wurde deshalb nur deaktiviert.", name=site.name), "warning")
     db.session.commit()
     return redirect(url_for("admin.site_list"))
+
+
+# --- Änderungsprotokoll --------------------------------------------------------
+
+@bp.route("/protokoll")
+def audit_log():
+    from .models import AuditEntry, User
+    query = AuditEntry.query
+    area = request.args.get("bereich", "")
+    if area in audit.AREAS:
+        query = query.filter(AuditEntry.table == area)
+    action = request.args.get("aktion", "")
+    if action in audit.ACTIONS:
+        query = query.filter(AuditEntry.action == action)
+    user_id = request.args.get("benutzer", type=int)
+    if user_id:
+        query = query.filter(AuditEntry.user_id == user_id)
+    q = request.args.get("q", "").strip()[:100]
+    if q:
+        query = query.filter(AuditEntry.label.ilike(f"%{q}%"))
+    page = query.order_by(AuditEntry.created_at.desc(), AuditEntry.id.desc()).paginate(per_page=50, error_out=False)
+    return render_template("admin/audit.html", page=page, areas=audit.AREAS, actions=audit.ACTIONS,
+                           details=audit.describe(page.items), users=User.query.order_by(User.username).all(),
+                           args=request.args, keep_days=audit.KEEP_DAYS)
 
 
 # --- Saatgut-Stufen ---------------------------------------------------------
@@ -699,8 +733,10 @@ def import_apply():
         data_bytes = f.read()
     try:
         rows = transfer.read_file(info["name"], data_bytes)
-        results = transfer.run_import(rows, current_user, info["create"], info.get("clear", False),
-                                      info.get("warehouse"))
+        with audit.paused():
+            results = transfer.run_import(rows, current_user, info["create"], info.get("clear", False),
+                                          info.get("warehouse"))
+            db.session.flush()
     except transfer.TransferError as e:
         db.session.rollback()
         flash_error(str(e))
@@ -712,6 +748,7 @@ def import_apply():
         return render_template("admin/import_preview.html", results=results, errors=errors,
                                filename=info["name"], create_missing=info["create"],
                                warehouse=db.session.get(Warehouse, info.get("warehouse") or 0))
+    audit.note("boxes", info["name"], {"rows": len(results)})
     db.session.commit()
     os.remove(path)
     session.pop("import", None)

@@ -287,6 +287,11 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Betriebsstätte). Der Lieferschein zeigt den Hofnamen, darunter die Betriebsstätte mit ihrer Anschrift.
    Filter „Betrieb“ auf Lager-Übersicht, Schlagkarte, Schüttlager, Maschinen, Lieferscheinen und in der
    Verwaltung der Schläge; die Wahl wird je Gerät gemerkt. Ohne Betriebsstätten bleibt alles wie bisher.
+   **Änderungsprotokoll** (0.31.0, Verwaltung → Protokoll, nur Admins): jedes Ändern und Löschen in allen
+   Bereichen mit Zeit, Benutzer und vorher → nachher (gelöscht: die letzten Werte). Nicht erfasst: Neuanlagen,
+   Platz und Inhalt der Kisten (stehen im Verlauf), persönliche Einstellungen, Passwörter (nur „geändert“),
+   Umrisse (nur „geändert“). Importe (KML, Myfarm24, Fruchtfolge, Excel) als ein Eintrag mit Zahlen.
+   Filter nach Bereich, Aktion, Benutzer, Suche; Einträge bleiben 2 Jahre.
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

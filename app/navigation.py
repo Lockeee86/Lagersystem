@@ -64,12 +64,14 @@ ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items
     item("admin.data", N_("Import / Export"), "bi-arrow-down-up", endpoints=("admin.import_preview", "admin.import_apply")),
     item("admin.tile_defaults", N_("Startseite"), "bi-grid-1x2"),
     item("admin.backups", N_("Datensicherung"), "bi-shield-check", endpoints=("admin.backup_now", "admin.backup_download")),
+    item("admin.audit_log", N_("Protokoll"), "bi-journal-text"),
 ]}
 # Kurzbeschreibungen für die Kacheln der Verwaltungs-Startseite
 ADMIN_HINTS = {
     "admin.settings": N_("Hofname, Anschrift, Standort für das Wetter"),
     "admin.site_list": N_("Hofstellen mit eigener Anschrift für den Lieferschein"),
     "admin.warehouses": N_("Reihen, Plätze, Höhe, Beschriftung"),
+    "admin.audit_log": N_("Wer hat was geändert oder gelöscht"),
     "admin.varieties": N_("Kartoffelsorten mit Farbe"),
     "admin.plots": N_("Schläge, Import aus Myfarm24"),
     "admin.seed_classes": N_("Saatgut-Stufen (PB, SE, E …)"),

@@ -46,7 +46,8 @@ docker compose up --build -d
   in Tests `weather._fetch` ersetzen (kein Netz)
 - `app/backup.py`: Datensicherung nach `BACKUP_DIR` (pg_dump bzw. SQLite-Kopie, Fotos spiegeln, Aufbewahrung
   `to_delete`, Status in `status.json`). Konsole: `flask backup-now`, `flask backup-restore`
-- `app/scheduler.py`: Hintergrund-Thread (aus `gunicorn.conf.py`, `post_worker_init`) für `backup.tick` und `push.daily`
+- `app/scheduler.py`: Hintergrund-Thread (aus `gunicorn.conf.py`, `post_worker_init`) für `backup.tick`, `push.daily`
+  und `audit.cleanup`
 - `app/push.py`: Web Push (VAPID-Schlüssel in `settings`, Themen `models.PUSH_TOPICS`, abgewählt `User.push_off`,
   bei Themen mit `"default"` (z. B. Wetter-Warnungen nur Admins) eingeschaltet `User.push_on`).
   `push.notify()` / die Auslöser (`task_assigned`, `fault_reported`, `purchase_*`) **nach dem Commit** aufrufen.
@@ -85,6 +86,11 @@ docker compose up --build -d
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
   (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es
   Betriebsstätten gibt; committet nicht
+- `app/audit.py`: Änderungsprotokoll `AuditEntry` – Session-Hook `before_flush` erfasst jedes Ändern/Löschen mit
+  Benutzer und vorher/nachher (nicht: Neuanlagen, Kisten-Platz/-Inhalt = `Movement`, persönliche Einstellungen,
+  interne `settings`). Massenimporte in `with audit.paused():` und danach `audit.note(...)`. Massen-`query.update()`
+  läuft am Protokoll vorbei – lieber einzeln ändern. Seite `admin.audit_log` (`/admin/protokoll`), Aufräumen
+  `audit.cleanup` im Zeitplan
 - `app/navigation.py`: Bereiche (Übersicht, Lager, Feld & Hof, Verkauf) mit Unterpunkten und die Verwaltung –
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste (PC) und auf den Bereichsseiten (Handy,
   `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`; „Lager“ ist die

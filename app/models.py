@@ -1313,3 +1313,22 @@ class CalendarEntry(db.Model):
 
     def can_edit(self, user):
         return user.is_admin or (user.can_edit and self.created_by_id == user.id)
+
+
+# --- Änderungsprotokoll -----------------------------------------------------------
+
+class AuditEntry(db.Model):
+    """Wer hat wann was geändert oder gelöscht (vorher → nachher), automatisch beim Speichern erfasst (audit.py).
+    Gespeichert werden Tabellen- und Feldnamen und die Werte, keine fertigen Sätze – die Anzeige übersetzt."""
+    __tablename__ = "audit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    action = db.Column(db.String(20), nullable=False)       # geaendert, geloescht, import
+    table = db.Column(db.String(50), nullable=False, index=True)
+    object_id = db.Column(db.String(50))
+    label = db.Column(db.String(200))                        # Name/Code des Datensatzes zum Zeitpunkt der Änderung
+    changes = db.Column(db.JSON)                              # {feld: [vorher, nachher]} bzw. {feld: wert} beim Löschen
+
+    user = db.relationship("User")

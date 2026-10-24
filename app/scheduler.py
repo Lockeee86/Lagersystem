@@ -10,8 +10,8 @@ CHECK_EVERY = 300                     # Sekunden zwischen zwei Prüfungen
 
 
 def _jobs():
-    from . import backup, push
-    return [("Datensicherung", backup.tick), ("Push", push.daily)]
+    from . import audit, backup, push
+    return [("Datensicherung", backup.tick), ("Push", push.daily), ("Protokoll aufräumen", audit.cleanup)]
 
 
 def start(app):

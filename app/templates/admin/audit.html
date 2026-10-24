@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "macros.html" import pagination, filter_toggle, filter_chips %}
+{% block title %}{{ _("Protokoll") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Änderungsprotokoll") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Wer hat wann was geändert oder gelöscht – mit vorher und nachher. Einträge bleiben {n} Tage.", n=keep_days) }}</p>
+    </div>
+</div>
+
+{% set chips = [] %}
+{% if args.get('bereich') in areas %}{% set _x = chips.append(('bereich', _(areas[args.get('bereich')]))) %}{% endif %}
+{% if args.get('aktion') in actions %}{% set _x = chips.append(('aktion', _(actions[args.get('aktion')]))) %}{% endif %}
+{% if args.get('benutzer') %}{% for u in users if u.id == args.get('benutzer')|int %}{% set _x = chips.append(('benutzer', u.name)) %}{% endfor %}{% endif %}
+{% if args.get('q') %}{% set _x = chips.append(('q', args.get('q'))) %}{% endif %}
+<form class="filter-bar card shadow-sm mb-2 mb-lg-3" method="get">
+    <div class="card-body row g-2">
+        <div class="col d-flex gap-2">
+            <input class="form-control" type="search" name="q" value="{{ args.get('q', '') }}" placeholder="{{ _('Name oder Code suchen …') }}" aria-label="{{ _('Suche') }}">
+            {{ filter_toggle("auditFilters", chips|length) }}
+        </div>
+        <div class="collapse filter-more" id="auditFilters"><div class="row g-2">
+        <div class="col-12 col-md">
+            <select class="form-select" name="bereich" onchange="this.form.submit()" aria-label="{{ _('Bereich') }}">
+                <option value="">{{ _("Alle Bereiche") }}</option>
+                {% for key, label in areas|dictsort(by='value') %}<option value="{{ key }}" {% if args.get('bereich') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <select class="form-select" name="aktion" onchange="this.form.submit()" aria-label="{{ _('Aktion') }}">
+                <option value="">{{ _("Alle") }}</option>
+                {% for key, label in actions.items() %}<option value="{{ key }}" {% if args.get('aktion') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <select class="form-select" name="benutzer" onchange="this.form.submit()" aria-label="{{ _('Benutzer') }}">
+                <option value="">{{ _("Alle Benutzer") }}</option>
+                {% for u in users %}<option value="{{ u.id }}" {% if args.get('benutzer')|int == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+            </select>
+        </div>
+        </div></div>
+    </div>
+</form>
+{{ filter_chips(chips) }}
+
+{% if page.items %}
+<div class="card shadow-sm">
+    <ul class="list-group list-group-flush">
+        {% for e in page.items %}
+        <li class="list-group-item audit-item">
+            <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                <span class="badge {{ {'geaendert': 'text-bg-primary', 'geloescht': 'text-bg-danger', 'import': 'text-bg-secondary'}[e.action] }}">{{ _(actions.get(e.action, e.action)) }}</span>
+                <span class="fw-semibold">{{ _(areas[e.table]) if e.table in areas else e.table }}</span>
+                {% if e.label %}<span class="text-truncate">{{ e.label }}</span>{% endif %}
+                <span class="ms-auto small text-body-secondary text-nowrap">{{ e.created_at|datetime }} · {{ e.user.name if e.user else _("System") }}</span>
+            </div>
+            {% set rows = details[e.id] %}
+            {% if rows %}
+            <dl class="audit-changes small mb-0 mt-1">
+                {% for label, before, after in rows %}
+                <dt>{{ label }}</dt>
+                <dd>{% if after is none %}{{ before }}{% else %}<span class="audit-before">{{ before }}</span> <i class="bi bi-arrow-right text-body-tertiary"></i> <span class="audit-after">{{ after }}</span>{% endif %}</dd>
+                {% endfor %}
+            </dl>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{{ pagination(page, 'admin.audit_log', args) }}
+{% else %}
+<div class="empty-state"><i class="bi bi-journal-text"></i><p>{{ _("Keine Einträge.") }}</p></div>
+{% endif %}
+{% endblock %}

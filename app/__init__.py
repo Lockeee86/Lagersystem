@@ -121,7 +121,7 @@ def create_app(config=None):
         return url_for(request.endpoint, **(request.view_args or {}), **args, **{param: value})
     app.jinja_env.globals["url_set"] = url_set
 
-    from . import sites
+    from . import audit, sites  # noqa: F401 – audit registriert die Protokoll-Hooks
     app.jinja_env.globals.update(any_sites=sites.any_sites, chosen_site=sites.chosen, all_sites=sites.sites,
                                   default_site_id=sites.default_id)
     app.after_request(sites.remember)

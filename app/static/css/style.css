@@ -699,3 +699,10 @@ body:not(.has-tabbar) {
     .task-item { padding-top: .6rem; padding-bottom: .6rem; }
 }
 .task-item.collapse.show { display: flex; }
+
+/* Änderungsprotokoll */
+.audit-changes { display: grid; grid-template-columns: minmax(6rem, max-content) 1fr; gap: .1rem .75rem; }
+.audit-changes dt { font-weight: 500; color: var(--bs-secondary-color); }
+.audit-changes dd { margin: 0; overflow-wrap: anywhere; }
+.audit-before { text-decoration: line-through; color: var(--bs-secondary-color); }
+.audit-after { font-weight: 600; }
