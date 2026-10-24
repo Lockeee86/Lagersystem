@@ -773,3 +773,8 @@ body:not(.has-tabbar) {
 .sign-pad.signed .sign-hint { color: transparent; }
 @media (max-width: 575.98px) { .sign-pad { height: 45vh; } }
 .sign-img { display: block; max-width: 100%; max-height: 5rem; background: #fff; border-radius: .25rem; padding: .25rem; }
+
+/* Kistenzustand */
+.cond-badge { font-weight: 500; vertical-align: middle; }
+.cond-defekt { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+.cond-ausgemustert { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }

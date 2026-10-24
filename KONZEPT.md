@@ -285,6 +285,12 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Kistenzustand** (0.35.0): auf der Kistenseite „Kiste defekt melden“ mit kurzer Angabe (Schnellwahl für die
+   Metallkisten: Gitter, Rahmen, Schweißnaht, Stapelfuß; Foto über die Fotoleiste). Defekte Kisten stehen unter Lager → Kisten-Reparatur
+   (`/kisten/reparatur`), werden im Ernte-Modus abgewiesen und auf Kistenliste/Stapel markiert; „Repariert“ setzt
+   sie zurück. Der Admin kann leere, nicht eingelagerte Kisten ausmustern (nicht mehr befüll-/einlagerbar, aus der
+   Kistenliste und den Zahlen raus, Verlauf bleibt). `Box.condition` (`defekt`/`ausgemustert`), Bewegungen
+   `defekt`/`repariert`/`ausgemustert`, Logik `storage.report_defect/repair_box/retire_box`.
    **Feldnotizen** (0.33.0): Schlagkarte → „Ich bin hier – Notiz“ (Standort des Handys) findet den Schlag (im Umriss
    oder bis 300 m daneben) und öffnet auf der Schlagseite „Notizen vom Feld“ mit Text, Fotos und Standort zum
    aktuellen Anbaujahr (`FieldNote`, `fields.locate`). Löschen: Admin oder Verfasser.

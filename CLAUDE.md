@@ -31,7 +31,8 @@ docker compose up --build -d
   gemerkt im Cookie `ernte`, Routen `main.harvest_settings` / `main.harvest_box`; Kartoffelgrößen `sizes()` /
   `save_sizes()` in `settings` `potato_sizes`, Auswahl über `macros.size_select`; Nachsortieren `main.sort_box`;
   Lagerdauer `age_level()` / `oldest_boxes()` (Schwellen `age_warn_months`/`age_old_months`); Ernte-Tagesbericht
-  `harvest_report()` + Push `harvest_report`). Views rufen nur diese Funktionen auf,
+  `harvest_report()` + Push `harvest_report`; Kistenzustand `report_defect()` / `repair_box()` / `retire_box()`,
+  `Box.condition`, Seite `main.repairs`). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
 - `app/sales.py`: Lieferscheinlogik (anlegen, Kisten verladen über `storage.ship_box`, Mengen, Waage,
   Unterschriften `sign()` / `remove_signature()` / `sign_required()` – unterschrieben = gesperrt,

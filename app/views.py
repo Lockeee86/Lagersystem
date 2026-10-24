@@ -13,7 +13,7 @@ from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sale
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
-from .models import (FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
+from .models import (BOX_CONDITIONS, BOX_DEFECT, BOX_RETIRED, FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
                      Photo, Plot, PlotYear, SeedClass, User, Variety, Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
@@ -159,9 +159,10 @@ def _stock_overview(recent_limit=12, site=None):
     max_kg = max((v["kg"] for v in varieties), default=0)
 
     stats = {
-        "total": len(boxes),
+        "total": sum(1 for b in boxes if not b.is_retired),
         "filled": sum(1 for b in boxes if not b.is_empty),
-        "empty": sum(1 for b in boxes if b.is_empty),
+        "empty": sum(1 for b in boxes if b.is_empty and not b.condition),       # leer und einsatzbereit
+        "defect": sum(1 for b in boxes if b.is_defect),
         "kg": sum(b.weight_kg for b in boxes),
         "filled_not_stored": sum(1 for b in boxes if not b.is_empty and not b.is_stored),
     }
@@ -228,6 +229,9 @@ def _status(endpoint):
                 else _("nichts lange gelagert")), bool(old)
     if endpoint == "main.harvest":
         return _("Kisten befüllen und einlagern"), False
+    if endpoint == "main.repairs":
+        n = Box.query.filter(Box.condition == BOX_DEFECT).count()
+        return (ngettext("{n} Kiste defekt", "{n} Kisten defekt", n) if n else _("alle Kisten in Ordnung")), bool(n)
     if endpoint == "fields.field_map":
         p = _plot_stats()
         return (f"{p['count']} · {fmt_num(p['ha'], 0)} ha" if p["ha"] else str(p["count"])), False
@@ -479,6 +483,8 @@ BOX_FILTERS = {
     "leer": (N_("Leer"), Box.fill == 0),
     "befuellt_nicht_eingelagert": (N_("Befüllt, nicht eingelagert"),
                                    (Box.fill > 0) & Box.warehouse_id.is_(None)),
+    "defekt": (N_("Defekt"), Box.condition == BOX_DEFECT),
+    "ausgemustert": (N_("Ausgemustert"), Box.condition == BOX_RETIRED),
 }
 
 
@@ -500,6 +506,8 @@ def boxes():
     status = request.args.get("status", "")
     if status in BOX_FILTERS:
         query = query.filter(BOX_FILTERS[status][1])
+    if status != "ausgemustert":
+        query = query.filter(or_(Box.condition.is_(None), Box.condition != BOX_RETIRED))
     warehouse_id = request.args.get("lager", type=int)
     if warehouse_id:
         query = query.filter(Box.warehouse_id == warehouse_id)
@@ -661,6 +669,41 @@ def box_remove(code):
             msg += " " + _("Nachgerückt: {codes}.", codes=", ".join(b.code for b in shifted))
         flash(msg, "success")
     return redirect(url_for("main.box_detail", code=box.code))
+
+
+@bp.route("/kiste/<code>/zustand", methods=["POST"])
+@editor_required
+def box_condition(code):
+    """Defekt melden, repariert, ausmustern (nur Admin). `weiter` = zurück zur Reparaturliste."""
+    box = get_box_or_404(code)
+    action = request.form.get("aktion")
+    note = form_str("note", 200)
+    try:
+        if action == "defekt":
+            storage.report_defect(box, current_user, note)
+            message = _("{code} als defekt gemeldet.", code=box.code)
+        elif action == "repariert":
+            storage.repair_box(box, current_user, note)
+            message = _("{code} ist wieder in Ordnung.", code=box.code)
+        elif action == "ausmustern" and current_user.is_admin:
+            storage.retire_box(box, current_user, note)
+            message = _("{code} ausgemustert.", code=box.code)
+        else:
+            abort(400)
+        db.session.commit()
+        flash(message, "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    if request.form.get("weiter") == "reparatur":
+        return redirect(url_for("main.repairs"))
+    return redirect(url_for("main.box_detail", code=box.code) + "#zustand")
+
+
+@bp.route("/kisten/reparatur")
+@login_required
+def repairs():
+    return render_template("repairs.html", defect=storage.defect_boxes(), retired=storage.retired_boxes())
 
 
 @bp.route("/kiste/<code>/loeschen", methods=["POST"])

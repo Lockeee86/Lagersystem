@@ -17,7 +17,7 @@
            style="--c: {{ b.color or 'var(--box-blank)' }}">
             <span class="tower-level">{{ lvl }}</span>
             <span class="tower-main">
-                <span class="fw-semibold">{{ b.code }}</span>
+                <span class="fw-semibold">{{ b.code }}{% if b.is_defect %} <i class="bi bi-wrench-adjustable text-warning" title="{{ _('defekt') }}: {{ b.condition_note or '' }}"></i>{% endif %}</span>
                 {{ variety_chip(b.variety, b.is_empty) }}
                 {% if b.harvest_date %}<span class="small text-body-secondary">{{ _("Ernte {date}", date=b.harvest_date|date) }}{% set age = ages.get(b.id) if ages else none %}{% if age %} <i class="bi bi-hourglass-split age-icon-{{ age }}" title="{{ _('lange gelagert') }}"></i>{% endif %}</span>{% endif %}
             </span>

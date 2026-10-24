@@ -24,6 +24,12 @@
 {%- endif -%}
 {%- endmacro %}
 
+{% macro condition_badge(box) -%}
+{%- if box.condition -%}
+<span class="badge cond-badge cond-{{ box.condition }}" title="{{ box.condition_note or '' }}"><i class="bi {{ 'bi-wrench-adjustable' if box.is_defect else 'bi-x-octagon' }} me-1"></i>{{ _("defekt") if box.is_defect else _("ausgemustert") }}</span>
+{%- endif -%}
+{%- endmacro %}
+
 {% macro movement_item(m, show_box=true) %}
 <li class="timeline-item">
     <span class="timeline-icon act-{{ m.action }}"><i class="bi {{ m.action_icon }}"></i></span>

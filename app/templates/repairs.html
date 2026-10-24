@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, variety_chip, location_badge %}
+{% block title %}{{ _("Kisten-Reparatur") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Kisten-Reparatur") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Kiste defekt", "{n} Kisten defekt", defect|length) if defect else _("alle Kisten in Ordnung") }}</p>
+    </div>
+</div>
+<p class="small text-body-secondary">{{ _("Defekt melden: Kiste scannen, dann auf der Kistenseite „Kiste defekt melden“. Defekte Kisten werden im Ernte-Modus abgewiesen.") }}</p>
+
+<div class="card shadow-sm mb-4">
+    <ul class="list-group list-group-flush">
+        {% for box in defect %}
+        <li class="list-group-item d-flex gap-3 align-items-center">
+            <a class="flex-grow-1 min-w-0 text-decoration-none text-body" href="{{ url_for('main.box_detail', code=box.code) }}#zustand">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="fw-semibold">{{ box.code }}</span>
+                    {% if not box.is_empty %}{{ variety_chip(box.variety, box.is_empty) }}{% endif %}
+                    {{ location_badge(box, link=false) }}
+                    {% if box.photos %}<i class="bi bi-camera text-body-secondary" title="{{ _('Fotos') }}"></i>{% endif %}
+                </div>
+                <div class="small">{{ box.condition_note or "–" }}</div>
+                <div class="small text-body-secondary">{{ _("seit {date}", date=box.condition_at|date) }}{% if not box.is_empty %} · {{ _("noch befüllt – erst leeren") }}{% endif %}</div>
+            </a>
+            {% if current_user.can_edit %}
+            <form method="post" action="{{ url_for('main.box_condition', code=box.code) }}">
+                {{ csrf() }}<input type="hidden" name="weiter" value="reparatur">
+                <button class="btn btn-sm btn-success text-nowrap" name="aktion" value="repariert"><i class="bi bi-check2-circle me-1"></i>{{ _("Repariert") }}</button>
+            </form>
+            {% endif %}
+        </li>
+        {% else %}
+        <li class="list-group-item text-body-secondary">{{ _("Keine defekten Kisten.") }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if retired %}
+<details class="mb-4">
+    <summary class="text-body-secondary">{{ ngettext("{n} Kiste ausgemustert", "{n} Kisten ausgemustert", retired|length) }}</summary>
+    <ul class="list-group mt-2">
+        {% for box in retired %}
+        <li class="list-group-item d-flex justify-content-between gap-2">
+            <a href="{{ url_for('main.box_detail', code=box.code) }}">{{ box.code }}</a>
+            <span class="small text-body-secondary text-end">{{ box.condition_note or "" }} · {{ box.condition_at|date }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</details>
+{% endif %}
+{% endblock %}

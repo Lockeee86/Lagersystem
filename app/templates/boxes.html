@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import variety_chip, fill_bar, location_badge, pagination, csrf, filter_toggle, filter_chips %}
+{% from "macros.html" import variety_chip, fill_bar, location_badge, pagination, csrf, filter_toggle, filter_chips, condition_badge %}
 {% block title %}{{ _("Kisten") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -99,7 +99,7 @@
     <div class="list-group list-group-flush box-list">
         {% for b in page.items %}
         <a class="list-group-item list-group-item-action box-row" href="{{ url_for('main.box_detail', code=b.code) }}" style="--c: {{ b.color or 'var(--box-blank)' }}">
-            <span class="box-row-code">{{ b.code }}</span>
+            <span class="box-row-code">{{ b.code }}{% if b.condition %} {{ condition_badge(b) }}{% endif %}</span>
             <span class="box-row-variety">{{ variety_chip(b.variety, b.is_empty) }}{% if b.plot %}<span class="box-row-plot d-lg-none"> {{ b.plot.name }}</span>{% endif %}</span>
             <span class="box-row-fill">{{ fill_bar(b.fill) }}<span class="small text-body-secondary">{{ b.fill_label }}</span></span>
             <span class="box-row-meta small text-body-secondary d-none d-lg-block">

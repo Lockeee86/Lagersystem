@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf %}
+{% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf, condition_badge %}
 {% from "macros.html" import photo_strip with context %}
 {% from "macros.html" import size_select %}
 {% block title %}{{ box.code }}{% endblock %}
@@ -15,6 +15,7 @@
                 {{ variety_chip(box.variety, box.is_empty) }}
                 {% if not box.is_empty and box.variety %}<span class="fw-semibold small">{{ box.usage_label }}{% if box.seed_class %} {{ box.seed_class.name }}{% endif %}</span>{% endif %}
                 {{ location_badge(box) }}
+                {{ condition_badge(box) }}
             </div>
             <div class="d-flex flex-wrap gap-3 mt-2 small text-body-secondary">
                 <span>{{ fill_bar(box.fill) }} {{ box.fill_label }} · ≈ {{ box.weight_kg|kg }}</span>
@@ -27,6 +28,28 @@
         </div>
     </div>
 </div>
+
+{% if box.condition %}
+<div class="alert {{ 'alert-warning' if box.is_defect else 'alert-secondary' }} d-flex gap-2 align-items-start" id="zustand">
+    <i class="bi {{ 'bi-wrench-adjustable' if box.is_defect else 'bi-x-octagon' }}"></i>
+    <div class="flex-grow-1">
+        <div class="fw-semibold">{{ box.condition_label }}</div>
+        {% if box.condition_note %}<div class="small">{{ box.condition_note }}</div>{% endif %}
+        <div class="small text-body-secondary">{{ _("seit {date}", date=box.condition_at|date) }}</div>
+        {% if box.is_defect %}<div class="small mt-1">{{ _("Im Ernte-Modus wird die Kiste abgewiesen.") }}</div>{% endif %}
+        {% if current_user.can_edit and (box.is_defect or current_user.is_admin) %}
+        <form method="post" action="{{ url_for('main.box_condition', code=box.code) }}" class="d-flex flex-wrap gap-2 mt-2">
+            {{ csrf() }}
+            <button class="btn btn-sm btn-success" name="aktion" value="repariert"><i class="bi bi-check2-circle me-1"></i>{{ _("Repariert") if box.is_defect else _("Wieder in Betrieb nehmen") }}</button>
+            {% if box.is_defect and current_user.is_admin %}
+            <button class="btn btn-sm btn-outline-secondary" name="aktion" value="ausmustern" {% if not box.is_empty or box.is_stored %}disabled title="{{ _('Erst leeren und auslagern') }}"{% endif %}
+                    data-confirm="{{ _('{code} ausmustern? Die Kiste wird dann nicht mehr befüllt.', code=box.code) }}"><i class="bi bi-x-octagon me-1"></i>{{ _("Ausmustern") }}</button>
+            {% endif %}
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 {% set shipped = box.delivery_items.limit(3).all() %}
 {% if shipped %}
@@ -209,6 +232,35 @@
     </div>
 </div>
 
+{% if current_user.can_edit and not box.condition %}
+<div class="card shadow-sm mb-4" id="zustand">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Zustand") }}</span>
+        <span class="small text-success"><i class="bi bi-check2 me-1"></i>{{ _("in Ordnung") }}</span>
+    </div>
+    <div class="card-body">
+        <button class="btn btn-outline-warning w-100" type="button" data-bs-toggle="collapse" data-bs-target="#defectForm"><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Kiste defekt melden") }}</button>
+        <form method="post" action="{{ url_for('main.box_condition', code=box.code) }}" class="collapse mt-3" id="defectForm">
+            {{ csrf() }}
+            <label class="form-label" for="defectNote">{{ _("Was ist kaputt?") }}</label>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                {% for text in (_("Gitter gerissen"), _("Rahmen verbogen"), _("Schweißnaht gebrochen"), _("Stapelfuß verbogen")) %}
+                <button type="button" class="btn btn-sm btn-outline-secondary defect-chip">{{ text }}</button>
+                {% endfor %}
+            </div>
+            <input class="form-control mb-2" id="defectNote" name="note" maxlength="200" required autocomplete="off">
+            <div class="form-text mb-2">{{ _("Die Kiste kommt auf die Reparaturliste und wird im Ernte-Modus abgewiesen. Ein Foto vom Schaden kannst du unten anhängen.") }}</div>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-warning" name="aktion" value="defekt"><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Defekt melden") }}</button>
+                {% if current_user.is_admin and box.is_empty and not box.is_stored %}
+                <button class="btn btn-outline-secondary" name="aktion" value="ausmustern" formnovalidate data-confirm="{{ _('{code} ausmustern? Die Kiste wird dann nicht mehr befüllt.', code=box.code) }}"><i class="bi bi-x-octagon me-1"></i>{{ _("Gleich ausmustern") }}</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-camera me-1"></i>{{ _("Fotos") }}</div>
     <div class="card-body">{{ photo_strip(box.photos, url_for('main.photos_add', kind='kiste', owner_id=box.id), url_for('main.box_detail', code=box.code) ~ '#fotos') }}</div>
@@ -243,6 +295,13 @@
 {% endblock %}
 {% block scripts %}
 <script>
+document.querySelectorAll(".defect-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+        var input = document.getElementById("defectNote");
+        input.value = input.value ? input.value + ", " + chip.textContent : chip.textContent;
+        input.focus();
+    });
+});
 (function () {
     var wh = document.getElementById("whSelect");
     if (!wh) return;

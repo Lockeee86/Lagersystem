@@ -60,7 +60,7 @@ SKIP_COLUMNS = {
               "calendar_token", "language"},
     # Platz und Inhalt der Kisten stehen im Verlauf (Movement) – hier nur andere Felder und das Löschen
     "boxes": {"warehouse_id", "row", "slot", "level", "fill", "variety_id", "plot_id", "harvest_date", "usage",
-              "seed_class_id", "grade", "note", "box_type_id"},
+              "seed_class_id", "grade", "note", "box_type_id", "condition", "condition_note", "condition_at"},
 }
 MASKED = {"password_hash", "sign_farm", "sign_customer"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
 BIG = {"boundary"}                             # Umriss: nur „geändert“, nicht die Koordinaten

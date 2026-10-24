@@ -68,6 +68,14 @@
                 </span>
                 <i class="bi bi-chevron-right text-body-tertiary"></i>
             </a>
+            <a class="hub-row" href="{{ url_for('main.repairs') }}">
+                <span class="hub-icon {% if stats.defect %}warn{% endif %}"><i class="bi bi-wrench-adjustable"></i></span>
+                <span class="hub-text">
+                    <span class="hub-title">{{ _("Kisten-Reparatur") }}</span>
+                    <span class="hub-status">{% if stats.defect %}{{ ngettext("{n} Kiste defekt", "{n} Kisten defekt", stats.defect) }}{% else %}{{ _("alle Kisten in Ordnung") }}{% endif %}</span>
+                </span>
+                <i class="bi bi-chevron-right text-body-tertiary"></i>
+            </a>
         </div>
         {% if current_user.can_edit %}
         <div class="hub-list mb-3">

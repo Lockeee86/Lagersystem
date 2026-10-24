@@ -11,7 +11,7 @@ from sqlalchemy import func
 
 from .extensions import db
 from .i18n import gettext as _
-from .models import Box, Movement, Warehouse
+from .models import BOX_DEFECT, BOX_RETIRED, Box, Movement, Warehouse, utcnow
 
 CODE_PREFIX = "K-"
 CODE_RE = re.compile(r"^K-(\d+)$")
@@ -149,6 +149,8 @@ def _take_out(box, user):
 
 
 def store_box(box, warehouse_id, row, slot, user, note=None):
+    if box.is_retired:
+        raise StorageError(_("{code} ist ausgemustert.", code=box.code))
     if box.is_stored:
         raise StorageError(_("{code} ist bereits eingelagert ({location}).",
                              code=box.code, location=box.location))
@@ -237,6 +239,8 @@ def set_fill(box, fill, user, note=None):
         raise StorageError(_("Ungültiger Füllstand."))
     if fill == box.fill:
         return False
+    if box.is_retired and fill > 0:
+        raise StorageError(_("{code} ist ausgemustert.", code=box.code))
     fill_before = box.fill
     box.fill = fill
     _log(box, "fuellstand", user, fill_before=fill_before, fill_after=fill, note=note)
@@ -267,6 +271,8 @@ def update_contents(box, user, variety_id, harvest_date, plot_id, grade, fill, n
         changes.append("note")
     if not changes and box.fill == fill:
         return False
+    if box.is_retired and fill > 0:
+        raise StorageError(_("{code} ist ausgemustert.", code=box.code))
     fill_before = box.fill
     box.box_type_id = box_type_id
     box.variety_id = variety_id
@@ -350,6 +356,11 @@ def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_clas
                 warehouse=None, row=None, grade=None):
     """Ernte-Modus: leere Kiste befüllen und – mit `warehouse` – gleich auf den vorgeschlagenen Platz stellen.
     Gibt den Platz zurück (oder None, wenn nur befüllt wurde)."""
+    if box.is_retired:
+        raise StorageError(_("{code} ist ausgemustert.", code=box.code))
+    if box.is_defect:
+        raise StorageError(_("{code} ist defekt ({note}) – bitte eine andere Kiste nehmen.",
+                             code=box.code, note=box.condition_note or "–"))
     if box.fill > 0:
         what = box.variety.name if box.variety else _("Inhalt")
         raise StorageError(_("{code} ist schon befüllt ({what}).", code=box.code, what=what))
@@ -368,6 +379,47 @@ def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_clas
         raise StorageError(_("{name} ist voll.", name=warehouse.name))
     store_box(box, warehouse.id, *place, user)
     return box.location
+
+
+# --- Zustand der Kiste (defekt, ausgemustert) ----------------------------------
+
+def report_defect(box, user, note):
+    """Kiste als defekt melden – geht immer, auch befüllt und eingelagert. Im Ernte-Modus wird sie dann abgewiesen."""
+    note = (note or "").strip()[:200]
+    if not note:
+        raise StorageError(_("Bitte kurz eintragen, was kaputt ist."))
+    if box.is_retired:
+        raise StorageError(_("{code} ist ausgemustert.", code=box.code))
+    box.condition, box.condition_note, box.condition_at = BOX_DEFECT, note, utcnow()
+    _log(box, "defekt", user, note=note)
+
+
+def repair_box(box, user, note=None):
+    """Wieder in Ordnung (auch eine ausgemusterte Kiste wieder in Betrieb nehmen)."""
+    if not box.condition:
+        raise StorageError(_("{code} ist in Ordnung.", code=box.code))
+    box.condition = box.condition_note = box.condition_at = None
+    _log(box, "repariert", user, note=(note or "").strip()[:200] or None)
+
+
+def retire_box(box, user, note=None):
+    """Ausmustern: nur leer und nicht eingelagert. Die Kiste bleibt mit ihrem Verlauf erhalten."""
+    if box.is_retired:
+        raise StorageError(_("{code} ist ausgemustert.", code=box.code))
+    if not box.is_empty or box.is_stored:
+        raise StorageError(_("Bitte {code} zuerst leeren und auslagern.", code=box.code))
+    note = (note or "").strip()[:200] or box.condition_note
+    box.condition, box.condition_note, box.condition_at = BOX_RETIRED, note, utcnow()
+    _log(box, "ausgemustert", user, note=note)
+
+
+def defect_boxes():
+    """Kisten zur Reparatur, älteste Meldung zuerst."""
+    return Box.query.filter(Box.condition == BOX_DEFECT).order_by(Box.condition_at, Box.code).all()
+
+
+def retired_boxes():
+    return Box.query.filter(Box.condition == BOX_RETIRED).order_by(Box.condition_at.desc(), Box.code).all()
 
 
 # --- Kartoffelgrößen (Kaliber) ------------------------------------------------

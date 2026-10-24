@@ -491,6 +491,14 @@ FILL_LEVELS = [
 FILL_LABELS = dict(FILL_LEVELS)
 
 
+BOX_DEFECT = "defekt"
+BOX_RETIRED = "ausgemustert"
+BOX_CONDITIONS = {
+    BOX_DEFECT: (N_("Defekt – zur Reparatur"), "bi-wrench-adjustable"),
+    BOX_RETIRED: (N_("Ausgemustert"), "bi-x-octagon"),
+}
+
+
 class Box(db.Model):
     __tablename__ = "boxes"
     __table_args__ = (
@@ -509,6 +517,10 @@ class Box(db.Model):
     grade = db.Column(db.String(50))
     fill = db.Column(db.Integer, nullable=False, default=0)
     note = db.Column(db.Text)
+    # Zustand der Kiste selbst: leer = in Ordnung, sonst Schlüssel aus BOX_CONDITIONS (Verlauf in Movement)
+    condition = db.Column(db.String(20), index=True)
+    condition_note = db.Column(db.String(200))      # was kaputt ist
+    condition_at = db.Column(db.DateTime(timezone=True))
 
     # Aktueller Platz – alle NULL = nicht eingelagert
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"))
@@ -550,6 +562,18 @@ class Box(db.Model):
         return self.fill == 0
 
     @property
+    def is_defect(self):
+        return self.condition == BOX_DEFECT
+
+    @property
+    def is_retired(self):
+        return self.condition == BOX_RETIRED
+
+    @property
+    def condition_label(self):
+        return _(BOX_CONDITIONS[self.condition][0]) if self.condition in BOX_CONDITIONS else ""
+
+    @property
     def fill_label(self):
         return _(FILL_LABELS.get(self.fill, f"{self.fill} %"))
 
@@ -582,6 +606,9 @@ MOVEMENT_ACTIONS = {
     "ausgelagert": (N_("Ausgelagert"), "bi-box-arrow-up"),
     "verladen": (N_("Verladen"), "bi-truck"),
     "zurueckgenommen": (N_("Verladen zurückgenommen"), "bi-arrow-counterclockwise"),
+    "defekt": (N_("Defekt gemeldet"), "bi-wrench-adjustable"),
+    "repariert": (N_("Repariert"), "bi-check2-circle"),
+    "ausgemustert": (N_("Ausgemustert"), "bi-x-octagon"),
 }
 
 # Felder, deren Änderung bei "befuellt" in Movement.detail vermerkt wird
