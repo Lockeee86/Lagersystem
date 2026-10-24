@@ -340,6 +340,7 @@ class PlotYear(db.Model):
     planned_crop = db.Column(db.String(100))    # laut Fruchtfolgeplan (Myfarm24); "-" = Schlag in dem Jahr nicht im Plan
 
     plot = db.relationship("Plot", back_populates="years")
+    photos = db.relationship("Photo", back_populates="plot_year", order_by="Photo.id", cascade="all, delete-orphan")
     variety = db.relationship("Variety")
     measures = db.relationship("FieldMeasure", back_populates="plot_year", cascade="all, delete-orphan",
                                order_by=lambda: (FieldMeasure.done_on, FieldMeasure.id))
@@ -483,6 +484,7 @@ class Box(db.Model):
     )
     delivery_items = db.relationship("DeliveryItem", back_populates="box", lazy="dynamic",
                                      order_by="DeliveryItem.id.desc()")
+    photos = db.relationship("Photo", back_populates="box", order_by="Photo.id", cascade="all, delete-orphan")
 
     @property
     def effective_usage(self):
@@ -667,6 +669,7 @@ class Delivery(db.Model):
     created_by = db.relationship("User")
     items = db.relationship("DeliveryItem", back_populates="delivery", order_by="DeliveryItem.id",
                             cascade="all, delete-orphan")
+    photos = db.relationship("Photo", back_populates="delivery", order_by="Photo.id", cascade="all, delete-orphan")
 
     @property
     def is_open(self):
@@ -768,6 +771,7 @@ class BulkStore(db.Model):
 
     entries = db.relationship("BulkEntry", back_populates="store", cascade="all, delete-orphan",
                               order_by=lambda: (BulkEntry.date.desc(), BulkEntry.id.desc()))
+    photos = db.relationship("Photo", back_populates="bulk_store", order_by="Photo.id", cascade="all, delete-orphan")
 
     @property
     def kind_label(self):
@@ -931,14 +935,19 @@ class MachineEvent(db.Model):
 
 
 class Photo(db.Model):
-    """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert),
-    gehört zu einem Maschinen-Logbucheintrag oder zu einer Aufgabe."""
+    """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert), gehört zu einem
+    Maschinen-Logbucheintrag, einer Aufgabe, einem Bestellwunsch, einer Kiste, einem Anbaujahr, einem
+    Schüttlager oder einem Lieferschein. Wird es gelöscht, verschwindet die Datei nach dem Commit (uploads.py)."""
     __tablename__ = "photos"
 
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id"), index=True)
     task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), index=True)
     purchase_id = db.Column(db.Integer, db.ForeignKey("purchase_requests.id"), index=True)
+    box_id = db.Column(db.Integer, db.ForeignKey("boxes.id"), index=True)
+    plot_year_id = db.Column(db.Integer, db.ForeignKey("plot_years.id"), index=True)
+    bulk_store_id = db.Column(db.Integer, db.ForeignKey("bulk_stores.id"), index=True)
+    delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -946,6 +955,11 @@ class Photo(db.Model):
     event = db.relationship("MachineEvent", back_populates="photos")
     task = db.relationship("Task", back_populates="photos")
     purchase = db.relationship("PurchaseRequest", back_populates="photos")
+    box = db.relationship("Box", back_populates="photos")
+    plot_year = db.relationship("PlotYear", back_populates="photos")
+    bulk_store = db.relationship("BulkStore", back_populates="photos")
+    delivery = db.relationship("Delivery", back_populates="photos")
+    user = db.relationship("User")
 
 
 # --- Aufgaben ---------------------------------------------------------------

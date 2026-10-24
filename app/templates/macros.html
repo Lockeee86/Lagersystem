@@ -85,3 +85,34 @@
 </div>
 {%- endif -%}
 {%- endmacro %}
+
+{# Fotoleiste: Vorschaubilder, Hochladen (Kamera oder Galerie, schickt gleich ab), Löschen für Admin/Hochlader #}
+{% macro photo_strip(photos, action, back_url, year=none, title=none) %}
+<div class="photo-strip" id="{{ 'fotos-' ~ year if year else 'fotos' }}">
+    {% if title %}<div class="small text-body-secondary fw-semibold mb-1"><i class="bi bi-camera me-1"></i>{{ title }}</div>{% endif %}
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        {% for p in photos %}
+        <figure class="photo-item m-0">
+            <a href="{{ url_for('machines.photo', photo_id=p.id) }}" target="_blank"><img class="photo-thumb" src="{{ url_for('machines.photo', photo_id=p.id) }}" alt="" loading="lazy"></a>
+            <figcaption class="photo-caption">{{ p.created_at|date }}{% if p.user %} · {{ p.user.name }}{% endif %}</figcaption>
+            {% if current_user.is_admin or (current_user.can_edit and p.user_id == current_user.id) %}
+            <form method="post" action="{{ url_for('main.photo_delete', photo_id=p.id) }}" class="photo-del">
+                {{ csrf() }}<input type="hidden" name="back" value="{{ back_url }}">
+                <button class="btn btn-sm btn-light" data-confirm="{{ _('Foto löschen?') }}" aria-label="{{ _('Foto löschen') }}"><i class="bi bi-x-lg"></i></button>
+            </form>
+            {% endif %}
+        </figure>
+        {% endfor %}
+        {% if current_user.can_edit %}
+        <form method="post" action="{{ action }}" enctype="multipart/form-data" class="photo-add">
+            {{ csrf() }}{% if year %}<input type="hidden" name="year" value="{{ year }}">{% endif %}
+            <label class="photo-add-btn" title="{{ _('Foto hinzufügen') }}">
+                <i class="bi bi-camera"></i><span>{{ _("Foto") }}</span>
+                <input type="file" name="photos" accept="image/*" multiple class="visually-hidden" data-autosubmit>
+            </label>
+        </form>
+        {% elif not photos %}<span class="small text-body-secondary">{{ _("Keine Fotos.") }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}

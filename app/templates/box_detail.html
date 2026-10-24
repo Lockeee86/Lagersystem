@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf %}
+{% from "macros.html" import photo_strip with context %}
 {% block title %}{{ box.code }}{% endblock %}
 {% block content %}
 <div class="box-hero card shadow-sm mb-4" style="--c: {{ box.color or 'var(--box-blank)' }}">
@@ -206,6 +207,11 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-camera me-1"></i>{{ _("Fotos") }}</div>
+    <div class="card-body">{{ photo_strip(box.photos, url_for('main.photos_add', kind='kiste', owner_id=box.id), url_for('main.box_detail', code=box.code) ~ '#fotos') }}</div>
 </div>
 
 <div class="card shadow-sm mb-4">

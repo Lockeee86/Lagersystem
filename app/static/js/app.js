@@ -106,6 +106,15 @@ window.App = (function () {
     }
 
     // Formulare mit Eingaben nicht durch Auto-Reload verlieren
+    // Datei gewählt → Formular gleich abschicken (Fotoleiste)
+    document.addEventListener("change", function (e) {
+        if (e.target.matches("input[type=file][data-autosubmit]") && e.target.files.length) {
+            var form = e.target.form;
+            form.classList.add("is-busy");
+            form.submit();
+        }
+    });
+
     document.addEventListener("input", function (e) {
         var form = e.target.form;
         if (form) form.dataset.dirty = "1";

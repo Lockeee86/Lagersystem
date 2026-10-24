@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
+{% from "macros.html" import photo_strip with context %}
 {% from "fields/_doc.html" import measures with context %}
 {% block title %}{{ plot.name }}{% endblock %}
 {% block content %}
@@ -83,6 +84,9 @@
                 </div>
                 {% endif %}
                 {% if h.doc.groups %}<div class="mb-3">{{ measures(h.doc, e, kinds, h.protection) }}</div>{% endif %}
+                {% if (e and e.photos) or current_user.can_edit %}
+                <div class="mb-3">{{ photo_strip(e.photos if e else [], url_for('main.photos_add', kind='schlag', owner_id=plot.id), url_for('fields.field_detail', plot_id=plot.id) ~ '#jahr-' ~ h.year, year=h.year, title=_("Fotos")) }}</div>
+                {% endif %}
                 {% if current_user.can_edit %}
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#form{{ h.year }}"><i class="bi bi-pencil me-1"></i>{{ _("Pflanzung / Rodung eintragen") }}</button>
                 <form class="collapse mt-3" id="form{{ h.year }}" method="post" action="{{ url_for('fields.field_year_save', plot_id=plot.id) }}">

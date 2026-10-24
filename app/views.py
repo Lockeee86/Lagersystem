@@ -8,12 +8,13 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, storage, tasks, tiles, weather
+from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, storage, tasks, tiles,
+               uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
-from .models import (FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Machine, Movement, Plot,
-                     SeedClass, User, Variety, Warehouse)
+from .models import (FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
+                     Photo, Plot, PlotYear, SeedClass, User, Variety, Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
                     fmt_date, fmt_kg, fmt_num, form_str)
@@ -759,6 +760,63 @@ def harvest_box():
                                                      box.fill_label) if p))
     flash(message, "success")
     return back("main.harvest")
+
+
+# --- Fotos an Kisten, Anbaujahren, Schüttlagern, Lieferscheinen ----------------
+
+def _photo_owner(kind, owner_id):
+    """(Objekt, Rücksprung) für die Fotoleiste; Anbaujahre werden bei Bedarf angelegt."""
+    if kind == "kiste":
+        box = db.session.get(Box, owner_id) or abort(404)
+        return box, url_for("main.box_detail", code=box.code) + "#fotos"
+    if kind == "schuettlager":
+        store = db.session.get(BulkStore, owner_id) or abort(404)
+        return store, url_for("bulk.store_detail", store_id=store.id) + "#fotos"
+    if kind == "lieferschein":
+        delivery = db.session.get(Delivery, owner_id) or abort(404)
+        return delivery, url_for("sales.delivery_detail", delivery_id=delivery.id) + "#fotos"
+    if kind == "schlag":
+        plot = db.session.get(Plot, owner_id) or abort(404)
+        year = form_int("year", minimum=1990, maximum=2100) or abort(400)
+        entry = plot.year(year)
+        if entry is None:
+            entry = PlotYear(plot=plot, year=year)
+            db.session.add(entry)
+        return entry, url_for("fields.field_detail", plot_id=plot.id) + f"#jahr-{year}"
+    abort(404)
+
+
+@bp.route("/fotos/<kind>/<int:owner_id>", methods=["POST"])
+@editor_required
+def photos_add(kind, owner_id):
+    owner, target = _photo_owner(kind, owner_id)
+    names = []
+    try:
+        names = uploads.save_photos(request.files.getlist("photos"))
+        if not names:
+            raise StorageError(_("Bitte ein Foto auswählen."))
+        for name in names:
+            owner.photos.append(Photo(filename=name, user_id=current_user.id))
+        db.session.commit()
+        flash(ngettext("{n} Foto gespeichert.", "{n} Fotos gespeichert.", len(names)), "success")
+    except StorageError as e:
+        db.session.rollback()
+        uploads.delete_files(names)
+        flash_error(str(e))
+    return redirect(target)
+
+
+@bp.route("/foto/<int:photo_id>/loeschen", methods=["POST"])
+@editor_required
+def photo_delete(photo_id):
+    """Löschen dürfen Admins und wer das Foto hochgeladen hat."""
+    photo = db.session.get(Photo, photo_id) or abort(404)
+    if not (current_user.is_admin or photo.user_id == current_user.id):
+        abort(403)
+    db.session.delete(photo)
+    db.session.commit()
+    flash(_("Foto gelöscht."), "success")
+    return back("main.dashboard")
 
 
 # --- Suche ------------------------------------------------------------------

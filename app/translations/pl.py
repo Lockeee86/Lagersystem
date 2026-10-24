@@ -1597,4 +1597,12 @@ MESSAGES = {
     'Mit zwei Fingern zoomen, antippen zeigt die Kisten.': 'Powiększaj dwoma palcami, dotknięcie pokazuje skrzynie.',
     'Ganzes Lager': 'Cały magazyn',
     'Stapel': 'Stos',
+    'Bitte ein Foto auswählen.': 'Wybierz zdjęcie.',
+    'Foto gelöscht.': 'Zdjęcie usunięte.',
+    'Foto löschen?': 'Usunąć zdjęcie?',
+    'Foto löschen': 'Usuń zdjęcie',
+    'Foto hinzufügen': 'Dodaj zdjęcie',
+    'Foto': 'Zdjęcie',
+    'Keine Fotos.': 'Brak zdjęć.',
+    '{n} Fotos gespeichert.': ('Zapisano {n} zdjęcie.', 'Zapisano {n} zdjęcia.', 'Zapisano {n} zdjęć.'),
 }

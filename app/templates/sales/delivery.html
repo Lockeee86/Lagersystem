@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, variety_chip %}
+{% from "macros.html" import photo_strip with context %}
 {% block title %}{{ delivery.number }}{% endblock %}
 {% block content %}
 {% set editable = delivery.is_open and current_user.is_admin %}
@@ -234,6 +235,11 @@
                     <dt class="col-7 fw-normal text-body-secondary">{{ _("Geschätzt aus Kisten/Gebinden") }}</dt><dd class="col-5 text-end text-body-secondary">{{ delivery.estimated_kg|kg }}</dd>
                 </dl>
             </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-camera me-1"></i>{{ _("Fotos") }}</div>
+            <div class="card-body">{{ photo_strip(delivery.photos, url_for('main.photos_add', kind='lieferschein', owner_id=delivery.id), url_for('sales.delivery_detail', delivery_id=delivery.id) ~ '#fotos') }}</div>
         </div>
 
         {% if open_tasks or (current_user.is_admin and delivery.is_open) %}

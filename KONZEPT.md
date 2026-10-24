@@ -278,6 +278,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **Lagerkarte am Handy** (0.29.7): größere Felder, mit zwei Fingern zoomen und verschieben, Knöpfe − / ganzes
    Lager / +. Antippen eines Stapels klappt unten ein Blatt mit seinen Kisten auf (ohne Seitenwechsel, die Karte
    bleibt bedienbar; der gewählte Stapel ist umrandet). Am PC bleibt das Fenster.
+   **Fotos** (0.29.8) an Kisten (z. B. Mängel), Schlägen je Anbaujahr, Schüttlagern und Lieferscheinen: Mitarbeiter
+   tippen auf „Foto“ (Kamera oder Galerie, wird gleich hochgeladen); löschen dürfen Admins und wer es hochgeladen
+   hat. Fotos bleiben an der Kiste, auch wenn sie neu befüllt wird (mit Datum und Name).
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

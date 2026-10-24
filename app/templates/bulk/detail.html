@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "bulk/_macros.html" import store_form, quality_text %}
+{% from "macros.html" import photo_strip with context %}
 {% block title %}{{ store.name }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -155,6 +156,9 @@
 </div>
 {% endif %}
 {% endif %}
+
+<h2 class="h5 mt-4">{{ _("Fotos") }}</h2>
+<div class="mb-3">{{ photo_strip(store.photos, url_for('main.photos_add', kind='schuettlager', owner_id=store.id), url_for('bulk.store_detail', store_id=store.id) ~ '#fotos') }}</div>
 
 <h2 class="h5 mt-4">{{ _("Buchungen") }}</h2>
 {% if entries %}

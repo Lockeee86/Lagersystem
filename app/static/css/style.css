@@ -243,8 +243,22 @@ a.loc-badge:hover { filter: brightness(.95); }
 .act-verladen { background: rgba(61, 126, 166, .15); color: #3d7ea6; }
 .act-stoerung { background: rgba(200, 85, 61, .14); color: #c8553d; }
 
-/* Fotos im Maschinen-Logbuch */
+/* Sprungziele (#fotos, #jahr-2026 …) nicht unter der festen Kopfzeile verstecken */
+html { scroll-padding-top: 4.5rem; }
+
+/* Fotos im Maschinen-Logbuch und in der Fotoleiste (macros.photo_strip) */
 .photo-thumb { width: 88px; height: 88px; object-fit: cover; border-radius: .5rem; border: 1px solid var(--line); }
+.photo-item { position: relative; width: 88px; }
+.photo-caption { font-size: .65rem; color: var(--bs-secondary-color); line-height: 1.2; margin-top: .15rem;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.photo-del { position: absolute; top: 3px; right: 3px; }
+.photo-del .btn { --bs-btn-padding-y: 0; --bs-btn-padding-x: .3rem; opacity: .85; }
+.photo-add-btn { width: 88px; height: 88px; border: 2px dashed var(--line); border-radius: .5rem; display: flex;
+                 flex-direction: column; align-items: center; justify-content: center; gap: .1rem; cursor: pointer;
+                 color: var(--bs-secondary-color); font-size: .8rem; margin: 0; }
+.photo-add-btn i { font-size: 1.5rem; }
+.photo-add-btn:hover { border-color: var(--brand); color: var(--brand); }
+.photo-add.is-busy .photo-add-btn { opacity: .5; pointer-events: none; }
 
 /* --- Lagerkarte ---------------------------------------------------------------------- */
 .map-filters { display: flex; gap: .4rem; flex-wrap: wrap; }
