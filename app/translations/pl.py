@@ -1751,4 +1751,10 @@ MESSAGES = {
     'heute {n} Kisten befüllt': ('dziś napełniono {n} skrzynię', 'dziś napełniono {n} skrzynie', 'dziś napełniono {n} skrzyń'),
     'heute noch nichts': 'dziś jeszcze nic',
     'Tagesbericht': 'Raport dzienny',
+    'Erträge': 'Plony',
+    't/ha je Schlag und Sorte über die Jahre': 't/ha według pola i odmiany na przestrzeni lat',
+    't/ha je Schlag und Sorte, {first}–{last}': 't/ha według pola i odmiany, {first}–{last}',
+    'Kartoffeln geschätzt aus den Kisten (Füllstand × Kistengewicht), Getreide u. Ä. aus den gewogenen Schüttgut-Fuhren. t/ha nur bei Schlägen mit Fläche.': 'Ziemniaki szacowane ze skrzyń (napełnienie × waga skrzyni), zboża itp. z ważonych dostaw sypkich. t/ha tylko dla pól z powierzchnią.',
+    'Je Sorte zählen nur Schläge, auf denen die Sorte im Jahr allein stand.': 'Dla odmiany liczą się tylko pola, na których odmiana stała w danym roku sama.',
+    'Noch keine Erträge erfasst.': 'Brak zapisanych plonów.',
 }

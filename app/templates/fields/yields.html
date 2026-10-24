@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "macros.html" import site_filter %}
+{% block title %}{{ _("Erträge") }}{% endblock %}
+{% macro bar(value, top) -%}
+{%- if value -%}<span class="yield-bar"><span style="width: {{ (100 * value / top)|round if top else 0 }}%"></span></span>{%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Erträge") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("t/ha je Schlag und Sorte, {first}–{last}", first=years[0], last=years[-1]) }}</p>
+    </div>
+    <form method="get">
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="onlyPotatoes" name="kartoffeln" value="1" {% if only_potatoes %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="onlyPotatoes">{{ _("nur Kartoffeln") }}</label>
+        </div>
+    </form>
+</div>
+{{ site_filter() }}
+<p class="small text-body-secondary">{{ _("Kartoffeln geschätzt aus den Kisten (Füllstand × Kistengewicht), Getreide u. Ä. aus den gewogenen Schüttgut-Fuhren. t/ha nur bei Schlägen mit Fläche.") }}</p>
+
+{% if by_variety %}
+<h2 class="h5 mt-4">{{ _("Je Sorte") }}</h2>
+<div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 yield-table">
+            <thead><tr><th>{{ _("Sorte") }}</th>{% for y in years %}<th class="text-end">{{ y }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for name, per_year in by_variety.items() %}
+            <tr>
+                <td class="fw-medium">{{ name }}</td>
+                {% for y in years %}{% set v = per_year.get(y) %}
+                <td class="text-end">{% if v and v.t_ha %}<span class="fw-semibold">{{ v.t_ha|num(1) }}</span>{{ bar(v.t_ha, best_v) }}<div class="small text-body-tertiary">{{ ngettext("{n} Schlag", "{n} Schläge", v.plots) }}</div>{% else %}<span class="text-body-tertiary">–</span>{% endif %}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="small text-body-secondary">{{ _("Je Sorte zählen nur Schläge, auf denen die Sorte im Jahr allein stand.") }}</p>
+{% endif %}
+
+<h2 class="h5 mt-4">{{ _("Je Schlag") }}</h2>
+{% if plots %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 yield-table">
+            <thead><tr><th>{{ _("Schlag") }}</th>{% for y in years %}<th class="text-end">{{ y }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for p in plots %}
+            <tr>
+                <td><a class="text-reset fw-medium" href="{{ url_for('fields.field_detail', plot_id=p.id) }}">{{ p.name }}</a>
+                    {% if p.area_ha %}<div class="small text-body-secondary">{{ p.area_ha|num(2) }} ha</div>{% endif %}</td>
+                {% for y in years %}{% set c = by_plot[p.id][y] %}
+                <td class="text-end">
+                    {% if c.kg %}<span class="fw-semibold">{% if c.t_ha %}{{ c.t_ha|num(1) }}{% else %}{{ c.kg|kg }}{% endif %}</span>{{ bar(c.t_ha, best) }}{% endif %}
+                    <div class="small text-body-tertiary text-truncate yield-crop">{{ c.varieties|join(", ") if c.varieties else (c.crop or "") }}</div>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-bar-chart"></i><p>{{ _("Noch keine Erträge erfasst.") }}</p></div>
+{% endif %}
+{% endblock %}

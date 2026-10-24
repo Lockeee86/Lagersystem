@@ -331,3 +331,33 @@ def crop_legend(plots, year):
 
 def plot_years():
     return sorted({y for (y,) in db.session.query(PlotYear.year).distinct()}, reverse=True)
+
+
+def yield_history(plots, years):
+    """Ertrag je Schlag über mehrere Jahre und je Sorte (Kartoffeln) zum Vergleich.
+
+    Je Schlag/Jahr: kg, t/ha, Kultur (bzw. Plan), Sorten. Je Sorte/Jahr: t/ha über alle Schläge, auf denen die Sorte
+    in dem Jahr allein stand (bei gemischten Schlägen ist die Fläche je Sorte unbekannt)."""
+    by_plot, by_variety = {}, {}
+    for year in years:
+        data = yields(year)
+        for p in plots:
+            y = p.year(year)
+            entry = data.get(p.id)
+            kg = entry["kg"] if entry else 0
+            by_plot.setdefault(p.id, {})[year] = {
+                "kg": kg, "t_ha": t_per_ha(kg, p.area_ha), "crop": y.shown_crop if y else None,
+                "varieties": sorted(entry["varieties"]) if entry else [],
+            }
+            if entry and len(entry["varieties"]) == 1 and p.area_ha:
+                (name, vkg), = entry["varieties"].items()
+                v = by_variety.setdefault(name, {}).setdefault(year, {"kg": 0, "ha": 0.0, "plots": 0})
+                v["kg"] += vkg
+                v["ha"] += float(p.area_ha)
+                v["plots"] += 1
+    for name, per_year in by_variety.items():
+        for v in per_year.values():
+            v["t_ha"] = round(v["kg"] / 1000 / v["ha"], 1) if v["ha"] else None
+    best = max((c["t_ha"] or 0 for row in by_plot.values() for c in row.values()), default=0)
+    best_v = max((v["t_ha"] or 0 for per_year in by_variety.values() for v in per_year.values()), default=0)
+    return by_plot, dict(sorted(by_variety.items(), key=lambda kv: kv[0].casefold())), best, best_v

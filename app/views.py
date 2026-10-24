@@ -231,6 +231,8 @@ def _status(endpoint):
     if endpoint == "fields.field_map":
         p = _plot_stats()
         return (f"{p['count']} · {fmt_num(p['ha'], 0)} ha" if p["ha"] else str(p["count"])), False
+    if endpoint == "fields.yields_page":
+        return _("t/ha je Schlag und Sorte über die Jahre"), False
     if endpoint == "fields.rotation_page":
         return _("Plan und Anbaupausen"), False
     if endpoint == "fields.protection":

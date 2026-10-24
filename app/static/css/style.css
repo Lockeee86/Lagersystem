@@ -756,3 +756,10 @@ body:not(.has-tabbar) {
 .sort-on .harvest-label { display: none; }
 .sort-chip { min-width: 4.5rem; }
 .sort-on #harvestSettings { display: none; }
+
+/* Ertragsvergleich */
+.yield-table td, .yield-table th { white-space: nowrap; }
+.yield-table td:first-child { white-space: normal; min-width: 8rem; }
+.yield-bar { display: block; height: 4px; margin-top: 2px; margin-left: auto; width: 4rem; background: var(--line); border-radius: 2px; }
+.yield-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 2px; margin-left: auto; }
+.yield-crop { max-width: 7rem; margin-left: auto; }

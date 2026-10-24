@@ -279,6 +279,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Ertragsvergleich** (0.32.4, Feld & Hof → Erträge, `/ertraege`): t/ha je Schlag über die letzten Jahre (mit Sorten
+   bzw. Kultur) und je Sorte (nur Schläge, auf denen die Sorte allein stand); Filter „nur Kartoffeln“ und Betrieb
+   (`fields.yield_history`).
    **Ernte-Tagesbericht** (0.32.3, Lager → Erntebericht, `/ernte/bericht`): was an einem Tag befüllt wurde (leere
    Kiste → befüllt), Kisten und geschätzte Menge je Sorte, Schlag, Reihe und Mitarbeiter; Tage blättern. Abends um
    19 Uhr Push (Thema „Abends: Ernte-Tagesbericht“, von sich aus nur Admins), nur wenn geerntet wurde.

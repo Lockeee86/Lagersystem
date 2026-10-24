@@ -53,6 +53,23 @@ def field_map():
     )
 
 
+@bp.route("/ertraege")
+@login_required
+def yields_page():
+    """Ertragsvergleich der Jahre: t/ha je Schlag und je Sorte."""
+    this_year = date.today().year
+    years = [y for y in sorted(set(fields.plot_years()) | {this_year}, reverse=True) if y <= this_year][:6]
+    years.sort()
+    only_potatoes = request.args.get("kartoffeln") == "1"
+    plots = sites.apply(Plot.query.filter_by(active=True), Plot).order_by(Plot.name).all()
+    by_plot, by_variety, best, best_v = fields.yield_history(plots, years)
+    if only_potatoes:
+        plots = [p for p in plots if any("kartoffel" in (c["crop"] or "").lower() for c in by_plot[p.id].values())]
+    plots = [p for p in plots if any(c["kg"] for c in by_plot[p.id].values())]
+    return render_template("fields/yields.html", years=years, plots=plots, by_plot=by_plot, by_variety=by_variety,
+                           best=best, best_v=best_v, only_potatoes=only_potatoes)
+
+
 @bp.route("/schlag/<int:plot_id>")
 @login_required
 def field_detail(plot_id):

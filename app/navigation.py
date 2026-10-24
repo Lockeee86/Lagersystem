@@ -39,6 +39,7 @@ AREAS = [
     {"key": "feld", "label": N_("Feld & Hof"), "icon": "bi-map", "items": [
         item("fields.field_map", N_("Schläge"), "bi-map", endpoints=("fields.field_detail", "fields.field_year_save")),
         item("fields.rotation_page", N_("Fruchtfolge"), "bi-arrow-repeat"),
+        item("fields.yields_page", N_("Erträge"), "bi-bar-chart"),
         item("fields.protection", N_("Pflanzenschutz"), "bi-shield-plus", endpoints=("fields.protection_product",)),
         item("machines.machine_list", N_("Maschinen"), "bi-gear-wide-connected", prefixes=("machines.",)),
         item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
