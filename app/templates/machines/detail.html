@@ -436,6 +436,34 @@
             </ul>
         </div>
 
+        {% if cost %}
+        <div class="card shadow-sm mb-4" id="kosten">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cash-coin me-1"></i>{{ _("Kosten {year}", year=cost_year) }}</span>
+                <span class="small d-flex gap-2">
+                    <a href="{{ url_for('machines.machine_detail', machine_id=machine.id, kosten=cost_year - 1) }}#kosten" aria-label="{{ _('Vorjahr') }}"><i class="bi bi-chevron-left"></i></a>
+                    {% if cost_year < today.year %}<a href="{{ url_for('machines.machine_detail', machine_id=machine.id, kosten=cost_year + 1) }}#kosten" aria-label="{{ _('Folgejahr') }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+                    <a href="{{ url_for('machines.machine_costs', jahr=cost_year) }}">{{ _("Alle Maschinen") }}</a>
+                </span>
+            </div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    {% if machine.uses_fuel or cost.liters %}
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Diesel") }}</dt>
+                    <dd class="col-6 text-end">{% if cost.price is not none %}{{ cost.diesel|money }}{% else %}–{% endif %}
+                        <div class="text-body-tertiary">{{ cost.liters|num(0) }} l{% if cost.price is not none %} × {{ cost.price|num(3) }} €{% endif %}</div></dd>
+                    {% endif %}
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Reparaturen und Wartungen") }}</dt><dd class="col-6 text-end">{{ cost.repairs|money }}</dd>
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Bestellungen") }}</dt><dd class="col-6 text-end">{{ cost.purchases|money }}</dd>
+                    <dt class="col-6 border-top pt-1">{{ _("Summe") }}</dt><dd class="col-6 text-end border-top pt-1 fw-semibold">{{ cost.total|money }}</dd>
+                    {% if cost.per_unit %}<dt class="col-6 fw-normal text-body-secondary">{{ _("je Betriebsstunde") if machine.counter_unit == "h" else _("je 100 km") }}</dt>
+                    <dd class="col-6 text-end">{{ cost.per_unit|money }} <span class="text-body-tertiary">({{ cost.used }} {{ machine.unit_short }})</span></dd>{% endif %}
+                </dl>
+                {% if (machine.uses_fuel or cost.liters) and cost.price is none %}<div class="text-body-tertiary mt-2">{{ _("Für den Dieselpreis bei einer Lieferung im Tankbuch den Preis je Liter eintragen.") }}</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ _("Daten") }}</div>
             <div class="card-body small">

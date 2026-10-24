@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "macros.html" import site_filter %}
+{% block title %}{{ _("Maschinenkosten") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Maschinenkosten {year}", year=year) }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Summe {total}", total=total|money) }}{% if price is not none %} · {{ _("Diesel {price} € je Liter", price=price|num(3)) }}{% endif %}</p>
+    </div>
+    <form method="get">
+        <select class="form-select" name="jahr" onchange="this.form.submit()" aria-label="{{ _('Jahr') }}">
+            {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+    </form>
+</div>
+{{ site_filter() }}
+<p class="small text-body-secondary">{{ _("Diesel = getankte Liter × Preis der Lieferungen im Jahr (sonst der letzte bekannte Preis). Reparaturen und Wartungen = Beträge im Logbuch. Bestellungen = Bestellwünsche für die Maschine mit Preis.") }}</p>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>{{ _("Maschine") }}</th><th class="text-end">{{ _("Diesel") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Reparaturen und Wartungen") }}</th>
+                <th class="text-end d-none d-md-table-cell">{{ _("Bestellungen") }}</th><th class="text-end">{{ _("Summe") }}</th><th class="text-end">{{ _("je h / 100 km") }}</th></tr></thead>
+            <tbody>
+            {% for r in rows %}
+            <tr>
+                <td><a class="text-reset fw-medium" href="{{ url_for('machines.machine_detail', machine_id=r.machine.id, kosten=year) }}#kosten">{{ r.machine.name }}</a>
+                    <div class="small text-body-secondary">{{ r.machine.category_label }}</div></td>
+                <td class="text-end">{% if r.liters %}{{ r.diesel|money if r.price is not none else "–" }}<div class="small text-body-tertiary">{{ r.liters|num(0) }} l</div>{% else %}–{% endif %}</td>
+                <td class="text-end d-none d-md-table-cell">{{ r.repairs|money }}</td>
+                <td class="text-end d-none d-md-table-cell">{{ r.purchases|money }}</td>
+                <td class="text-end fw-semibold">{{ r.total|money }}</td>
+                <td class="text-end">{% if r.per_unit %}{{ r.per_unit|money }}<div class="small text-body-tertiary">{{ r.used }} {{ r.machine.unit_short }}</div>{% else %}–{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-body-secondary">{{ _("Noch keine Maschinen.") }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

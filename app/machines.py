@@ -5,6 +5,7 @@ Wie `storage.py` verändern die Funktionen nur die Session, committen muss der A
 import calendar
 import re
 from datetime import date
+from decimal import Decimal
 
 from .extensions import db
 from .i18n import gettext as _
@@ -195,3 +196,71 @@ def machine_summary(machine):
         "unknown" if "unknown" in states else "ok"
     return state, faults
 
+
+
+# --- Kosten je Maschine und Jahr ---------------------------------------------------
+
+def diesel_price(year):
+    """Dieselpreis je Liter für das Jahr: Mittel der Lieferungen im Jahr (nach Menge), sonst der letzte bekannte
+    Preis davor. None, wenn nie ein Preis eingetragen wurde."""
+    from .models import FuelEntry
+    rows = (FuelEntry.query.filter(FuelEntry.kind == "lieferung", FuelEntry.price_per_liter.isnot(None),
+                                   FuelEntry.date >= date(year, 1, 1), FuelEntry.date <= date(year, 12, 31)).all())
+    liters = sum(r.liters for r in rows)
+    if liters:
+        return (sum(r.liters * r.price_per_liter for r in rows) / liters).quantize(Decimal("0.001"))
+    last = (FuelEntry.query.filter(FuelEntry.kind == "lieferung", FuelEntry.price_per_liter.isnot(None),
+                                   FuelEntry.date <= date(year, 12, 31))
+            .order_by(FuelEntry.date.desc(), FuelEntry.id.desc()).first())
+    return last.price_per_liter if last else None
+
+
+def _usage(machine, year):
+    """Betriebsstunden bzw. km im Jahr aus den Zählerständen (Logbuch, Tankungen): letzter Stand im Jahr minus
+    letzter Stand davor (oder erster im Jahr). None ohne genug Stände."""
+    from .models import FuelEntry
+    start, end = date(year, 1, 1), date(year, 12, 31)
+    readings = [(e.date, e.counter) for e in machine.events.filter(MachineEvent.counter.isnot(None))]
+    readings += [(f.date, f.counter) for f in machine.fuel_entries.filter(FuelEntry.counter.isnot(None))]
+    before = [c for d, c in readings if d < start]
+    during = sorted(c for d, c in readings if start <= d <= end)
+    if not during:
+        return None
+    base = max(before) if before else during[0]
+    used = during[-1] - base
+    return used if used > 0 else None
+
+
+def costs(machine, year, price=None):
+    """Kosten im Jahr: Diesel (getankte Liter × Preis), Reparaturen/Wartungen (Beträge im Logbuch), Bestellungen für
+    die Maschine (mit Preis, nicht abgelehnt), Summe und je Betriebsstunde bzw. 100 km."""
+    from .models import FuelEntry, PurchaseRequest
+    start, end = date(year, 1, 1), date(year, 12, 31)
+    price = diesel_price(year) if price is None else price
+    liters = sum(f.liters for f in machine.fuel_entries.filter(FuelEntry.kind == "tanken", FuelEntry.date >= start,
+                                                               FuelEntry.date <= end))
+    diesel = (liters * price).quantize(Decimal("0.01")) if price is not None and liters else Decimal(0)
+    repairs = sum((e.cost for e in machine.events.filter(MachineEvent.cost.isnot(None), MachineEvent.date >= start,
+                                                         MachineEvent.date <= end)), Decimal(0))
+    purchases = Decimal(0)
+    for p in PurchaseRequest.query.filter(PurchaseRequest.machine_id == machine.id, PurchaseRequest.price.isnot(None),
+                                          PurchaseRequest.status != "abgelehnt"):
+        day = p.delivered_on or p.ordered_on or p.created_at.date()
+        if start <= day <= end:
+            purchases += p.price
+    total = diesel + repairs + purchases
+    used = _usage(machine, year) if machine.counter_unit else None
+    per_unit = None
+    if used and total:
+        per_unit = (total / used * (100 if machine.counter_unit == "km" else 1)).quantize(Decimal("0.01"))
+    return {"liters": liters, "price": price, "diesel": diesel, "repairs": repairs, "purchases": purchases,
+            "total": total, "used": used, "per_unit": per_unit,
+            "unit": ("€/100 km" if machine.counter_unit == "km" else "€/h") if machine.counter_unit else None}
+
+
+def cost_overview(year, machines_list):
+    """Kosten aller Maschinen im Jahr (teuerste zuerst) und die Summe."""
+    price = diesel_price(year)
+    rows = [{"machine": m, **costs(m, year, price)} for m in machines_list]
+    rows.sort(key=lambda r: -r["total"])
+    return rows, sum((r["total"] for r in rows), Decimal(0)), price

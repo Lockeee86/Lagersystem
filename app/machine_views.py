@@ -54,6 +54,17 @@ def _run(machine, action, anchor=None, after=None):
 
 # --- Übersicht --------------------------------------------------------------
 
+@bp.route("/maschinen/kosten")
+@admin_required
+def machine_costs():
+    """Kosten aller Maschinen in einem Jahr: Diesel, Reparaturen/Wartungen, Bestellungen, je Stunde/100 km."""
+    year = request.args.get("jahr", type=int) or date.today().year
+    items = sites.apply(Machine.query, Machine).order_by(Machine.name).all()
+    rows, total, price = machines.cost_overview(year, items)
+    years = list(range(date.today().year, date.today().year - 6, -1))
+    return render_template("machines/costs.html", rows=rows, total=total, price=price, year=year, years=years)
+
+
 @bp.route("/maschinen")
 @login_required
 def machine_list():
@@ -106,6 +117,7 @@ def machine_create():
 @login_required
 def machine_detail(machine_id):
     machine = _get(Machine, machine_id)
+    cost_year = request.args.get("kosten", type=int) or date.today().year
     maintenance = sorted(((t, machines.task_status(t)) for t in machine.tasks),
                    key=lambda r: ({"overdue": 0, "soon": 1, "unknown": 2, "ok": 3}[r[1]["state"]], r[0].name))
     kind = request.args.get("art")
@@ -122,6 +134,7 @@ def machine_detail(machine_id):
                            assignable=tasks.assignable_users() if current_user.is_admin else tasks.request_recipients(),
                            machine_purchases=purchases.for_machine(machine.id),
                            counter_required=fuel.counter_required(),
+                           cost_year=cost_year, cost=machines.costs(machine, cost_year) if current_user.is_admin else None,
                            fault_tasks={t.machine_event_id: t for t in open_tasks if t.machine_event_id},
                            maint_tasks={t.maintenance_task_id: t for t in open_tasks if t.maintenance_task_id},
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
