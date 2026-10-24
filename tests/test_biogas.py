@@ -1,0 +1,155 @@
+"""Biogas/SKVE: die API wird durch `fake_api` ersetzt – erfundene Motoren und Werte, kein Netz."""
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from app import biogas, machines
+from app.models import ChpDay, Machine, Setting
+
+TZ = ZoneInfo("Europe/Berlin")
+
+
+def run_window(day):
+    """Motor 11 läuft jeden Tag 06–14 Uhr Ortszeit mit 500 kW (8 h, 4.000 kWh)."""
+    start = datetime(day.year, day.month, day.day, 6, tzinfo=TZ).astimezone(timezone.utc)
+    return start, start + timedelta(hours=8)
+
+
+@pytest.fixture
+def fake_api(app, monkeypatch):
+    app.config.update(SKVE_API_KEY="test-key", SKVE_GAS_STORAGE_ID="7")
+    calls = []
+
+    def fake_get(path, start, end):
+        calls.append(path)
+        times, values = [], []
+        t = start.replace(minute=start.minute - start.minute % 15, second=0, microsecond=0)
+        while t < end:
+            local_day = t.astimezone(TZ).date()
+            on_from, on_to = run_window(local_day)
+            if path.endswith("/chp/11/schedule"):
+                values.append(500.0 if on_from <= t < on_to else 0.0)
+            elif path.endswith("/chp/12/schedule"):
+                values.append(0.0)
+            elif "prices/DAA" in path:
+                values.append(100.0)                                   # 100 €/MWh
+            else:
+                values.append(55.0)                                    # Gasspeicher %
+            times.append(int(t.timestamp()))
+            t += timedelta(minutes=15)
+        if "gas-storage" in path:
+            return {"timeSeries": {"customer_view": {"timestamps": times, "values": values}}}
+        if "prices" in path:
+            return {"timeSeries": {"price": {"timestamps": times, "values": values}}}
+        return {"times": times, "values": values}
+
+    monkeypatch.setattr(biogas, "_get", fake_get)
+    biogas.clear_cache()
+    yield calls
+    biogas.clear_cache()
+
+
+def make_bhkw(db, seed, chp_id, name):
+    m = machines.create_machine(name, "bhkw", seed["admin"], counter_unit="h", skve_chp_id=chp_id, power_kw=500)
+    db.session.commit()
+    return m
+
+
+def test_aggregate(app):
+    day = date(2026, 7, 1)
+    start, end = run_window(day)
+    points = [(start + timedelta(minutes=15 * i), 400.0) for i in range(8)]       # 2 h
+    points.append((start + timedelta(hours=2), 0.0))
+    points += [(start + timedelta(hours=5, minutes=15 * i), 200.0) for i in range(4)]  # 1 h, zweiter Start
+    price = {ts: 50.0 for ts, _kw in points}
+    row = biogas.aggregate(points, price)[day]
+    assert row["hours"] == pytest.approx(3.0) and row["kwh"] == pytest.approx(1000.0) and row["starts"] == 2
+    assert row["revenue"] == pytest.approx(50.0)                                 # 1 MWh × 50 €
+
+
+def test_sync_counts_hours_and_drives_maintenance(app, db, seed, fake_api):
+    motor = make_bhkw(db, seed, 11, "BHKW Test 1")
+    idle = make_bhkw(db, seed, 12, "BHKW Test 2")
+    oil = next(t for t in motor.tasks if t.name == "Ölwechsel")
+    assert oil.interval_hours == 2000 and motor.counter_unit == "h"
+    # Stand am Motor abgelesen: 10.000 h vor 10 Tagen, Ölwechsel bei 8.100 h
+    today = date(2026, 7, 20)
+    machines.set_counter(motor, 10000, seed["admin"], day=today - timedelta(days=10))
+    oil.last_done_counter, oil.last_done_on = 8100, today - timedelta(days=100)
+    db.session.commit()
+
+    now = datetime(2026, 7, 20, 3, 0, tzinfo=TZ)
+    biogas.sync(app, now=now)
+    assert ChpDay.query.filter_by(machine_id=motor.id).count() == biogas.FIRST_SYNC_DAYS
+    yesterday = ChpDay.query.filter_by(machine_id=motor.id, day=today - timedelta(days=1)).one()
+    assert float(yesterday.hours) == 8.0 and float(yesterday.kwh) == 4000.0 and float(yesterday.revenue_eur) == 400.0
+    # 9 Tage nach der Ablesung × 8 h
+    assert db.session.get(Machine, motor.id).counter == 10072
+    # Motor ohne Ablesung: zählt ab jetzt vom bisherigen Stand weiter
+    assert db.session.get(Machine, idle.id).skve_base_day == today - timedelta(days=1)
+    assert biogas.status()["ok"] and db.session.get(Setting, biogas.SYNC_KEY).value == today.isoformat()
+
+    # einmal am Tag: zweiter Lauf ruft nichts ab; vor 2 Uhr auch nicht
+    fake_api.clear()
+    assert biogas.sync(app, now=now + timedelta(hours=3)) is None and not fake_api
+    # nächster Tag: nur die letzten Tage neu, Zähler +8
+    biogas.sync(app, now=now + timedelta(days=1))
+    assert db.session.get(Machine, motor.id).counter == 10080
+    assert ChpDay.query.filter_by(machine_id=motor.id).count() == biogas.FIRST_SYNC_DAYS + 1
+
+    # Prognose: 8 h/Tag, Ölwechsel fällig bei 10.100 h → noch 20 h → 3 Tage
+    forecast = {f["task"].name: f for f in biogas.maintenance_forecast(db.session.get(Machine, motor.id),
+                                                                       today + timedelta(days=1))}
+    assert forecast["Ölwechsel"]["left"] == 20 and forecast["Ölwechsel"]["due_on"] == today + timedelta(days=4)
+    assert forecast["Zündkerzen"]["left"] is None                      # noch nie erledigt → Hinweis
+    assert machines.task_status(oil)["state"] == "soon"                # greift in die normale Wartung
+
+
+def test_errors_are_kept_and_reported(app, db, seed, monkeypatch):
+    app.config["SKVE_API_KEY"] = "falsch"
+    make_bhkw(db, seed, 11, "BHKW Test 1")
+
+    def broken(path, start, end):
+        raise biogas.SkveError("401 – API-Schlüssel ungültig")
+    monkeypatch.setattr(biogas, "_get", broken)
+    biogas.sync(app, now=datetime(2026, 7, 20, 3, 0, tzinfo=TZ))
+    assert biogas.status() == {"at": biogas.status()["at"], "ok": False, "message": "401 – API-Schlüssel ungültig"}
+    assert db.session.get(Setting, biogas.SYNC_KEY) is None            # nächster Versuch beim nächsten Lauf
+    biogas.clear_cache()
+    assert biogas.live()["error"].startswith("401")
+
+
+def test_not_configured(app, as_admin, db, seed):
+    app.config["SKVE_API_KEY"] = ""
+    assert biogas.sync(app) is None and biogas.live() == {"configured": False}
+    html = as_admin.get("/biogas").get_data(as_text=True)
+    assert "Speicher-Kraftwerk verbinden" in html and "SKVE_API_KEY" in html
+
+
+def test_pages(app, as_admin, as_worker, as_viewer, db, seed, fake_api):
+    motor = make_bhkw(db, seed, 11, "BHKW Test 1")
+    machines.set_counter(motor, 5000, seed["admin"])
+    db.session.commit()
+    as_worker.post("/biogas/abrufen")                                    # nur Admin
+    assert ChpDay.query.count() == 0
+    r = as_admin.post("/biogas/abrufen", follow_redirects=True)
+    assert "SKVE-Daten abgerufen" in r.get_data(as_text=True) and ChpDay.query.count() > 0
+    html = as_viewer.get("/biogas").get_data(as_text=True)
+    assert "BHKW Test 1" in html and "Fahrplan nächste 24 Stunden" in html and "Gasspeicher" in html
+    assert "Nächste Wartungen nach Laufzeit" in html and "Ölanalyse" in html and "Erlös" not in html
+    assert "Erlös (Day-Ahead)" in as_admin.get("/biogas").get_data(as_text=True)
+    html = as_viewer.get(f"/maschine/{motor.id}").get_data(as_text=True)
+    assert 'id="laufzeit"' in html and "Laufzeit (SKVE)" in html
+    # Biogas erscheint unter „Mehr“
+    assert 'href="/biogas"' in as_viewer.get("/bereich/mehr").get_data(as_text=True)
+
+    # Motor-Nr. an der Maschine: doppelt geht nicht
+    other = machines.create_machine("BHKW Test 2", "bhkw", seed["admin"])
+    db.session.commit()
+    as_admin.post(f"/maschine/{other.id}/bearbeiten", data={"name": "BHKW Test 2", "category": "bhkw",
+                                                           "bhkw_form": "1", "skve_chp_id": "11", "power_kw": "250"})
+    assert db.session.get(Machine, other.id).skve_chp_id is None
+    as_admin.post(f"/maschine/{other.id}/bearbeiten", data={"name": "BHKW Test 2", "category": "bhkw",
+                                                           "bhkw_form": "1", "skve_chp_id": "12", "power_kw": "250"})
+    assert (db.session.get(Machine, other.id).skve_chp_id, db.session.get(Machine, other.id).power_kw) == (12, 250)

@@ -183,3 +183,10 @@ Nach Änderungen an `app/models.py` eine Migration erzeugen und mit committen:
 ```sh
 flask --app wsgi db migrate -m "Beschreibung"
 ```
+
+## Biogas (Speicher-Kraftwerk)
+
+Für die Rubrik „Biogas“ liest die App die Fahrpläne der BHKW-Motoren aus der Speicher-Kraftwerk-API (nur lesend).
+Im Stack `SKVE_API_KEY` (und für den Gasspeicher `SKVE_GAS_STORAGE_ID`) setzen, dann je Motor eine Maschine der Art
+„BHKW / Gasmotor“ mit SKVE-Motor-Nr. anlegen und einmal den Betriebsstundenzähler eintragen. Der Abruf läuft jede
+Nacht ab 2 Uhr; unter Biogas → „Jetzt abrufen“ sofort.

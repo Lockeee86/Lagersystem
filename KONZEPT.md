@@ -285,6 +285,18 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Biogas** (0.38.0, eigene Rubrik „Biogas“, `/biogas`, `biogas.py`): BHKW-Motoren sind Maschinen der Art
+   „BHKW / Gasmotor“ (Wartungsvorlagen nach Betriebsstunden: Ölwechsel, Zündkerzen, Ventilspiel 2.000 h, Luftfilter
+   4.000 h, Ölanalyse 500 h, Revision 30.000 h, Generalüberholung 60.000 h – an den Herstellerplan anpassen) mit
+   SKVE-Motor-Nr. und Nennleistung. Die App liest die Speicher-Kraftwerk-API nur (`SKVE_API_KEY`, optional
+   `SKVE_GAS_STORAGE_ID` im Stack): jede Nacht ab 2 Uhr Fahrplan je Motor und Day-Ahead-Preis → `ChpDay`
+   (Laufstunden, kWh, Starts, Erlös) und Betriebsstundenzähler = zuletzt abgelesener Stand + SKVE-Stunden der Tage
+   danach (SKVE liefert den Fahrplan, nicht den echten Zähler – deshalb ab und zu am Motor ablesen und eintragen).
+   Über den Zähler greifen die normalen Wartungsintervalle samt Push „Wartung wird fällig“; die Übersicht zeigt
+   zusätzlich eine Prognose (Ø Laufzeit der letzten 28 Tage → voraussichtliches Datum), Leistung jetzt, heute erzeugt,
+   Fahrplan und Gasspeicher der nächsten 24 h und den Strompreis (zwischengespeichert 10 Minuten). „Jetzt abrufen“
+   (Admin) holt sofort. Weitere Ideen für die Rubrik: Warnungen Gasspeicher/Stillstand, Eigenkontrolle/Rundgang,
+   Fütterung und Silo (über das Schüttlager), Gärrest, Prüffristen der Anlage.
    **Beregnung** (0.37.0, Feld & Hof → Beregnung, `/beregnung`, `irrigation.py`): Import des RainDancer-Berichts
    „Wasserbuch“ als „Excel 97-2003“ (.xls über `xlrd`, auch .xlsx). Der CSV-Export von RainDancer ist unbrauchbar
    (nur ein Einsatz + Summe) und wird abgewiesen; die Summe der Einsätze muss zum „Total“ passen. Gruppen = Brunnen

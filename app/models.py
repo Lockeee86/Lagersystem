@@ -932,6 +932,8 @@ MACHINE_CATEGORIES = {
     "anhaenger": N_("Anhänger"),
     "stapler": N_("Stapler / Lader"),
     "lagertechnik": N_("Lagertechnik"),
+    "bhkw": N_("BHKW / Gasmotor"),
+    "biogas": N_("Biogasanlage (Rührwerk, Pumpe, Fütterung …)"),
     "sonstiges": N_("Sonstiges"),
 }
 COUNTER_UNITS = {"h": N_("Betriebsstunden"), "km": N_("Kilometer")}
@@ -942,7 +944,8 @@ MACHINE_ICONS = {"schlepper": "bi-truck-front", "fahrzeug": "bi-car-front", "rod
                  "maehdrescher": "bi-wind", "saetechnik": "bi-flower1", "bodenbearbeitung": "bi-tools",
                  "pflanzenschutz": "bi-droplet", "duengung": "bi-moisture",
                  "legemaschine": "bi-grid-3x3", "sortieranlage": "bi-funnel", "anhaenger": "bi-truck-flatbed",
-                 "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "sonstiges": "bi-gear-wide-connected"}
+                 "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "bhkw": "bi-lightning-charge",
+                 "biogas": "bi-recycle", "sonstiges": "bi-gear-wide-connected"}
 
 
 class Machine(db.Model):
@@ -968,6 +971,12 @@ class Machine(db.Model):
     note = db.Column(db.Text)
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # BHKW: Motor in der Speicher-Kraftwerk-API (SKVE) und Nennleistung. Die Betriebsstunden rechnet biogas.sync
+    # aus dem Fahrplan: Zählerstand = letzter abgelesener Stand (skve_base_*) + Stunden der Tage danach.
+    skve_chp_id = db.Column(db.Integer, unique=True)
+    power_kw = db.Column(db.Integer)
+    skve_base_counter = db.Column(db.Numeric(10, 1))
+    skve_base_day = db.Column(db.Date)
 
     site = db.relationship("Site")
     tasks = db.relationship("MaintenanceTask", back_populates="machine", order_by="MaintenanceTask.name",
@@ -1597,3 +1606,20 @@ class Irrigation(db.Model):
         """Niederschlagshöhe auf dem Schlag: m³ ÷ (ha × 10)."""
         area = self.plot.area_ha if self.plot else None
         return float(self.m3) / (float(area) * 10) if area else None
+
+
+class ChpDay(db.Model):
+    """Ein Tag eines BHKW-Motors aus dem SKVE-Fahrplan: Laufstunden, erzeugte kWh und Erlös zum Day-Ahead-Preis."""
+    __tablename__ = "chp_days"
+    __table_args__ = (db.UniqueConstraint("machine_id", "day", name="uq_chp_day"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    hours = db.Column(db.Numeric(5, 2), nullable=False, default=0)
+    kwh = db.Column(db.Numeric(10, 1), nullable=False, default=0)
+    revenue_eur = db.Column(db.Numeric(10, 2))
+    starts = db.Column(db.Integer, nullable=False, default=0)       # wie oft der Motor angefahren ist
+
+    machine = db.relationship("Machine", backref=db.backref("chp_days", lazy="dynamic", cascade="all, delete-orphan",
+                                                            passive_deletes=True))

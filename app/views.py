@@ -242,6 +242,15 @@ def _status(endpoint):
                 else _("nichts lange gelagert")), bool(old)
     if endpoint == "main.harvest":
         return _("Kisten befüllen und einlagern"), False
+    if endpoint == "biogas.overview":
+        from .models import ChpDay
+        yesterday = date.today() - timedelta(days=1)
+        kwh = db.session.query(db.func.sum(ChpDay.kwh)).filter(ChpDay.day == yesterday).scalar()
+        soon = sum(1 for m in Machine.query.filter_by(category="bhkw", active=True)
+                   for t in m.tasks if machines.task_status(t)["state"] in ("overdue", "soon"))
+        if soon:
+            return ngettext("{n} BHKW-Wartung fällig", "{n} BHKW-Wartungen fällig", soon), True
+        return (_("gestern {mwh} MWh", mwh=fmt_num(float(kwh) / 1000, 1)) if kwh else _("BHKW, Laufzeit und Wartung")), False
     if endpoint == "team.day_plan":
         plan = team.plan_for(date.today())
         mine = len(plan.get(current_user.id, []))

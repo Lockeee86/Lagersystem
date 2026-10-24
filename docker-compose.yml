@@ -13,6 +13,8 @@ services:
       - UPLOAD_DIR=/app/data/uploads
       - BACKUP_DIR=/backup
       - BACKUP_HOUR=${BACKUP_HOUR:-3}
+      - SKVE_API_KEY=${SKVE_API_KEY:-}
+      - SKVE_GAS_STORAGE_ID=${SKVE_GAS_STORAGE_ID:-}
     volumes:
       - uploads:/app/data
       # Datensicherung – zum Umstellen auf ein NAS siehe README („Datensicherung“)

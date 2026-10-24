@@ -33,10 +33,16 @@ TASK_TEMPLATES = {
     "anhaenger": [("Hauptuntersuchung (TÜV)", None, 24), ("Bremsen prüfen", None, 12), ("UVV-Prüfung", None, 12)],
     "stapler": [("Wartung", 500, 12), ("UVV-Prüfung", None, 12)],
     "lagertechnik": [("Wartung Lüftung", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
+    # Übliche Werte für Gas-Otto-Motoren – an den Wartungsplan des Herstellers anpassen
+    "bhkw": [("Ölwechsel", 2000, None), ("Zündkerzen", 2000, None), ("Ventilspiel einstellen", 2000, None),
+             ("Luftfilter", 4000, None), ("Ölanalyse", 500, None), ("Kühlwasser / Frostschutz prüfen", None, 12),
+             ("Zylinderköpfe (Revision)", 30000, None), ("Generalüberholung", 60000, None),
+             ("Elektroprüfung (DGUV V3)", None, 48)],
+    "biogas": [("Wartung", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
     "sonstiges": [],
 }
 # Fahrzeuge zählen Kilometer, alles mit Motor Betriebsstunden, der Rest nichts
-DEFAULT_UNITS = {"schlepper": "h", "fahrzeug": "km", "roder": "h", "stapler": "h", "maehdrescher": "h"}
+DEFAULT_UNITS = {"schlepper": "h", "fahrzeug": "km", "roder": "h", "stapler": "h", "maehdrescher": "h", "bhkw": "h"}
 
 SOON_DAYS = 30
 
@@ -94,6 +100,8 @@ def set_counter(machine, counter, user, day=None, photo_names=None):
         raise StorageError(_("Der Zählerstand ist kleiner als der letzte ({counter} {unit}).",
                              counter=machine.counter, unit=machine.unit_short))
     _raise_counter(machine, counter)
+    if machine.skve_chp_id:                      # BHKW: ab hier rechnet biogas.sync mit den SKVE-Stunden weiter
+        machine.skve_base_counter, machine.skve_base_day = counter, day or date.today()
     event = _event(machine, "zaehler", user, day, counter=counter)
     _attach(event, photo_names, user)
     return event

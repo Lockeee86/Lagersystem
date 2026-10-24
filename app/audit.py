@@ -59,12 +59,13 @@ SKIP_COLUMNS = {
     "users": {"last_login", "map_view", "tiles_add", "tiles_hide", "push_off", "push_on", "session_token",
               "calendar_token", "language"},
     # Platz und Inhalt der Kisten stehen im Verlauf (Movement) – hier nur andere Felder und das Löschen
+    "machines": {"counter", "counter_at", "skve_base_counter", "skve_base_day"},   # Zähler stehen im Logbuch
     "boxes": {"warehouse_id", "row", "slot", "level", "fill", "variety_id", "plot_id", "harvest_date", "usage",
               "seed_class_id", "grade", "note", "box_type_id", "condition", "condition_note", "condition_at"},
 }
 MASKED = {"password_hash", "sign_farm", "sign_customer", "signature"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
 BIG = {"boundary"}                             # Umriss: nur „geändert“, nicht die Koordinaten
-SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_")
+SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_", "biogas_")
 MAX_TEXT = 300
 
 

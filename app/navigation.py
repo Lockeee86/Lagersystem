@@ -49,6 +49,9 @@ AREAS = [
         item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
         item("main.weather_page", N_("Wetter"), "bi-cloud-sun"),
     ]},
+    {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge", "items": [
+        item("biogas.overview", N_("Übersicht"), "bi-lightning-charge", endpoints=("biogas.sync_now",)),
+    ]},
     {"key": "verkauf", "label": N_("Verkauf"), "icon": "bi-truck", "items": [
         item("sales.deliveries", N_("Lieferscheine"), "bi-truck",
              endpoints=("sales.delivery_detail", "sales.delivery_load")),
@@ -149,6 +152,7 @@ def hub(key, user):
     return [g for g in (
         {"label": None, "items": start},
         {"label": by_key["verkauf"]["label"], "items": _visible(by_key["verkauf"]["items"], user)},
+        {"label": by_key["biogas"]["label"], "items": _visible(by_key["biogas"]["items"], user)},
         {"label": None, "items": _visible(MORE_EXTRA, user)},
     ) if g["items"]]
 

@@ -56,6 +56,11 @@ def create_app(config=None):
         # Datensicherung (leer = aus); im Stack ein Volume, das auf das NAS zeigen kann
         BACKUP_DIR=os.environ.get("BACKUP_DIR") or None,
         BACKUP_HOUR=int(os.environ.get("BACKUP_HOUR", "3")),
+        # Biogas: Speicher-Kraftwerk-API (nur lesend). Ohne Schlüssel ist der Abruf aus.
+        SKVE_API_KEY=os.environ.get("SKVE_API_KEY", "").strip(),
+        SKVE_API_BASE=os.environ.get("SKVE_API_BASE", "https://www.speicher-kraftwerk.de/api").rstrip("/"),
+        SKVE_GAS_STORAGE_ID=os.environ.get("SKVE_GAS_STORAGE_ID", "").strip(),
+        SKVE_TIMEOUT=float(os.environ.get("SKVE_TIMEOUT", "20")),
     )
     if config:
         app.config.update(config)
@@ -90,6 +95,7 @@ def create_app(config=None):
     from .agenda_views import bp as agenda_bp
     from .branding import bp as branding_bp
     from .team_views import bp as team_bp
+    from .biogas_views import bp as biogas_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -105,6 +111,7 @@ def create_app(config=None):
     app.register_blueprint(agenda_bp)
     app.register_blueprint(branding_bp)
     app.register_blueprint(team_bp)
+    app.register_blueprint(biogas_bp)
 
     from . import cli
     cli.register(app)

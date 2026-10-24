@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Biogas") }}{% endblock %}
+{% block content %}
+{% set motors = {} %}
+{% for m in (live.motors or []) %}{% set ignored = motors.update({m.machine.id: m}) %}{% endfor %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Biogas") }}</h1>
+        <p class="text-body-secondary mb-0">
+            {% if status %}{{ _("Letzter Abruf {date}", date=status.at|datetime) }}{% if not status.ok %} · <span class="text-danger">{{ status.message }}</span>{% endif %}
+            {% else %}{{ _("BHKW-Laufzeiten und Wartung aus der Speicher-Kraftwerk-API") }}{% endif %}
+        </p>
+    </div>
+    {% if current_user.is_admin and configured %}
+    <form method="post" action="{{ url_for('biogas.sync_now') }}">
+        {{ csrf() }}<button class="btn btn-outline-primary"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Jetzt abrufen") }}</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if not configured %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h6"><i class="bi bi-plug me-1"></i>{{ _("Speicher-Kraftwerk verbinden") }}</h2>
+        <ol class="small mb-0 ps-3">
+            <li>{{ _("Im Portainer-Stack die Variable SKVE_API_KEY mit dem API-Schlüssel aus dem SKVE-Kundenportal eintragen (für den Gasspeicher zusätzlich SKVE_GAS_STORAGE_ID) und den Stack neu starten.") }}</li>
+            <li>{{ _("Jeden Motor als Maschine der Art „BHKW / Gasmotor“ anlegen und dort die SKVE-Motor-Nr. und die Nennleistung eintragen.") }}</li>
+            <li>{{ _("Einmal den aktuellen Betriebsstundenzähler am Motor ablesen und eintragen – ab da zählt die App jede Nacht weiter.") }}</li>
+        </ol>
+    </div>
+</div>
+{% elif live.error %}
+<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Die aktuellen SKVE-Daten konnten nicht geladen werden: {message}", message=live.error) }}</div>
+{% endif %}
+
+{% if configured and not live.error and live.motors %}
+{% set kw_total = live.motors|map(attribute="kw_now")|reject("none")|sum %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-lightning-charge"></i>{{ _("Leistung jetzt") }}</div><div class="stat-value">{{ kw_total|num(0) }} kW</div><div class="stat-sub">{{ ngettext("{n} Motor läuft", "{n} Motoren laufen", live.motors|selectattr("running")|list|length) }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-calendar-day"></i>{{ _("Heute erzeugt") }}</div><div class="stat-value">{{ (live.motors|sum(attribute="today_kwh") / 1000)|num(1) }} MWh</div><div class="stat-sub">{{ _("laut Fahrplan") }}</div></div></div>
+    {% if live.gas %}
+    <div class="col-6 col-lg-3"><div class="stat-card {{ 'stat-warn' if live.gas.now is not none and (live.gas.now >= 90 or live.gas.now <= 10) }}"><div class="stat-label"><i class="bi bi-cloud-haze2"></i>{{ _("Gasspeicher") }}</div><div class="stat-value">{{ live.gas.now|num(0) }} %</div><div class="stat-sub">{% if live.gas.min is not none %}{{ _("24 h: {min}–{max} %", min=live.gas.min|num(0), max=live.gas.max|num(0)) }}{% endif %}</div></div></div>
+    {% endif %}
+    {% if live.price_now is not none %}
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-currency-euro"></i>{{ _("Strompreis jetzt") }}</div><div class="stat-value">{{ live.price_now|num(0) }} €/MWh</div><div class="stat-sub">{{ _("Day-Ahead") }}</div></div></div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    {% for row in rows %}
+    {% set m = row.machine %}{% set now = motors.get(m.id) %}
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                <a class="fw-semibold text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}"><span class="motor-state {{ 'on' if now and now.running }} me-2"></span>{{ m.name }}</a>
+                <span class="small text-body-secondary text-end">
+                    {% if now and now.kw_now is not none %}{{ now.kw_now|num(0) }} kW{% if m.power_kw %} {{ _("von {kw}", kw=m.power_kw) }}{% endif %}{% elif m.power_kw %}{{ m.power_kw }} kW{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                {% if not m.skve_chp_id %}
+                <div class="small text-body-secondary mb-2"><i class="bi bi-info-circle me-1"></i>{{ _("Noch nicht mit SKVE verbunden – an der Maschine die SKVE-Motor-Nr. eintragen.") }}</div>
+                {% endif %}
+                <div class="d-flex flex-wrap gap-4 mb-3">
+                    <div><div class="small text-body-secondary">{{ _("Zähler") }}</div><div class="fw-semibold">{{ m.counter|num(0) if m.counter is not none else "–" }} h</div></div>
+                    <div><div class="small text-body-secondary">{{ _("Ø pro Tag") }}</div><div class="fw-semibold">{{ row.avg|num(1) if row.avg is not none else "–" }} h</div></div>
+                    {% if now %}<div><div class="small text-body-secondary">{{ _("Heute") }}</div><div class="fw-semibold">{{ now.today_hours|num(1) }} h · {{ now.today_kwh|num(0) }} kWh</div></div>{% endif %}
+                    <div><div class="small text-body-secondary">{{ _("Jahr {year}", year=today.year) }}</div><div class="fw-semibold">{{ row.year_hours|num(0) }} h · {{ (row.year_kwh / 1000)|num(0) }} MWh</div></div>
+                    {% if row.year_revenue is not none and current_user.is_admin %}<div><div class="small text-body-secondary">{{ _("Erlös (Day-Ahead)") }}</div><div class="fw-semibold">{{ row.year_revenue|num(0) }} €</div></div>{% endif %}
+                </div>
+
+                {% if now and now.plan %}
+                {% set top = [m.power_kw or 0, now.plan|map(attribute=1)|reject("none")|max|default(0), 1]|max %}
+                <div class="small text-body-secondary mb-1">{{ _("Fahrplan nächste 24 Stunden") }}</div>
+                <div class="chp-bars plan" role="img" aria-label="{{ _('Fahrplan nächste 24 Stunden') }}">
+                    {% for hour, kw in now.plan %}<span class="{{ 'off' if not kw }}" title="{{ hour.strftime('%H:%M') }}: {{ kw|num(0) if kw is not none else '–' }} kW" style="height: {{ ((kw or 0) / top * 100)|round(1) if kw else 3 }}%"></span>{% endfor %}
+                </div>
+                <div class="d-flex justify-content-between small text-body-tertiary mb-3"><span>{{ now.plan[0][0].strftime("%H:%M") }}</span><span>{{ now.plan[-1][0].strftime("%H:%M") }}</span></div>
+                {% endif %}
+
+                <div class="small text-body-secondary mb-1">{{ _("Nächste Wartungen nach Laufzeit") }}</div>
+                <ul class="list-unstyled small mb-0">
+                    {% for f in row.forecast %}
+                    <li class="d-flex justify-content-between gap-2 py-1 border-top">
+                        <span>{{ f.task.name }}</span>
+                        <span class="text-end {{ 'text-danger fw-semibold' if f.status.state == 'overdue' else 'text-warning-emphasis' if f.status.state == 'soon' }}">
+                            {% if f.left is none %}{{ _("letzte Wartung eintragen") }}
+                            {% elif f.left <= 0 %}{{ _("fällig") }}
+                            {% else %}{{ _("in {h} h", h=f.left|num(0)) }}{% if f.due_on %} · {{ _("ca. {date}", date=f.due_on|date) }}{% endif %}{% endif %}
+                        </span>
+                    </li>
+                    {% else %}
+                    <li class="text-body-secondary">{{ _("Keine Wartung nach Betriebsstunden angelegt.") }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="hub-list"><div class="hub-row text-body-secondary">{{ _("Noch keine BHKW angelegt.") }}{% if current_user.is_admin %} <a href="{{ url_for('machines.machine_list') }}">{{ _("Maschine anlegen (Art „BHKW / Gasmotor“)") }}</a>{% endif %}</div></div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if live.gas and live.gas.plan %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-cloud-haze2 me-1"></i>{{ _("Gasspeicher – Prognose 24 Stunden") }}</div>
+    <div class="card-body">
+        <div class="chp-bars gas" role="img" aria-label="{{ _('Gasspeicher – Prognose 24 Stunden') }}">
+            {% for hour, pct in live.gas.plan %}<span title="{{ hour.strftime('%H:%M') }}: {{ pct|num(0) if pct is not none else '–' }} %" style="height: {{ (pct or 0)|round(1) }}%"></span>{% endfor %}
+        </div>
+        <div class="d-flex justify-content-between small text-body-tertiary"><span>{{ live.gas.plan[0][0].strftime("%H:%M") }}</span><span>{{ live.gas.plan[-1][0].strftime("%H:%M") }}</span></div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
