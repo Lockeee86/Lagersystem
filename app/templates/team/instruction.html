@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, sign_modal %}
+{% from "team/_inst.html" import inst_status, topic_fields %}
+{% block title %}{{ topic.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1 class="d-flex flex-wrap align-items-center gap-2">{{ topic.name }}{% if not topic.active %} <span class="badge text-bg-secondary fs-6">{{ _("deaktiviert") }}</span>{% endif %}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("alle {n} Monat", "alle {n} Monate", topic.interval_months) }} · {{ _("für alle Mitarbeiter") if topic.for_all else ngettext("{n} Person", "{n} Personen", topic.users|length) }}</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-primary" href="{{ url_for('team.instruction_pdf', topic_id=topic.id, jahr=(years[0] if years else today.year)) }}" target="_blank"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("Nachweis") }}</a>
+        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#editTopic" aria-label="{{ _('Bearbeiten') }}"><i class="bi bi-pencil"></i></button>
+    </div>
+</div>
+
+<div class="collapse" id="editTopic">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <form method="post">
+            {{ csrf() }}
+            {{ topic_fields(topic, members) }}
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" role="switch" name="active" value="1" id="tActive" {% if topic.active %}checked{% endif %}>
+                <label class="form-check-label" for="tActive">{{ _("Aktiv") }}</label>
+            </div>
+            <button class="btn btn-primary">{{ _("Speichern") }}</button>
+        </form>
+        {% if not topic.records %}
+        <form method="post" action="{{ url_for('team.instruction_delete', topic_id=topic.id) }}" class="mt-2 text-end">
+            {{ csrf() }}<button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('{name} löschen?', name=topic.name) }}"><i class="bi bi-trash me-1"></i>{{ _("Löschen") }}</button>
+        </form>
+        {% endif %}
+    </div></div>
+</div>
+
+{% if topic.content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-card-text me-1"></i>{{ _("Inhalt") }}</div>
+    <div class="card-body" style="white-space: pre-line">{{ topic.content }}</div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4" id="personen">
+    <div class="card-header"><i class="bi bi-people me-1"></i>{{ _("Mitarbeiter") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for user, s in people %}
+        <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>
+                <span class="fw-semibold">{{ user.name }}</span>
+                <span class="d-block">{{ inst_status(s) }}{% if s.record %} <span class="small text-body-secondary">· {{ _("zuletzt {date}", date=s.record.day|date) }}</span>{% endif %}</span>
+            </span>
+            {% if topic.active %}
+            <button class="btn btn-sm {{ 'btn-primary' if s.level in ('due', 'never', 'soon') else 'btn-outline-secondary' }}" type="button"
+                    data-bs-toggle="modal" data-bs-target="#signModal" data-sign-lock="1"
+                    data-sign-action="{{ url_for('team.instruction_sign', topic_id=topic.id, user_id=user.id) }}"
+                    data-sign-title="{{ topic.name }}: {{ user.name }}" data-sign-name="{{ user.name }}">
+                <i class="bi bi-pen me-1"></i>{{ _("Unterschreiben") }}</button>
+            {% endif %}
+        </li>
+        {% else %}
+        <li class="list-group-item text-body-secondary">{{ _("Niemand ausgewählt.") }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="card shadow-sm mb-4" id="nachweise">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-journal-check me-1"></i>{{ _("Nachweise") }}</span>
+        {% if years|length > 1 %}
+        <span class="small d-flex gap-2">{% for y in years %}<a href="{{ url_for('team.instruction_pdf', topic_id=topic.id, jahr=y) }}" target="_blank">{{ y }}</a>{% endfor %}</span>
+        {% endif %}
+    </div>
+    <ul class="list-group list-group-flush">
+        {% for r in topic.records[:60] %}
+        <li class="list-group-item d-flex align-items-center gap-3">
+            <img class="inst-sign" src="{{ url_for('team.instruction_signature', record_id=r.id) }}" alt="{{ _('Unterschrift') }}" loading="lazy">
+            <span class="flex-grow-1 min-w-0">
+                <span class="fw-semibold">{{ r.signed_name }}</span>
+                <span class="d-block small text-body-secondary">{{ r.day|date }} · {{ _("unterwiesen von {name}", name=r.instructor_name) }}</span>
+            </span>
+            <form method="post" action="{{ url_for('team.instruction_record_delete', record_id=r.id) }}">
+                {{ csrf() }}<button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('Nachweis von {name} löschen?', name=r.signed_name) }}" aria-label="{{ _('Löschen') }}"><i class="bi bi-trash"></i></button>
+            </form>
+        </li>
+        {% else %}
+        <li class="list-group-item text-body-secondary">{{ _("Noch keine Unterschriften.") }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if topic.active %}
+{% call sign_modal(_("Mit der Unterschrift wird bestätigt, dass die Unterweisung stattgefunden hat und der Inhalt verstanden wurde.")) %}
+<label class="form-label mt-3" for="signDay">{{ _("Datum der Unterweisung") }}</label>
+<input class="form-control" type="date" id="signDay" name="datum" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required style="max-width: 12rem">
+{% endcall %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if topic.active %}<script src="{{ url_for('static', filename='js/signpad.js') }}?v={{ app_version }}"></script>{% endif %}
+{% endblock %}

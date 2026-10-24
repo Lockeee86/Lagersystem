@@ -49,6 +49,35 @@
 {# Handy: untereinander; PC: links „Jetzt wichtig“ und Aufgaben, rechts Termine und Wetter #}
 <div class="row g-lg-4">
 <div class="col-lg-7">
+{% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
+{% if my_plan or (plan_today and current_user.can_edit) %}
+<section class="mb-4" id="meinplan">
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Dein Plan für heute") }}</h2>
+        <a class="small" href="{{ url_for('team.day_plan', datum=today.isoformat()) }}">{{ _("Ganzer Tagesplan") }}</a>
+    </div>
+    <div class="hub-list"><div class="hub-row d-block">
+        {% if my_plan %}{{ plan_lines(my_plan) }}{% else %}<span class="text-body-secondary">{{ _("Für dich ist heute nichts eingeteilt.") }}</span>{% endif %}
+    </div></div>
+</section>
+{% endif %}
+{% if handovers or current_user.can_edit %}
+<section class="mb-4" id="uebergabe">
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Übergabe") }}{% if handovers %} <span class="badge rounded-pill text-bg-secondary">{{ handovers|length }}</span>{% endif %}</h2>
+        <span class="small d-flex gap-3">
+            {% if current_user.can_edit %}<a href="#handoverForm" data-bs-toggle="collapse" role="button"><i class="bi bi-plus-lg"></i> {{ _("Notiz") }}</a>{% endif %}
+            <a href="{{ url_for('team.handovers') }}">{{ _("Alle") }}</a>
+        </span>
+    </div>
+    {% if current_user.can_edit %}{{ handover_form(url_for('main.dashboard') ~ '#uebergabe') }}{% endif %}
+    {% if handovers %}
+    <div class="hub-list">{% for note in handovers %}{{ handover_item(note, url_for('main.dashboard') ~ '#uebergabe') }}{% endfor %}</div>
+    {% else %}
+    <div class="hub-list"><div class="hub-row text-body-secondary small">{{ _("Keine offene Übergabe. Zum Feierabend kurz notieren, was der Nächste wissen muss.") }}</div></div>
+    {% endif %}
+</section>
+{% endif %}
 <section class="mb-4">
     <h2 class="hub-heading mt-0">{{ _("Jetzt wichtig") }}</h2>
     {% if important %}

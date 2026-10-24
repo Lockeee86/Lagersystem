@@ -3,17 +3,12 @@
 Wie in `storage.py` verändern alle Funktionen nur die Session, committen muss der Aufrufer.
 Kisten werden über `storage.ship_box` gebucht, damit jede Änderung eine Bewegung erzeugt.
 """
-import base64
-import binascii
-import io
 import re
 from collections import OrderedDict
 
-from PIL import Image, UnidentifiedImageError
-
 from sqlalchemy import func
 
-from . import bulk, storage
+from . import bulk, signatures, storage
 from .extensions import db
 from .i18n import N_, gettext as _
 from .models import (DELIVERY_CLOSED, DELIVERY_OPEN, Certification, Delivery, DeliveryItem, Setting,
@@ -130,8 +125,6 @@ def reopen_delivery(delivery):
 # --- Unterschriften ----------------------------------------------------------
 
 SIGNERS = ("hof", "kunde")                    # URL-Teil → Spalten sign_farm / sign_customer
-SIGN_MAX_BYTES = 400_000                      # Daten-URL vom Handy
-SIGN_WIDTH = 600                              # gespeichert höchstens so breit (reicht fürs PDF)
 
 
 def sign_required():
@@ -156,40 +149,6 @@ def signature(delivery, who):
     return getattr(delivery, col), getattr(delivery, f"{col}_name"), getattr(delivery, f"{col}_at")
 
 
-def _signature_png(data_url):
-    """Daten-URL aus dem Zeichenfeld → zugeschnittenes PNG, schwarz auf weiß. Leeres Feld → Fehler."""
-    prefix = "data:image/png;base64,"
-    if not data_url or len(data_url) > SIGN_MAX_BYTES or not data_url.startswith(prefix):
-        raise StorageError(_("Bitte im Feld unterschreiben."))
-    try:
-        raw = base64.b64decode(data_url[len(prefix):], validate=True)
-        with Image.open(io.BytesIO(raw)) as img:
-            if img.format != "PNG" or img.width > 4000 or img.height > 4000:
-                raise ValueError
-            img = img.convert("RGBA")
-    except (binascii.Error, UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
-        raise StorageError(_("Die Unterschrift konnte nicht gelesen werden.")) from None
-    # Strich = alles, was nicht durchsichtig und nicht weiß ist
-    ink = Image.new("L", img.size, 0)
-    ink.paste(255, mask=img.getchannel("A").point(lambda a: 255 if a > 40 else 0))
-    gray = img.convert("L").point(lambda v: 255 if v < 200 else 0)
-    ink = Image.composite(ink, Image.new("L", img.size, 0), gray)
-    box = ink.getbbox()
-    if box is None or ((box[2] - box[0]) < 15 and (box[3] - box[1]) < 15):     # nur ein Punkt
-        raise StorageError(_("Bitte im Feld unterschreiben."))
-    margin = 8
-    box = (max(box[0] - margin, 0), max(box[1] - margin, 0), min(box[2] + margin, img.width),
-           min(box[3] + margin, img.height))
-    out = Image.new("L", img.size, 255)
-    out.paste(0, mask=ink)
-    out = out.crop(box)
-    if out.width > SIGN_WIDTH:
-        out = out.resize((SIGN_WIDTH, max(1, round(out.height * SIGN_WIDTH / out.width))), Image.LANCZOS)
-    buf = io.BytesIO()
-    out.save(buf, format="PNG", optimize=True)
-    return buf.getvalue()
-
-
 def sign(delivery, who, name, data_url):
     """Unterschrift speichern. Geht auch nach dem Abschließen, solange das Feld noch leer ist."""
     col = _column(who)
@@ -200,7 +159,7 @@ def sign(delivery, who, name, data_url):
     name = (name or "").strip()[:100]
     if not name:
         raise StorageError(_("Bitte den Namen in Druckschrift eintragen."))
-    setattr(delivery, col, _signature_png(data_url))
+    setattr(delivery, col, signatures.to_png(data_url))
     setattr(delivery, f"{col}_name", name)
     setattr(delivery, f"{col}_at", utcnow())
 

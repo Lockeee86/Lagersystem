@@ -778,3 +778,17 @@ body:not(.has-tabbar) {
 .cond-badge { font-weight: 500; vertical-align: middle; }
 .cond-defekt { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
 .cond-ausgemustert { background: var(--bs-secondary-bg); color: var(--bs-secondary-color); }
+
+/* Team: Übergabe und Tagesplan */
+.handover-row { align-items: flex-start; }
+.handover-text { display: block; white-space: pre-line; overflow-wrap: anywhere; }
+.handover-row.is-done .handover-text { color: var(--bs-secondary-color); }
+.plan-line { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; padding: .3rem 0; }
+.plan-line + .plan-line { border-top: 1px solid var(--bs-border-color-translucent); }
+.plan-text { font-weight: 500; overflow-wrap: anywhere; }
+.plan-card.is-me { border-color: var(--bs-primary); }
+.inst-dot { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.inst-ok { background: var(--bs-success); }
+.inst-soon { background: var(--bs-warning); }
+.inst-due, .inst-never { background: var(--bs-danger); }
+.inst-sign { max-height: 2.6rem; max-width: 9rem; background: #fff; border-radius: .25rem; padding: .1rem; }

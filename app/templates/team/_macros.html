@@ -1,0 +1,37 @@
+{# Übergabe-Notiz als Zeile (Startseite und Übergabe-Seite) #}
+{% macro handover_item(note, back_url) %}
+<div class="hub-row handover-row {{ 'is-done' if note.done_at }}">
+    <span class="hub-icon"><i class="bi {{ 'bi-check2' if note.done_at else 'bi-chat-square-text' }}"></i></span>
+    <span class="hub-text">
+        <span class="handover-text">{{ note.text }}</span>
+        <span class="hub-status">{{ note.user.name if note.user else "–" }} · {{ note.created_at|datetime }}{% if note.done_at %} · {{ _("erledigt von {name}", name=note.done_by.name if note.done_by else "–") }}{% endif %}</span>
+    </span>
+    {% if not note.done_at and current_user.can_edit %}
+    <form method="post" action="{{ url_for('team.handover_done', note_id=note.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back_url }}">
+        <button class="btn btn-sm btn-outline-success text-nowrap" title="{{ _('Erledigt') }}"><i class="bi bi-check2"></i><span class="d-none d-sm-inline ms-1">{{ _("Erledigt") }}</span></button>
+    </form>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro handover_form(back_url, collapsed=true) %}
+<form method="post" action="{{ url_for('team.handovers') }}" class="{{ 'collapse' if collapsed }} mb-2" id="handoverForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back_url }}">
+    <textarea class="form-control mb-2" name="text" rows="3" maxlength="2000" required
+              placeholder="{{ _('z. B. Lüftung Halle 1 läuft auf Stufe 2, Stapler muss noch geladen werden') }}"></textarea>
+    <button class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>{{ _("Übergabe speichern") }}</button>
+</form>
+{% endmacro %}
+
+{# Einträge einer Person im Tagesplan #}
+{% macro plan_lines(entries) %}
+{% for e in entries %}
+<div class="plan-line">
+    <span class="plan-text">{{ e.text }}</span>
+    {% if e.machine %}<a class="badge text-bg-secondary text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}"><i class="bi {{ e.machine.icon }} me-1"></i>{{ e.machine.name }}</a>{% endif %}
+    {% if e.plot %}<a class="badge text-bg-light text-decoration-none" href="{{ url_for('fields.field_detail', plot_id=e.plot_id) }}"><i class="bi bi-map me-1"></i>{{ e.plot.name }}</a>{% endif %}
+    {{ caller(e) if caller }}
+</div>
+{% endfor %}
+{% endmacro %}

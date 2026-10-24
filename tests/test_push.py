@@ -42,7 +42,7 @@ def test_topics_by_role(db, seed):
     assert not worker.wants_push("frost") and not viewer.wants_push("blight")
     viewer.set_push_topics({"blight"})
     assert viewer.wants_push("blight") and not viewer.wants_push("frost") and viewer.push_on == "blight"
-    admin.set_push_topics(set(admin.push_topics()) - {"frost"})
+    admin.set_push_topics(set(admin.push_topics()) - {"frost", "handover"})
     assert not admin.wants_push("frost") and admin.push_off == "frost" and admin.push_on == ""
 
 
@@ -61,7 +61,7 @@ def test_subscribe_and_settings(app, as_worker, db, seed):
     assert "Android · Chrome" in html and 'value="fault"' in html and 'value="purchase_new"' not in html
     assert 'value="frost"' in html and "Wetter-Warnungen" in html
     as_worker.post("/konto/push/themen", data={"topic": ["tasks_new", "tasks_due", "frost"]})
-    assert set(seed["worker"].push_off.split(",")) == {"purchase_status", "fault", "maintenance"}
+    assert set(seed["worker"].push_off.split(",")) == {"purchase_status", "fault", "maintenance", "day_plan"}
     assert seed["worker"].push_on == "frost"
 
     as_worker.post("/konto/push/test")

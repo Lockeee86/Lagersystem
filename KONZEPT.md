@@ -285,6 +285,20 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Team** (0.36.0, `team.py` / `team_views.py`):
+   *Tagesplan* (`/tagesplan`, Übersicht → Tagesplan): der Admin teilt je Mitarbeiter ein, was an einem Tag zu tun
+   ist (Text, optional Maschine und Schlag; nachmittags öffnet sich der nächste Tag), „Vom … übernehmen“ kopiert den
+   letzten Plan für alle ohne Einträge, „Plan aufs Handy schicken“ sendet jedem seine Einträge (Push-Thema
+   „Mein Tagesplan“). Auf der Startseite steht „Dein Plan für heute“ (`PlanEntry`).
+   *Übergabe* (`/uebergabe`): Notiz zum Feierabend („Was der Nächste wissen muss“), steht oben auf der Startseite,
+   bis jemand sie abhakt oder sie älter als 3 Tage ist; Push-Thema „Neue Übergabe-Notiz“ ist von sich aus aus
+   (`Handover`).
+   *Unterweisungen* (Verwaltung → Unterweisungen, nur Admin): Themen mit Wiederholung in Monaten und Inhalt, für
+   alle oder ausgewählte Mitarbeiter (Vorschläge: Arbeitsschutz, Stapler, Schlepper, Kistenlager, Pflanzenschutz,
+   Brandschutz). Je Person Ampel (bis …, bald fällig ≤ 30 Tage, fällig, noch nie); der Mitarbeiter unterschreibt am
+   Handy (`InstructionRecord.signature`, Technik wie beim Lieferschein: `signatures.py`, `static/js/signpad.js`,
+   `macros.sign_modal`). Nachweis je Thema und Jahr als PDF (`instruction_pdf.py`, immer Deutsch). Fällige stehen
+   für Admins unter „Jetzt wichtig“.
    **Kistenzustand** (0.35.0): auf der Kistenseite „Kiste defekt melden“ mit kurzer Angabe (Schnellwahl für die
    Metallkisten: Gitter, Rahmen, Schweißnaht, Stapelfuß; Foto über die Fotoleiste). Defekte Kisten stehen unter Lager → Kisten-Reparatur
    (`/kisten/reparatur`), werden im Ernte-Modus abgewiesen und auf Kistenliste/Stapel markiert; „Repariert“ setzt

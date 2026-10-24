@@ -1,0 +1,38 @@
+{% macro inst_status(s) -%}
+{%- if s.level == "never" -%}<span class="inst-dot inst-never"></span> <span class="small text-danger">{{ _("noch nie unterwiesen") }}</span>
+{%- elif s.level == "due" -%}<span class="inst-dot inst-due"></span> <span class="small text-danger">{{ _("fällig seit {date}", date=s.due_on|date) }}</span>
+{%- elif s.level == "soon" -%}<span class="inst-dot inst-soon"></span> <span class="small">{{ _("fällig am {date}", date=s.due_on|date) }}</span>
+{%- else -%}<span class="inst-dot inst-ok"></span> <span class="small text-body-secondary">{{ _("bis {date}", date=s.due_on|date) }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro topic_fields(topic, members) %}
+<div class="mb-2">
+    <label class="form-label" for="tName">{{ _("Name") }}</label>
+    <input class="form-control" id="tName" name="name" maxlength="100" required value="{{ topic.name if topic else '' }}" placeholder="{{ _('z. B. Stapler') }}">
+</div>
+<div class="mb-2">
+    <label class="form-label" for="tInterval">{{ _("Wiederholen alle … Monate") }}</label>
+    <input class="form-control" id="tInterval" name="interval_months" type="number" min="1" max="60" required value="{{ topic.interval_months if topic else 12 }}" style="max-width: 8rem">
+</div>
+<div class="mb-2">
+    <label class="form-label" for="tContent">{{ _("Inhalt (steht auf dem Nachweis)") }}</label>
+    <textarea class="form-control" id="tContent" name="content" rows="3" maxlength="3000">{{ topic.content if topic and topic.content else '' }}</textarea>
+</div>
+<div class="mb-2">
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="for_all" value="1" id="tAll" {% if not topic or topic.for_all %}checked{% endif %}>
+        <label class="form-check-label" for="tAll">{{ _("Für alle Mitarbeiter") }}</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="for_all" value="0" id="tSome" {% if topic and not topic.for_all %}checked{% endif %}>
+        <label class="form-check-label" for="tSome">{{ _("Nur für:") }}</label>
+    </div>
+    <div class="d-flex flex-wrap gap-2 ms-4 mt-1">
+        {% for u in members %}
+        <input class="btn-check" type="checkbox" name="user_ids" value="{{ u.id }}" id="tu{{ u.id }}" {% if topic and u in topic.users %}checked{% endif %}>
+        <label class="btn btn-sm btn-outline-secondary" for="tu{{ u.id }}">{{ u.name }}</label>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}

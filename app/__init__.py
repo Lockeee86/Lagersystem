@@ -89,6 +89,7 @@ def create_app(config=None):
     from .bulk_views import bp as bulk_bp
     from .agenda_views import bp as agenda_bp
     from .branding import bp as branding_bp
+    from .team_views import bp as team_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -103,6 +104,7 @@ def create_app(config=None):
     app.register_blueprint(bulk_bp)
     app.register_blueprint(agenda_bp)
     app.register_blueprint(branding_bp)
+    app.register_blueprint(team_bp)
 
     from . import cli
     cli.register(app)

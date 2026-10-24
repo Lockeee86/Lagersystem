@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, sites, storage, tasks,
+from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, sites, storage, tasks, team,
                tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
@@ -87,7 +87,8 @@ def _tile_info(key):
     return None
 
 
-def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=()):
+def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=(),
+               instructions_due=0):
     """„Jetzt wichtig“ auf der Startseite: eine Liste statt einzelner Karten, Dringendes zuerst.
     Je Eintrag {level: danger|warning|success, title, sub, url}. Aufgaben stehen in einem eigenen Block darunter;
     Störungen, zu denen es schon eine fällige Aufgabe gibt, erscheinen nur dort. `unclaimed`: Bestellwünsche, die
@@ -113,6 +114,10 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     for r in unclaimed:
         items.append({"level": "warning", "title": r.title, "sub": _("Bestellwunsch · noch frei"),
                       "url": url_for("purchases.purchase_detail", req_id=r.id)})
+    if instructions_due:
+        items.append({"level": "warning", "title": _("Unterweisungen"),
+                      "sub": ngettext("{n} Person fällig", "{n} Personen fällig", instructions_due),
+                      "url": url_for("team.instructions")})
     for r in arrived:
         items.append({"level": "success", "title": _("{title} ist da", title=r.title), "sub": _("Bestellung"),
                       "url": url_for("purchases.purchase_detail", req_id=r.id)})
@@ -186,13 +191,16 @@ def dashboard():
     backup_alert = backup.needs_attention() if current_user.is_admin else None
     unclaimed = [r for r in purchases.open_requests(current_user) if not r.assignee] if current_user.is_buyer else []
     important = _important(due_now, faults, due_maintenance, open_deliveries if current_user.can_edit else [],
-                           arrived, backup_alert, today, unclaimed)
+                           arrived, backup_alert, today, unclaimed,
+                           team.due_count(today) if current_user.is_admin else 0)
+    plan_today = team.plan_for(today)
     response = make_response(render_template(
         "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
         weather=weather.get_weather(), show_blight=weather.blight_in_season(), today=today,
         tank=fuel.status() if current_user.can_edit else None,
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
+        handovers=team.open_handovers(), my_plan=plan_today.get(current_user.id, []), plan_today=bool(plan_today),
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
     if choice:
@@ -229,6 +237,15 @@ def _status(endpoint):
                 else _("nichts lange gelagert")), bool(old)
     if endpoint == "main.harvest":
         return _("Kisten befüllen und einlagern"), False
+    if endpoint == "team.day_plan":
+        plan = team.plan_for(date.today())
+        mine = len(plan.get(current_user.id, []))
+        return (ngettext("heute {n} Aufgabe für dich", "heute {n} Aufgaben für dich", mine) if mine
+                else ngettext("heute {n} Person eingeteilt", "heute {n} Personen eingeteilt", len(plan)) if plan
+                else _("Wer macht heute was")), False
+    if endpoint == "team.handovers":
+        n = len(team.open_handovers())
+        return (ngettext("{n} offene Notiz", "{n} offene Notizen", n) if n else _("Was der Nächste wissen muss")), False
     if endpoint == "main.repairs":
         n = Box.query.filter(Box.condition == BOX_DEFECT).count()
         return (ngettext("{n} Kiste defekt", "{n} Kisten defekt", n) if n else _("alle Kisten in Ordnung")), bool(n)

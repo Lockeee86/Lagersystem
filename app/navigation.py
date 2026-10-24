@@ -18,6 +18,8 @@ def item(endpoint, label, icon, role=ROLE_BETRACHTER, endpoints=(), prefixes=(),
 AREAS = [
     {"key": "start", "label": N_("Übersicht"), "icon": "bi-speedometer2", "items": [
         item("main.dashboard", N_("Heute"), "bi-sun"),
+        item("team.day_plan", N_("Tagesplan"), "bi-people"),
+        item("team.handovers", N_("Übergabe"), "bi-chat-square-text"),
         item("tasks.task_list", N_("Aufgaben"), "bi-list-check", prefixes=("tasks.",), badge="tasks"),
         item("purchases.purchase_list", N_("Bestellungen"), "bi-box-seam", prefixes=("purchases.",), badge="purchases"),
         item("agenda.month", N_("Kalender"), "bi-calendar3", prefixes=("agenda.",)),
@@ -65,6 +67,7 @@ ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items
     item("admin.seed_classes", N_("Stufen"), "bi-award"),
     item("admin.box_types", N_("Kistentypen"), "bi-box"),
     item("admin.users", N_("Benutzer"), "bi-people"),
+    item("team.instructions", N_("Unterweisungen"), "bi-person-check", prefixes=("team.instruction",)),
     item("admin.data", N_("Import / Export"), "bi-arrow-down-up", endpoints=("admin.import_preview", "admin.import_apply")),
     item("admin.tile_defaults", N_("Startseite"), "bi-grid-1x2"),
     item("admin.backups", N_("Datensicherung"), "bi-shield-check", endpoints=("admin.backup_now", "admin.backup_download")),
@@ -81,6 +84,7 @@ ADMIN_HINTS = {
     "admin.seed_classes": N_("Saatgut-Stufen (PB, SE, E …)"),
     "admin.box_types": N_("Kistengrößen und Gewicht"),
     "admin.users": N_("Konten, Rollen, Sprache"),
+    "team.instructions": N_("Pflicht-Unterweisungen mit Unterschrift"),
     "admin.data": N_("Excel-Vorlage, Import, Jahres-Export"),
     "admin.backups": N_("Nächtliche Sicherung, Stände herunterladen"),
     "admin.tile_defaults": N_("Kacheln am Handy je Rolle"),
@@ -99,7 +103,7 @@ def current(endpoint, user):
     """{"areas": [...], "area": aktueller Bereich, "items": seine sichtbaren Unterpunkte, "active": Endpunkt}"""
     endpoint = endpoint or ""
     area = None
-    if endpoint.startswith("admin."):
+    if endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"]):
         area = ADMIN
     else:
         area = next((a for a in AREAS if any(_active(it, endpoint) for it in a["items"])), None)
@@ -153,7 +157,8 @@ def crumb(endpoint, view_args=None):
     endpoint = endpoint or ""
     if endpoint in ("main.dashboard", "main.area", "main.scan", "main.storage_home") or not endpoint:
         return None
-    if endpoint.startswith("admin.") and endpoint != "admin.index":
+    if (endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"])) \
+            and endpoint != "admin.index":
         return url_for("admin.index"), ADMIN["label"]
     key = tab_for(endpoint, view_args)
     if key == "lager":

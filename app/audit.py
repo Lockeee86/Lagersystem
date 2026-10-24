@@ -62,7 +62,7 @@ SKIP_COLUMNS = {
     "boxes": {"warehouse_id", "row", "slot", "level", "fill", "variety_id", "plot_id", "harvest_date", "usage",
               "seed_class_id", "grade", "note", "box_type_id", "condition", "condition_note", "condition_at"},
 }
-MASKED = {"password_hash", "sign_farm", "sign_customer"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
+MASKED = {"password_hash", "sign_farm", "sign_customer", "signature"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
 BIG = {"boundary"}                             # Umriss: nur „geändert“, nicht die Koordinaten
 SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_")
 MAX_TEXT = 300
@@ -84,7 +84,7 @@ def _value(value):
 
 
 def _label(obj):
-    for attr in ("code", "number", "name", "title", "username", "key"):
+    for attr in ("code", "number", "name", "title", "username", "key", "label"):
         value = getattr(obj, attr, None)
         if value:
             label = str(value)

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "team/_macros.html" import plan_lines with context %}
+{% block title %}{{ _("Tagesplan") }}{% endblock %}
+{% block content %}
+{% set prev_day, next_day = day - timedelta1, day + timedelta1 %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Tagesplan") }}</h1>
+        <p class="text-body-secondary mb-0">{{ day|weekday }}, {{ day|date }}{% if day == today %} · {{ _("heute") }}{% elif (day - today).days == 1 %} · {{ _("morgen") }}{% endif %}</p>
+    </div>
+    <div class="btn-group" role="group" aria-label="{{ _('Tag wählen') }}">
+        <a class="btn btn-outline-secondary" href="{{ url_for('team.day_plan', datum=prev_day.isoformat()) }}" aria-label="{{ _('Vorheriger Tag') }}"><i class="bi bi-chevron-left"></i></a>
+        <a class="btn btn-outline-secondary {{ 'active' if day == today }}" href="{{ url_for('team.day_plan', datum=today.isoformat()) }}">{{ _("Heute") }}</a>
+        <a class="btn btn-outline-secondary {{ 'active' if (day - today).days == 1 }}" href="{{ url_for('team.day_plan', datum=(today + timedelta1).isoformat()) }}">{{ _("Morgen") }}</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('team.day_plan', datum=next_day.isoformat()) }}" aria-label="{{ _('Nächster Tag') }}"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+
+{% if current_user.is_admin %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% if previous %}
+    <form method="post" action="{{ url_for('team.plan_copy') }}">
+        {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+        <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-files me-1"></i>{{ _("Vom {date} übernehmen", date=previous|date) }}</button>
+    </form>
+    {% endif %}
+    {% if plan %}
+    <form method="post" action="{{ url_for('team.plan_send') }}">
+        {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+        <button class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>{{ _("Plan aufs Handy schicken") }}</button>
+    </form>
+    {% if sent %}<span class="small text-success align-self-center"><i class="bi bi-check2 me-1"></i>{{ _("verschickt") }}</span>{% endif %}
+    {% endif %}
+</div>
+{% endif %}
+
+{% if not plan and not current_user.is_admin %}
+<div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Für diesen Tag ist noch niemand eingeteilt.") }}</div></div>
+{% endif %}
+
+<div class="row g-3">
+    {% for user in members %}
+    {% set entries = plan.get(user.id, []) %}
+    {% if entries or current_user.is_admin %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm h-100 plan-card {{ 'is-me' if user.id == current_user.id }}" id="p{{ user.id }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold"><i class="bi bi-person me-1"></i>{{ user.name }}</span>
+                {% if not entries %}<span class="small text-body-secondary">{{ _("nicht eingeteilt") }}</span>{% endif %}
+            </div>
+            <div class="card-body py-2">
+                {% call(e) plan_lines(entries) %}
+                {% if current_user.is_admin %}
+                <form method="post" action="{{ url_for('team.plan_delete', entry_id=e.id) }}" class="ms-auto">
+                    {{ csrf() }}<button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Entfernen') }}"><i class="bi bi-x-lg"></i></button>
+                </form>
+                {% endif %}
+                {% endcall %}
+                {% if current_user.is_admin %}
+                <form method="post" action="{{ url_for('team.plan_add') }}" class="plan-add mt-2">
+                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ user.id }}">
+                    <div class="input-group input-group-sm">
+                        <input class="form-control" name="text" maxlength="200" required placeholder="{{ _('Was ist zu tun?') }}" list="planTexts">
+                        <button class="btn btn-outline-primary" aria-label="{{ _('Hinzufügen') }}"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                    <div class="row g-1 mt-1">
+                        <div class="col-6"><select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
+                            <option value="">{{ _("Maschine …") }}</option>
+                            {% for m in machines %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+                        </select></div>
+                        <div class="col-6"><select class="form-select form-select-sm" name="plot_id" aria-label="{{ _('Schlag') }}">
+                            <option value="">{{ _("Schlag …") }}</option>
+                            {% for p in plots %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                        </select></div>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% if current_user.is_admin %}
+<datalist id="planTexts">{% for text in recent_texts %}<option value="{{ text }}">{% endfor %}</datalist>
+{% endif %}
+{% endblock %}

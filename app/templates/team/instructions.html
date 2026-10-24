@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "team/_inst.html" import inst_status, topic_fields %}
+{% block title %}{{ _("Unterweisungen") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Unterweisungen") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Pflicht-Unterweisungen je Mitarbeiter, unterschrieben am Handy – mit Nachweis als PDF.") }}</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newTopic"><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Unterweisung") }}</button>
+</div>
+
+<div class="collapse {{ 'show' if not rows and not suggestions }}" id="newTopic">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <form method="post" action="{{ url_for('team.instruction_create') }}">
+            {{ csrf() }}
+            {{ topic_fields(none, members) }}
+            <button class="btn btn-primary">{{ _("Anlegen") }}</button>
+        </form>
+    </div></div>
+</div>
+
+{% if suggestions %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="small text-body-secondary mb-2">{{ _("Vorschläge – mit einem Tipp anlegen, danach anpassen:") }}</div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for index, name, months in suggestions %}
+            <form method="post" action="{{ url_for('team.instruction_create') }}">
+                {{ csrf() }}<input type="hidden" name="vorschlag" value="{{ index }}">
+                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus me-1"></i>{{ name }}</button>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    {% for row in rows %}
+    <div class="col-md-6 col-xl-4">
+        <a class="card shadow-sm h-100 text-decoration-none text-body" href="{{ url_for('team.instruction_detail', topic_id=row.topic.id) }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">{{ row.topic.name }}</span>
+                {% if row.due %}<span class="badge text-bg-danger">{{ ngettext("{n} fällig", "{n} fällig", row.due) }}</span>
+                {% elif row.soon %}<span class="badge text-bg-warning">{{ ngettext("{n} bald", "{n} bald", row.soon) }}</span>
+                {% else %}<span class="badge text-bg-success"><i class="bi bi-check2"></i></span>{% endif %}
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for user, s in row.people %}
+                <li class="list-group-item d-flex justify-content-between align-items-center gap-2 py-1">
+                    <span>{{ user.name }}</span><span class="text-end">{{ inst_status(s) }}</span>
+                </li>
+                {% else %}
+                <li class="list-group-item small text-body-secondary">{{ _("Niemand ausgewählt.") }}</li>
+                {% endfor %}
+            </ul>
+        </a>
+    </div>
+    {% else %}
+    <div class="col-12"><div class="hub-list"><div class="hub-row text-body-secondary">{{ _("Noch keine Unterweisungen angelegt.") }}</div></div></div>
+    {% endfor %}
+</div>
+
+{% if inactive %}
+<details class="mt-4">
+    <summary class="text-body-secondary">{{ ngettext("{n} deaktivierte Unterweisung", "{n} deaktivierte Unterweisungen", inactive|length) }}</summary>
+    <ul class="list-group mt-2">
+        {% for t in inactive %}<li class="list-group-item"><a href="{{ url_for('team.instruction_detail', topic_id=t.id) }}">{{ t.name }}</a></li>{% endfor %}
+    </ul>
+</details>
+{% endif %}
+{% endblock %}

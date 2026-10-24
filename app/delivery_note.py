@@ -10,9 +10,10 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from xml.sax.saxutils import escape
 
+from . import signatures
 from .utils import fmt_datetime
 
 USAGE_TEXT = {"pflanzgut": "Pflanzgut", "speise": "Speiseware", "futter": "Futter", "sonstiges": "Sonstiges"}
@@ -188,11 +189,7 @@ def render_delivery_note(delivery, lines, farm):
     def signed(image, name, at, label):
         if not image:
             return "", _p(f"{label} (Datum, Unterschrift)", SMALL)
-        pic = Image(io.BytesIO(image))
-        scale = min(half / pic.imageWidth, 15 * mm / pic.imageHeight)
-        pic.drawWidth, pic.drawHeight = pic.imageWidth * scale, pic.imageHeight * scale
-        pic.hAlign = "LEFT"
-        return pic, _p(f"{label}: {escape(name or '')}, {fmt_datetime(at)}", SMALL)
+        return signatures.pdf_image(image, half, 15 * mm), _p(f"{label}: {escape(name or '')}, {fmt_datetime(at)}", SMALL)
 
     farm_sign = signed(delivery.sign_farm, delivery.sign_farm_name, delivery.sign_farm_at, "Übergeben")
     customer_sign = signed(delivery.sign_customer, delivery.sign_customer_name, delivery.sign_customer_at,

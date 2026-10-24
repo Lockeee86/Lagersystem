@@ -39,6 +39,11 @@ docker compose up --build -d
   abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
   `app/sales_views.py` (Blueprint `sales`: Lieferscheine, Verladen per Dauer-Scanner, Kunden, Anerkennungen),
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
+- `app/team.py`: Team-Alltag – Übergabe-Notizen (`Handover`, `open_handovers()`), Tagesplan (`PlanEntry`, `plan_for()`,
+  `copy_plan()`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
+  `overview()`, `sign_instruction()`), committet nicht; `app/team_views.py` (Blueprint `team`), `app/instruction_pdf.py`
+  (Nachweis, immer Deutsch). Unterschriften allgemein: `app/signatures.py` (`to_png`, `pdf_image`),
+  `static/js/signpad.js` + `macros.sign_modal`
 - `app/bulk.py`: Schüttgut-Lager (`BulkStore` = Box/Haufen/Big Bags, eine Ware je Lagerort; `BulkEntry` ein/aus mit
   Waage und Qualität; Bestand `stock()`, Qualität `quality()`, Herkunft `plot_shares()`), committet nicht;
   `app/bulk_views.py` (Blueprint `bulk`). Code `S-001` je Lagerort (`bulk.normalize_code`, QR-Etikett; `/scan` öffnet

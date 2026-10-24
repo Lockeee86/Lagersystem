@@ -187,6 +187,9 @@ PUSH_TOPICS = {
     "tank": {"label": N_("Hoftank wird leer"), "group": N_("Maschinen"), "who": lambda u: u.is_buyer},
     "harvest_report": {"label": N_("Abends: Ernte-Tagesbericht"), "group": N_("Lager"), "who": lambda u: u.can_edit,
                        "default": lambda u: u.is_admin},
+    "day_plan": {"label": N_("Mein Tagesplan, wenn er verschickt wird"), "group": N_("Team"), "who": lambda u: u.can_edit},
+    "handover": {"label": N_("Neue Übergabe-Notiz"), "group": N_("Team"), "who": lambda u: u.can_edit,
+                 "default": lambda u: False},
 }
 
 
@@ -1424,3 +1427,93 @@ class AuditEntry(db.Model):
     changes = db.Column(db.JSON)                              # {feld: [vorher, nachher]} bzw. {feld: wert} beim Löschen
 
     user = db.relationship("User")
+
+
+# --- Team: Übergabe, Tagesplan, Unterweisungen ----------------------------------------
+
+class Handover(db.Model):
+    """Übergabe-Notiz zum Feierabend („Was der Nächste wissen muss“). Steht oben auf der Startseite, bis sie jemand
+    als erledigt abhakt oder sie älter als team.HANDOVER_DAYS ist."""
+    __tablename__ = "handovers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    done_at = db.Column(db.DateTime(timezone=True))
+    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    done_by = db.relationship("User", foreign_keys=[done_by_id])
+
+
+class PlanEntry(db.Model):
+    """Eintrag im Tagesplan: wer macht an einem Tag was (optional mit Maschine und Schlag)."""
+    __tablename__ = "plan_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = db.Column(db.String(200), nullable=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"))
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id", ondelete="SET NULL"))
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    machine = db.relationship("Machine")
+    plot = db.relationship("Plot")
+
+    @property
+    def label(self):                             # fürs Änderungsprotokoll
+        return f"{self.day.strftime('%d.%m.%Y')}: {self.text}"
+
+
+instruction_topic_users = db.Table(
+    "instruction_topic_users",
+    db.Column("topic_id", db.Integer, db.ForeignKey("instruction_topics.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class InstructionTopic(db.Model):
+    """Unterweisung (Stapler, Schlepper, Arbeitsschutz …) mit Wiederholung in Monaten. Gilt für alle Mitarbeiter
+    oder nur für ausgewählte."""
+    __tablename__ = "instruction_topics"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    content = db.Column(db.Text)                 # Inhalt / Stichpunkte, steht auch auf dem Nachweis
+    interval_months = db.Column(db.Integer, nullable=False, default=12)
+    for_all = db.Column(db.Boolean, nullable=False, default=True)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    users = db.relationship("User", secondary=instruction_topic_users, order_by="User.username")
+    records = db.relationship("InstructionRecord", back_populates="topic", cascade="all, delete-orphan",
+                              order_by="InstructionRecord.day.desc(), InstructionRecord.id.desc()")
+
+
+class InstructionRecord(db.Model):
+    """Durchgeführte Unterweisung eines Mitarbeiters mit seiner Unterschrift (PNG, siehe signatures.py)."""
+    __tablename__ = "instruction_records"
+
+    id = db.Column(db.Integer, primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey("instruction_topics.id", ondelete="CASCADE"), nullable=False,
+                         index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False)
+    signature = db.Column(db.LargeBinary, nullable=False)
+    signed_name = db.Column(db.String(100), nullable=False)       # Name zum Zeitpunkt der Unterschrift
+    instructor_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    instructor_name = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    topic = db.relationship("InstructionTopic", back_populates="records")
+    user = db.relationship("User", foreign_keys=[user_id])
+    instructor = db.relationship("User", foreign_keys=[instructor_id])
+
+    @property
+    def label(self):
+        return f"{self.topic.name}: {self.signed_name} {self.day.strftime('%d.%m.%Y')}"

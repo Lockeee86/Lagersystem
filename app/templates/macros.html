@@ -164,3 +164,30 @@
 <input class="form-control{% if small %} form-control-sm{% endif %}" id="{{ id }}" name="{{ name }}" value="{{ selected or '' }}" maxlength="50" placeholder="{{ _('z. B. 35–55 mm') }}">
 {% endif %}
 {% endmacro %}
+
+{# Fenster mit Zeichenfeld für Unterschriften (JS: static/js/signpad.js, Auslöser-Knöpfe siehe dort) #}
+{% macro sign_modal(sub="") %}
+<div class="modal fade" id="signModal" tabindex="-1" aria-labelledby="signTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-sm-down">
+        <form class="modal-content" method="post" id="signForm">
+            {{ csrf() }}
+            <input type="hidden" name="bild" id="signData">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="signTitle">{{ _("Unterschreiben") }}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Schließen') }}"></button>
+            </div>
+            <div class="modal-body">
+                {% if sub %}<p class="small text-body-secondary mb-2" id="signSub">{{ sub }}</p>{% endif %}
+                <div class="sign-pad"><canvas id="signCanvas"></canvas><span class="sign-hint">{{ _("Hier mit dem Finger unterschreiben") }}</span></div>
+                <label class="form-label mt-3" for="signName">{{ _("Name in Druckschrift") }}</label>
+                <input class="form-control" id="signName" name="name" maxlength="100" required autocomplete="off">
+                {{ caller() if caller }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary me-auto" id="signClear"><i class="bi bi-eraser me-1"></i>{{ _("Neu") }}</button>
+                <button type="submit" class="btn btn-primary" id="signSave" disabled><i class="bi bi-check2 me-1"></i>{{ _("Speichern") }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}
