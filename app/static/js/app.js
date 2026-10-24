@@ -106,6 +106,15 @@ window.App = (function () {
     }
 
     // Formulare mit Eingaben nicht durch Auto-Reload verlieren
+    // „Alle markieren“: <input type="checkbox" data-check-all="name">
+    document.addEventListener("change", function (e) {
+        var name = e.target.dataset && e.target.dataset.checkAll;
+        if (!name) return;
+        document.querySelectorAll('input[type=checkbox][name="' + name + '"]').forEach(function (box) {
+            box.checked = e.target.checked;
+        });
+    });
+
     // Datei gewählt → Formular gleich abschicken (Fotoleiste)
     document.addEventListener("change", function (e) {
         if (e.target.matches("input[type=file][data-autosubmit]") && e.target.files.length) {

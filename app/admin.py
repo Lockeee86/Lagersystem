@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import aerial, agenda, backup, branding, fielddoc, fields, tiles, transfer, weather
+from . import aerial, agenda, backup, branding, fielddoc, fields, sites, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -150,6 +150,7 @@ def warehouses():
             wh.note = form_str("note", 2000) or None
             wh.numeric_rows = bool(request.form.get("numeric_rows"))
             wh.rows_bottom_up = bool(request.form.get("rows_bottom_up"))
+            wh.site_id = sites.from_form(request.form.get("site_id"))
             db.session.add(wh)
             db.session.commit()
             flash(_("Lager „{name}“ gespeichert.", name=wh.name), "success")
@@ -243,16 +244,31 @@ def plots():
             plot.name = name
             plot.area_ha = _form_area()
             plot.note = form_str("note", 2000) or None
+            plot.site_id = sites.from_form(request.form.get("site_id"))
             plot.active = bool(request.form.get("active")) if plot.id else True
             db.session.add(plot)
             db.session.commit()
             flash(_("Schlag „{name}“ gespeichert.", name=plot.name), "success")
         return redirect(url_for("admin.plots"))
 
-    items = Plot.query.order_by(Plot.active.desc(), Plot.name).all()
+    items = sites.apply(Plot.query, Plot).order_by(Plot.active.desc(), Plot.name).all()
     counts = dict(db.session.query(Box.plot_id, func.count(Box.id))
                   .filter(Box.fill > 0).group_by(Box.plot_id))
     return render_template("admin/plots.html", items=items, counts=counts, this_year=date.today().year)
+
+
+@bp.route("/schlaege/betrieb", methods=["POST"])
+def plots_assign_site():
+    """Mehrere Schläge auf einmal einer Betriebsstätte zuordnen (oder die Zuordnung entfernen)."""
+    ids = [int(i) for i in request.form.getlist("plot_ids") if i.isdigit()]
+    if not ids:
+        flash_error(_("Bitte mindestens einen Schlag markieren."))
+        return redirect(url_for("admin.plots"))
+    site_id = sites.from_form(request.form.get("site_id"))
+    Plot.query.filter(Plot.id.in_(ids)).update({"site_id": site_id}, synchronize_session=False)
+    db.session.commit()
+    flash(ngettext("{n} Schlag zugeordnet.", "{n} Schläge zugeordnet.", len(ids)), "success")
+    return redirect(url_for("admin.plots"))
 
 
 @bp.route("/schlaege/kml", methods=["POST"])
@@ -409,6 +425,41 @@ def plot_delete(p_id):
         db.session.commit()
         flash(_("Schlag „{name}“ gelöscht.", name=plot.name), "success")
     return redirect(url_for("admin.plots"))
+
+
+# --- Betriebsstätten ---------------------------------------------------------
+
+@bp.route("/betriebsstaetten", methods=["GET", "POST"])
+def site_list():
+    from .models import Site
+    if request.method == "POST":
+        s_id = form_int("id")
+        site = _get(Site, s_id) if s_id else Site()
+        try:
+            sites.save_site(site, form_str("name", 100), form_str("address", 500), form_str("phone", 50),
+                            form_str("email", 120), form_str("passport_reg", 40), form_str("note", 2000),
+                            bool(request.form.get("active")) if s_id else True)
+        except StorageError as e:
+            db.session.rollback()
+            flash_error(str(e))
+            return redirect(url_for("admin.site_list"))
+        db.session.commit()
+        flash(_("Betriebsstätte „{name}“ gespeichert.", name=site.name), "success")
+        return redirect(url_for("admin.site_list"))
+    items = Site.query.order_by(Site.active.desc(), Site.name).all()
+    return render_template("admin/sites.html", items=items, usage={s.id: sites.usage(s) for s in items})
+
+
+@bp.route("/betriebsstaetten/<int:s_id>/loeschen", methods=["POST"])
+def site_delete(s_id):
+    from .models import Site
+    site = _get(Site, s_id)
+    if sites.delete_site(site):
+        flash(_("Betriebsstätte „{name}“ gelöscht.", name=site.name), "success")
+    else:
+        flash(_("„{name}“ ist noch zugeordnet und wurde deshalb nur deaktiviert.", name=site.name), "warning")
+    db.session.commit()
+    return redirect(url_for("admin.site_list"))
 
 
 # --- Saatgut-Stufen ---------------------------------------------------------

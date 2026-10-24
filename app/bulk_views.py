@@ -4,7 +4,7 @@ from datetime import date
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import bulk
+from . import bulk, sites
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -37,7 +37,7 @@ def _quality():
 @bp.route("/schuettgut")
 @login_required
 def store_list():
-    rows, per_ware = bulk.overview()
+    rows, per_ware = bulk.overview(sites.chosen())
     inactive = BulkStore.query.filter_by(active=False).order_by(BulkStore.name).all() if current_user.is_admin else []
     return render_template("bulk/list.html", rows=rows, per_ware=per_ware, kinds=BULK_KINDS, inactive=inactive)
 
@@ -64,7 +64,8 @@ def store_save():
         bulk.save_store(store, form_str("name", 100), request.form.get("kind", ""), form_str("location", 100),
                         bulk.parse_number(request.form.get("capacity_t"), 0.01, 100000),
                         bulk.parse_number(request.form.get("bag_kg"), 1, 5000, integer=True),
-                        form_str("note", 2000), bool(request.form.get("active")) if store_id else True)
+                        form_str("note", 2000), bool(request.form.get("active")) if store_id else True,
+                        sites.from_form(request.form.get("site_id")))
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))

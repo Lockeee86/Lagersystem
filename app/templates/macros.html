@@ -116,3 +116,29 @@
     </div>
 </div>
 {% endmacro %}
+
+{# Filter „Betrieb“ über Listen (nur sichtbar, wenn es Betriebsstätten gibt; die Wahl wird gemerkt) #}
+{% macro site_filter(extra_class="mb-3") %}
+{% if any_sites() %}
+{% set current = chosen_site() %}
+<div class="site-filter {{ extra_class }}" role="group" aria-label="{{ _('Betriebsstätte') }}">
+    <i class="bi bi-buildings text-body-secondary" aria-hidden="true"></i>
+    <a class="chip chip-filter {% if not current %}active{% endif %}" href="{{ url_set('betrieb', '') }}">{{ _("Alle Betriebe") }}</a>
+    {% for site in all_sites() %}
+    <a class="chip chip-filter {% if current and current.id == site.id %}active{% endif %}" href="{{ url_set('betrieb', site.id) }}">{{ site.name }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Auswahlfeld „Betriebsstätte“ in Formularen (nur, wenn es Betriebsstätten gibt) #}
+{% macro site_select(selected_id=none, id="f_site", label=none, small=false, include_inactive=none) %}
+{% if any_sites() %}
+<label class="form-label{% if small %} small{% endif %}" for="{{ id }}">{{ label or _("Betriebsstätte") }}</label>
+<select class="form-select{% if small %} form-select-sm{% endif %}" id="{{ id }}" name="site_id">
+    <option value="">{{ _("– keine –") }}</option>
+    {% for site in all_sites() %}<option value="{{ site.id }}" {% if selected_id == site.id %}selected{% endif %}>{{ site.name }}</option>{% endfor %}
+    {% if include_inactive and include_inactive.id == selected_id and not include_inactive.active %}<option value="{{ include_inactive.id }}" selected>{{ include_inactive.name }}</option>{% endif %}
+</select>
+{% endif %}
+{% endmacro %}

@@ -281,6 +281,12 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **Fotos** (0.29.8) an Kisten (z. B. Mängel), Schlägen je Anbaujahr, Schüttlagern und Lieferscheinen: Mitarbeiter
    tippen auf „Foto“ (Kamera oder Galerie, wird gleich hochgeladen); löschen dürfen Admins und wer es hochgeladen
    hat. Fotos bleiben an der Kiste, auch wenn sie neu befüllt wird (mit Datum und Name).
+   **Betriebsstätten** (0.30.0, Verwaltung → Betriebsstätten): Name, Anschrift, Telefon, E-Mail, eigene
+   Pflanzenpass-Nummer. Zuordnen lassen sich Schläge (auch mehrere auf einmal), Kartoffellager, Schüttlager,
+   Maschinen, der Hoftank und Lieferscheine (Absender; Vorauswahl = gewählter Filter oder die einzige
+   Betriebsstätte). Der Lieferschein zeigt den Hofnamen, darunter die Betriebsstätte mit ihrer Anschrift.
+   Filter „Betrieb“ auf Lager-Übersicht, Schlagkarte, Schüttlager, Maschinen, Lieferscheinen und in der
+   Verwaltung der Schläge; die Wahl wird je Gerät gemerkt. Ohne Betriebsstätten bleibt alles wie bisher.
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

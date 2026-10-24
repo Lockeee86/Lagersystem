@@ -5,7 +5,7 @@ from flask import Blueprint, Response, abort, current_app, flash, redirect, rend
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
-from . import aerial, fielddoc, fields, tasks, weather
+from . import aerial, fielddoc, fields, sites, tasks, weather
 from .extensions import db
 from .i18n import gettext as _
 from .models import FIELD_MEASURE_KINDS, Box, Plot, PlotYear, Setting, Variety
@@ -35,7 +35,7 @@ def aerial_options(on=True):
 def field_map():
     year, years = _year_arg()
     only_potatoes = request.args.get("kartoffeln") == "1"
-    plots = Plot.query.filter_by(active=True).order_by(Plot.name).all()
+    plots = sites.apply(Plot.query.filter_by(active=True), Plot).order_by(Plot.name).all()
     if only_potatoes:
         plots = [p for p in plots if (y := p.year(year)) and "kartoffel" in (y.shown_crop or "").lower()]
     yields = fields.yields(year)

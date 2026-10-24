@@ -1,4 +1,5 @@
 {# Formular für einen Schüttgut-Lagerort (neu oder bearbeiten, nur Admin) #}
+{% from "macros.html" import site_select %}
 {% macro store_form(kinds, store=none) %}
 <form method="post" action="{{ url_for('bulk.store_save') }}" class="row g-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -25,6 +26,9 @@
         <label class="form-label" for="b_bag{{ store.id if store }}">{{ _("Gewicht je Big Bag") }}</label>
         <div class="input-group"><input class="form-control" id="b_bag{{ store.id if store }}" name="bag_kg" inputmode="numeric" value="{{ store.bag_kg or '' if store else '' }}" placeholder="1000"><span class="input-group-text">kg</span></div>
     </div>
+    {% if any_sites() %}
+    <div class="col-md-6">{{ site_select(store.site_id if store else (chosen_site().id if chosen_site() else none), id="b_site" ~ (store.id if store else ""), include_inactive=store.site if store else none) }}</div>
+    {% endif %}
     <div class="col-md-6">
         <label class="form-label" for="b_note{{ store.id if store }}">{{ _("Notiz") }}</label>
         <input class="form-control" id="b_note{{ store.id if store }}" name="note" maxlength="2000" value="{{ store.note or '' if store else '' }}">

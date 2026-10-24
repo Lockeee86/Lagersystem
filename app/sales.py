@@ -25,9 +25,9 @@ def next_number(day):
     return f"{prefix}{max(numbers, default=0) + 1:04d}"
 
 
-def create_delivery(customer, day, user, vehicle=None, note=None):
+def create_delivery(customer, day, user, vehicle=None, note=None, site_id=None):
     delivery = Delivery(number=next_number(day), customer=customer, date=day, vehicle=vehicle or None,
-                        note=note or None, created_by_id=user.id if user else None)
+                        note=note or None, site_id=site_id, created_by_id=user.id if user else None)
     db.session.add(delivery)
     db.session.flush()
     return delivery

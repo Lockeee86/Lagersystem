@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, pagination %}
+{% from "macros.html" import csrf, pagination, site_select %}
 {% block title %}{{ _("Tankbuch") }}{% endblock %}
 {% macro liters(value, digits=0) %}{{ value|num(digits) }} l{% endmacro %}
 {% block content %}
@@ -108,6 +108,7 @@
                     <input class="form-control form-control-sm" id="t_cap" name="capacity" type="number" min="1" value="{{ status.capacity or '' }}"></div>
                 <div class="col-6 col-md-3"><label class="form-label small" for="t_warn">{{ _("Warnen ab (l)") }}</label>
                     <input class="form-control form-control-sm" id="t_warn" name="warn" type="number" min="1" value="{{ status.warn or '' }}"></div>
+                {% if any_sites() %}<div class="col-12 col-md-3">{{ site_select(tank_site_id, id="t_site", small=true) }}</div>{% endif %}
                 <div class="col-12 col-md-3"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
                 <div class="col-12 small text-body-secondary">{{ _("Unter der Warnschwelle bekommen die Besteller eine Push-Nachricht.") }}</div>
             </form>

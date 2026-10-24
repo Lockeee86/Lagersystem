@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, site_select, site_filter %}
 {% from "machines/_macros.html" import state_badge, due_text %}
 {% block title %}{{ _("Maschinen") }}{% endblock %}
 {% block content %}
@@ -13,6 +13,7 @@
     <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newMachine"><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Maschine") }}</button>
     {% endif %}
 </div>
+{{ site_filter() }}
 
 {% if current_user.is_admin %}
 <div class="collapse {% if not count and not show_all %}show{% endif %}" id="newMachine">
@@ -53,6 +54,9 @@
                     <label class="form-label" for="m_year">{{ _("Baujahr") }}</label>
                     <input class="form-control" type="number" id="m_year" name="year" min="1900" max="2100">
                 </div>
+                {% if any_sites() %}
+                <div class="col-6 col-md-3">{{ site_select(chosen_site().id if chosen_site() else none, id="m_site") }}</div>
+                {% endif %}
                 <div class="col-12 col-md-3">
                     <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
                 </div>

@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import extract, func, or_
 from sqlalchemy.exc import IntegrityError
 
-from . import bulk, sales, storage, tasks
+from . import bulk, sales, sites, storage, tasks
 from .delivery_note import render_delivery_note
 from .extensions import db
 from .i18n import gettext as _, ngettext
@@ -40,7 +40,7 @@ def _active_customers(include_id=None):
 @bp.route("/lieferscheine")
 @login_required
 def deliveries():
-    query = Delivery.query
+    query = sites.apply(Delivery.query, Delivery)
     status = request.args.get("status", "")
     if status in DELIVERY_STATUSES:
         query = query.filter(Delivery.status == status)
@@ -65,7 +65,8 @@ def delivery_create():
         flash_error(_("Bitte einen Kunden wählen."))
         return redirect(url_for("sales.deliveries"))
     delivery = sales.create_delivery(customer, form_date("date") or date.today(), current_user,
-                                     vehicle=form_str("vehicle", 50), note=form_str("note", 2000))
+                                     vehicle=form_str("vehicle", 50), note=form_str("note", 2000),
+                                     site_id=sites.from_form(request.form.get("site_id")))
     db.session.commit()
     flash(_("Lieferschein {number} angelegt.", number=delivery.number), "success")
     return _to_delivery(delivery)
@@ -122,6 +123,8 @@ def delivery_header(delivery_id):
         delivery.date = form_date("date") or delivery.date
         delivery.vehicle = form_str("vehicle", 50) or None
         delivery.note = form_str("note", 2000) or None
+        if "site_id" in request.form:
+            delivery.site_id = sites.from_form(request.form.get("site_id"))
         db.session.commit()
         flash(_("{number} gespeichert.", number=delivery.number), "success")
     return _to_delivery(delivery)
@@ -285,7 +288,7 @@ def delivery_delete(delivery_id):
 @login_required
 def delivery_pdf(delivery_id):
     delivery = _get(Delivery, delivery_id)
-    pdf = render_delivery_note(delivery, sales.summarize(delivery), Setting.all())
+    pdf = render_delivery_note(delivery, sales.summarize(delivery), sites.sender(delivery, Setting.all()))
     return Response(pdf, mimetype="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="{delivery.number}.pdf"'})
 

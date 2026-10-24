@@ -59,7 +59,7 @@ def next_code():
     return f"S-{max(numbers, default=0) + 1:03d}"
 
 
-def save_store(store, name, kind, location=None, capacity_t=None, bag_kg=None, note=None, active=True):
+def save_store(store, name, kind, location=None, capacity_t=None, bag_kg=None, note=None, active=True, site_id=None):
     name = (name or "").strip()[:100]
     if not name:
         raise StorageError(_("Bitte einen Namen angeben."))
@@ -71,6 +71,7 @@ def save_store(store, name, kind, location=None, capacity_t=None, bag_kg=None, n
     store.name, store.kind, store.location = name, kind, (location or "").strip()[:100] or None
     store.capacity_t, store.note, store.active = capacity_t, (note or "").strip() or None, bool(active)
     store.bag_kg = bag_kg if kind == "bigbag" else None
+    store.site_id = site_id
     if not store.code:
         store.code = next_code()
     if store.id is None:
@@ -209,16 +210,18 @@ def delete_entry(entry):
 
 # --- Übersichten -----------------------------------------------------------------
 
-def stores(active_only=True):
+def stores(active_only=True, site=None):
     query = BulkStore.query
     if active_only:
         query = query.filter_by(active=True)
+    if site is not None:
+        query = query.filter_by(site_id=site.id)
     return query.order_by(BulkStore.location, BulkStore.name).all()
 
 
-def overview():
-    """Für Liste und Lager-Übersicht: [{store, stock}] und Summe je Ware {ware: kg}."""
-    rows = [{"store": s, "stock": stock(s)} for s in stores()]
+def overview(site=None):
+    """Für Liste und Lager-Übersicht: [{store, stock}] und Summe je Ware {ware: kg} (optional je Betriebsstätte)."""
+    rows = [{"store": s, "stock": stock(s)} for s in stores(site=site)]
     per_ware = OrderedDict()
     for r in sorted(rows, key=lambda r: -r["stock"]["kg"]):
         if r["stock"]["kg"] > 0:

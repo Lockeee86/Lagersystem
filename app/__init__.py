@@ -114,6 +114,17 @@ def create_app(config=None):
         args = {k: v for k, v in request.args.items(multi=True) if k not in params and k != "page"}
         return url_for(request.endpoint, **(request.view_args or {}), **args)
     app.jinja_env.globals["url_without"] = url_without
+
+    def url_set(param, value):
+        """Aktuelle Seite mit `param=value` (ohne Seitenzahl) – z. B. für den Filter „Betrieb“."""
+        args = {k: v for k, v in request.args.items(multi=True) if k not in (param, "page")}
+        return url_for(request.endpoint, **(request.view_args or {}), **args, **{param: value})
+    app.jinja_env.globals["url_set"] = url_set
+
+    from . import sites
+    app.jinja_env.globals.update(any_sites=sites.any_sites, chosen_site=sites.chosen, all_sites=sites.sites,
+                                  default_site_id=sites.default_id)
+    app.after_request(sites.remember)
     login_manager.localize_callback = gettext
     app.jinja_env.filters.update(
         datetime=utils.fmt_datetime,

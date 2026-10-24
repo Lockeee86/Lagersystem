@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "admin/_macros.html" import edit_modal %}
+{% from "macros.html" import site_select %}
 {% block title %}{{ _("Lager verwalten") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -16,11 +17,12 @@
                     <span class="badge text-bg-light border align-self-start">{{ counts.get(wh.id, 0) }} / {{ wh.capacity }}</span>
                 </div>
                 <p class="text-body-secondary mb-2">{{ _("{rows} Reihen ({first}–{last}) × {slots} Plätze × {levels} Ebenen", rows=wh.rows, first=wh.row_label(1), last=wh.row_label(wh.rows), slots=wh.slots, levels=wh.max_levels) }}</p>
+                {% if wh.site %}<p class="small mb-1"><i class="bi bi-buildings me-1"></i>{{ wh.site.name }}</p>{% endif %}
                 {% if wh.note %}<p class="small">{{ wh.note }}</p>{% endif %}
             </div>
             <div class="card-footer d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#whModal"
-                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "numeric_rows": wh.numeric_rows, "rows_bottom_up": wh.rows_bottom_up, "note": wh.note or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
+                        data-edit='{{ {"id": wh.id, "name": wh.name, "rows": wh.rows, "slots": wh.slots, "max_levels": wh.max_levels, "numeric_rows": wh.numeric_rows, "rows_bottom_up": wh.rows_bottom_up, "note": wh.note or "", "site_id": wh.site_id or ""}|tojson }}'><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
                 <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.warehouse_map', warehouse_id=wh.id) }}"><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Karte") }}</a>
                 {% if not counts.get(wh.id) %}
                 <form method="post" action="{{ url_for('admin.warehouse_delete', wh_id=wh.id) }}" class="ms-auto">
@@ -64,6 +66,7 @@
     <input class="form-check-input" type="checkbox" id="wh_bottom_up" name="rows_bottom_up" value="1">
     <label class="form-check-label" for="wh_bottom_up">{{ _("Erste Reihe in der Karte unten anzeigen") }}</label>
 </div>
+{% if any_sites() %}<div class="mb-3">{{ site_select(id="wh_site") }}</div>{% endif %}
 <div>
     <label class="form-label" for="wh_note">{{ _("Notiz") }}</label>
     <textarea class="form-control" id="wh_note" name="note" rows="2"></textarea>

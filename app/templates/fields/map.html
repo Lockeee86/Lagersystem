@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import site_filter %}
 {% block title %}{{ _("Schlagkarte") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -16,6 +17,7 @@
         </div>
     </form>
 </div>
+{{ site_filter() }}
 
 {% if map_data %}
 <div class="card shadow-sm mb-3 overflow-hidden">

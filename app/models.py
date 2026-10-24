@@ -207,6 +207,26 @@ class PushSubscription(db.Model):
 
 # --- Stammdaten -------------------------------------------------------------
 
+class Site(db.Model):
+    """Betriebsstätte (Hofstelle, zweiter Betrieb …) mit eigener Anschrift für den Lieferschein. Schläge, Lager,
+    Schüttlager, Maschinen und Lieferscheine können einer Betriebsstätte zugeordnet sein (sonst gelten die
+    Angaben des Hofs)."""
+    __tablename__ = "sites"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    address = db.Column(db.Text)
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(120))
+    passport_reg = db.Column(db.String(40))       # eigene Pflanzenpass-Registriernummer (sonst die des Hofs)
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+
+
+def site_column():
+    return db.Column(db.Integer, db.ForeignKey("sites.id"), index=True)
+
+
 class Warehouse(db.Model):
     """Ein Lager(raum) mit Reihen × Stellplätzen × Ebenen."""
     __tablename__ = "warehouses"
@@ -221,9 +241,11 @@ class Warehouse(db.Model):
     # Reihe 1 (A) in der Karte unten anzeigen, wie an der Tafel im Lager
     rows_bottom_up = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     note = db.Column(db.Text)
+    site_id = site_column()
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     boxes = db.relationship("Box", back_populates="warehouse", lazy="dynamic")
+    site = db.relationship("Site")
 
     @property
     def capacity(self):
@@ -281,6 +303,7 @@ class Plot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     number = db.Column(db.String(20))           # Schlagnummer aus der Schlagkartei (nicht eindeutig!)
+    site_id = site_column()
     area_ha = db.Column(db.Numeric(9, 4))
     soil = db.Column(db.String(60))             # Bodenart
     red_area = db.Column(db.Boolean)            # Rotes Gebiet (Düngeverordnung)
@@ -302,6 +325,7 @@ class Plot(db.Model):
 
     years = db.relationship("PlotYear", back_populates="plot", order_by="PlotYear.year.desc()",
                             cascade="all, delete-orphan")
+    site = db.relationship("Site")
 
     @property
     def label(self):
@@ -661,6 +685,7 @@ class Delivery(db.Model):
     tare_kg = db.Column(db.Integer)
     note = db.Column(db.Text)
     status = db.Column(db.String(20), nullable=False, default=DELIVERY_OPEN)
+    site_id = site_column()                       # Absender (Anschrift der Betriebsstätte auf dem PDF)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     closed_at = db.Column(db.DateTime(timezone=True))
@@ -670,6 +695,7 @@ class Delivery(db.Model):
     items = db.relationship("DeliveryItem", back_populates="delivery", order_by="DeliveryItem.id",
                             cascade="all, delete-orphan")
     photos = db.relationship("Photo", back_populates="delivery", order_by="Photo.id", cascade="all, delete-orphan")
+    site = db.relationship("Site")
 
     @property
     def is_open(self):
@@ -760,6 +786,7 @@ class BulkStore(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     code = db.Column(db.String(10), unique=True)  # „S-001“ für das QR-Etikett (Scannen öffnet das Einlagern)
+    site_id = site_column()
     kind = db.Column(db.String(20), nullable=False, default="box")
     location = db.Column(db.String(100))          # z. B. „Halle 2“
     capacity_t = db.Column(db.Numeric(10, 2))
@@ -772,6 +799,7 @@ class BulkStore(db.Model):
     entries = db.relationship("BulkEntry", back_populates="store", cascade="all, delete-orphan",
                               order_by=lambda: (BulkEntry.date.desc(), BulkEntry.id.desc()))
     photos = db.relationship("Photo", back_populates="bulk_store", order_by="Photo.id", cascade="all, delete-orphan")
+    site = db.relationship("Site")
 
     @property
     def kind_label(self):
@@ -849,6 +877,7 @@ class Machine(db.Model):
     year = db.Column(db.Integer)
     plate = db.Column(db.String(30))             # Kennzeichen
     serial_no = db.Column(db.String(100))
+    site_id = site_column()
     counter_unit = db.Column(db.String(5))       # "h", "km" oder leer (ohne Zähler)
     counter = db.Column(db.Integer)              # aktueller Stand
     counter_at = db.Column(db.DateTime(timezone=True))
@@ -856,6 +885,7 @@ class Machine(db.Model):
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
+    site = db.relationship("Site")
     tasks = db.relationship("MaintenanceTask", back_populates="machine", order_by="MaintenanceTask.name",
                             cascade="all, delete-orphan")
     events = db.relationship("MachineEvent", back_populates="machine", lazy="dynamic",

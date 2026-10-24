@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, pagination %}
+{% from "macros.html" import csrf, pagination, site_select %}
 {% from "machines/_macros.html" import state_badge, due_text, interval_text, photo_input %}
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ machine.name }}{% endblock %}
@@ -414,6 +414,7 @@
                     {% for label, value in [(_("Hersteller"), machine.manufacturer), (_("Modell"), machine.model), (_("Baujahr"), machine.year), (_("Kennzeichen"), machine.plate), (_("Seriennummer"), machine.serial_no)] %}
                     {% if value %}<dt class="col-5 fw-normal text-body-secondary">{{ label }}</dt><dd class="col-7">{{ value }}</dd>{% endif %}
                     {% endfor %}
+                    {% if machine.site %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Betriebsstätte") }}</dt><dd class="col-7">{{ machine.site.name }}</dd>{% endif %}
                     {% if total_cost %}<dt class="col-5 fw-normal text-body-secondary">{{ _("Kosten gesamt") }}</dt><dd class="col-7">{{ total_cost|money }}</dd>{% endif %}
                 </dl>
                 {% if machine.note %}<div class="mt-2" style="white-space: pre-line">{{ machine.note }}</div>{% endif %}
@@ -439,6 +440,7 @@
                         <div class="col-6"><label class="form-label" for="x_plate">{{ _("Kennzeichen") }}</label><input class="form-control form-control-sm" id="x_plate" name="plate" maxlength="30" value="{{ machine.plate or '' }}"></div>
                         <div class="col-12"><label class="form-label" for="x_serial">{{ _("Seriennummer") }}</label><input class="form-control form-control-sm" id="x_serial" name="serial_no" maxlength="100" value="{{ machine.serial_no or '' }}"></div>
                     </div>
+                    {% if any_sites() %}<div class="mb-2">{{ site_select(machine.site_id, id="x_site", small=true, include_inactive=machine.site) }}</div>{% endif %}
                     <label class="form-label" for="x_note">{{ _("Notiz") }}</label>
                     <textarea class="form-control form-control-sm mb-2" id="x_note" name="note" rows="2">{{ machine.note or '' }}</textarea>
                     <div class="form-check mb-2">

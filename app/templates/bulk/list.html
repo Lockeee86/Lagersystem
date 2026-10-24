@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "bulk/_macros.html" import store_form, store_row %}
+{% from "macros.html" import site_filter %}
 {% block title %}{{ _("Schüttlager") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -11,6 +12,7 @@
     <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newStore"><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Lagerort") }}</button>
     {% endif %}
 </div>
+{{ site_filter() }}
 
 {% if current_user.is_admin %}
 <div class="collapse {% if not rows or request.args.get('neu') %}show{% endif %}" id="newStore">

@@ -262,6 +262,9 @@ html { scroll-padding-top: 4.5rem; }
 
 /* --- Lagerkarte ---------------------------------------------------------------------- */
 .map-filters { display: flex; gap: .4rem; flex-wrap: wrap; }
+.site-filter { display: flex; gap: .4rem; align-items: center; overflow-x: auto; scrollbar-width: none; padding: 3px; }
+.site-filter::-webkit-scrollbar { display: none; }
+.site-filter .chip { white-space: nowrap; text-decoration: none; }
 .map-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: .25rem; }
 .lager-map { border-collapse: separate; border-spacing: 4px; margin: 0 auto; }
 .lager-map th { font-size: .72rem; color: var(--bs-tertiary-color); font-weight: 600; text-align: center; }

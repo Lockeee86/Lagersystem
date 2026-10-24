@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "admin/_macros.html" import edit_modal %}
+{% from "macros.html" import site_select, site_filter %}
 {% block title %}{{ _("Schläge") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -63,28 +64,37 @@
         </form>
     </div>
 </div>
+{{ site_filter() }}
 {% if items %}
+{% if any_sites() %}
+<form method="post" action="{{ url_for('admin.plots_assign_site') }}" id="assignSite" class="d-flex flex-wrap gap-2 align-items-end mb-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>{{ site_select(id="assign_site", label=_("Markierte Schläge zuordnen zu"), small=true) }}</div>
+    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-check2-all me-1"></i>{{ _("Zuordnen") }}</button>
+</form>
+{% endif %}
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead><tr><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("Befüllte Kisten") }}</th><th class="d-none d-md-table-cell">{{ _("Notiz") }}</th><th></th></tr></thead>
+            <thead><tr>{% if any_sites() %}<th class="text-center" style="width: 2rem"><input class="form-check-input" type="checkbox" aria-label="{{ _('Alle markieren') }}" data-check-all="plot_ids"></th>{% endif %}<th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("Befüllte Kisten") }}</th><th class="d-none d-md-table-cell">{{ _("Notiz") }}</th><th></th></tr></thead>
             <tbody>
             {% for p in items %}
             {% set area = ('%.4f'|format(p.area_ha))|replace('.', ',') if p.area_ha is not none else '' %}
             <tr class="{% if not p.active %}opacity-50{% endif %}">
+                {% if any_sites() %}<td class="text-center"><input class="form-check-input" type="checkbox" name="plot_ids" value="{{ p.id }}" form="assignSite" aria-label="{{ p.name }}"></td>{% endif %}
                 <td class="fw-medium">
                     <a class="text-reset" href="{{ url_for('fields.field_detail', plot_id=p.id) }}">{{ p.name }}</a>
                     {% if p.number %}<span class="small text-body-secondary">{{ _("Nr. {n}", n=p.number) }}</span>{% endif %}
                     {% if p.boundary %}<i class="bi bi-bounding-box text-body-tertiary" title="{{ _('mit Umriss') }}"></i>{% endif %}
                     {% if not p.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}
-                    {% set y = p.year(this_year) %}{% if y and y.crop %}<div class="small text-body-secondary">{{ y.crop }}</div>{% endif %}
+                    {% set y = p.year(this_year) %}{% if (y and y.crop) or p.site %}<div class="small text-body-secondary">{{ y.crop if y and y.crop else "" }}{% if p.site %}{% if y and y.crop %} · {% endif %}<i class="bi bi-buildings"></i> {{ p.site.name }}{% endif %}</div>{% endif %}
                 </td>
                 <td class="text-end text-nowrap">{% if p.area_ha is not none %}{{ p.area_ha|num(2) }} ha{% else %}–{% endif %}</td>
                 <td class="text-end"><a href="{{ url_for('main.boxes', schlag=p.id, status='befuellt') }}">{{ counts.get(p.id, 0) }}</a></td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ p.note or '' }}</td>
                 <td class="text-end text-nowrap">
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#plotModal"
-                            data-edit='{{ {"id": p.id, "name": p.name, "area_ha": area, "note": p.note or "", "active": p.active}|tojson }}'><i class="bi bi-pencil"></i></button>
+                            data-edit='{{ {"id": p.id, "name": p.name, "area_ha": area, "note": p.note or "", "active": p.active, "site_id": p.site_id or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
                     <form method="post" action="{{ url_for('admin.plot_delete', p_id=p.id) }}" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('Schlag „{name}“ löschen?', name=p.name) }}"><i class="bi bi-trash"></i></button>
@@ -116,6 +126,7 @@
     <label class="form-label" for="p_note">{{ _("Notiz") }}</label>
     <textarea class="form-control" id="p_note" name="note" rows="2" placeholder="{{ _('z. B. Pachtfläche, Beregnung') }}"></textarea>
 </div>
+{% if any_sites() %}<div class="mb-3">{{ site_select(id="p_site") }}</div>{% endif %}
 <div class="form-check edit-only">
     <input class="form-check-input" type="checkbox" id="p_active" name="active" value="1">
     <label class="form-check-label" for="p_active">{{ _("Aktiv (in Auswahllisten anzeigen)") }}</label>

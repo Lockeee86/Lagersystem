@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import pagination, csrf, filter_toggle, filter_chips %}
+{% from "macros.html" import pagination, csrf, filter_toggle, filter_chips, site_filter, site_select %}
 {% block title %}{{ _("Lieferscheine") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -11,6 +11,7 @@
     <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newDelivery"><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Lieferschein") }}</button>
     {% endif %}
 </div>
+{{ site_filter() }}
 
 {% if current_user.is_admin %}
 <div class="collapse" id="newDelivery">
@@ -34,6 +35,9 @@
                     <label class="form-label" for="vehicle">{{ _("Fahrzeug / Kennzeichen") }}</label>
                     <input class="form-control" id="vehicle" name="vehicle" maxlength="50">
                 </div>
+                {% if any_sites() %}
+                <div class="col-md-4">{{ site_select(default_site_id(), id="d_site", label=_("Absender (Betriebsstätte)")) }}</div>
+                {% endif %}
                 <div class="col-md-2">
                     <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
                 </div>

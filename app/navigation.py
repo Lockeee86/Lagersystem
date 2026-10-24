@@ -53,6 +53,7 @@ AREAS = [
 ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items": [
     item("admin.index", N_("Start"), "bi-sliders"),
     item("admin.settings", N_("Hof"), "bi-house-gear"),
+    item("admin.site_list", N_("Betriebsstätten"), "bi-house-gear"),
     item("admin.warehouses", N_("Kartoffellager"), "bi-buildings"),
     item("admin.varieties", N_("Sorten"), "bi-palette"),
     item("admin.plots", N_("Schläge"), "bi-map", endpoints=("admin.plots_kml_preview", "admin.plots_csv_preview",
@@ -67,6 +68,7 @@ ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items
 # Kurzbeschreibungen für die Kacheln der Verwaltungs-Startseite
 ADMIN_HINTS = {
     "admin.settings": N_("Hofname, Anschrift, Standort für das Wetter"),
+    "admin.site_list": N_("Hofstellen mit eigener Anschrift für den Lieferschein"),
     "admin.warehouses": N_("Reihen, Plätze, Höhe, Beschriftung"),
     "admin.varieties": N_("Kartoffelsorten mit Farbe"),
     "admin.plots": N_("Schläge, Import aus Myfarm24"),

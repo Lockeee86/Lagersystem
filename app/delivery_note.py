@@ -84,7 +84,10 @@ def render_delivery_note(delivery, lines, farm):
     # Kopf: Hof links, Lieferschein rechts
     contact = [c for c in (farm.get("farm_phone") and f"Tel. {escape(farm['farm_phone'])}",
                            farm.get("farm_email") and escape(farm["farm_email"])) if c]
-    farm_block = [_p(escape(farm.get("farm_name") or ""), FARM), _p(_lines(farm.get("farm_address")))]
+    farm_block = [_p(escape(farm.get("farm_name") or ""), FARM)]
+    if farm.get("site_name"):                   # Betriebsstätte (sites.sender) unter dem Hofnamen
+        farm_block.append(_p(f"<b>{escape(farm['site_name'])}</b>"))
+    farm_block.append(_p(_lines(farm.get("farm_address"))))
     if contact:
         farm_block.append(_p(" · ".join(contact), SMALL))
     meta = [["Nummer", delivery.number], ["Datum", _date(delivery.date)]]

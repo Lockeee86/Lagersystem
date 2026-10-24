@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import edit_modal %}
+{% block title %}{{ _("Betriebsstätten") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>{{ _("Betriebsstätten") }}</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#siteModal" data-edit='{"active": true}'><i class="bi bi-plus-lg me-1"></i>{{ _("Neue Betriebsstätte") }}</button>
+</div>
+<p class="text-body-secondary">{{ _("Hofstellen oder weitere Betriebe mit eigener Anschrift. Schläge, Lager, Schüttlager, Maschinen, Tank und Lieferscheine lassen sich zuordnen; der Lieferschein zeigt dann die Anschrift der Betriebsstätte. In den Listen erscheint ein Filter „Betrieb“.") }}</p>
+<div class="row g-3">
+    {% for site in items %}
+    {% set u = usage[site.id] %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card shadow-sm h-100 {% if not site.active %}opacity-50{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <h2 class="h5 mb-1">{{ site.name }}{% if not site.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</h2>
+                    <div class="text-nowrap">
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#siteModal" aria-label="{{ _('Bearbeiten') }}"
+                                data-edit='{{ {"id": site.id, "name": site.name, "address": site.address or "", "phone": site.phone or "", "email": site.email or "", "passport_reg": site.passport_reg or "", "note": site.note or "", "active": site.active}|tojson }}'><i class="bi bi-pencil"></i></button>
+                        <form method="post" action="{{ url_for('admin.site_delete', s_id=site.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('Betriebsstätte „{name}“ löschen?', name=site.name) }}" aria-label="{{ _('Löschen') }}"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </div>
+                </div>
+                {% if site.address %}<div class="small" style="white-space: pre-line">{{ site.address }}</div>{% endif %}
+                {% if site.phone or site.email %}<div class="small text-body-secondary">{{ [site.phone, site.email]|select|join(" · ") }}</div>{% endif %}
+                {% if site.passport_reg %}<div class="small text-body-secondary">{{ _("Pflanzenpass") }}: {{ site.passport_reg }}</div>{% endif %}
+                <div class="d-flex flex-wrap gap-2 mt-2 small">
+                    <a class="badge text-bg-light border text-decoration-none" href="{{ url_for('fields.field_map', betrieb=site.id) }}">{{ ngettext("{n} Schlag", "{n} Schläge", u.plots) }}</a>
+                    <span class="badge text-bg-light border">{{ ngettext("{n} Kartoffellager", "{n} Kartoffellager", u.warehouses) }}</span>
+                    <a class="badge text-bg-light border text-decoration-none" href="{{ url_for('bulk.store_list', betrieb=site.id) }}">{{ ngettext("{n} Schüttlager", "{n} Schüttlager", u.bulk_stores) }}</a>
+                    <a class="badge text-bg-light border text-decoration-none" href="{{ url_for('machines.machine_list', betrieb=site.id) }}">{{ ngettext("{n} Maschine", "{n} Maschinen", u.machines) }}</a>
+                    <a class="badge text-bg-light border text-decoration-none" href="{{ url_for('sales.deliveries', betrieb=site.id) }}">{{ ngettext("{n} Lieferschein", "{n} Lieferscheine", u.deliveries) }}</a>
+                    {% if u.tank %}<span class="badge text-bg-light border">{{ _("Hoftank") }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><p class="text-body-secondary">{{ _("Noch keine Betriebsstätten. Ohne Betriebsstätte gelten überall Hofname und Anschrift aus Verwaltung → Hof.") }}</p></div>
+    {% endfor %}
+</div>
+
+{% call edit_modal("siteModal", _("Neue Betriebsstätte"), _("Betriebsstätte bearbeiten"), url_for('admin.site_list')) %}
+<div class="mb-3">
+    <label class="form-label" for="s_name">{{ _("Name") }}</label>
+    <input class="form-control" id="s_name" name="name" required maxlength="100" placeholder="{{ _('z. B. Hofstelle Nord') }}">
+</div>
+<div class="mb-3">
+    <label class="form-label" for="s_address">{{ _("Anschrift") }}</label>
+    <textarea class="form-control" id="s_address" name="address" rows="3" maxlength="500" placeholder="{{ _('Straße Nr.') }}&#10;{{ _('PLZ Ort') }}"></textarea>
+    <div class="form-text">{{ _("Steht auf dem Lieferschein als Absender unter dem Hofnamen.") }}</div>
+</div>
+<div class="row g-2 mb-3">
+    <div class="col-6">
+        <label class="form-label" for="s_phone">{{ _("Telefon") }}</label>
+        <input class="form-control" id="s_phone" name="phone" maxlength="50">
+    </div>
+    <div class="col-6">
+        <label class="form-label" for="s_email">{{ _("E-Mail") }}</label>
+        <input class="form-control" id="s_email" name="email" type="email" maxlength="120">
+    </div>
+</div>
+<div class="mb-3">
+    <label class="form-label" for="s_reg">{{ _("Registriernummer für den Pflanzenpass (z. B. DE-NI1-12345)") }} <span class="text-body-tertiary">({{ _("optional") }})</span></label>
+    <input class="form-control" id="s_reg" name="passport_reg" maxlength="40">
+</div>
+<div class="mb-3">
+    <label class="form-label" for="s_note">{{ _("Notiz") }}</label>
+    <textarea class="form-control" id="s_note" name="note" rows="2" maxlength="2000"></textarea>
+</div>
+<div class="form-check edit-only">
+    <input class="form-check-input" type="checkbox" id="s_active" name="active" value="1">
+    <label class="form-check-label" for="s_active">{{ _("Aktiv (in Auswahllisten anzeigen)") }}</label>
+</div>
+{% endcall %}
+{% endblock %}

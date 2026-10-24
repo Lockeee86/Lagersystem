@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import movement_item, variety_chip %}
+{% from "macros.html" import movement_item, variety_chip, site_filter %}
 {% from "bulk/_macros.html" import store_row %}
 {% macro bulk_section() %}
     <section class="mb-4">
@@ -29,6 +29,7 @@
     {% endif %}
 </div>
 
+{{ site_filter() }}
 <div class="row g-lg-4">
 <div class="col-lg-7">
     {# --- Kartoffellager --------------------------------------------------- #}

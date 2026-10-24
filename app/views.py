@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, storage, tasks, tiles,
-               uploads, weather)
+from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, sites, storage, tasks,
+               tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
@@ -120,11 +120,13 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     return sorted(items, key=lambda i: order[i["level"]])
 
 
-def _stock_overview(recent_limit=12):
+def _stock_overview(recent_limit=12, site=None):
     """Lagerzahlen für Startseite (PC) und Lager-Bereichsseite (Handy): Belegung je Lager, Bestand je Sorte,
-    Kennzahlen, letzte Bewegungen."""
-    warehouses = Warehouse.query.order_by(Warehouse.name).all()
-    boxes = Box.query.all()
+    Kennzahlen, letzte Bewegungen. Mit `site` nur die Lager dieser Betriebsstätte und die Kisten darin."""
+    query = Warehouse.query if site is None else Warehouse.query.filter_by(site_id=site.id)
+    warehouses = query.order_by(Warehouse.name).all()
+    boxes = Box.query.all() if site is None else \
+        Box.query.filter(Box.warehouse_id.in_([w.id for w in warehouses])).all()
 
     occupancy = []
     for wh in warehouses:
@@ -269,8 +271,9 @@ def _status(endpoint):
 @login_required
 def storage_home():
     """Lager-Übersicht (Handy und PC): Kartoffellager (Hallen, Kisten, Bestand je Sorte) und Schüttlager (Lagerorte)."""
-    stock = _stock_overview(8)
-    bulk_rows, bulk_wares = bulk.overview()
+    site = sites.chosen()
+    stock = _stock_overview(8, site)
+    bulk_rows, bulk_wares = bulk.overview(site)
     return render_template("storage_home.html", **stock, bulk_rows=bulk_rows, bulk_total=sum(bulk_wares.values()))
 
 
@@ -348,6 +351,8 @@ def variety_shorts(varieties):
 @login_required
 def warehouse_map(warehouse_id=None):
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    # Auswahl oben auf die Lager der gewählten Betriebsstätte beschränken (falls dort welche sind)
+    warehouses = sites.keep(warehouses) or warehouses
     if not warehouses:
         flash(_("Es ist noch kein Lager angelegt."), "warning")
         return redirect(url_for("admin.warehouses") if current_user.is_admin else url_for("main.dashboard"))

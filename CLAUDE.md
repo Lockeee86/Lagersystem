@@ -81,6 +81,10 @@ docker compose up --build -d
   Fruchtfolgeplan: `fielddoc.parse_plan/apply_rotation` → `PlotYear.planned_crop` (Anzeige über `shown_crop`),
   Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
+- `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
+  `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
+  (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es
+  Betriebsstätten gibt; committet nicht
 - `app/navigation.py`: Bereiche (Übersicht, Lager, Feld & Hof, Verkauf) mit Unterpunkten und die Verwaltung –
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste (PC) und auf den Bereichsseiten (Handy,
   `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`; „Lager“ ist die

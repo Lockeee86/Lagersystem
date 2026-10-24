@@ -6,7 +6,7 @@ from flask import (Blueprint, Response, abort, flash, redirect, render_template,
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import fuel, machines, purchases, push, tasks, uploads
+from . import fuel, machines, purchases, push, sites, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
@@ -59,6 +59,7 @@ def _run(machine, action, anchor=None, after=None):
 def machine_list():
     show_all = request.args.get("alle") == "1"
     query = Machine.query if show_all else Machine.query.filter_by(active=True)
+    query = sites.apply(query, Machine)
     items = query.order_by(Machine.name).all()
     groups = {}
     for m in items:
@@ -76,7 +77,7 @@ def _machine_fields():
         manufacturer=form_str("manufacturer", 100) or None, model=form_str("model", 100) or None,
         year=form_int("year", minimum=1900, maximum=2100), plate=form_str("plate", 30) or None,
         serial_no=form_str("serial_no", 100) or None, counter_unit=unit if unit in COUNTER_UNITS else None,
-        note=form_str("note", 2000) or None,
+        note=form_str("note", 2000) or None, site_id=sites.from_form(request.form.get("site_id")),
     )
 
 

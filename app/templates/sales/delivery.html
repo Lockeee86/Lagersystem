@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, variety_chip %}
+{% from "macros.html" import csrf, variety_chip, site_select %}
 {% from "macros.html" import photo_strip with context %}
 {% block title %}{{ delivery.number }}{% endblock %}
 {% block content %}
@@ -191,6 +191,7 @@
                 {% if delivery.customer.address %}<div style="white-space: pre-line">{{ delivery.customer.address }}</div>{% endif %}
                 {% if delivery.customer.number %}<div class="text-body-secondary">{{ _("Kundennummer: {number}", number=delivery.customer.number) }}</div>{% endif %}
                 {% if delivery.note %}<div class="mt-2"><i class="bi bi-sticky me-1"></i>{{ delivery.note }}</div>{% endif %}
+                {% if delivery.site %}<div class="mt-2 text-body-secondary"><i class="bi bi-buildings me-1"></i>{{ _("Absender: {name}", name=delivery.site.name) }}</div>{% endif %}
                 {% if editable %}
                 <button class="btn btn-sm btn-outline-secondary mt-3" data-bs-toggle="collapse" data-bs-target="#editHeader"><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button>
                 <form class="collapse mt-3" id="editHeader" method="post" action="{{ url_for('sales.delivery_header', delivery_id=delivery.id) }}">
@@ -205,6 +206,7 @@
                     <input class="form-control form-control-sm mb-2" id="h_vehicle" name="vehicle" maxlength="50" value="{{ delivery.vehicle or '' }}">
                     <label class="form-label" for="h_note">{{ _("Bemerkung (steht auf dem Lieferschein)") }}</label>
                     <textarea class="form-control form-control-sm mb-2" id="h_note" name="note" rows="2">{{ delivery.note or '' }}</textarea>
+                    {% if any_sites() %}<div class="mb-2">{{ site_select(delivery.site_id, id="h_site", label=_("Absender (Betriebsstätte)"), small=true, include_inactive=delivery.site) }}</div>{% endif %}
                     <button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button>
                 </form>
                 {% endif %}

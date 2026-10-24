@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import fuel, fuel_report, purchases, push
+from . import fuel, fuel_report, purchases, push, sites
 from .extensions import db
 from .i18n import gettext as _
 from .models import FUEL_KINDS, FuelEntry, Machine, Setting
@@ -47,7 +47,7 @@ def tank():
     page = query.order_by(FuelEntry.date.desc(), FuelEntry.id.desc()).paginate(per_page=40, error_out=False)
     year = request.args.get("jahr", type=int) or date.today().year
     return render_template(
-        "fuel/tank.html", status=fuel.status(), page=page, kinds=FUEL_KINDS, kind=kind, machine_id=machine_id,
+        "fuel/tank.html", status=fuel.status(), page=page, tank_site_id=sites.tank_site_id(), kinds=FUEL_KINDS, kind=kind, machine_id=machine_id,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all(),
         per_machine=fuel.per_machine(year), year=year, year_total=fuel.liters_in_year(year=year),
         last_price=fuel.last_price(), suppliers=purchases.suppliers(), today=date.today(),
@@ -114,6 +114,8 @@ def dip():
 def tank_settings():
     fuel.save_settings(form_int("capacity", minimum=1, maximum=1_000_000),
                        form_int("warn", minimum=1, maximum=1_000_000))
+    if "site_id" in request.form:
+        sites.set_tank_site(sites.from_form(request.form.get("site_id")))
     db.session.commit()
     flash(_("Tank-Einstellungen gespeichert."), "success")
     return redirect(url_for("fuel.tank"))
