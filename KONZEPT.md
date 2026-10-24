@@ -320,6 +320,13 @@ prüfen“ misst DNS, Verbindung, Capabilities und Testbild einzeln mit Dauer un
 0.27.6: Antwortet der Dienst mit einer Webseite (z. B. Wartungsseite des LGLN), meldet die App deren Titel
 („Der Dienst antwortet mit einer Webseite statt mit Daten: „Wartungsarbeiten““) und fragt 2 Minuten nicht erneut.
 
+### Rubrik Lager neu gegliedert (0.29.2)
+„Lager“ öffnet (Handy und PC) eine **Übersicht** (`/lager/uebersicht`, `main.storage_home`) mit zwei Teilen:
+**Kartoffellager** (jede Halle mit Belegung, Links Kisten/Verlauf/Etiketten, Bestand und Bestand je Sorte) und
+**Schüttlager** (jeder Lagerort mit Ware und Bestand, „Neuer Lagerort“), dazu die letzten Bewegungen. Am Handy steht
+das Schüttlager direkt unter den Hallen. Unterleiste am PC: Übersicht · Lagerkarte · Kisten · Verlauf · Etiketten ·
+Schüttlager · Scannen. In der Verwaltung heißt der Punkt jetzt „Kartoffellager“.
+
 ### Schüttgut-Lager (0.29.0)
 Für Getreide, Raps u. Ä. (Lager → Schüttgut). Entscheidungen: Lagerarten **Flachlager-Box**, **Haufen in der Halle**
 und **Big Bags** (nur als Anzahl und Menge, ohne einzelne Codes); **eine Ware je Lagerort** (Kultur, optional Sorte –

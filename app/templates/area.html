@@ -34,9 +34,4 @@
 </form>
 {% endif %}
 
-{% if stock %}
-{% with occupancy=stock.occupancy, varieties=stock.varieties, max_kg=stock.max_kg, stats=stock.stats, recent=stock.recent, bulk_wares=stock.bulk_wares %}
-{% include "partials/stock_overview.html" %}
-{% endwith %}
-{% endif %}
 {% endblock %}

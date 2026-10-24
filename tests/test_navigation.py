@@ -23,7 +23,7 @@ def test_area_and_subnav(as_admin, as_worker, seed):
 def test_mobile_start_and_tabbar(as_worker, as_admin, db, seed):
     html = as_worker.get("/").get_data(as_text=True)
     # untere Leiste: Heute · Lager · Scannen · Feld & Hof · Mehr
-    for href in ('href="/bereich/lager"', 'href="/scan"', 'href="/bereich/feld"', 'href="/bereich/mehr"'):
+    for href in ('href="/lager/uebersicht"', 'href="/scan"', 'href="/bereich/feld"', 'href="/bereich/mehr"'):
         assert href in html, href
     assert 'class="quick-row d-lg-none"' in html and "Jetzt wichtig" in html
     assert "Alles erledigt" in html                           # noch nichts Dringendes
@@ -39,15 +39,18 @@ def test_mobile_start_and_tabbar(as_worker, as_admin, db, seed):
 def test_area_pages(as_worker, as_admin, as_viewer, seed):
     html = as_worker.get("/bereich/feld").get_data(as_text=True)
     assert "Schläge" in html and "Tankbuch" in html and "Pflanzenschutz" in html and "?tanken=1" in html
-    html = as_worker.get("/bereich/lager").get_data(as_text=True)
-    assert "Kisten" in html and "Bestand je Sorte" in html and "Letzte Bewegungen" in html
+    assert as_worker.get("/bereich/lager").headers["Location"].endswith("/lager/uebersicht")
+    html = as_worker.get("/lager/uebersicht").get_data(as_text=True)
+    assert "Kartoffellager" in html and "Schüttlager" in html and "Bestand je Sorte" in html
+    assert "Letzte Bewegungen" in html and "Kartoffellager" in html
     html = as_worker.get("/bereich/mehr").get_data(as_text=True)
     assert "Aufgaben" in html and "Lieferscheine" in html and "Mein Konto" in html and "/admin/" not in html
     assert 'href="/admin/"' in as_admin.get("/bereich/mehr").get_data(as_text=True)
     assert "?tanken=1" not in as_viewer.get("/bereich/feld").get_data(as_text=True)   # Betrachter tankt nicht
     assert as_worker.get("/bereich/gibtsnicht").status_code == 404
     # Zurück-Link am Handy statt der Reiterleiste
-    assert 'class="mobile-crumb d-lg-none" href="/bereich/lager"' in as_worker.get("/kisten").get_data(as_text=True)
+    assert 'class="mobile-crumb d-lg-none" href="/lager/uebersicht"' in as_worker.get("/kisten").get_data(as_text=True)
+    assert 'class="mobile-crumb d-lg-none" href="/lager/uebersicht"' in as_worker.get("/schuettgut").get_data(as_text=True)
     assert 'href="/bereich/mehr"' in as_worker.get("/aufgaben").get_data(as_text=True)
 
 

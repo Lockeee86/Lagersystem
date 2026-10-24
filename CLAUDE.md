@@ -77,7 +77,8 @@ docker compose up --build -d
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
 - `app/navigation.py`: Bereiche (Übersicht, Lager, Feld & Hof, Verkauf) mit Unterpunkten und die Verwaltung –
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste (PC) und auf den Bereichsseiten (Handy,
-  `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`). `app/search.py`: Suche
+  `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`; „Lager“ ist die
+  eigene Übersicht `main.storage_home` mit Kartoffellager und Schüttlager). `app/search.py`: Suche
 - Handy: untere Leiste in `base.html` (`mobile_tab`, Zurück-Link `mobile_crumb`), Startseite mit „Jetzt wichtig“
   (`views._important`, ohne Aufgaben – die haben einen eigenen Block) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
   `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).

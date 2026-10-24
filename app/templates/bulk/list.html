@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "bulk/_macros.html" import store_form %}
-{% block title %}{{ _("Schüttgut") }}{% endblock %}
+{% from "bulk/_macros.html" import store_form, store_row %}
+{% block title %}{{ _("Schüttlager") }}{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>{{ _("Schüttgut") }}</h1>
+        <h1>{{ _("Schüttlager") }}</h1>
         <p class="text-body-secondary mb-0">{% for ware, kg in per_ware.items() %}{{ ware }} {{ kg|kg }}{{ " · " if not loop.last }}{% else %}{{ _("Noch nichts eingelagert.") }}{% endfor %}</p>
     </div>
     {% if current_user.is_admin %}
@@ -13,7 +13,7 @@
 </div>
 
 {% if current_user.is_admin %}
-<div class="collapse {% if not rows %}show{% endif %}" id="newStore">
+<div class="collapse {% if not rows or request.args.get('neu') %}show{% endif %}" id="newStore">
     <div class="card shadow-sm mb-4"><div class="card-body">
         <h2 class="h6">{{ _("Neuer Lagerort") }}</h2>
         {{ store_form(kinds) }}
@@ -23,22 +23,7 @@
 
 {% if rows %}
 <div class="hub-list mb-4">
-    {% for r in rows %}
-    {% set s = r.store %}
-    <a class="hub-row" href="{{ url_for('bulk.store_detail', store_id=s.id) }}">
-        <span class="hub-icon"><i class="bi {{ 'bi-bag' if s.kind == 'bigbag' else 'bi-minecart-loaded' }}"></i></span>
-        <span class="hub-text">
-            <span class="hub-title">{{ s.name }}{% if s.location %} <span class="small text-body-tertiary fw-normal">{{ s.location }}</span>{% endif %}</span>
-            <span class="hub-status">{% if r.stock.kg > 0 %}{{ s.ware }}{% else %}{{ _("leer") }}{% endif %} · {{ s.kind_label }}</span>
-            {% if r.stock.percent is not none %}<span class="progress mt-1" style="height: 4px" role="progressbar" aria-valuenow="{{ r.stock.percent }}" aria-valuemin="0" aria-valuemax="100"><span class="progress-bar" style="width: {{ r.stock.percent }}%"></span></span>{% endif %}
-        </span>
-        <span class="text-end text-nowrap">
-            <span class="fw-semibold">{{ r.stock.kg|kg }}</span>
-            {% if r.stock.bags is not none %}<span class="d-block small text-body-secondary">{{ ngettext("{n} Big Bag", "{n} Big Bags", r.stock.bags) }}</span>
-            {% elif r.stock.percent is not none %}<span class="d-block small text-body-secondary">{{ r.stock.percent }} %</span>{% endif %}
-        </span>
-    </a>
-    {% endfor %}
+    {% for r in rows %}{{ store_row(r) }}{% endfor %}
 </div>
 {% else %}
 <div class="empty-state"><i class="bi bi-minecart-loaded"></i><p>{{ _("Noch keine Lagerorte für Schüttgut.") }}{% if not current_user.is_admin %} {{ _("Die legt ein Admin an.") }}{% endif %}</p></div>

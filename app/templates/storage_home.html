@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% from "macros.html" import movement_item, variety_chip %}
+{% from "bulk/_macros.html" import store_row %}
+{% macro bulk_section() %}
+    <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2">
+            <h2 class="hub-heading mt-0"><i class="bi bi-minecart-loaded me-1"></i>{{ _("Schüttlager") }}</h2>
+            <span class="small d-flex gap-3">
+                {% if current_user.is_admin %}<a href="{{ url_for('bulk.store_list', neu=1) }}"><i class="bi bi-plus-lg"></i> {{ _("Neuer Lagerort") }}</a>{% endif %}
+                <a href="{{ url_for('bulk.store_list') }}">{{ _("Alle Lagerorte") }}</a>
+            </span>
+        </div>
+        {% if bulk_rows %}
+        <div class="hub-list">{% for r in bulk_rows %}{{ store_row(r) }}{% endfor %}</div>
+        {% else %}
+        <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-minecart"></i>{{ _("Noch keine Lagerorte für Schüttgut.") }}</div></div>
+        {% endif %}
+    </section>
+{% endmacro %}
+{% block title %}{{ _("Lager") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Lager") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Kartoffeln {kg}", kg=stats.kg|kg) }}{% if bulk_total %} · {{ _("Schüttgut {kg}", kg=bulk_total|kg) }}{% endif %}</p>
+    </div>
+    {% if current_user.can_edit %}
+    <a class="btn btn-primary d-none d-lg-inline-flex" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>{{ _("Kiste scannen") }}</a>
+    {% endif %}
+</div>
+
+<div class="row g-lg-4">
+<div class="col-lg-7">
+    {# --- Kartoffellager --------------------------------------------------- #}
+    <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2">
+            <h2 class="hub-heading mt-0"><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Kartoffellager") }}</h2>
+            <span class="small d-flex gap-3">
+                <a href="{{ url_for('main.boxes') }}">{{ _("Kisten") }}</a>
+                <a href="{{ url_for('main.history') }}">{{ _("Verlauf") }}</a>
+                {% if current_user.is_admin %}<a href="{{ url_for('main.labels') }}">{{ _("Etiketten") }}</a>{% endif %}
+            </span>
+        </div>
+        {% if occupancy %}
+        <div class="hub-list mb-3">
+            {% for o in occupancy %}
+            <a class="hub-row" href="{{ url_for('main.warehouse_map', warehouse_id=o.warehouse.id) }}">
+                <span class="hub-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+                <span class="hub-text">
+                    <span class="hub-title">{{ o.warehouse.name }}</span>
+                    <span class="hub-status">{{ _("{n} / {total} Kisten", n=o.stored, total=o.capacity) }} · {{ _("{n} / {total} Stapel belegt · {full} voll", n=o.stacks, total=o.stack_capacity, full=o.full_stacks) }}</span>
+                    <span class="progress mt-1" style="height: 4px" role="progressbar" aria-valuenow="{{ o.percent }}" aria-valuemin="0" aria-valuemax="100"><span class="progress-bar" style="width: {{ o.percent }}%"></span></span>
+                </span>
+                <span class="fw-semibold text-nowrap">{{ o.percent }} %</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% elif current_user.is_admin %}
+        <div class="hub-list mb-3"><a class="hub-row" href="{{ url_for('admin.warehouses') }}"><i class="bi bi-plus-lg"></i>{{ _("Kartoffellager anlegen") }}</a></div>
+        {% endif %}
+
+    </section>
+    {# Handy: Schüttlager gleich unter den Hallen, am PC rechts #}
+    <div class="d-lg-none">{{ bulk_section() }}</div>
+    <section class="mb-4">
+        <div class="row g-2 g-lg-3 mb-3">
+            <div class="col-6">
+                <div class="stat-card">
+                    <div class="stat-label"><i class="bi bi-basket"></i>{{ _("Bestand (geschätzt)") }}</div>
+                    <div class="stat-value">{{ stats.kg|kg }}</div>
+                    <div class="stat-sub">{{ ngettext("{n} befüllte Kiste", "{n} befüllte Kisten", stats.filled) }}</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <a class="stat-card stat-link {% if stats.filled_not_stored %}stat-warn{% endif %}" href="{{ url_for('main.boxes', status='befuellt_nicht_eingelagert') }}">
+                    <div class="stat-label"><i class="bi bi-truck"></i>{{ _("Befüllt, nicht eingelagert") }}</div>
+                    <div class="stat-value">{{ stats.filled_not_stored }}</div>
+                    <div class="stat-sub">{{ _("{n} leere von {total} Kisten", n=stats.empty, total=stats.total) }}</div>
+                </a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bar-chart me-1"></i>{{ _("Bestand je Sorte") }}</span>
+                <span class="small text-body-secondary">{{ _("geschätzt aus Füllstand") }}</span>
+            </div>
+            <div class="card-body">
+                {% if varieties %}
+                <div class="variety-bars">
+                    {% for v in varieties %}
+                    <a class="variety-bar" href="{{ url_for('main.boxes', sorte=v.variety.id, status='befuellt') }}">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1 gap-2">
+                            <span>{{ variety_chip(v.variety) }} <span class="small text-body-secondary ms-1">{{ v.variety.usage_label }}</span></span>
+                            <span class="text-nowrap"><strong>{{ v.kg|kg }}</strong> <span class="small text-body-secondary">· {{ ngettext("{n} Kiste", "{n} Kisten", v.boxes) }}</span></span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill" style="width: {{ (100 * v.kg / max_kg)|round(1) if max_kg else 0 }}%; --bar: {{ v.variety.color }}"></div></div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-body-secondary mb-0">{{ _("Noch keine befüllten Kisten.") }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="col-lg-5">
+    <div class="d-none d-lg-block">{{ bulk_section() }}</div>
+
+    <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-baseline">
+            <h2 class="hub-heading mt-0"><i class="bi bi-clock-history me-1"></i>{{ _("Letzte Bewegungen") }}</h2>
+            <a class="small" href="{{ url_for('main.history') }}">{{ _("alle") }}</a>
+        </div>
+        <div class="card shadow-sm"><div class="card-body">
+            {% if recent %}<ul class="timeline">{% for m in recent %}{{ movement_item(m) }}{% endfor %}</ul>
+            {% else %}<p class="text-body-secondary mb-0">{{ _("Noch keine Bewegungen.") }}</p>{% endif %}
+        </div></div>
+    </section>
+</div>
+</div>
+{% endblock %}

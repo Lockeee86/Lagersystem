@@ -1565,4 +1565,11 @@ MESSAGES = {
     '{n} Big Bags': ('{n} big bag', '{n} big bagi', '{n} big bagów'),
     '{n} weitere Aufgaben': ('{n} kolejne zadanie', '{n} kolejne zadania', '{n} kolejnych zadań'),
     'Für heute keine Aufgaben offen.': 'Na dziś brak otwartych zadań.',
+    # Lager-Übersicht
+    'Schüttlager': 'Magazyn towaru sypkiego',
+    'Kartoffeln {kg}': 'Ziemniaki {kg}',
+    'Schüttgut {kg}': 'Towar sypki {kg}',
+    'Kartoffellager anlegen': 'Utwórz magazyn ziemniaków',
+    '{n} leere von {total} Kisten': '{n} pustych z {total} skrzyń',
+    'Alle Lagerorte': 'Wszystkie miejsca składowania',
 }

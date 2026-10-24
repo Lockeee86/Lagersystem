@@ -48,3 +48,21 @@
 {%- if q.admixture is not none %}{% set _x = parts.append(_("Besatz {v} %", v=q.admixture|qty(1))) %}{% endif -%}
 {{ parts|join(" · ") }}
 {%- endmacro %}
+
+{# Eine Zeile je Lagerort (Liste und Lager-Übersicht); r = {"store", "stock"} aus bulk.overview() #}
+{% macro store_row(r) %}
+{% set s = r.store %}
+    <a class="hub-row" href="{{ url_for('bulk.store_detail', store_id=s.id) }}">
+        <span class="hub-icon"><i class="bi {{ 'bi-bag' if s.kind == 'bigbag' else 'bi-minecart-loaded' }}"></i></span>
+        <span class="hub-text">
+            <span class="hub-title">{{ s.name }}{% if s.location %} <span class="small text-body-tertiary fw-normal">{{ s.location }}</span>{% endif %}</span>
+            <span class="hub-status">{% if r.stock.kg > 0 %}{{ s.ware }}{% else %}{{ _("leer") }}{% endif %} · {{ s.kind_label }}</span>
+            {% if r.stock.percent is not none %}<span class="progress mt-1" style="height: 4px" role="progressbar" aria-valuenow="{{ r.stock.percent }}" aria-valuemin="0" aria-valuemax="100"><span class="progress-bar" style="width: {{ r.stock.percent }}%"></span></span>{% endif %}
+        </span>
+        <span class="text-end text-nowrap">
+            <span class="fw-semibold">{{ r.stock.kg|kg }}</span>
+            {% if r.stock.bags is not none %}<span class="d-block small text-body-secondary">{{ ngettext("{n} Big Bag", "{n} Big Bags", r.stock.bags) }}</span>
+            {% elif r.stock.percent is not none %}<span class="d-block small text-body-secondary">{{ r.stock.percent }} %</span>{% endif %}
+        </span>
+    </a>
+{% endmacro %}

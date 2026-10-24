@@ -262,10 +262,21 @@ def _status(endpoint):
     return None, False
 
 
+@bp.route("/lager/uebersicht")
+@login_required
+def storage_home():
+    """Lager-Übersicht (Handy und PC): Kartoffellager (Hallen, Kisten, Bestand je Sorte) und Schüttlager (Lagerorte)."""
+    stock = _stock_overview(8)
+    bulk_rows, bulk_wares = bulk.overview()
+    return render_template("storage_home.html", **stock, bulk_rows=bulk_rows, bulk_total=sum(bulk_wares.values()))
+
+
 @bp.route("/bereich/<key>")
 @login_required
 def area(key):
-    """Bereichsseite fürs Handy (untere Leiste): Unterpunkte als große Zeilen mit Stand, bei „Lager“ die Lagerzahlen."""
+    """Bereichsseite fürs Handy (untere Leiste): Unterpunkte als große Zeilen mit Stand."""
+    if key == "lager":
+        return redirect(url_for("main.storage_home"))
     if key not in navigation.HUBS:
         abort(404)
     groups = []
@@ -276,7 +287,6 @@ def area(key):
             rows.append({**it, "url": url_for(it["endpoint"]), "status": text, "warn": warn})
         groups.append({"label": group["label"], "rows": rows})
     return render_template("area.html", key=key, title=navigation.HUBS[key], groups=groups,
-                           stock=_stock_overview(5) if key == "lager" else None,
                            tank=fuel.status() if key == "feld" and current_user.can_edit else None)
 
 

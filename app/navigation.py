@@ -24,12 +24,14 @@ AREAS = [
         item("main.search", N_("Suche"), "bi-search"),
     ]},
     {"key": "lager", "label": N_("Lager"), "icon": "bi-grid-3x3-gap", "items": [
+        # Übersicht mit den zwei Teilen Kartoffellager und Schüttlager, danach die Kartoffel-Seiten, dann Schüttlager
+        item("main.storage_home", N_("Übersicht"), "bi-grid-1x2"),
         item("main.warehouse_map", N_("Lagerkarte"), "bi-grid-3x3-gap", endpoints=("main.stack_view",)),
         item("main.boxes", N_("Kisten"), "bi-boxes", endpoints=("main.box_detail",)),
-        item("bulk.store_list", N_("Schüttgut"), "bi-minecart-loaded", prefixes=("bulk.",)),
-        item("main.scan", N_("Scannen"), "bi-qr-code-scan", role=ROLE_MITARBEITER),
         item("main.history", N_("Verlauf"), "bi-clock-history"),
         item("main.labels", N_("Etiketten"), "bi-qr-code", role=ROLE_ADMIN),
+        item("bulk.store_list", N_("Schüttlager"), "bi-minecart-loaded", prefixes=("bulk.",)),
+        item("main.scan", N_("Scannen"), "bi-qr-code-scan", role=ROLE_MITARBEITER),
     ]},
     {"key": "feld", "label": N_("Feld & Hof"), "icon": "bi-map", "items": [
         item("fields.field_map", N_("Schläge"), "bi-map", endpoints=("fields.field_detail", "fields.field_year_save")),
@@ -50,7 +52,7 @@ AREAS = [
 ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items": [
     item("admin.index", N_("Start"), "bi-sliders"),
     item("admin.settings", N_("Hof"), "bi-house-gear"),
-    item("admin.warehouses", N_("Lager"), "bi-buildings"),
+    item("admin.warehouses", N_("Kartoffellager"), "bi-buildings"),
     item("admin.varieties", N_("Sorten"), "bi-palette"),
     item("admin.plots", N_("Schläge"), "bi-map", endpoints=("admin.plots_kml_preview", "admin.plots_csv_preview",
                                                              "admin.plots_plan_preview")),
@@ -140,11 +142,13 @@ def hub(key, user):
 def crumb(endpoint, view_args=None):
     """Zurück-Link am Handy über dem Seiteninhalt (statt der Reiterleiste): (Ziel-URL, Text) oder None."""
     endpoint = endpoint or ""
-    if endpoint in ("main.dashboard", "main.area", "main.scan") or not endpoint:
+    if endpoint in ("main.dashboard", "main.area", "main.scan", "main.storage_home") or not endpoint:
         return None
     if endpoint.startswith("admin.") and endpoint != "admin.index":
         return url_for("admin.index"), ADMIN["label"]
     key = tab_for(endpoint, view_args)
+    if key == "lager":
+        return url_for("main.storage_home"), HUBS[key]
     if key in HUBS:
         return url_for("main.area", key=key), HUBS[key]
     return None

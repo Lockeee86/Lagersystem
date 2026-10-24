@@ -145,5 +145,5 @@ def test_pages(as_admin, as_worker, as_viewer, db, seed, box3):
     assert "Lieferschein" in as_viewer.get(f"/schuettgut/{box3.id}").get_data(as_text=True)
 
     # Lager-Übersicht und Bereichsseite zeigen den Bestand
-    assert "Schüttgut" in as_viewer.get("/bereich/lager").get_data(as_text=True)
-    assert "Winterweizen 5,0 t" in as_viewer.get("/bereich/lager").get_data(as_text=True)
+    html = as_viewer.get("/lager/uebersicht").get_data(as_text=True)
+    assert "Schüttgut 5,0 t" in html and "Box 3" in html and "Haufen Halle 2" in html
