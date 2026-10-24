@@ -271,7 +271,7 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **QR-Code am Schüttlager** (0.29.5): jeder Lagerort hat einen Code `S-001`; Etikett (Admin, Seite des
    Lagerorts → QR-Etikett, Standard A6). Scannen öffnet für Mitarbeiter gleich das Einlagern.
    **Ernte-Modus** (0.29.6, Lager → Ernte, `/ernte`): Sorte, Schlag, Verwendung, Stufe, Erntedatum und
-   Füllstand einmal festlegen, dann Dauer-Scan. Erreichbar über Lager (Übersicht) → Ernte-Modus. Wahl „nur befüllen“ oder „befüllen + einlagern“ (Lager wählen):
+   Füllstand einmal festlegen, dann Dauer-Scan. Erreichbar über Lager (Übersicht) → Ernte-Modus und über die Scan-Seite; das Gerät merkt sich die letzten Einstellungen (Cookie `ernte`, „Weiter“ auf der Scan-Seite; Erntedatum eines anderen Tages wird zu heute). Wahl „nur befüllen“ oder „befüllen + einlagern“ (Lager wählen):
    Platzvorschlag „gleiche Sorte zusammen“ – Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der
    höchste zuerst; sonst der freie Stellplatz am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne
    solche Ware der erste freie. Schon befüllte Kisten werden abgewiesen.

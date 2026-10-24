@@ -676,10 +676,34 @@ def scan():
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))
         flash_error(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
-    return render_template("scan.html")
+    last = _harvest_last() if current_user.can_edit else None
+    resume = None
+    if last:
+        s = _harvest_settings(last)
+        if s["variety"] is not None:
+            resume = {"url": url_for("main.harvest", **last, los=1),
+                      "text": " · ".join(p for p in (s["variety"].name, s["plot"].name if s["plot"] else "",
+                                                     s["warehouse"].name if s["warehouse"] else _("nur befüllen")) if p)}
+    return render_template("scan.html", harvest_resume=resume)
 
 
 # --- Ernte-Modus ---------------------------------------------------------------
+
+HARVEST_COOKIE = "ernte"
+HARVEST_KEYS = ("sorte", "schlag", "verwendung", "stufe", "datum", "fuell", "lager", "modus")
+
+
+def _harvest_last():
+    """Zuletzt benutzte Ernte-Einstellungen dieses Geräts (Cookie). Ein Datum von einem anderen Tag wird zu heute –
+    sonst würde nach einer Pause mit dem alten Erntedatum weitergebucht."""
+    from urllib.parse import parse_qsl
+    raw = request.cookies.get(HARVEST_COOKIE, "")
+    values = {k: v for k, v in parse_qsl(raw) if k in HARVEST_KEYS + ("tag",)}
+    if not values.get("sorte"):
+        return None
+    if values.pop("tag", None) != date.today().isoformat():
+        values["datum"] = date.today().isoformat()
+    return values
 
 def _harvest_settings(source):
     """Ernte-Einstellungen aus Formular oder Adresse (einmal festlegen, dann scannen)."""
@@ -706,6 +730,10 @@ def _harvest_settings(source):
 @bp.route("/ernte")
 @editor_required
 def harvest():
+    from urllib.parse import urlencode
+    if not request.args and (last := _harvest_last()):
+        # ohne Angaben: die letzten Einstellungen vorausfüllen (Start mit einem Tipp)
+        return redirect(url_for("main.harvest", **last))
     settings = _harvest_settings(request.args)
     ready = settings["variety"] is not None and request.args.get("los") == "1"
     if ready and settings["store"] and settings["warehouse"] is None:
@@ -717,13 +745,19 @@ def harvest():
                                       settings["usage"] or settings["variety"].usage,
                                       settings["seed_class"].id if settings["seed_class"] else None)
         preview = settings["warehouse"].location_label(*place) if place else None
-    return render_template(
+    response = make_response(render_template(
         "harvest.html", s=settings, ready=ready, preview=preview,
         varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
         plots=Plot.query.filter_by(active=True).order_by(Plot.name).all(),
         seed_classes=SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),
         warehouses=Warehouse.query.order_by(Warehouse.name).all(), usages=SORT_USAGES, fills=FILL_LEVELS,
-        args=request.args, change_url=url_for("main.harvest", **{k: v for k, v in request.args.items() if k != "los"}))
+        args=request.args, change_url=url_for("main.harvest", **{k: v for k, v in request.args.items() if k != "los"})))
+    if ready:
+        values = {k: request.args[k] for k in HARVEST_KEYS if request.args.get(k)}
+        values["tag"] = date.today().isoformat()
+        response.set_cookie(HARVEST_COOKIE, urlencode(values), max_age=120 * 86400, samesite="Lax", httponly=True,
+                            secure=request.is_secure)
+    return response
 
 
 @bp.route("/ernte/kiste", methods=["POST"])

@@ -82,3 +82,24 @@ def test_pages(as_worker, as_viewer, db, seed):
     form["modus"] = "befuellen"
     r = as_worker.post("/ernte/kiste", data={**form, "code": b2.code, "back": "/ernte?los=1"})
     assert r.status_code == 302 and db.session.get(Box, b2.id).fill == 100 and not b2.is_stored
+
+
+def test_settings_are_remembered(as_worker, db, seed, monkeypatch):
+    belana, wh = seed["belana"], seed["wh"]
+    # Scan-Seite: Einstieg in den Ernte-Modus, noch ohne „Weiter“
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert "Ernte-Modus" in html and 'href="/ernte"' in html and "Weiter" not in html
+    as_worker.get(f"/ernte?los=1&sorte={belana.id}&schlag={seed['plot'].id}&datum=2026-09-10&fuell=100"
+                  f"&modus=einlagern&lager={wh.id}")
+    # danach: „Weiter“ mit den letzten Einstellungen
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert "Belana · Acker Nord · Kartoffellager" in html and "los=1" in html
+    # /ernte ohne Angaben füllt die letzten Einstellungen vor; altes Datum wird zu heute
+    r = as_worker.get("/ernte")
+    assert r.status_code == 302 and f"sorte={belana.id}" in r.headers["Location"]
+    assert "datum=2026-09-10" in r.headers["Location"]                       # am selben Tag bleibt das Datum
+    # am nächsten Tag: Erntedatum wird heute
+    as_worker.set_cookie("ernte", f"sorte={belana.id}&datum=2026-09-10&modus=befuellen&tag=2026-09-10")
+    r = as_worker.get("/ernte")
+    assert f"datum={date.today().isoformat()}" in r.headers["Location"] and "modus=befuellen" in r.headers["Location"]
+

@@ -1667,4 +1667,7 @@ MESSAGES = {
     'System': 'System',
     'Keine Einträge.': 'Brak wpisów.',
     'Ernte-Modus': 'Tryb zbioru',
+    'Weiter': 'Dalej',
+    'Starten': 'Rozpocznij',
+    'Einstellungen ändern': 'Zmień ustawienia',
 }
