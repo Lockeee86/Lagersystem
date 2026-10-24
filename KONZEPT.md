@@ -279,6 +279,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Ernte-Tagesbericht** (0.32.3, Lager → Erntebericht, `/ernte/bericht`): was an einem Tag befüllt wurde (leere
+   Kiste → befüllt), Kisten und geschätzte Menge je Sorte, Schlag, Reihe und Mitarbeiter; Tage blättern. Abends um
+   19 Uhr Push (Thema „Abends: Ernte-Tagesbericht“, von sich aus nur Admins), nur wenn geerntet wurde.
    **Nachsortieren per Scan** (0.32.2): zweiter Schalter auf der Scan-Seite (es ist immer nur Ernte oder Nachsortieren
    an). Kiste scannen → unter der Kamera Größe und Füllstand antippen → Speichern; die zuletzt gewählte Größe ist für
    die nächste Kiste vorgewählt (Cookie `sortgroesse`). Sorte, Schlag, Erntedatum usw. bleiben; der Verlauf zeigt

@@ -173,6 +173,12 @@ def fmt_datetime(value):
     return value.strftime("%d.%m.%Y %H:%M") if value else "–"
 
 
+def fmt_time(value):
+    """Uhrzeit (Europe/Berlin) eines UTC-Zeitstempels: „14:05“."""
+    value = to_local(value)
+    return value.strftime("%H:%M") if value else "–"
+
+
 def fmt_date(value):
     if value is None:
         return "–"

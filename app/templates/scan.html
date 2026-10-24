@@ -178,6 +178,7 @@
     <div class="card shadow-sm harvest-only">
         <div class="card-header d-flex justify-content-between">
             <span class="harvest-label"><i class="bi bi-basket me-1"></i>{{ _("Befüllt") }}</span>
+            <a class="harvest-label small ms-auto me-2" href="{{ url_for('main.harvest_report_page') }}">{{ _("Tagesbericht") }}</a>
             <span class="sort-label"><i class="bi bi-rulers me-1"></i>{{ _("Nachsortiert") }}</span>
             <span class="badge text-bg-primary rounded-pill" id="harvestCount">0</span>
         </div>

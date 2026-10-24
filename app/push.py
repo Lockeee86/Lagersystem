@@ -23,6 +23,7 @@ from .models import PushSubscription, Setting, User, utcnow
 TTL = 12 * 3600                      # so lange hält der Push-Dienst eine Nachricht für ein ausgeschaltetes Handy
 MORNING_HOUR = 6
 FROST_HOUR = 16
+EVENING_HOUR = 19                     # Ernte-Tagesbericht
 
 outbox = []                          # in Tests landen die Nachrichten hier statt beim Push-Dienst
 
@@ -339,6 +340,19 @@ def _weather_check(now, kinds):
     return sent
 
 
+def _harvest_report(today, tz):
+    """Abends: was heute befüllt wurde – nur, wenn überhaupt geerntet wurde."""
+    from . import storage
+    report = storage.harvest_report(today, tz)
+    if not report["count"]:
+        return 0
+    tons = f"{report['kg'] / 1000:.1f}".replace(".", ",")
+    title = Msg("Ernte heute: {n} Kiste (≈ {t} t)", "Ernte heute: {n} Kisten (≈ {t} t)", report["count"], t=tons)
+    body = ", ".join(f"{v['label'] or '–'} {v['boxes']}" for v in report["varieties"][:4])
+    return notify(editors(), "harvest_report", title, body,
+                  url_for("main.harvest_report_page", datum=today.isoformat()), tag="harvest-report")
+
+
 def daily(app, now=None):
     """Aus dem Zeitplan alle paar Minuten aufgerufen; jede Aufgabe läuft höchstens einmal am Tag."""
     # Anfrage-Kontext nur für url_for() (die Links in den Nachrichten sind relativ);
@@ -355,4 +369,7 @@ def daily(app, now=None):
         if now.hour >= FROST_HOUR and not _job_done("frost", today):
             _mark_job("frost", today)
             _weather_check(now, {"frost"})
+        if now.hour >= EVENING_HOUR and not _job_done("harvest", today):
+            _mark_job("harvest", today)
+            _harvest_report(today, tz)
 

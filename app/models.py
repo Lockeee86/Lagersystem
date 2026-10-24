@@ -185,6 +185,8 @@ PUSH_TOPICS = {
     "blight": {"label": N_("Krautfäule-Ampel springt auf Rot"), "group": N_("Wetter-Warnungen"), "who": lambda u: True,
                "default": lambda u: u.is_admin},
     "tank": {"label": N_("Hoftank wird leer"), "group": N_("Maschinen"), "who": lambda u: u.is_buyer},
+    "harvest_report": {"label": N_("Abends: Ernte-Tagesbericht"), "group": N_("Lager"), "who": lambda u: u.can_edit,
+                       "default": lambda u: u.is_admin},
 }
 
 

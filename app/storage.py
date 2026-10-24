@@ -472,3 +472,48 @@ def oldest_boxes(variety_id=None, warehouse_id=None, limit=200):
     limits = age_limits()
     return [{"box": b, "on_top": heights.get((b.warehouse_id, b.row, b.slot)) == b.level,
              "level": age_level(b, limits)} for b in boxes]
+
+
+# --- Ernte-Tagesbericht -------------------------------------------------------------
+
+def harvest_report(day, tz):
+    """Was an einem Tag befüllt wurde (leere Kiste → befüllt; Ernte-Modus oder von Hand): Kisten und geschätzte kg
+    je Sorte, je Schlag, je Reihe (wo die Kisten jetzt stehen) und je Benutzer."""
+    from datetime import datetime, time, timedelta, timezone
+    from .models import BoxType, Plot, User, Variety
+    start = datetime.combine(day, time.min, tz).astimezone(timezone.utc)
+    end = start + timedelta(days=1)
+    moves = (Movement.query.filter(Movement.action == "befuellt", Movement.created_at >= start,
+                                   Movement.created_at < end, Movement.fill_after > 0)
+             .filter((Movement.fill_before == 0) | Movement.fill_before.is_(None))
+             .order_by(Movement.created_at).all())
+    boxes = {b.id: b for b in Box.query.filter(Box.id.in_({m.box_id for m in moves}))} if moves else {}
+    weights = {t.id: t.full_weight_kg for t in BoxType.query}
+
+    def group(key_fn, label_fn):
+        result = {}
+        for m in moves:
+            key = key_fn(m)
+            entry = result.setdefault(key, {"label": label_fn(key), "boxes": 0, "kg": 0})
+            entry["boxes"] += 1
+            box = boxes.get(m.box_id)
+            entry["kg"] += round(weights.get(box.box_type_id, 0) * (m.fill_after or 0) / 100) if box else 0
+        return sorted(result.values(), key=lambda e: -e["boxes"])
+
+    def name(model, attr="name"):
+        return lambda key: (getattr(db.session.get(model, key), attr) if key else None)
+
+    def row_of(m):
+        box = boxes.get(m.box_id)
+        if not box or not box.is_stored:
+            return None
+        return (box.warehouse.name, box.warehouse.row_label(box.row))
+
+    varieties = group(lambda m: m.variety_id, name(Variety))
+    return {
+        "day": day, "count": len(moves), "kg": sum(e["kg"] for e in varieties),
+        "varieties": varieties, "plots": group(lambda m: m.plot_id, name(Plot)),
+        "rows": group(row_of, lambda key: f"{key[0]} · {key[1]}" if key else None),
+        "users": group(lambda m: m.user_id, lambda key: db.session.get(User, key).name if key else None),
+        "first": moves[0].created_at if moves else None, "last": moves[-1].created_at if moves else None,
+    }

@@ -31,6 +31,7 @@ AREAS = [
         item("main.history", N_("Verlauf"), "bi-clock-history"),
         item("main.harvest", N_("Ernte"), "bi-basket", role=ROLE_MITARBEITER),
         item("main.oldest", N_("Älteste Ware"), "bi-hourglass-split"),
+        item("main.harvest_report_page", N_("Erntebericht"), "bi-clipboard-data"),
         item("main.labels", N_("Etiketten"), "bi-qr-code", role=ROLE_ADMIN),
         item("bulk.store_list", N_("Schüttlager"), "bi-minecart-loaded", prefixes=("bulk.",)),
         item("main.scan", N_("Scannen"), "bi-qr-code-scan", role=ROLE_MITARBEITER),

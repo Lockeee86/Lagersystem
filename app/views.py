@@ -217,6 +217,10 @@ def _status(endpoint):
         return _("Ein- und Auslagern, Änderungen"), False
     if endpoint == "main.labels":
         return _("QR-Etiketten drucken"), False
+    if endpoint == "main.harvest_report_page":
+        from .utils import local_tz
+        n = storage.harvest_report(date.today(), local_tz())["count"]
+        return (ngettext("heute {n} Kiste befüllt", "heute {n} Kisten befüllt", n) if n else _("heute noch nichts")), False
     if endpoint == "main.oldest":
         rows = storage.oldest_boxes(limit=2000)
         old = sum(1 for r in rows if r["level"])
@@ -844,6 +848,19 @@ def sort_box():
         response.set_cookie(SORT_SIZE_COOKIE, grade, max_age=120 * 86400, samesite="Lax", httponly=True,
                             secure=request.is_secure)
     return response
+
+
+@bp.route("/ernte/bericht")
+@login_required
+def harvest_report_page():
+    """Ernte-Tagesbericht: Kisten und geschätzte Menge je Sorte, Schlag, Reihe und Mitarbeiter."""
+    from .utils import local_tz
+    try:
+        day = date.fromisoformat(request.args.get("datum", ""))
+    except ValueError:
+        day = date.today()
+    return render_template("harvest_report.html", r=storage.harvest_report(day, local_tz()), day=day,
+                           today=date.today(), prev=day - timedelta(days=1), next=day + timedelta(days=1))
 
 
 @bp.route("/ernte")

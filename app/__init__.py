@@ -131,6 +131,7 @@ def create_app(config=None):
     app.jinja_env.filters.update(
         datetime=utils.fmt_datetime,
         date=utils.fmt_date,
+        time=utils.fmt_time,
         kg=utils.fmt_kg,
         money=utils.fmt_money,
         num=utils.fmt_num,

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Ernte-Tagesbericht") }}{% endblock %}
+{% macro section(title, icon, rows, empty_label) %}
+<div class="col-md-6">
+    <div class="card shadow-sm h-100">
+        <div class="card-header"><i class="bi {{ icon }} me-1"></i>{{ title }}</div>
+        <ul class="list-group list-group-flush">
+            {% set top = rows[0].boxes if rows else 0 %}
+            {% for e in rows %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between gap-2">
+                    <span class="fw-medium text-truncate">{{ e.label or empty_label }}</span>
+                    <span class="text-nowrap">{{ ngettext("{n} Kiste", "{n} Kisten", e.boxes) }} <span class="text-body-secondary small">· {{ e.kg|kg }}</span></span>
+                </div>
+                <div class="progress mt-1" style="height: 4px"><div class="progress-bar" style="width: {{ (100 * e.boxes / top)|round }}%"></div></div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endmacro %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Ernte-Tagesbericht") }}</h1>
+        <p class="text-body-secondary mb-0">{{ day|weekday }}, {{ day|date }}{% if r.first %} · {{ _("{start} bis {end} Uhr", start=r.first|time, end=r.last|time) }}{% endif %}</p>
+    </div>
+    <div class="btn-group">
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.harvest_report_page', datum=prev.isoformat()) }}" aria-label="{{ _('Vortag') }}"><i class="bi bi-chevron-left"></i></a>
+        {% if day < today %}<a class="btn btn-outline-secondary" href="{{ url_for('main.harvest_report_page') }}">{{ _("Heute") }}</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.harvest_report_page', datum=next.isoformat()) }}" aria-label="{{ _('Folgetag') }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+    </div>
+</div>
+
+{% if r.count %}
+<div class="row g-2 g-lg-3 mb-3">
+    <div class="col-6"><div class="stat-card">
+        <div class="stat-label"><i class="bi bi-basket"></i>{{ _("Befüllte Kisten") }}</div>
+        <div class="stat-value">{{ r.count }}</div>
+    </div></div>
+    <div class="col-6"><div class="stat-card">
+        <div class="stat-label"><i class="bi bi-speedometer2"></i>{{ _("Menge (geschätzt)") }}</div>
+        <div class="stat-value">{{ r.kg|kg }}</div>
+    </div></div>
+</div>
+<div class="row g-3">
+    {{ section(_("Je Sorte"), "bi-palette", r.varieties, _("ohne Sorte")) }}
+    {{ section(_("Je Schlag"), "bi-map", r.plots, _("ohne Schlag")) }}
+    {{ section(_("Je Reihe (wo die Kisten jetzt stehen)"), "bi-grid-3x3-gap", r.rows, _("nicht eingelagert")) }}
+    {{ section(_("Je Mitarbeiter"), "bi-person", r.users, _("unbekannt")) }}
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-basket"></i><p>{{ _("An diesem Tag wurden keine Kisten befüllt.") }}</p></div>
+{% endif %}
+{% endblock %}
