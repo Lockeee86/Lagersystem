@@ -290,7 +290,7 @@ def test_3d_data(as_worker, db, seed):
     import json, re
     data = json.loads(re.search(r'<script type="application/json" id="iso3dData">(.*?)</script>', html, re.S).group(1))
     assert data["rows"] == 10 and data["slots"] == 15 and data["levels"] == 5
-    assert data["stacks"] == [[2, 4, [["#e6b422", seed["belana"].id]]]]
+    assert data["stacks"] == [[2, 4, [["#e6b422", seed["belana"].id]], 0]]       # 0 = keine alte Ware
     assert data["stackUrl"] == "/lager/1/stapel/0/0?partial=1"
 
 
