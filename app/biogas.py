@@ -436,3 +436,134 @@ def overview(today=None):
                      "year_revenue": float(year[2]) if year[2] is not None else None,
                      "forecast": maintenance_forecast(machine, today)[:3]})
     return rows
+
+
+# --- Wartungsfenster nach Strompreis ----------------------------------------------------
+
+WINDOW_DAYS = 7               # so weit voraus wird gesucht (Day-Ahead + SKVE-Prognose)
+DEFAULT_DOWNTIME = 4          # Stunden, wenn an der Wartung nichts eingetragen ist
+WINDOW_KEY = "biogas_window_hours"
+WINDOW_DEFAULT = (6, 18)      # Arbeitszeit, in der gewartet wird (Ortszeit)
+OUTLOOK_TTL = 1800
+
+
+def window_hours():
+    setting = db.session.get(Setting, WINDOW_KEY)
+    try:
+        start, end = (int(x) for x in setting.value.split("-")) if setting and setting.value else WINDOW_DEFAULT
+        return (start, end) if 0 <= start < end <= 24 else WINDOW_DEFAULT
+    except ValueError:
+        return WINDOW_DEFAULT
+
+
+def save_window_hours(start, end):
+    if start is None or end is None or not 0 <= start < end <= 24:
+        from .storage import StorageError
+        from .i18n import gettext as _
+        raise StorageError(_("Bitte eine gültige Arbeitszeit angeben, z. B. 6 bis 18 Uhr."))
+    Setting.put(WINDOW_KEY, f"{start}-{end}")
+
+
+def price_outlook(now=None):
+    """[(UTC-Viertelstunde, €/MWh, Prognose?)] für die nächsten WINDOW_DAYS: Day-Ahead, wo es ihn schon gibt,
+    sonst die SKVE-Preisprognose. Zwischengespeichert (OUTLOOK_TTL)."""
+    real_now = now is None
+    now = now or datetime.now(timezone.utc)
+    with _lock:
+        cached = _cache.get("outlook")
+        if real_now and cached and clock.monotonic() - cached[0] < OUTLOOK_TTL:
+            return cached[1]
+    start = now.replace(minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=WINDOW_DAYS)
+    actual = prices(start, end)
+    forecast = dict(_fetch("/module/data-service/prices/forecast/DAA", start, end))
+    merged = {ts: (price, True) for ts, price in forecast.items() if price is not None}
+    merged.update({ts: (price, False) for ts, price in actual.items() if price is not None})
+    result = sorted((ts, price, is_forecast) for ts, (price, is_forecast) in merged.items() if ts >= start)
+    with _lock:
+        if real_now:
+            _cache["outlook"] = (clock.monotonic(), result)
+    return result
+
+
+def _quarters(outlook):
+    """Auf Viertelstunden auffüllen (Stundenpreise gelten für alle vier Viertel)."""
+    filled = {}
+    for ts, price, is_forecast in outlook:
+        filled[ts] = (price, is_forecast)
+    for ts, price, is_forecast in outlook:
+        for q in (1, 2, 3):
+            filled.setdefault(ts + timedelta(minutes=15 * q), (price, is_forecast))
+    return filled
+
+
+def best_windows(power_kw, hours, outlook, now, until=None, limit=3, work=None):
+    """Die günstigsten Zeitfenster von `hours` Stunden: [{start, end, cost, avg_price, forecast}] (Ortszeit).
+    Kosten = entgangener Erlös bei Nennleistung (negative Preise: Stillstand spart sogar). Fenster bis zu einem
+    Arbeitstag liegen ganz in der Arbeitszeit; je Tag höchstens ein Vorschlag."""
+    if not outlook or not hours:
+        return []
+    tz = local_tz()
+    work = work or window_hours()
+    quarters = _quarters(outlook)
+    first = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    last_start = max(quarters) + timedelta(minutes=15) - timedelta(hours=hours)
+    if until is not None:
+        last_start = min(last_start, until)
+    candidates = []
+    start = first
+    while start <= last_start:
+        local = start.astimezone(tz)
+        end_local = (start + timedelta(hours=hours)).astimezone(tz)
+        fits = hours > work[1] - work[0] or (local.hour >= work[0] and local.date() == end_local.date()
+                                              and (end_local.hour < work[1] or (end_local.hour == work[1]
+                                                                                and end_local.minute == 0)))
+        if fits:
+            slots = [quarters.get(start + timedelta(minutes=15 * i)) for i in range(int(hours * 4))]
+            if all(slots):
+                avg = sum(p for p, _f in slots) / len(slots)
+                candidates.append({"start": local, "end": end_local, "avg_price": avg,
+                                   "cost": (power_kw or 0) * hours / 1000 * avg,
+                                   "forecast": any(f for _p, f in slots)})
+        start += timedelta(hours=1)
+    chosen, days = [], set()
+    for c in sorted(candidates, key=lambda c: (c["avg_price"], c["start"])):
+        if c["start"].date() in days:
+            continue
+        chosen.append(c)
+        days.add(c["start"].date())
+        if len(chosen) == limit:
+            break
+    return sorted(chosen, key=lambda c: c["avg_price"])
+
+
+def maintenance_windows(today=None, now=None):
+    """Für die Biogas-Seite: Wartungen mit Stillstand, die in den nächsten WINDOW_DAYS fällig werden (oder schon
+    fällig sind), mit den drei günstigsten Fenstern. Gibt (Zeilen, Fehler) zurück."""
+    if not configured():
+        return [], None
+    given_now = now
+    now = now or datetime.now(timezone.utc)
+    today = today or now.astimezone(local_tz()).date()
+    horizon = today + timedelta(days=WINDOW_DAYS)
+    rows = []
+    for machine in linked_machines():
+        for f in maintenance_forecast(machine, today):
+            downtime = f["task"].downtime_hours
+            downtime = DEFAULT_DOWNTIME if downtime is None else downtime
+            due_soon = f["status"]["state"] in ("overdue", "soon") or (f["due_on"] and f["due_on"] <= horizon)
+            if f["left"] is None or not downtime or not due_soon:
+                continue
+            rows.append({"machine": machine, "task": f["task"], "due_on": f["due_on"], "left": f["left"],
+                         "downtime": downtime, "state": f["status"]["state"]})
+    if not rows:
+        return [], None
+    try:
+        outlook = price_outlook(given_now)
+    except SkveError as e:
+        return rows, str(e)
+    for row in rows:
+        # bis zum Fälligkeitstag suchen (überfällig: so bald wie möglich, d. h. die ganze Woche)
+        until = _midnight(row["due_on"] + timedelta(days=1)) if row["due_on"] and row["due_on"] > today else None
+        row["windows"] = best_windows(row["machine"].power_kw, row["downtime"], outlook, now, until=until)
+    return rows, None

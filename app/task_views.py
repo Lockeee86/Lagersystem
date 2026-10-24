@@ -96,6 +96,11 @@ def task_list():
         prefill.update(title=f"{maintenance.machine.name}: {maintenance.name}"[:200], machine_id=maintenance.machine_id,
                        maintenance_task_id=maintenance.id, important=status["state"] == "overdue",
                        due_on=status["due_on"] if status["due_on"] and status["due_on"] > date.today() else date.today())
+        wanted = request.args.get("datum")                 # z. B. aus dem Wartungsfenster der Biogas-Seite
+        try:
+            prefill["due_on"] = date.fromisoformat(wanted) if wanted else prefill["due_on"]
+        except ValueError:
+            pass
     return render_template(
         "tasks/list.html", groups=tasks.buckets(tasks.open_tasks(person)), done=tasks.recently_done(person),
         who=who, person=person, today=date.today(), prefill=prefill,

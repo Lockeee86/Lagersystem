@@ -301,6 +301,14 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    von Nennleistung, Stunden gestern und die nächste Wartung nach Laufzeit (`biogas.dashboard()`). Die Startseite
    liest nur den Zwischenspeicher (`live(cached_only=True)`), den der Zeitplan alle 10 Minuten auffrischt
    (`refresh_live`) – sie wartet nie auf die API.
+   **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen
+   fällig werden (Prognose aus der Laufzeit) oder schon „bald fällig“/überfällig sind, sucht `biogas.best_windows` die
+   drei günstigsten Zeitfenster – Länge = Stillstand der Wartung (`MaintenanceTask.downtime_hours`, Vorlagen z. B.
+   Ölwechsel 4 h, Zündkerzen 3 h, Revision 24 h; 0 = läuft weiter), innerhalb der Arbeitszeit (`settings`
+   `biogas_window_hours`, Standard 6–18 Uhr, längere Stillstände dürfen darüber hinaus), höchstens einer je Tag und
+   bis zum Fälligkeitstag. Preise: Day-Ahead, für spätere Tage die SKVE-Preisprognose (`price_outlook`,
+   30 Minuten zwischengespeichert). Entgangener Erlös = Nennleistung × Dauer × Ø Preis (nur Admins sehen €);
+   „Als Aufgabe“ legt eine Aufgabe mit dem Datum des besten Fensters an.
    **Wartungen kopieren** (0.38.1): an der Maschine „Kopieren“ → Wartungen und Zielmaschinen wählen
    (`machines.copy_tasks`): fehlende werden angelegt, gleichnamige auf Wunsch angepasst (Intervall, Notiz),
    „zuletzt erledigt“ bleibt je Maschine; Wartungen nur nach Zähler werden bei Maschinen ohne Zähler übersprungen.

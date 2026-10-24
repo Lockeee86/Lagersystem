@@ -41,6 +41,10 @@ TASK_TEMPLATES = {
     "biogas": [("Wartung", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
     "sonstiges": [],
 }
+# Stillstand in Stunden je BHKW-Wartung (Grundlage fürs Wartungsfenster nach Strompreis); 0 = Motor läuft weiter
+BHKW_DOWNTIME = {"Ölwechsel": 4, "Zündkerzen": 3, "Ventilspiel einstellen": 4, "Luftfilter": 1, "Ölanalyse": 0,
+                 "Kühlwasser / Frostschutz prüfen": 1, "Zylinderköpfe (Revision)": 24, "Generalüberholung": 120,
+                 "Elektroprüfung (DGUV V3)": 4}
 # Fahrzeuge zählen Kilometer, alles mit Motor Betriebsstunden, der Rest nichts
 DEFAULT_UNITS = {"schlepper": "h", "fahrzeug": "km", "roder": "h", "stapler": "h", "maehdrescher": "h", "bhkw": "h"}
 
@@ -67,7 +71,9 @@ def create_machine(name, category, user, with_templates=True, **fields):
                 if not months:
                     continue
                 hours = None
-            machine.tasks.append(MaintenanceTask(name=task_name, interval_hours=hours, interval_months=months))
+            machine.tasks.append(MaintenanceTask(name=task_name, interval_hours=hours, interval_months=months,
+                                                 downtime_hours=BHKW_DOWNTIME.get(task_name) if category == "bhkw"
+                                                 else None))
     db.session.add(machine)
     db.session.flush()
     return machine
@@ -161,10 +167,12 @@ def copy_tasks(source, targets, task_ids=None, update=True):
             match = existing.get(task.name.casefold())
             if match is None:
                 target.tasks.append(MaintenanceTask(name=task.name, interval_hours=hours,
-                                                    interval_months=task.interval_months, note=task.note))
+                                                    interval_months=task.interval_months, note=task.note,
+                                                    downtime_hours=task.downtime_hours))
                 stats["created"] += 1
             elif update:
                 match.interval_hours, match.interval_months, match.note = hours, task.interval_months, task.note
+                match.downtime_hours = task.downtime_hours
                 stats["updated"] += 1
     db.session.flush()
     return stats

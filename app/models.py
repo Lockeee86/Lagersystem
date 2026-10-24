@@ -1015,6 +1015,7 @@ class MaintenanceTask(db.Model):
     last_done_on = db.Column(db.Date)
     last_done_counter = db.Column(db.Integer)
     note = db.Column(db.String(200))
+    downtime_hours = db.Column(db.Integer)       # BHKW: wie lange der Motor dafür steht (fürs Wartungsfenster)
 
     machine = db.relationship("Machine", back_populates="tasks")
 

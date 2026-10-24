@@ -48,6 +48,50 @@
 </div>
 {% endif %}
 
+{% if configured and linked %}
+<div class="card shadow-sm mb-4" id="fenster">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-calendar2-range me-1"></i>{{ _("Wartungsfenster nach Strompreis") }}</span>
+        <span class="small text-body-secondary text-nowrap">{{ _("Arbeitszeit {start}–{end} Uhr", start=work[0], end=work[1]) }}{% if current_user.is_admin %} <a href="#windowSettings" data-bs-toggle="collapse" role="button" aria-label="{{ _('Arbeitszeit ändern') }}"><i class="bi bi-gear"></i></a>{% endif %}</span>
+    </div>
+    {% if current_user.is_admin %}
+    <form method="post" action="{{ url_for('biogas.window_settings') }}" class="collapse card-body border-bottom row g-2 align-items-end mx-0" id="windowSettings">
+        {{ csrf() }}
+        <div class="col-4 col-sm-3"><label class="form-label small mb-0" for="wStart">{{ _("von (Uhr)") }}</label><input class="form-control form-control-sm" type="number" id="wStart" name="start" min="0" max="23" value="{{ work[0] }}"></div>
+        <div class="col-4 col-sm-3"><label class="form-label small mb-0" for="wEnd">{{ _("bis (Uhr)") }}</label><input class="form-control form-control-sm" type="number" id="wEnd" name="end" min="1" max="24" value="{{ work[1] }}"></div>
+        <div class="col-4 col-sm-3 d-grid"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
+    </form>
+    {% endif %}
+    {% if windows_error %}<div class="card-body small text-danger">{{ _("Preise konnten nicht geladen werden: {message}", message=windows_error) }}</div>{% endif %}
+    <ul class="list-group list-group-flush">
+        {% for w in windows %}
+        <li class="list-group-item">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+                <span><span class="fw-semibold">{{ w.machine.name }}: {{ w.task.name }}</span>
+                    <span class="small {{ 'text-danger fw-semibold' if w.state == 'overdue' else 'text-warning-emphasis' if w.state == 'soon' else 'text-body-secondary' }}">· {% if w.left <= 0 %}{{ _("fällig") }}{% else %}{{ _("in {h} h", h=w.left|num(0)) }}{% if w.due_on %} ({{ w.due_on|date }}){% endif %}{% endif %} · {{ ngettext("{n} Stunde Stillstand", "{n} Stunden Stillstand", w.downtime) }}</span></span>
+            </div>
+            {% if w.windows %}
+            <ol class="list-unstyled mb-0 mt-1">
+                {% for c in w.windows %}
+                <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-1 {{ 'border-top' if not loop.first }}">
+                    <span>{% if loop.first %}<i class="bi bi-star-fill text-warning me-1" title="{{ _('günstigstes Fenster') }}"></i>{% endif %}<span class="fw-semibold">{{ c.start|weekday }} {{ c.start.strftime("%d.%m.") }}</span> {{ c.start.strftime("%H:%M") }}–{{ c.end.strftime("%H:%M") }}</span>
+                    <span class="small text-body-secondary">{{ _("Ø {price} €/MWh", price=c.avg_price|num(0)) }}{% if current_user.is_admin %} · {% if c.cost < 0 %}{{ _("spart ca. {eur} €", eur=(-c.cost)|num(0)) }}{% else %}{{ _("ca. {eur} € Erlös fehlen", eur=c.cost|num(0)) }}{% endif %}{% endif %}{% if c.forecast %} · {{ _("Prognose") }}{% endif %}</span>
+                    {% if current_user.is_admin and loop.first %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('tasks.task_list', neu=1, wartung=w.task.id, datum=c.start.date().isoformat()) }}"><i class="bi bi-plus-lg me-1"></i>{{ _("Als Aufgabe") }}</a>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+            {% elif not windows_error %}
+            <div class="small text-body-secondary mt-1">{{ _("Für diesen Zeitraum gibt es noch keine Preise.") }}</div>
+            {% endif %}
+        </li>
+        {% else %}
+        <li class="list-group-item small text-body-secondary">{{ _("In den nächsten 7 Tagen wird keine Wartung mit Stillstand fällig.") }}</li>
+        {% endfor %}
+    </ul>
+    <div class="card-footer small text-body-secondary">{% if current_user.is_admin %}{{ _("Entgangener Erlös gerechnet mit Nennleistung und Day-Ahead-Preis (später Tage: SKVE-Preisprognose).") }} {% endif %}{{ _("Je Tag ein Vorschlag, der günstigste zuerst.") }}</div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
     {% for row in rows %}
     {% set m = row.machine %}{% set now = motors.get(m.id) %}

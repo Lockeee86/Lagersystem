@@ -172,3 +172,59 @@ def test_dashboard_card(app, as_viewer, db, seed, fake_api):
     motor.active = False
     db.session.commit()
     assert 'id="bhkw"' not in as_viewer.get("/").get_data(as_text=True)
+
+
+def test_best_windows(app):
+    now = datetime(2026, 10, 24, 20, 0, tzinfo=TZ).astimezone(timezone.utc)          # Samstagabend
+    outlook = []
+    t = now.replace(minute=0)
+    while t < now + timedelta(days=3):
+        local = t.astimezone(TZ)
+        price = 120.0
+        if local.date() == date(2026, 10, 25) and 10 <= local.hour < 14:
+            price = 20.0                                                               # Sonntag Mittag günstig
+        if local.date() == date(2026, 10, 25) and 2 <= local.hour < 6:
+            price = -30.0                                                              # nachts negativ, aber außerhalb
+        if local.date() == date(2026, 10, 26) and 8 <= local.hour < 12:
+            price = 60.0
+        outlook.append((t, price, local.date() > date(2026, 10, 25)))
+        t += timedelta(minutes=15)
+    windows = biogas.best_windows(548, 4, outlook, now, work=(6, 18))
+    first = windows[0]
+    assert (first["start"].hour, first["end"].hour, first["start"].date()) == (10, 14, date(2026, 10, 25))
+    assert first["cost"] == pytest.approx(548 * 4 / 1000 * 20) and not first["forecast"]
+    assert windows[1]["start"].date() == date(2026, 10, 26) and windows[1]["forecast"]       # je Tag einer
+    assert len({w["start"].date() for w in windows}) == len(windows)
+    # bis zum Fälligkeitstag: nur Samstag/Sonntag möglich
+    until = datetime(2026, 10, 26, 0, 0, tzinfo=TZ).astimezone(timezone.utc)
+    assert {w["start"].date() for w in biogas.best_windows(548, 4, outlook, now, until=until, work=(6, 18))} \
+        == {date(2026, 10, 25)}
+    # rund um die Uhr erlaubt → die negativen Preise in der Nacht gewinnen, Stillstand spart Geld
+    night = biogas.best_windows(548, 4, outlook, now, work=(0, 24))[0]
+    assert night["start"].hour == 2 and night["cost"] < 0
+
+
+def test_maintenance_windows_page(app, as_admin, as_viewer, db, seed, fake_api):
+    motor = make_bhkw(db, seed, 11, "BHKW Test 1")
+    machines.set_counter(motor, 9000, seed["admin"], day=date.today() - timedelta(days=30))
+    oil = next(t for t in motor.tasks if t.name == "Ölwechsel")
+    assert oil.downtime_hours == 4
+    oil.last_done_counter, oil.last_done_on = 7000, date.today() - timedelta(days=200)       # schon fällig
+    db.session.commit()
+    rows, error = biogas.maintenance_windows()
+    assert error is None and [r["task"].name for r in rows] == ["Ölwechsel"] and rows[0]["windows"]
+    assert all(6 <= w["start"].hour and w["end"].hour <= 18 for w in rows[0]["windows"])
+    html = as_viewer.get("/biogas").get_data(as_text=True)
+    assert 'id="fenster"' in html and "BHKW Test 1: Ölwechsel" in html and "€/MWh" in html
+    assert "Als Aufgabe" not in html and "Erlös" not in html                     # Geld nur für Admins
+    html = as_admin.get("/biogas").get_data(as_text=True)
+    assert "Als Aufgabe" in html and "datum=" in html and "Erlös fehlen" in html
+    # Arbeitszeit einstellen
+    as_admin.post("/biogas/arbeitszeit", data={"start": "7", "end": "16"})
+    assert biogas.window_hours() == (7, 16)
+    r = as_admin.post("/biogas/arbeitszeit", data={"start": "18", "end": "6"}, follow_redirects=True)
+    assert "gültige Arbeitszeit" in r.get_data(as_text=True) and biogas.window_hours() == (7, 16)
+    # Aufgabe mit dem Datum des Fensters vorbelegt
+    day = (date.today() + timedelta(days=2)).isoformat()
+    html = as_admin.get(f"/aufgaben?neu=1&wartung={oil.id}&datum={day}").get_data(as_text=True)
+    assert f'value="{day}"' in html

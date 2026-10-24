@@ -105,7 +105,8 @@ docker compose up --build -d
   `biogas._get` ersetzen), `sync()` im Zeitplan (einmal am Tag: `ChpDay` je BHKW-Maschine mit `Machine.skve_chp_id`,
   Zähler = `skve_base_counter` + Stunden nach `skve_base_day`; `machines.set_counter` setzt die Basis neu),
   `live()` (Übersicht, Zwischenspeicher; `refresh_live` im Zeitplan, Startseite nur `cached_only`), `dashboard()`,
-  `maintenance_forecast()`. `app/biogas_views.py` (Blueprint `biogas`). Wartungen kopieren: `machines.copy_tasks`
+  `maintenance_forecast()`, Wartungsfenster `maintenance_windows()` / `best_windows()` (Stillstand
+  `MaintenanceTask.downtime_hours`). `app/biogas_views.py` (Blueprint `biogas`). Wartungen kopieren: `machines.copy_tasks`
 - `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
   (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es

@@ -317,6 +317,8 @@ def task_save(machine_id):
     task.last_done_on = form_date("last_done_on")
     task.last_done_counter = form_int("last_done_counter", minimum=0)
     task.note = form_str("note", 200) or None
+    if "downtime_hours" in request.form:
+        task.downtime_hours = form_int("downtime_hours", minimum=0, maximum=2000)
     db.session.add(task)
     db.session.commit()
     flash(_("Wartung „{task}“ gespeichert.", task=task.name), "success")

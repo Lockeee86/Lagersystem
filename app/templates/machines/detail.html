@@ -291,7 +291,7 @@
                             {% endif %}
                             {% if current_user.is_admin %}
                             <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#taskModal" title="{{ _('Bearbeiten') }}"
-                                    data-edit='{{ {"id": task.id, "name": task.name, "interval_hours": task.interval_hours or "", "interval_months": task.interval_months or "", "last_done_on": task.last_done_on.isoformat() if task.last_done_on else "", "last_done_counter": task.last_done_counter if task.last_done_counter is not none else "", "note": task.note or ""}|tojson }}'><i class="bi bi-pencil"></i></button>
+                                    data-edit='{{ {"id": task.id, "name": task.name, "interval_hours": task.interval_hours or "", "interval_months": task.interval_months or "", "last_done_on": task.last_done_on.isoformat() if task.last_done_on else "", "last_done_counter": task.last_done_counter if task.last_done_counter is not none else "", "note": task.note or "", "downtime_hours": task.downtime_hours if task.downtime_hours is not none else ""}|tojson }}'><i class="bi bi-pencil"></i></button>
                             {% endif %}
                         </div>
                     </div>
@@ -605,6 +605,13 @@
     </div>
     {% endif %}
 </div>
+{% if machine.category == "bhkw" or machine.skve_chp_id %}
+<div class="mb-3">
+    <label class="form-label" for="t_downtime">{{ _("Stillstand dafür (Stunden)") }}</label>
+    <input class="form-control" type="number" id="t_downtime" name="downtime_hours" min="0" max="2000" inputmode="numeric" style="max-width: 8rem">
+    <div class="form-text">{{ _("Für den Vorschlag des günstigsten Wartungsfensters nach Strompreis; 0 = der Motor läuft weiter.") }}</div>
+</div>
+{% endif %}
 <div class="mb-3">
     <label class="form-label" for="t_note">{{ _("Notiz") }}</label>
     <input class="form-control" id="t_note" name="note" maxlength="200" placeholder="{{ _('z. B. 15W-40, 12 Liter') }}">
