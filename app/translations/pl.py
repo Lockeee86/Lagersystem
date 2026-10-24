@@ -1726,4 +1726,11 @@ MESSAGES = {
     'Eingelagerte Kisten werden nach dem Erntedatum in Karte und Liste gelb bzw. rot umrandet; „Älteste Ware zuerst“ zeigt sie zum Auslagern.': 'Składowane skrzynie są obramowane na żółto lub czerwono według daty zbioru na mapie i liście; „Najstarszy towar najpierw” pokazuje je do wydania.',
     'Gelb ab (Monate)': 'Żółte od (miesiące)',
     'Rot ab (Monate)': 'Czerwone od (miesiące)',
+    'Nachsortieren': 'Dosortowanie',
+    'Kiste scannen, Größe und Füllstand antippen': 'Zeskanuj skrzynię, wybierz rozmiar i napełnienie',
+    'Größen hinterlegt der Admin unter Verwaltung → Kistentypen.': 'Rozmiary ustawia administrator w Administracja → Typy skrzyń.',
+    'Überspringen': 'Pomiń',
+    'Nachsortiert': 'Dosortowane',
+    '{code} ist leer – zum Befüllen den Ernte-Modus nutzen.': '{code} jest pusta – do napełniania użyj trybu zbioru.',
+    '{code}: {what}.': '{code}: {what}.',
 }

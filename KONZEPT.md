@@ -279,6 +279,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Nachsortieren per Scan** (0.32.2): zweiter Schalter auf der Scan-Seite (es ist immer nur Ernte oder Nachsortieren
+   an). Kiste scannen → unter der Kamera Größe und Füllstand antippen → Speichern; die zuletzt gewählte Größe ist für
+   die nächste Kiste vorgewählt (Cookie `sortgroesse`). Sorte, Schlag, Erntedatum usw. bleiben; der Verlauf zeigt
+   die Änderung. Routen `main.sort_toggle` / `main.sort_box`.
    **Lagerdauer-Ampel** (0.32.1): eingelagerte Kisten nach Erntedatum gelb (ab 6 Monaten) bzw. rot (ab 9) umrandet
    in Karte, Liste, Stapel und an der Kiste; Filter „Alte Ware“ (auch 3D). Seite „Älteste Ware zuerst“
    (`/lager/aelteste`, „oben“ = gleich greifbar). Schwellen unter Verwaltung → Kartoffellager.

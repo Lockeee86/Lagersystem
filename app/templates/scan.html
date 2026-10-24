@@ -3,7 +3,7 @@
 {% block title %}{{ _("Scannen") }}{% endblock %}
 {% block content %}
 {% set hv = harvest_values or {} %}
-<div class="scan-page mx-auto {% if harvest_on %}harvest-on{% endif %}" id="scanPage">
+<div class="scan-page mx-auto {% if harvest_on %}harvest-on{% endif %} {% if sort_on %}sort-on{% endif %}" id="scanPage">
     <div class="page-head"><h1>{{ _("Scannen") }}</h1></div>
 
     {% if harvest %}
@@ -26,7 +26,7 @@
                        aria-label="{{ _('Ernte-Modus') }}">
             </div>
         </div>
-        <div class="collapse {% if open_settings or not harvest.variety %}show{% endif %}" id="harvestSettings">
+        <div class="collapse {% if open_settings or (not harvest.variety and not sort_on) %}show{% endif %}" id="harvestSettings">
             <form method="post" action="{{ url_for('main.harvest_settings') }}" class="card-body border-top row g-2" id="harvestForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="col-12">
@@ -93,6 +93,21 @@
             </form>
         </div>
     </div>
+
+    {# Nachsortieren: Kiste scannen, Größe und Füllstand antippen #}
+    <div class="card shadow-sm mb-3 sort-card">
+        <div class="card-body py-2 d-flex gap-2 align-items-center">
+            <i class="bi bi-rulers fs-4 sort-icon"></i>
+            <div class="flex-grow-1 min-w-0">
+                <label class="fw-semibold d-block mb-0" for="sortSwitch">{{ _("Nachsortieren") }}</label>
+                <div class="small text-body-secondary text-truncate">{{ _("Kiste scannen, Größe und Füllstand antippen") }}</div>
+            </div>
+            <div class="form-check form-switch mb-0 harvest-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="sortSwitch" {% if sort_on %}checked{% endif %}
+                       aria-label="{{ _('Nachsortieren') }}">
+            </div>
+        </div>
+    </div>
     {% endif %}
 
     <div class="alert alert-info py-2 small {% if not (harvest_on and next_place) %}d-none{% endif %}" id="placeHint">
@@ -112,6 +127,30 @@
         <div class="card-body py-2 d-flex justify-content-between align-items-center small">
             <span class="text-body-secondary" id="scanStatus">{{ _("Kamera aus") }}</span>
             <button class="btn btn-sm btn-outline-secondary d-none" id="stopScan"><i class="bi bi-stop-circle me-1"></i>{{ _("Stopp") }}</button>
+        </div>
+    </div>
+
+    {# nach dem Scan im Nachsortieren: Kiste mit Auswahl #}
+    <div class="card shadow-sm mb-3 border-primary d-none" id="sortPanel">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-baseline gap-2">
+                <div class="fw-semibold fs-5" id="sortCode"></div>
+                <div class="small text-body-secondary text-end" id="sortInfo"></div>
+            </div>
+            <div class="small text-body-secondary mt-2 mb-1">{{ _("Größe") }}</div>
+            <div class="d-flex flex-wrap gap-2" id="sortSizes" data-last="{{ sort_size }}">
+                {% for s in potato_sizes() %}<button type="button" class="btn btn-outline-primary sort-chip" data-size="{{ s }}">{{ s }}</button>{% endfor %}
+                <button type="button" class="btn btn-outline-secondary sort-chip" data-size="">{{ _("keine") }}</button>
+            </div>
+            {% if not potato_sizes() %}<div class="small text-body-tertiary mt-1">{{ _("Größen hinterlegt der Admin unter Verwaltung → Kistentypen.") }}</div>{% endif %}
+            <div class="small text-body-secondary mt-3 mb-1">{{ _("Füllstand") }}</div>
+            <div class="d-flex flex-wrap gap-2" id="sortFills">
+                {% for value, label in FILL_LEVELS %}<button type="button" class="btn btn-outline-primary sort-chip" data-fill="{{ value }}">{{ _(label) }}</button>{% endfor %}
+            </div>
+            <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-primary flex-grow-1" id="sortSave"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+                <button type="button" class="btn btn-outline-secondary" id="sortSkip">{{ _("Überspringen") }}</button>
+            </div>
         </div>
     </div>
 
@@ -138,7 +177,8 @@
     {% if harvest %}
     <div class="card shadow-sm harvest-only">
         <div class="card-header d-flex justify-content-between">
-            <span><i class="bi bi-basket me-1"></i>{{ _("Befüllt") }}</span>
+            <span class="harvest-label"><i class="bi bi-basket me-1"></i>{{ _("Befüllt") }}</span>
+            <span class="sort-label"><i class="bi bi-rulers me-1"></i>{{ _("Nachsortiert") }}</span>
             <span class="badge text-bg-primary rounded-pill" id="harvestCount">0</span>
         </div>
         <ul class="list-group list-group-flush" id="harvestList"></ul>
@@ -160,7 +200,11 @@
     var sw = document.getElementById("harvestSwitch");
     var hint = document.getElementById("placeHint");
     var target = "{{ url_for('main.scan') }}?code=";
-    var urls = {{ {"box": url_for('main.harvest_box'), "toggle": url_for('main.harvest_settings')}|tojson }};
+    var urls = {{ {"box": url_for('main.harvest_box'), "toggle": url_for('main.harvest_settings'),
+                   "sort": url_for('main.sort_box'), "sortToggle": url_for('main.sort_toggle')}|tojson }};
+    var sortSw = document.getElementById("sortSwitch");
+    var panel = document.getElementById("sortPanel");
+    var sortCode = null, chosen = {size: null, fill: null};
     var csrf = "{{ csrf_token() }}";
     var T = {{ {
         "off": _("Kamera aus"), "starting": _("Kamera wird gestartet …"), "found": _("Erkannt:"),
@@ -198,6 +242,94 @@
         if (navigator.vibrate) navigator.vibrate(ok ? 80 : [60, 60, 60]);
     }
 
+    function sortOn() { return !!(sortSw && sortSw.checked); }
+
+    function pick(group, attr, value) {
+        group.querySelectorAll(".sort-chip").forEach(function (b) {
+            var active = b.dataset[attr] === String(value);
+            b.classList.toggle("active", active);
+            b.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+    }
+
+    function openSort(box) {
+        sortCode = box.code;
+        document.getElementById("sortCode").textContent = box.code + " · " + box.variety;
+        document.getElementById("sortInfo").textContent = [box.grade, box.fill_label, box.location].filter(Boolean).join(" · ");
+        // vorgewählt: zuletzt gewählte Größe (sonst die der Kiste) und der jetzige Füllstand
+        var sizes = document.getElementById("sortSizes");
+        chosen.size = sizes.dataset.last || box.grade || "";
+        chosen.fill = box.fill;
+        pick(sizes, "size", chosen.size);
+        pick(document.getElementById("sortFills"), "fill", chosen.fill);
+        panel.classList.remove("d-none");
+        panel.scrollIntoView({behavior: "smooth", block: "nearest"});
+    }
+
+    function closeSort() { panel.classList.add("d-none"); sortCode = null; busy = false; }
+
+    if (panel) {
+        document.getElementById("sortSizes").addEventListener("click", function (e) {
+            var b = e.target.closest("[data-size]"); if (!b) return;
+            chosen.size = b.dataset.size; pick(this, "size", chosen.size);
+        });
+        document.getElementById("sortFills").addEventListener("click", function (e) {
+            var b = e.target.closest("[data-fill]"); if (!b) return;
+            chosen.fill = b.dataset.fill; pick(this, "fill", chosen.fill);
+        });
+        document.getElementById("sortSkip").addEventListener("click", closeSort);
+        document.getElementById("sortSave").addEventListener("click", function () {
+            if (!sortCode) return;
+            var body = new FormData();
+            body.append("csrf_token", csrf); body.append("code", sortCode);
+            body.append("grade", chosen.size || ""); body.append("fill", chosen.fill);
+            fetch(urls.sort, {method: "POST", body: body, headers: {"Accept": "application/json"}, credentials: "same-origin"})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    show(data.ok, data.message);
+                    if (data.ok) {
+                        if (chosen.size) document.getElementById("sortSizes").dataset.last = chosen.size;
+                        addRow({code: data.box.code, text: [data.box.variety, data.box.grade].filter(Boolean).join(" · "),
+                                place: data.box.fill_label});
+                        closeSort();
+                    }
+                })
+                .catch(function () { show(false, T.failed); });
+        });
+    }
+
+    function loadSort(code) {
+        busy = true;
+        return fetch(urls.sort + "?code=" + encodeURIComponent(code), {headers: {"Accept": "application/json"}, credentials: "same-origin"})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) { result.classList.add("d-none"); if (navigator.vibrate) navigator.vibrate(60); openSort(data.box); }
+                else { show(false, data.message); busy = false; }
+            })
+            .catch(function () { show(false, T.failed); busy = false; });
+    }
+
+    function setSortMode(on) {
+        page.classList.toggle("sort-on", on);
+        if (!on && panel) closeSort();
+        if (scanner) status.textContent = on || harvestOn() ? T.ready : T.searching;
+    }
+
+    // Nachsortieren-Schalter: schaltet den Ernte-Modus aus
+    if (sortSw) sortSw.addEventListener("change", function () {
+        var wanted = sortSw.checked;
+        var body = new FormData();
+        body.append("csrf_token", csrf); body.append("an", wanted ? "1" : "0");
+        fetch(urls.sortToggle, {method: "POST", body: body, headers: {"Accept": "application/json"}, credentials: "same-origin"})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                sortSw.checked = data.on;
+                if (data.on && sw && sw.checked) { sw.checked = false; setMode(false); }
+                setSortMode(data.on);
+            })
+            .catch(function () { sortSw.checked = !wanted; show(false, T.failed); });
+    });
+
     function setMode(on) {
         page.classList.toggle("harvest-on", on);
         result.classList.add("d-none");
@@ -215,6 +347,7 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 sw.checked = data.on;
+                if (data.on && sortSw && sortSw.checked) { sortSw.checked = false; setSortMode(false); }
                 setMode(data.on);
                 if (!data.ok) {
                     show(false, data.message);
@@ -264,6 +397,12 @@
     }
 
     manual.addEventListener("submit", function (e) {
+        if (sortOn()) {
+            e.preventDefault();
+            var code = document.getElementById("manualCode");
+            if (code.value.trim() && !busy) loadSort(code.value.trim()).then(function () { code.value = ""; });
+            return;
+        }
         if (!harvestOn()) return;              // normaler Scan: Seite der Kiste öffnen
         e.preventDefault();
         var input = document.getElementById("manualCode");
@@ -288,6 +427,14 @@
     }
 
     function onCode(text) {
+        if (sortOn()) {
+            var t = Date.now();
+            // solange die Auswahl offen ist, nicht weiterscannen; dieselbe Kiste nicht gleich noch einmal
+            if (busy || sortCode || (text === last.code && t - last.time < 5000)) return;
+            last = {code: text, time: t};
+            loadSort(text);
+            return;
+        }
         if (harvestOn()) {
             var now = Date.now();
             // dieselbe Kiste nicht mehrfach buchen, solange sie noch vor der Kamera ist
@@ -314,7 +461,7 @@
             onCode,
             function () {}
         ).then(function () {
-            status.textContent = harvestOn() ? T.ready : T.searching;
+            status.textContent = harvestOn() || sortOn() ? T.ready : T.searching;
             stopBtn.classList.remove("d-none");
             try { localStorage.setItem("scanAutoStart", "1"); } catch (e) {}
         }).catch(function (err) {

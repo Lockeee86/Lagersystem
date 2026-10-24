@@ -708,8 +708,10 @@ def scan():
         return render_template("scan.html", harvest=None)
     values = _harvest_cookie()
     settings = _harvest_settings(values)
+    sort_on = request.cookies.get(SORT_COOKIE) == "1"
     return render_template(
-        "scan.html", harvest=settings, harvest_on=values.get("an") == "1" and settings["variety"] is not None,
+        "scan.html", harvest=settings, sort_on=sort_on, sort_size=request.cookies.get(SORT_SIZE_COOKIE, ""),
+        harvest_on=not sort_on and values.get("an") == "1" and settings["variety"] is not None,
         harvest_values=values, next_place=_next_place(settings), open_settings=request.args.get("einstellungen") == "1",
         **_harvest_choices())
 
@@ -784,6 +786,66 @@ def _harvest_settings(source):
             "row": row if store else None, "chosen_row": row}
 
 
+# --- Nachsortieren per Scan (Schalter auf der Scan-Seite) ---------------------------
+
+SORT_COOKIE = "sortieren"
+SORT_SIZE_COOKIE = "sortgroesse"
+
+
+def _box_json(box):
+    return {"code": box.code, "variety": box.variety.name if box.variety else "", "grade": box.grade or "",
+            "fill": box.fill, "fill_label": box.fill_label, "location": box.location or "",
+            "warehouse": box.warehouse.name if box.warehouse else "", "empty": box.is_empty}
+
+
+@bp.route("/scan/sortieren", methods=["POST"])
+@editor_required
+def sort_toggle():
+    """Nachsortieren ein-/ausschalten; schaltet den Ernte-Modus aus (es ist immer nur ein Modus an)."""
+    on = request.form.get("an") == "1"
+    response = jsonify(ok=True, on=on)
+    response.set_cookie(SORT_COOKIE, "1" if on else "", max_age=120 * 86400, samesite="Lax", httponly=True,
+                        secure=request.is_secure)
+    if on:
+        values = _harvest_cookie()
+        values["an"] = ""
+        _harvest_store(response, values)
+    return response
+
+
+@bp.route("/sortieren/kiste", methods=["GET", "POST"])
+@editor_required
+def sort_box():
+    """GET: Kiste zum Nachsortieren laden. POST: neue Größe und neuen Füllstand speichern (übrige Angaben bleiben)."""
+    raw = request.values.get("code", "")
+    code = storage.normalize_code(raw)
+    box = Box.query.filter_by(code=code).first() if code else None
+    if box is None:
+        return jsonify(ok=False, message=_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
+    if request.method == "GET":
+        if box.is_empty or not box.variety_id:
+            return jsonify(ok=False, message=_("{code} ist leer – zum Befüllen den Ernte-Modus nutzen.",
+                                               code=box.code))
+        return jsonify(ok=True, box=_box_json(box))
+    grade = storage.normalize_size(request.form.get("grade", "")) or None
+    fill = form_int("fill", box.fill)
+    try:
+        storage.update_contents(box, current_user, box.variety_id, box.harvest_date, box.plot_id, grade, fill,
+                                box.note, box_type_id=box.box_type_id, usage=box.usage,
+                                seed_class_id=box.seed_class_id)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        return jsonify(ok=False, message=str(e))
+    parts = [p for p in (grade, box.fill_label) if p]
+    response = jsonify(ok=True, box=_box_json(box),
+                       message=_("{code}: {what}.", code=box.code, what=" · ".join(parts)))
+    if grade:
+        response.set_cookie(SORT_SIZE_COOKIE, grade, max_age=120 * 86400, samesite="Lax", httponly=True,
+                            secure=request.is_secure)
+    return response
+
+
 @bp.route("/ernte")
 @editor_required
 def harvest():
@@ -815,6 +877,9 @@ def harvest_settings():
         if problem:
             flash_error(problem)
         response = redirect(url_for("main.scan", einstellungen=1 if problem else None))
+    if values.get("an"):                         # Ernte an → Nachsortieren aus
+        response.set_cookie(SORT_COOKIE, "", max_age=120 * 86400, samesite="Lax", httponly=True,
+                            secure=request.is_secure)
     return _harvest_store(response, values)
 
 

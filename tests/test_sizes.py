@@ -60,3 +60,30 @@ def test_admin_box_and_harvest(as_admin, as_worker, db, seed):
     from app.models import Delivery
     d = Delivery.query.one()
     assert 'id="q_grade" name="grade"' in as_admin.get(f"/lieferschein/{d.id}").get_data(as_text=True)
+
+
+def test_resort_by_scan(as_worker, as_viewer, db, seed):
+    storage.save_sizes("25-28\n28-35")
+    (box, empty) = storage.create_boxes(2, seed["bt"].id, seed["admin"])
+    storage.update_contents(box, seed["admin"], seed["belana"].id, DAY, seed["plot"].id, "35–55 mm", 100, "Notiz")
+    db.session.commit()
+    assert as_viewer.post("/scan/sortieren", data={"an": "1"}).status_code == 403
+    # Schalter: Nachsortieren an schaltet den Ernte-Modus aus
+    as_worker.post("/scan/ernte", data={"sorte": seed["belana"].id, "fuell": "100", "modus": "befuellen"})
+    assert 'id="harvestSwitch" checked' in as_worker.get("/scan").get_data(as_text=True)
+    as_worker.post("/scan/sortieren", data={"an": "1"})
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert 'id="sortSwitch" checked' in html and 'id="harvestSwitch" checked' not in html and "sort-on" in html
+    assert 'data-size="28–35 mm"' in html
+    # laden: leere Kisten abgewiesen
+    j = as_worker.get(f"/sortieren/kiste?code={box.code}").get_json()
+    assert j["ok"] and j["box"]["grade"] == "35–55 mm" and j["box"]["fill"] == 100
+    assert not as_worker.get(f"/sortieren/kiste?code={empty.code}").get_json()["ok"]
+    # speichern: nur Größe und Füllstand ändern sich, die zuletzt gewählte Größe wird gemerkt
+    j = as_worker.post("/sortieren/kiste", data={"code": box.code, "grade": "28-35", "fill": "75"}).get_json()
+    assert j["ok"] and box.grade == "28–35 mm" and box.fill == 75
+    assert box.variety_id == seed["belana"].id and box.plot_id == seed["plot"].id and box.note == "Notiz"
+    assert 'data-last="28–35 mm"' in as_worker.get("/scan").get_data(as_text=True)
+    # Ernte wieder an → Nachsortieren aus
+    as_worker.post("/scan/ernte", data={"an": "1"}, headers={"Accept": "application/json"})
+    assert 'id="sortSwitch" checked' not in as_worker.get("/scan").get_data(as_text=True)
