@@ -114,7 +114,8 @@ def dip():
 @admin_required
 def tank_settings():
     fuel.save_settings(form_int("capacity", minimum=1, maximum=1_000_000),
-                       form_int("warn", minimum=1, maximum=1_000_000))
+                       form_int("warn", minimum=1, maximum=1_000_000),
+                       bool(request.form.get("counter_required")))
     if "site_id" in request.form:
         sites.set_tank_site(sites.from_form(request.form.get("site_id")))
     db.session.commit()

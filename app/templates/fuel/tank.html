@@ -33,7 +33,8 @@
             <div class="col-6 col-md-2"><label class="form-label" for="r_liters">{{ _("Liter") }}</label>
                 <input class="form-control" id="r_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
             <div class="col-6 col-md-2"><label class="form-label" for="r_counter">{{ _("Zählerstand") }}</label>
-                <input class="form-control" id="r_counter" name="counter" type="number" inputmode="numeric" min="0"></div>
+                <input class="form-control" id="r_counter" name="counter" type="number" inputmode="numeric" min="0"
+                       {% if status.counter_required %}placeholder="{{ _('Pflicht bei Maschinen mit Zähler') }}"{% endif %}></div>
             <div class="col-6 col-md-2"><label class="form-label" for="r_date">{{ _("Datum") }}</label>
                 <input class="form-control" id="r_date" name="date" type="date" value="{{ today.isoformat() }}"></div>
             <div class="col-6 col-md-2"><button class="btn btn-primary w-100">{{ _("Eintragen") }}</button></div>
@@ -109,6 +110,10 @@
                 <div class="col-6 col-md-3"><label class="form-label small" for="t_warn">{{ _("Warnen ab (l)") }}</label>
                     <input class="form-control form-control-sm" id="t_warn" name="warn" type="number" min="1" value="{{ status.warn or '' }}"></div>
                 {% if any_sites() %}<div class="col-12 col-md-3">{{ site_select(tank_site_id, id="t_site", small=true) }}</div>{% endif %}
+                <div class="col-12"><div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="t_counter_req" name="counter_required" value="1" {% if status.counter_required %}checked{% endif %}>
+                    <label class="form-check-label small" for="t_counter_req">{{ _("Zählerstand beim Tanken ist Pflicht (bei Maschinen mit Zähler)") }}</label>
+                </div></div>
                 <div class="col-12 col-md-3"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
                 <div class="col-12 small text-body-secondary">{{ _("Unter der Warnschwelle bekommen die Besteller eine Push-Nachricht.") }}</div>
             </form>

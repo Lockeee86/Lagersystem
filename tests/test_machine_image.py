@@ -79,3 +79,32 @@ def test_fuel_only_for_machines_with_tank(as_admin, as_worker, db, seed):
     assert db.session.get(Machine, trailer.id).refuels is None and not trailer.uses_fuel
     # neue Gruppe erscheint in der Liste
     assert "Mähdrescher / Häcksler" in as_worker.get("/maschinen").get_data(as_text=True)
+
+
+def test_counter_required_when_refueling(as_admin, as_worker, db, seed):
+    from app import fuel
+    tractor = machines.create_machine("Testschlepper", "schlepper", seed["admin"], counter_unit="h")
+    tractor.counter = 100
+    db.session.commit()
+    # aus: ohne Stand geht
+    as_worker.post(f"/maschine/{tractor.id}/getankt", data={"liters": "50"})
+    from app.models import FuelEntry
+    assert FuelEntry.query.count() == 1
+    # Admin schaltet Pflicht ein
+    assert as_worker.post("/tankbuch/einstellungen", data={"counter_required": "1"}).status_code == 403
+    as_admin.post("/tankbuch/einstellungen", data={"capacity": "3000", "counter_required": "1"})
+    assert fuel.counter_required()
+    assert 'id="f_counter" name="counter"' in as_worker.get(f"/maschine/{tractor.id}").get_data(as_text=True)
+    assert "required" in as_worker.get(f"/maschine/{tractor.id}").get_data(as_text=True).split('id="f_counter"')[1][:300]
+    as_worker.post(f"/maschine/{tractor.id}/getankt", data={"liters": "40"})
+    assert FuelEntry.query.count() == 1                                   # abgewiesen
+    as_worker.post(f"/maschine/{tractor.id}/getankt", data={"liters": "40", "counter": "120"})
+    assert FuelEntry.query.count() == 2 and db.session.get(Machine, tractor.id).counter == 120
+    # Maschinen ohne Zähler brauchen keinen Stand
+    other = machines.create_machine("Teststapler", "stapler", seed["admin"])
+    db.session.commit()
+    as_worker.post(f"/maschine/{other.id}/getankt", data={"liters": "10"})
+    assert FuelEntry.query.count() == 3
+    # wieder aus
+    as_admin.post("/tankbuch/einstellungen", data={"capacity": "3000"})
+    assert not fuel.counter_required()

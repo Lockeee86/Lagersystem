@@ -279,6 +279,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Zählerstand beim Tanken als Pflicht** (0.31.9): Admin-Schalter in den Tank-Einstellungen (`settings`
+   `fuel_counter_required`); dann wird bei Maschinen mit Zähler ohne Stand nicht gebucht.
    **Maschinenarten und Tanken** (0.31.8): neue Arten Mähdrescher/Häcksler, Sä- und Drilltechnik, Bodenbearbeitung,
    Pflanzenschutzspritze, Düngerstreuer/Güllefass (mit Wartungsvorschlägen, z. B. Pflanzenschutzgeräte-Kontrolle alle
    3 Jahre). Getankt werden nur Maschinen mit eigenem Tank (`FUEL_CATEGORIES`: Schlepper, Fahrzeug, Mähdrescher,

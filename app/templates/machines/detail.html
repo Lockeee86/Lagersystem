@@ -188,7 +188,7 @@
                         <input class="form-control" id="f_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
                     {% if machine.counter_unit %}
                     <div class="col-7 col-md-4"><label class="form-label small" for="f_counter">{{ _("Stand ({unit})", unit=machine.unit_short) }}</label>
-                        <input class="form-control" id="f_counter" name="counter" type="number" inputmode="numeric" min="{{ machine.counter or 0 }}" placeholder="{{ machine.counter if machine.counter is not none else '' }}"></div>
+                        <input class="form-control" id="f_counter" name="counter" type="number" inputmode="numeric" min="{{ machine.counter or 0 }}" placeholder="{{ machine.counter if machine.counter is not none else '' }}" {% if counter_required %}required{% endif %}></div>
                     {% endif %}
                     <div class="col-12 col-md"><button class="btn btn-primary w-100"><i class="bi bi-fuel-pump me-1"></i>{{ _("Getankt") }}</button></div>
                 </form>

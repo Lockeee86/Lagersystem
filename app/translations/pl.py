@@ -1693,4 +1693,7 @@ MESSAGES = {
     'Düngerstreuer / Güllefass': 'Rozsiewacz nawozów / beczkowóz',
     '{name} wird nicht getankt (z. B. Anhänger oder Anbaugerät).': '{name} nie jest tankowany (np. przyczepa lub maszyna zawieszana).',
     'Wird getankt (eigener Dieseltank)': 'Tankowany (własny zbiornik paliwa)',
+    'Bitte den Zählerstand von {name} eintragen ({unit}).': 'Podaj stan licznika {name} ({unit}).',
+    'Zählerstand beim Tanken ist Pflicht (bei Maschinen mit Zähler)': 'Stan licznika przy tankowaniu jest obowiązkowy (maszyny z licznikiem)',
+    'Pflicht bei Maschinen mit Zähler': 'Obowiązkowo przy maszynach z licznikiem',
 }

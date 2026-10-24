@@ -121,6 +121,7 @@ def machine_detail(machine_id):
                            page_args=page_args, open_tasks=open_tasks, today=date.today(),
                            assignable=tasks.assignable_users() if current_user.is_admin else tasks.request_recipients(),
                            machine_purchases=purchases.for_machine(machine.id),
+                           counter_required=fuel.counter_required(),
                            fault_tasks={t.machine_event_id: t for t in open_tasks if t.machine_event_id},
                            maint_tasks={t.maintenance_task_id: t for t in open_tasks if t.maintenance_task_id},
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,

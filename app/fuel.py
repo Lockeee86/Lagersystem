@@ -26,12 +26,21 @@ def settings():
             return int(setting.value) if setting and setting.value else None
         except ValueError:
             return None
-    return {"capacity": number("tank_capacity"), "warn": number("tank_warn")}
+    required = db.session.get(Setting, "fuel_counter_required")
+    return {"capacity": number("tank_capacity"), "warn": number("tank_warn"),
+            "counter_required": bool(required and required.value == "1")}
 
 
-def save_settings(capacity, warn):
+def save_settings(capacity, warn, counter_required=None):
     Setting.put("tank_capacity", str(capacity) if capacity else None)
     Setting.put("tank_warn", str(warn) if warn else None)
+    if counter_required is not None:
+        Setting.put("fuel_counter_required", "1" if counter_required else None)
+
+
+def counter_required():
+    """Muss beim Tanken einer Maschine mit Zähler der Stand eingetragen werden? (Admin-Einstellung im Tankbuch)"""
+    return settings()["counter_required"]
 
 
 def _liters(value):
@@ -59,6 +68,9 @@ def refuel(machine, user, liters, counter=None, day=None, note=None):
     if not machine.uses_fuel:
         raise StorageError(_("{name} wird nicht getankt (z. B. Anhänger oder Anbaugerät).", name=machine.name))
     liters = _liters(liters)
+    if counter is None and machine.counter_unit and counter_required():
+        raise StorageError(_("Bitte den Zählerstand von {name} eintragen ({unit}).", name=machine.name,
+                             unit=machine.unit_short))
     if counter is not None:
         if not machine.counter_unit:
             counter = None
