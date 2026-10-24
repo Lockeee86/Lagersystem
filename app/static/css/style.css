@@ -267,15 +267,29 @@ a.loc-badge:hover { filter: brightness(.95); }
 .stack-levels .lvl.has-box { background: var(--c); border: 1px solid rgba(0, 0, 0, .12); }
 .stack-levels .lvl.is-blank { background: var(--box-blank); }
 .stack-count { position: absolute; right: 3px; bottom: 1px; font-size: .6rem; font-weight: 700; color: var(--bs-body-color); opacity: .55; text-shadow: 0 0 2px var(--surface); }
-@media (max-width: 575.98px) {
-    .lager-map { --cell: calc((100vw - 6.4rem) / var(--slots)); border-spacing: 2px; }
-    .stack-cell { width: var(--cell); padding: 2px; border-radius: .3rem; }
-    .stack-levels { gap: 1px; }
-    .stack-levels .lvl { height: calc(var(--cell) * .9 / var(--levels)); min-height: 3px; border-radius: 1px; }
-    .stack-count { display: none; }
-    .lager-map .row-head { font-size: .75rem; padding-right: .15rem; }
-    .lager-map th.slot-head { font-size: .6rem; }
+/* Handy/Tablet: große Felder, Karte mit zwei Fingern zoomen und verschieben (mapzoom.js), Stapel klappt unten auf */
+.map-zoom-tools { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.map-scroll.is-zoomable { overflow: hidden; touch-action: none; position: relative; height: min(62vh, 34rem);
+                          transition: height .15s ease;
+                          border-radius: .5rem; background: var(--surface-2); }
+.map-scroll.is-zoomable .map-canvas { transform-origin: 0 0; width: max-content; will-change: transform; }
+.map-scroll.is-zoomable .lager-map { margin: 0; }
+.map-scroll.is-zoomable .lager-map .row-head { position: static; background: transparent; }
+@media (max-width: 991.98px) {
+    .lager-map { --cell: 2.9rem; border-spacing: 3px; }
+    .stack-cell { width: var(--cell); padding: 3px; border-radius: .4rem; }
+    .stack-levels .lvl { height: calc(var(--cell) * .9 / var(--levels)); min-height: 4px; }
+    .stack-cell:hover { transform: none; box-shadow: none; }
 }
+.stack-cell.is-selected { outline: 3px solid var(--brand); outline-offset: 1px; z-index: 3; }
+.stack-sheet { --bs-offcanvas-height: auto; max-height: 48vh; border-radius: 1rem 1rem 0 0;
+               box-shadow: 0 -6px 24px rgba(40, 30, 10, .18); }
+@media (max-width: 991.98px) { .has-tabbar .stack-sheet { bottom: calc(3.9rem + env(safe-area-inset-bottom)); } }
+.stack-sheet-content { overflow-y: auto; }
+.stack-sheet-grip { width: 2.6rem; height: .3rem; border-radius: 1rem; background: var(--line); margin: .5rem auto 0; flex-shrink: 0; }
+.stack-sheet .modal-header { display: flex; align-items: flex-start; justify-content: space-between; padding: .6rem 1rem .5rem; }
+.stack-sheet .modal-body { padding: .5rem 1rem; }
+.stack-sheet .modal-footer { padding: .5rem 1rem 1rem; border-top: 1px solid var(--line); }
 .map-legend { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
 .legend-swatch { display: inline-block; width: .9rem; height: .9rem; border-radius: 3px; vertical-align: -2px; margin-right: .3rem; }
 .legend-swatch.is-blank { background: var(--box-blank); }

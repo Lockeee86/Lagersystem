@@ -37,7 +37,16 @@
 {% if view == "karte" %}
 <div class="card shadow-sm">
     <div class="card-body p-2 p-md-3">
-        <div class="map-scroll">
+        <div class="map-zoom-tools d-lg-none">
+            <span class="small text-body-secondary flex-grow-1">{{ _("Mit zwei Fingern zoomen, antippen zeigt die Kisten.") }}</span>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" id="mapZoomOut" aria-label="{{ _('Verkleinern') }}"><i class="bi bi-dash-lg"></i></button>
+                <button type="button" class="btn btn-outline-secondary" id="mapFit" aria-label="{{ _('Ganzes Lager') }}"><i class="bi bi-arrows-angle-contract"></i></button>
+                <button type="button" class="btn btn-outline-secondary" id="mapZoomIn" aria-label="{{ _('Vergrößern') }}"><i class="bi bi-plus-lg"></i></button>
+            </div>
+        </div>
+        <div class="map-scroll" id="mapViewport">
+            <div class="map-canvas" id="mapCanvas">
             <table class="lager-map" style="--levels: {{ warehouse.max_levels }}; --slots: {{ warehouse.slots }}">
                 <thead>
                     <tr>
@@ -73,6 +82,7 @@
                 {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
         <div class="map-legend small text-body-secondary mt-3">
             <span><span class="legend-swatch is-blank"></span>{{ _("leere Kiste") }}</span>
@@ -163,28 +173,74 @@
         <div class="modal-content" id="stackModalContent"></div>
     </div>
 </div>
+{# am Handy: Stapel unten aufklappen, die Karte bleibt sichtbar und bedienbar #}
+<div class="offcanvas offcanvas-bottom stack-sheet" tabindex="-1" id="stackSheet" data-bs-backdrop="false" data-bs-scroll="true"
+     aria-label="{{ _('Stapel') }}">
+    <div class="stack-sheet-grip" aria-hidden="true"></div>
+    <div class="stack-sheet-content" id="stackSheetContent"></div>
+</div>
 {% endblock %}
 {% block scripts %}
 {% if view == "3d" %}<script src="{{ url_for('static', filename='js/lager3d.js') }}?v={{ app_version }}"></script>{% endif %}
+{% if view == "karte" %}<script src="{{ url_for('static', filename='js/mapzoom.js') }}?v={{ app_version }}"></script>{% endif %}
 <script>
 (function () {
     var modalEl = document.getElementById("stackModal");
     var modal = new bootstrap.Modal(modalEl);
-    var content = document.getElementById("stackModalContent");
-    function openStack(url, fallback) {
+    var sheetEl = document.getElementById("stackSheet");
+    var sheet = new bootstrap.Offcanvas(sheetEl);
+    var small = window.matchMedia("(max-width: 991.98px)");
+    var selected = null;
+    function select(el) {
+        if (selected) selected.classList.remove("is-selected");
+        selected = el;
+        if (el) el.classList.add("is-selected");
+    }
+    function openStack(url, fallback, link) {
+        var inSheet = small.matches;
+        var content = document.getElementById(inSheet ? "stackSheetContent" : "stackModalContent");
         content.innerHTML = '<div class="modal-body text-center py-5"><div class="spinner-border"></div></div>';
-        modal.show();
+        if (inSheet) {
+            select(link && link.classList.contains("stack-cell") ? link : null);
+            sheet.show();
+        } else {
+            modal.show();
+        }
         fetch(url, { credentials: "same-origin" })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-            .then(function (html) { content.innerHTML = html; App.initForms(content); })
+            .then(function (html) {
+                content.innerHTML = html;
+                if (inSheet) {
+                    content.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function (b) { b.dataset.bsDismiss = "offcanvas"; });
+                    document.body.style.paddingBottom = sheetEl.offsetHeight + "px";
+                    // Höhe des Blatts samt Abstand zur unteren Leiste (unabhängig von der Einblend-Animation)
+                    var inset = sheetEl.offsetHeight + (parseFloat(getComputedStyle(sheetEl).bottom) || 0);
+                    if (zoom && selected) zoom.reveal(selected, inset);
+                }
+                App.initForms(content);
+            })
             .catch(function () { if (fallback) window.location = fallback; });
     }
+    // solange das Blatt offen ist, Platz darunter schaffen, damit der Stapel darüber stehen kann
+    sheetEl.addEventListener("shown.bs.offcanvas", function () { document.body.style.paddingBottom = sheetEl.offsetHeight + "px"; });
+    sheetEl.addEventListener("hidden.bs.offcanvas", function () { select(null); document.body.style.paddingBottom = ""; });
     document.addEventListener("click", function (e) {
         var link = e.target.closest("[data-stack-url]");
         if (!link || e.metaKey || e.ctrlKey) return;  // Strg/Cmd-Klick: in neuem Tab öffnen
         e.preventDefault();
-        openStack(link.dataset.stackUrl, link.href);
+        openStack(link.dataset.stackUrl, link.href, link);
     });
+
+    // Karte am Handy: zoomen und verschieben
+    var zoom = null;
+    var viewport = document.getElementById("mapViewport");
+    if (viewport && small.matches) {
+        viewport.classList.add("is-zoomable");
+        zoom = MapZoom.create(viewport, document.getElementById("mapCanvas"));
+        document.getElementById("mapZoomIn").addEventListener("click", function () { zoom.zoom(1.4); });
+        document.getElementById("mapZoomOut").addEventListener("click", function () { zoom.zoom(1 / 1.4); });
+        document.getElementById("mapFit").addEventListener("click", function () { zoom.fit(); });
+    }
 
     var iso = null;
     var isoEl = document.getElementById("iso3d");
@@ -211,7 +267,7 @@
         if (iso) iso.setFilter(f);
     });
 
-    App.autoRefresh(function () { return !modalEl.classList.contains("show"); });
+    App.autoRefresh(function () { return !modalEl.classList.contains("show") && !sheetEl.classList.contains("show"); });
 })();
 </script>
 {% endblock %}

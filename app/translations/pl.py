@@ -1594,4 +1594,7 @@ MESSAGES = {
     'befüllen + einlagern': 'napełnij + składuj',
     'Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz.': 'Tylko przy „napełnij + składuj”: propozycja miejsca obok tej samej odmiany, w przeciwnym razie najbliższe wolne miejsce.',
     'Scannen starten': 'Rozpocznij skanowanie',
+    'Mit zwei Fingern zoomen, antippen zeigt die Kisten.': 'Powiększaj dwoma palcami, dotknięcie pokazuje skrzynie.',
+    'Ganzes Lager': 'Cały magazyn',
+    'Stapel': 'Stos',
 }

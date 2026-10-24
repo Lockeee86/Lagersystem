@@ -91,6 +91,8 @@ docker compose up --build -d
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,
   Übernehmen = Commit nur ohne Fehler) und Export je Kartoffeljahr
+- `app/static/js/mapzoom.js`: Lagerkarte am Handy/Tablet zoomen und verschieben (zwei Finger); ein Stapel klappt dort
+  unten als Blatt auf (`#stackSheet`, Offcanvas), am PC als Fenster
 - `app/static/js/lager3d.js`: 3D-Ansicht der Lagerkarte (isometrisches SVG aus JSON, das `views.warehouse_map` liefert)
 - `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html`
 - `app/static/vendor/`: lokal abgelegte Bibliotheken (Bootstrap, Bootstrap Icons, html5-qrcode), **kein CDN**
