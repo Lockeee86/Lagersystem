@@ -272,7 +272,7 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Lagerorts → QR-Etikett, Standard A6). Scannen öffnet für Mitarbeiter gleich das Einlagern.
    **Ernte-Modus** (0.29.6, seit 0.31.3 direkt in der Scan-Seite): über der Kamera ein Schalter „Ernte-Modus“ und
    ein Zahnrad für die Einstellungen (Sorte, Schlag, Verwendung, Stufe, Erntedatum, Füllstand, „nur befüllen“ oder
-   „befüllen + einlagern“ mit Lager). Schalter an: jeder Scan befüllt die Kiste (und lagert sie ein), die Kamera
+   „befüllen + einlagern“ mit Lager und Reihe – automatisch oder fest, seit 0.31.4). Schalter an: jeder Scan befüllt die Kiste (und lagert sie ein), die Kamera
    bleibt an, darunter die Liste der befüllten Kisten und der nächste Platz. Schalter aus: normaler Scan. Schalter
    und Einstellungen merkt sich jedes Gerät (Cookie `ernte`), auch wenn zwischendurch etwas anderes in der App
    gemacht wird; ein Erntedatum von einem anderen Tag wird zu heute. Platzvorschlag „gleiche Sorte zusammen“ –

@@ -13,7 +13,7 @@
             <div class="flex-grow-1 min-w-0">
                 <label class="fw-semibold d-block mb-0" for="harvestSwitch">{{ _("Ernte-Modus") }}</label>
                 <div class="small text-body-secondary text-truncate" id="harvestSummary">
-                    {% if harvest.variety %}{{ harvest.variety.name }}{% if harvest.plot %} · {{ harvest.plot.name }}{% endif %} · {% if harvest.warehouse %}{{ harvest.warehouse.name }}{% else %}{{ _("nur befüllen") }}{% endif %}
+                    {% if harvest.variety %}{{ harvest.variety.name }}{% if harvest.plot %} · {{ harvest.plot.name }}{% endif %} · {% if harvest.warehouse %}{{ harvest.warehouse.name }}{% if harvest.row %} · {{ _("Reihe {row}", row=harvest.warehouse.row_label(harvest.row)) }}{% endif %}{% else %}{{ _("nur befüllen") }}{% endif %}
                     {% else %}{{ _("Kisten beim Scannen befüllen und einlagern") }}{% endif %}
                 </div>
             </div>
@@ -74,13 +74,19 @@
                         <label class="btn btn-outline-primary" for="m_store"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("befüllen + einlagern") }}</label>
                     </div>
                 </div>
-                <div class="col-12">
+                <div class="col-7">
                     <label class="form-label small" for="h_wh">{{ _("Lager") }}</label>
                     <select class="form-select" id="h_wh" name="lager">
-                        {% for w in warehouses %}<option value="{{ w.id }}" {% if harvest.chosen_warehouse and harvest.chosen_warehouse.id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+                        {% for w in warehouses %}<option value="{{ w.id }}" data-rows='{{ w.row_labels()|tojson }}' {% if harvest.chosen_warehouse and harvest.chosen_warehouse.id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
                     </select>
-                    <div class="form-text">{{ _("Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz.") }}</div>
                 </div>
+                <div class="col-5">
+                    <label class="form-label small" for="h_row">{{ _("Reihe") }}</label>
+                    <select class="form-select" id="h_row" name="reihe" data-selected="{{ harvest.chosen_row or '' }}">
+                        <option value="">{{ _("automatisch") }}</option>
+                    </select>
+                </div>
+                <div class="col-12 form-text mt-1">{{ _("Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz – mit fester Reihe nur in dieser Reihe.") }}</div>
                 <div class="col-12"><button class="btn btn-primary w-100"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern und einschalten") }}</button></div>
             </form>
         </div>
@@ -163,6 +169,26 @@
     var scanner = null, done = false, busy = false, last = {code: null, time: 0}, count = 0;
 
     function harvestOn() { return !!(sw && sw.checked); }
+
+    // Reihen passend zum gewählten Lager anbieten
+    var whSelect = document.getElementById("h_wh"), rowSelect = document.getElementById("h_row");
+    function fillRows() {
+        if (!whSelect || !rowSelect) return;
+        var opt = whSelect.options[whSelect.selectedIndex];
+        var rows = opt ? JSON.parse(opt.dataset.rows || "[]") : [];
+        var keep = rowSelect.value || rowSelect.dataset.selected;
+        while (rowSelect.options.length > 1) rowSelect.remove(1);
+        rows.forEach(function (r) {
+            var o = new Option(r[1], r[0]);
+            if (String(r[0]) === String(keep)) o.selected = true;
+            rowSelect.add(o);
+        });
+        rowSelect.dataset.selected = "";
+    }
+    if (whSelect) {
+        fillRows();
+        whSelect.addEventListener("change", function () { rowSelect.value = ""; fillRows(); });
+    }
 
     function show(ok, message) {
         result.className = "alert " + (ok ? "alert-success fs-5" : "alert-danger");

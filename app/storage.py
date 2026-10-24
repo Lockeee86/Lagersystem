@@ -323,18 +323,21 @@ def _same_contents(box, variety_id, usage, seed_class_id):
             and box.seed_class_id == seed_class_id)
 
 
-def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None):
+def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=None):
     """Platzvorschlag „gleiche Sorte zusammen“: ein Stapel, auf dem oben dieselbe Ware steht und noch Platz ist
     (der höchste zuerst, damit Stapel voll werden), sonst der freie Stellplatz, der am nächsten an dieser Ware
-    liegt – bevorzugt in derselben Reihe (ohne solche Stapel: der erste freie). (row, slot) oder None, wenn das Lager voll ist."""
+    liegt – bevorzugt in derselben Reihe (ohne solche Stapel: der erste freie). Mit `row` nur in dieser Reihe.
+    (row, slot) oder None, wenn das Lager (bzw. die Reihe) voll ist."""
     stacks = stacks_overview(warehouse)
+    if row is not None:
+        stacks = {pos: boxes for pos, boxes in stacks.items() if pos[0] == row}
     same = [(pos, boxes) for pos, boxes in stacks.items()
             if _same_contents(boxes[-1], variety_id, usage, seed_class_id)]
     room = [(pos, len(boxes)) for pos, boxes in same if len(boxes) < warehouse.max_levels]
     if room:
         return min(room, key=lambda r: (-r[1], r[0]))[0]
-    free = [(r, s) for r in range(1, warehouse.rows + 1) for s in range(1, warehouse.slots + 1)
-            if (r, s) not in stacks]
+    rows = [row] if row is not None else range(1, warehouse.rows + 1)
+    free = [(r, s) for r in rows for s in range(1, warehouse.slots + 1) if (r, s) not in stacks]
     if not free:
         return None
     if same:
@@ -344,7 +347,7 @@ def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None):
 
 
 def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_class_id=None, fill=100,
-                warehouse=None):
+                warehouse=None, row=None):
     """Ernte-Modus: leere Kiste befüllen und – mit `warehouse` – gleich auf den vorgeschlagenen Platz stellen.
     Gibt den Platz zurück (oder None, wenn nur befüllt wurde)."""
     if box.fill > 0:
@@ -358,7 +361,9 @@ def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_clas
     if box.is_stored:
         return box.location
     _lock_warehouse(warehouse.id)
-    place = suggest_place(warehouse, variety.id, usage or variety.usage, seed_class_id)
+    place = suggest_place(warehouse, variety.id, usage or variety.usage, seed_class_id, row=row)
+    if place is None and row is not None:
+        raise StorageError(_("Reihe {row} ist voll – bitte eine andere Reihe wählen.", row=warehouse.row_label(row)))
     if place is None:
         raise StorageError(_("{name} ist voll.", name=warehouse.name))
     store_box(box, warehouse.id, *place, user)

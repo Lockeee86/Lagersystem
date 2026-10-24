@@ -689,7 +689,7 @@ def scan():
 # --- Ernte-Modus ---------------------------------------------------------------
 
 HARVEST_COOKIE = "ernte"
-HARVEST_KEYS = ("sorte", "schlag", "verwendung", "stufe", "datum", "fuell", "lager", "modus")
+HARVEST_KEYS = ("sorte", "schlag", "verwendung", "stufe", "datum", "fuell", "lager", "reihe", "modus")
 
 
 def _harvest_cookie():
@@ -723,7 +723,7 @@ def _next_place(settings):
         return None
     place = storage.suggest_place(settings["warehouse"], settings["variety"].id,
                                   settings["usage"] or settings["variety"].usage,
-                                  settings["seed_class"].id if settings["seed_class"] else None)
+                                  settings["seed_class"].id if settings["seed_class"] else None, row=settings["row"])
     return settings["warehouse"].location_label(*place) if place else ""
 
 
@@ -745,8 +745,12 @@ def _harvest_settings(source):
     except ValueError:
         day = date.today()
     store = source.get("modus") == "einlagern"
+    row = number("reihe")                          # feste Reihe (sonst automatisch)
+    if warehouse is None or row is None or not 1 <= row <= warehouse.rows:
+        row = None
     return {"variety": variety, "plot": plot, "seed_class": seed_class, "usage": usage, "fill": fill, "date": day,
-            "warehouse": warehouse if store else None, "store": store, "chosen_warehouse": warehouse}
+            "warehouse": warehouse if store else None, "store": store, "chosen_warehouse": warehouse,
+            "row": row if store else None, "chosen_row": row}
 
 
 @bp.route("/ernte")
@@ -803,7 +807,7 @@ def harvest_box():
             box, current_user, settings["variety"], settings["plot"].id if settings["plot"] else None,
             settings["date"], usage=settings["usage"],
             seed_class_id=settings["seed_class"].id if settings["seed_class"] else None,
-            fill=settings["fill"], warehouse=settings["warehouse"])
+            fill=settings["fill"], warehouse=settings["warehouse"], row=settings["row"])
         db.session.commit()
     except (StorageError, IntegrityError) as e:
         db.session.rollback()

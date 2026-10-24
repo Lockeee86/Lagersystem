@@ -107,3 +107,28 @@ def test_old_date_becomes_today(as_worker, db, seed):
     as_worker.set_cookie("ernte", f"sorte={belana.id}&datum=2026-09-10&modus=befuellen&an=1&tag=2026-09-10")
     html = as_worker.get("/scan").get_data(as_text=True)
     assert f'value="{date.today().isoformat()}"' in html and 'id="harvestSwitch" checked' in html
+
+
+def test_fixed_row(as_worker, db, seed):
+    belana, wh = seed["belana"], seed["wh"]
+    small = Warehouse(name="Halle Klein", rows=3, slots=2, max_levels=1)
+    db.session.add(small)
+    db.session.commit()
+    b = boxes(db, seed, 4)
+    # Logik: nur in der gewählten Reihe, voll → klare Meldung
+    assert storage.suggest_place(small, belana.id, "speise", row=2) == (2, 1)
+    assert storage.harvest_box(b[0], seed["admin"], belana, None, DAY, warehouse=small, row=2) == "B-01-1"
+    assert storage.harvest_box(b[1], seed["admin"], belana, None, DAY, warehouse=small, row=2) == "B-02-1"
+    with pytest.raises(StorageError, match="Reihe B ist voll"):
+        storage.harvest_box(b[2], seed["admin"], belana, None, DAY, warehouse=small, row=2)
+    db.session.rollback()
+
+    # Oberfläche: Reihe wird gemerkt und angezeigt, ungültige Reihe = automatisch
+    form = {"sorte": belana.id, "fuell": "100", "modus": "einlagern", "lager": wh.id, "reihe": "3"}
+    as_worker.post("/scan/ernte", data=form)
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert "Kartoffellager · Reihe C" in html and 'data-selected="3"' in html and "Nächster Platz: C-01" in html
+    r = as_worker.post("/ernte/kiste", data={"code": b[3].code}, headers={"Accept": "application/json"})
+    assert r.get_json()["place"] == "C-01-1"
+    as_worker.post("/scan/ernte", data={**form, "reihe": "99"})
+    assert "Reihe" not in as_worker.get("/scan").get_data(as_text=True).split('id="harvestSummary"')[1][:200]

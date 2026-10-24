@@ -1590,7 +1590,6 @@ MESSAGES = {
     'Scanne jede volle Kiste. Die Kamera bleibt an.': 'Skanuj każdą pełną skrzynię. Aparat pozostaje włączony.',
     'Modus': 'Tryb',
     'befüllen + einlagern': 'napełnij + składuj',
-    'Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz.': 'Tylko przy „napełnij + składuj”: propozycja miejsca obok tej samej odmiany, w przeciwnym razie najbliższe wolne miejsce.',
     'Mit zwei Fingern zoomen, antippen zeigt die Kisten.': 'Powiększaj dwoma palcami, dotknięcie pokazuje skrzynie.',
     'Ganzes Lager': 'Cały magazyn',
     'Stapel': 'Stos',
@@ -1667,4 +1666,7 @@ MESSAGES = {
     'Kisten beim Scannen befüllen und einlagern': 'Napełniaj i składuj skrzynie podczas skanowania',
     'Speichern und einschalten': 'Zapisz i włącz',
     'Das Lager ist voll.': 'Magazyn jest pełny.',
+    'Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz – mit fester Reihe nur in dieser Reihe.': 'Tylko przy „napełnij + składuj”: propozycja miejsca obok tej samej odmiany, w przeciwnym razie najbliższe wolne miejsce – przy wybranym rzędzie tylko w tym rzędzie.',
+    'Reihe {row} ist voll – bitte eine andere Reihe wählen.': 'Rząd {row} jest pełny – wybierz inny rząd.',
+    'automatisch': 'automatycznie',
 }
