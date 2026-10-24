@@ -12,7 +12,7 @@ from . import agenda, backup, bulk, fuel, machines, navigation, purchases, sales
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
-from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, Machine, Movement, Plot, SeedClass, User, Variety,
+from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Machine, Movement, Plot, SeedClass, User, Variety,
                      Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
@@ -658,6 +658,12 @@ def scan():
         machine = Machine.query.filter_by(code=machine_code).first() if machine_code else None
         if machine:
             return redirect(url_for("machines.machine_detail", machine_id=machine.id))
+        store_code = bulk.normalize_code(raw)
+        store = BulkStore.query.filter_by(code=store_code).first() if store_code else None
+        if store:
+            # am Lagerort gescannt: gleich das Einlagern öffnen (Betrachter sehen nur den Bestand)
+            return redirect(url_for("bulk.store_detail", store_id=store.id,
+                                    einlagern=1 if current_user.can_edit else None))
         code = storage.normalize_code(raw)
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))

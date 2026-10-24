@@ -268,6 +268,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    bei Bedarf selbst ein (`User.push_on`; Themen mit `"default"` in `PUSH_TOPICS`).
    **Wartezeiten im Kalender** (0.29.4): bei laufender Pflanzenschutz-Wartezeit steht am ersten erlaubten Erntetag
    „<Schlag> erntefähig“ im Kalender (für alle, auch im iCal-Abo); nach der Ernte verschwindet der Termin.
+   **QR-Code am Schüttlager** (0.29.5): jeder Lagerort hat einen Code `S-001`; Etikett (Admin, Seite des
+   Lagerorts → QR-Etikett, Standard A6). Scannen öffnet für Mitarbeiter gleich das Einlagern.
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

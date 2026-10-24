@@ -255,7 +255,6 @@ MESSAGES = {
     "Im gewählten Bereich gibt es keine Kisten.": "W wybranym zakresie nie ma skrzyń.",
 
     # --- Scannen ----------------------------------------------------------------
-    "Halte die Kamera auf den QR-Code der Kiste oder Maschine.": "Skieruj aparat na kod QR skrzyni lub maszyny.",
     "Kamera starten": "Włącz aparat",
     "Kamera aus": "Aparat wyłączony",
     "Stopp": "Stop",
@@ -1576,4 +1575,7 @@ MESSAGES = {
     '{plot} erntefähig': '{plot} gotowe do zbioru',
     'Wartezeit von {name}': 'Karencja środka {name}',
     'Ende der Wartezeit': 'Koniec karencji',
+    'Halte die Kamera auf den QR-Code der Kiste, Maschine oder des Schüttlagers.': 'Skieruj aparat na kod QR skrzyni, maszyny lub magazynu zboża.',
+    'Etikett an die Box hängen. Beim Scannen öffnet sich das Einlagern für diesen Lagerort.': 'Powieś etykietę przy boksie. Po zeskanowaniu otwiera się przyjęcie do tego miejsca składowania.',
+    'Format': 'Format',
 }

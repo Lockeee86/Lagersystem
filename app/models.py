@@ -756,6 +756,7 @@ class BulkStore(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
+    code = db.Column(db.String(10), unique=True)  # „S-001“ für das QR-Etikett (Scannen öffnet das Einlagern)
     kind = db.Column(db.String(20), nullable=False, default="box")
     location = db.Column(db.String(100))          # z. B. „Halle 2“
     capacity_t = db.Column(db.Numeric(10, 2))

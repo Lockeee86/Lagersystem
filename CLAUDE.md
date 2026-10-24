@@ -34,7 +34,8 @@ docker compose up --build -d
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
 - `app/bulk.py`: Schüttgut-Lager (`BulkStore` = Box/Haufen/Big Bags, eine Ware je Lagerort; `BulkEntry` ein/aus mit
   Waage und Qualität; Bestand `stock()`, Qualität `quality()`, Herkunft `plot_shares()`), committet nicht;
-  `app/bulk_views.py` (Blueprint `bulk`). Verkauf über `sales.add_bulk` (Lieferschein-Position mit `bulk_entry`)
+  `app/bulk_views.py` (Blueprint `bulk`). Code `S-001` je Lagerort (`bulk.normalize_code`, QR-Etikett; `/scan` öffnet
+  das Einlagern). Verkauf über `sales.add_bulk` (Lieferschein-Position mit `bulk_entry`)
 - `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen), committet nicht.
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`)
 - `app/weather.py`: Wetter über Bright Sky (DWD), Zwischenspeicher im Speicher, Frost und Krautfäule (Hutton),

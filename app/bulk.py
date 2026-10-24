@@ -16,6 +16,8 @@ from .i18n import gettext as _
 from .models import BULK_KINDS, BULK_PURPOSES, BULK_QUALITY, BulkEntry, BulkStore
 from .storage import StorageError
 
+CODE_RE = re.compile(r"^S-?(\d+)$")
+
 QUALITY_RANGES = {"moisture": (0, 60), "protein": (0, 40), "hl_weight": (30, 100), "falling_number": (0, 1000),
                   "admixture": (0, 100)}
 
@@ -43,6 +45,20 @@ def _same_ware(a, b):
 
 # --- Lagerorte ------------------------------------------------------------------
 
+def normalize_code(raw):
+    """„S-001“, „s1“ oder eine URL, die auf den Code endet → „S-001“; sonst None."""
+    if not raw:
+        return None
+    m = CODE_RE.match(raw.strip().upper().rstrip("/").rsplit("/", 1)[-1])
+    return f"S-{int(m.group(1)):03d}" if m else None
+
+
+def next_code():
+    numbers = [int(m.group(1)) for (c,) in db.session.query(BulkStore.code).filter(BulkStore.code.isnot(None))
+               if (m := CODE_RE.match(c))]
+    return f"S-{max(numbers, default=0) + 1:03d}"
+
+
 def save_store(store, name, kind, location=None, capacity_t=None, bag_kg=None, note=None, active=True):
     name = (name or "").strip()[:100]
     if not name:
@@ -55,6 +71,8 @@ def save_store(store, name, kind, location=None, capacity_t=None, bag_kg=None, n
     store.name, store.kind, store.location = name, kind, (location or "").strip()[:100] or None
     store.capacity_t, store.note, store.active = capacity_t, (note or "").strip() or None, bool(active)
     store.bag_kg = bag_kg if kind == "bigbag" else None
+    if not store.code:
+        store.code = next_code()
     if store.id is None:
         db.session.add(store)
     db.session.flush()

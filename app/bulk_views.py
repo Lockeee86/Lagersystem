@@ -1,12 +1,13 @@
 """Schüttgut-Lager: Übersicht der Lagerorte, Lagerort mit Bestand, Qualität, Herkunft und Buchungen."""
 from datetime import date
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import bulk
 from .extensions import db
 from .i18n import gettext as _
+from .labels import LABEL_FORMATS, render_labels
 from .models import BULK_KINDS, BULK_PURPOSES, BULK_QUALITY, BulkEntry, BulkStore, Plot
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
@@ -49,7 +50,7 @@ def store_detail(store_id):
     return render_template(
         "bulk/detail.html", store=store, stock=bulk.stock(store), quality=bulk.quality(store),
         shares=bulk.plot_shares(store), entries=store.entries[:50], plots=plots, purposes=BULK_PURPOSES,
-        kinds=BULK_KINDS, crops=bulk.known_crops(), today=date.today(),
+        kinds=BULK_KINDS, crops=bulk.known_crops(), today=date.today(), label_formats=LABEL_FORMATS,
         open_in=request.args.get("einlagern") == "1",
     )
 
@@ -71,6 +72,22 @@ def store_save():
     db.session.commit()
     flash(_("Lagerort „{name}“ gespeichert.", name=store.name), "success")
     return redirect(url_for("bulk.store_detail", store_id=store.id))
+
+
+@bp.route("/schuettgut/<int:store_id>/etikett.pdf", methods=["POST"])
+@admin_required
+def store_label(store_id):
+    store = _store(store_id)
+    if not store.code:
+        store.code = bulk.next_code()
+        db.session.commit()
+    fmt = request.form.get("format", "2x2")
+    if fmt not in LABEL_FORMATS:
+        fmt = "2x2"
+    count = form_int("count", 1, minimum=1, maximum=24)
+    pdf = render_labels([store.code] * count, fmt, skip=form_int("skip", 0, minimum=0, maximum=100))
+    return Response(pdf, mimetype="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="etikett_{store.code}.pdf"'})
 
 
 @bp.route("/schuettgut/<int:store_id>/einlagern", methods=["POST"])

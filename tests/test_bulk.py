@@ -147,3 +147,22 @@ def test_pages(as_admin, as_worker, as_viewer, db, seed, box3):
     # Lager-Übersicht und Bereichsseite zeigen den Bestand
     html = as_viewer.get("/lager/uebersicht").get_data(as_text=True)
     assert "Schüttgut 5,0 t" in html and "Box 3" in html and "Haufen Halle 2" in html
+
+
+def test_code_label_and_scan(as_admin, as_worker, as_viewer, db, seed, box3):
+    other = bulk.save_store(BulkStore(), "Box 4", "box")
+    db.session.commit()
+    assert box3.code == "S-001" and other.code == "S-002"
+    assert bulk.normalize_code("s2") == "S-002" and bulk.normalize_code("https://hof.example/scan/S-002") == "S-002"
+    assert bulk.normalize_code("K-0001") is None
+    # Scannen öffnet das Einlagern (Mitarbeiter) bzw. nur die Seite (Betrachter)
+    r = as_worker.get("/scan?code=S-001")
+    assert r.status_code == 302 and r.headers["Location"].endswith(f"/schuettgut/{box3.id}?einlagern=1")
+    assert as_viewer.get("/scan?code=s-1").headers["Location"].endswith(f"/schuettgut/{box3.id}")
+    html = as_worker.get(f"/schuettgut/{box3.id}?einlagern=1").get_data(as_text=True)
+    assert 'class="collapse show" id="formIn"' in html
+    # Etikett nur für Admins
+    assert as_worker.post(f"/schuettgut/{box3.id}/etikett.pdf", data={"count": "1"}).status_code == 403
+    pdf = as_admin.post(f"/schuettgut/{box3.id}/etikett.pdf", data={"format": "2x2", "count": "2"})
+    assert pdf.status_code == 200 and pdf.data[:4] == b"%PDF"
+    assert "S-001" in as_admin.get(f"/schuettgut/{box3.id}").get_data(as_text=True)

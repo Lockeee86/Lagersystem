@@ -185,6 +185,27 @@
 {% endif %}
 
 {% if current_user.is_admin %}
+<details class="mb-3">
+    <summary class="text-body-secondary"><i class="bi bi-qr-code me-1"></i>{{ _("QR-Etikett") }}{% if store.code %} {{ store.code }}{% endif %}</summary>
+    <div class="card shadow-sm mt-2"><div class="card-body">
+        <p class="small text-body-secondary">{{ _("Etikett an die Box hängen. Beim Scannen öffnet sich das Einlagern für diesen Lagerort.") }}</p>
+        <form method="post" action="{{ url_for('bulk.store_label', store_id=store.id) }}" target="_blank" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-12 col-md-6">
+                <select class="form-select form-select-sm" name="format" aria-label="{{ _('Format') }}">
+                    {% for key, (cols, rows, w, h, desc) in label_formats.items() %}<option value="{{ key }}" {% if key == '2x2' %}selected{% endif %}>{{ _(desc) }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small" for="l_count">{{ _("Anzahl") }}</label>
+                <input class="form-control form-control-sm" type="number" id="l_count" name="count" min="1" max="24" value="1">
+            </div>
+            <div class="col-6 col-md-3">
+                <button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-printer me-1"></i>{{ _("PDF") }}</button>
+            </div>
+        </form>
+    </div></div>
+</details>
 <details class="mb-4">
     <summary class="text-body-secondary"><i class="bi bi-pencil me-1"></i>{{ _("Lagerort bearbeiten") }}</summary>
     <div class="card shadow-sm mt-2"><div class="card-body">{{ store_form(kinds, store) }}</div></div>
