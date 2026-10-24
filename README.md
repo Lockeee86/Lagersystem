@@ -101,7 +101,8 @@ Ohne HTTPS funktioniert alles außer der Kamera: Den Code gibst du dann auf der 
 ### Push-Nachrichten aufs Handy
 
 Unter **Einstellungen → Benachrichtigungen** schaltet jeder auf seinen Geräten Push-Nachrichten ein und wählt,
-worüber er benachrichtigt werden will (Aufgaben, Bestellungen, Störungen, Wartungen, Frost, Krautfäule).
+worüber er benachrichtigt werden will (Aufgaben, Bestellungen, Störungen, Wartungen, Wetter-Warnungen Frost und
+Krautfäule – diese sind von sich aus nur für Admins an).
 Voraussetzung ist **HTTPS** (eigene Domain). Auf dem **iPhone** (ab iOS 16.4) zuerst in Safari
 „Teilen → Zum Home-Bildschirm“, die App von dort öffnen und dann einschalten. Android/PC: direkt im Browser.
 

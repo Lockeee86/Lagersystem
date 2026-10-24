@@ -264,6 +264,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    neue Aufgabe für mich · morgens (ab 6 Uhr) meine Aufgaben für heute · neue/weitergegebene Bestellwünsche
    (Besteller) · Neuigkeiten zu meinen Bestellwünschen · neue Störung · Wartung wird fällig (nur neu fällige)
    · Frostwarnung (nachmittags, Frost in den nächsten 24 h) · Krautfäule-Ampel springt auf Rot.
+   Die beiden **Wetter-Warnungen** (0.29.3) sind von sich aus nur für Admins an, alle anderen schalten sie
+   bei Bedarf selbst ein (`User.push_on`; Themen mit `"default"` in `PUSH_TOPICS`).
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

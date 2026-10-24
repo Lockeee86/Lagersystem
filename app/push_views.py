@@ -76,8 +76,7 @@ def device_delete(sub_id):
 @bp.route("/konto/push/themen", methods=["POST"])
 @login_required
 def topics():
-    chosen = set(request.form.getlist("topic"))
-    current_user.push_off = ",".join(t for t in current_user.push_topics() if t not in chosen)
+    current_user.set_push_topics(set(request.form.getlist("topic")))
     db.session.commit()
     flash(_("Benachrichtigungen gespeichert."), "success")
     return redirect(url_for("auth.account") + "#push")

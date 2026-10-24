@@ -37,6 +37,13 @@ def test_topics_by_role(db, seed):
     worker.push_off = "fault,frost"
     assert not worker.wants_push("fault") and worker.wants_push("tasks_new")
     assert not viewer.wants_push("tasks_new")
+    # Wetter-Warnungen: von sich aus nur für Admins an, andere schalten sie ein
+    assert admin.wants_push("frost") and admin.wants_push("blight")
+    assert not worker.wants_push("frost") and not viewer.wants_push("blight")
+    viewer.set_push_topics({"blight"})
+    assert viewer.wants_push("blight") and not viewer.wants_push("frost") and viewer.push_on == "blight"
+    admin.set_push_topics(set(admin.push_topics()) - {"frost"})
+    assert not admin.wants_push("frost") and admin.push_off == "frost" and admin.push_on == ""
 
 
 def test_subscribe_and_settings(app, as_worker, db, seed):
@@ -52,8 +59,10 @@ def test_subscribe_and_settings(app, as_worker, db, seed):
 
     html = as_worker.get("/konto").get_data(as_text=True)
     assert "Android · Chrome" in html and 'value="fault"' in html and 'value="purchase_new"' not in html
-    as_worker.post("/konto/push/themen", data={"topic": ["tasks_new", "tasks_due"]})
-    assert set(seed["worker"].push_off.split(",")) == {"purchase_status", "fault", "maintenance", "frost", "blight"}
+    assert 'value="frost"' in html and "Wetter-Warnungen" in html
+    as_worker.post("/konto/push/themen", data={"topic": ["tasks_new", "tasks_due", "frost"]})
+    assert set(seed["worker"].push_off.split(",")) == {"purchase_status", "fault", "maintenance"}
+    assert seed["worker"].push_on == "frost"
 
     as_worker.post("/konto/push/test")
     assert sent_to(seed["worker"])[0]["title"] == "Testnachricht"     # Test kommt unabhängig von den Themen
@@ -137,6 +146,9 @@ def test_daily(app, db, seed, monkeypatch):
     admin, worker = seed["admin"], seed["worker"]
     add_device(db, admin)
     add_device(db, worker)
+    viewer = seed["viewer"]
+    add_device(db, viewer)                                       # Betrachter: Wetter-Warnungen nicht eingeschaltet
+    worker.push_on = "frost"
     today = date(2026, 10, 23)
     tasks.create_task(admin, title="Kisten zählen", due_on=today - timedelta(days=1), assignees=[worker])
     tasks.create_task(admin, title="Hof fegen", due_on=today, assignees=[worker])
@@ -165,11 +177,23 @@ def test_daily(app, db, seed, monkeypatch):
     push.daily(app, datetime(2026, 10, 23, 16, 5, tzinfo=BERLIN))
     frost = [m for m in push.outbox if m["tag"] == "frost"]
     assert {m["user_id"] for m in frost} == {admin.id, worker.id} and frost[0]["title"] == "Frostwarnung: bis -3 °C"
+    assert not sent_to(viewer)
 
     # nächster Morgen: dieselbe Wartung wird nicht erneut gemeldet
     push.outbox.clear()
     push.daily(app, datetime(2026, 10, 24, 6, 10, tzinfo=BERLIN))
     assert not [m for m in push.outbox if m["tag"] == "maintenance"]
+
+    # Krautfäule springt auf Rot (in der Saison): nur einmal, an alle mit eingeschaltetem Thema
+    fake["blight"] = {"level": "high"}
+    viewer.push_on = "blight"
+    db.session.commit()
+    monkeypatch.setattr(weather, "blight_in_season", lambda day: True)
+    push.daily(app, datetime(2026, 10, 25, 6, 10, tzinfo=BERLIN))
+    blight = [m for m in push.outbox if m["tag"] == "blight"]
+    assert {m["user_id"] for m in blight} == {admin.id, viewer.id} and blight[0]["title"] == "Krautfäule-Ampel: Rot"
+    push.daily(app, datetime(2026, 10, 26, 6, 10, tzinfo=BERLIN))
+    assert len([m for m in push.outbox if m["tag"] == "blight"]) == 2     # am Folgetag rot geblieben: keine neue
 
 
 def test_expired_subscription_is_removed(app, db, seed, monkeypatch):

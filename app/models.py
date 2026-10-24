@@ -98,8 +98,10 @@ class User(UserMixin, db.Model):
     # Kacheln auf der Übersicht: Abweichungen von der Voreinstellung der Rolle (kommagetrennt, siehe tiles.py)
     tiles_add = db.Column(db.String(400), nullable=False, default="", server_default="")
     tiles_hide = db.Column(db.String(400), nullable=False, default="", server_default="")
-    # Abgewählte Push-Themen, kommagetrennt (leer = alle passenden an)
+    # Abgewählte Push-Themen, kommagetrennt (leer = alle passenden an) …
     push_off = db.Column(db.String(300), nullable=False, default="", server_default="")
+    # … und eingeschaltete Themen, die für diesen Benutzer standardmäßig aus sind (PUSH_TOPICS "default")
+    push_on = db.Column(db.String(300), nullable=False, default="", server_default="")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -149,11 +151,26 @@ class User(UserMixin, db.Model):
         """Push-Themen, die für diesen Benutzer in Frage kommen (je nach Rolle)."""
         return [key for key, topic in PUSH_TOPICS.items() if topic["who"](self)]
 
+    def push_default(self, topic):
+        default = PUSH_TOPICS[topic].get("default")
+        return default is None or bool(default(self))
+
     def wants_push(self, topic):
-        return topic in self.push_topics() and topic not in (self.push_off or "").split(",")
+        if topic not in self.push_topics():
+            return False
+        if self.push_default(topic):
+            return topic not in (self.push_off or "").split(",")
+        return topic in (self.push_on or "").split(",")
+
+    def set_push_topics(self, chosen):
+        """Auswahl aus dem Formular speichern: Abweichungen von der Voreinstellung je Thema."""
+        topics = self.push_topics()
+        self.push_off = ",".join(t for t in topics if self.push_default(t) and t not in chosen)
+        self.push_on = ",".join(t for t in topics if not self.push_default(t) and t in chosen)
 
 
-# Push-Nachrichten: Thema → Bezeichnung, Erklärung, für wen es in Frage kommt
+# Push-Nachrichten: Thema → Bezeichnung, Gruppe, für wen es in Frage kommt, ob es von sich aus an ist
+# ("default" fehlt = an)
 PUSH_TOPICS = {
     "tasks_new": {"label": N_("Neue Aufgabe für mich"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
     "tasks_due": {"label": N_("Morgens: meine Aufgaben für heute"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
@@ -163,8 +180,10 @@ PUSH_TOPICS = {
                         "group": N_("Bestellungen"), "who": lambda u: u.can_edit},
     "fault": {"label": N_("Neue Störung an einer Maschine"), "group": N_("Maschinen"), "who": lambda u: u.can_edit},
     "maintenance": {"label": N_("Wartung wird fällig"), "group": N_("Maschinen"), "who": lambda u: u.can_edit},
-    "frost": {"label": N_("Frostwarnung"), "group": N_("Wetter"), "who": lambda u: True},
-    "blight": {"label": N_("Krautfäule-Ampel springt auf Rot"), "group": N_("Wetter"), "who": lambda u: True},
+    "frost": {"label": N_("Frostwarnung"), "group": N_("Wetter-Warnungen"), "who": lambda u: True,
+              "default": lambda u: u.is_admin},
+    "blight": {"label": N_("Krautfäule-Ampel springt auf Rot"), "group": N_("Wetter-Warnungen"), "who": lambda u: True,
+               "default": lambda u: u.is_admin},
     "tank": {"label": N_("Hoftank wird leer"), "group": N_("Maschinen"), "who": lambda u: u.is_buyer},
 }
 

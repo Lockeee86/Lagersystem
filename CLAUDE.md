@@ -43,7 +43,8 @@ docker compose up --build -d
 - `app/backup.py`: Datensicherung nach `BACKUP_DIR` (pg_dump bzw. SQLite-Kopie, Fotos spiegeln, Aufbewahrung
   `to_delete`, Status in `status.json`). Konsole: `flask backup-now`, `flask backup-restore`
 - `app/scheduler.py`: Hintergrund-Thread (aus `gunicorn.conf.py`, `post_worker_init`) für `backup.tick` und `push.daily`
-- `app/push.py`: Web Push (VAPID-Schlüssel in `settings`, Themen `models.PUSH_TOPICS`, `User.push_off`).
+- `app/push.py`: Web Push (VAPID-Schlüssel in `settings`, Themen `models.PUSH_TOPICS`, abgewählt `User.push_off`,
+  bei Themen mit `"default"` (z. B. Wetter-Warnungen nur Admins) eingeschaltet `User.push_on`).
   `push.notify()` / die Auslöser (`task_assigned`, `fault_reported`, `purchase_*`) **nach dem Commit** aufrufen.
   Texte als `push.Msg("…", platzhalter=…)` – sie werden je Empfänger übersetzt (`i18n.force_locale`).
   In Tests landen Nachrichten in `push.outbox`. `app/push_views.py`: Abo, Themen, `/sw.js`, `/manifest.webmanifest`
