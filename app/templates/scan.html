@@ -1,15 +1,103 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Scannen") }}{% endblock %}
 {% block content %}
-<div class="scan-page mx-auto">
-    <div class="page-head"><h1>{{ _("Kiste scannen") }}</h1></div>
+{% set hv = harvest_values or {} %}
+<div class="scan-page mx-auto {% if harvest_on %}harvest-on{% endif %}" id="scanPage">
+    <div class="page-head"><h1>{{ _("Scannen") }}</h1></div>
 
-    <div class="card shadow-sm mb-3 overflow-hidden">
+    {% if harvest %}
+    {# Ernte-Modus: Schalter und Einstellungen direkt über der Kamera #}
+    <div class="card shadow-sm mb-3 harvest-card">
+        <div class="card-body py-2 d-flex gap-2 align-items-center">
+            <i class="bi bi-basket fs-4 harvest-icon"></i>
+            <div class="flex-grow-1 min-w-0">
+                <label class="fw-semibold d-block mb-0" for="harvestSwitch">{{ _("Ernte-Modus") }}</label>
+                <div class="small text-body-secondary text-truncate" id="harvestSummary">
+                    {% if harvest.variety %}{{ harvest.variety.name }}{% if harvest.plot %} · {{ harvest.plot.name }}{% endif %} · {% if harvest.warehouse %}{{ harvest.warehouse.name }}{% else %}{{ _("nur befüllen") }}{% endif %}
+                    {% else %}{{ _("Kisten beim Scannen befüllen und einlagern") }}{% endif %}
+                </div>
+            </div>
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#harvestSettings"
+                    aria-expanded="{{ 'true' if open_settings or not harvest.variety else 'false' }}" aria-controls="harvestSettings"
+                    aria-label="{{ _('Einstellungen') }}" title="{{ _('Einstellungen') }}"><i class="bi bi-gear"></i></button>
+            <div class="form-check form-switch mb-0 harvest-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="harvestSwitch" {% if harvest_on %}checked{% endif %}
+                       aria-label="{{ _('Ernte-Modus') }}">
+            </div>
+        </div>
+        <div class="collapse {% if open_settings or not harvest.variety %}show{% endif %}" id="harvestSettings">
+            <form method="post" action="{{ url_for('main.harvest_settings') }}" class="card-body border-top row g-2" id="harvestForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-12">
+                    <label class="form-label small" for="h_variety">{{ _("Sorte") }}</label>
+                    <select class="form-select" id="h_variety" name="sorte" required>
+                        <option value="">–</option>
+                        {% for v in varieties %}<option value="{{ v.id }}" {% if harvest.variety and harvest.variety.id == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small" for="h_plot">{{ _("Schlag") }}</label>
+                    <select class="form-select" id="h_plot" name="schlag">
+                        <option value="">–</option>
+                        {% for p in plots %}<option value="{{ p.id }}" {% if harvest.plot and harvest.plot.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small" for="h_usage">{{ _("Verwendung") }}</label>
+                    <select class="form-select" id="h_usage" name="verwendung">
+                        <option value="">{{ _("wie bei der Sorte") }}</option>
+                        {% for key, label in usages.items() %}<option value="{{ key }}" {% if harvest.usage == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small" for="h_class">{{ _("Stufe") }}</label>
+                    <select class="form-select" id="h_class" name="stufe">
+                        <option value="">–</option>
+                        {% for c in seed_classes %}<option value="{{ c.id }}" {% if harvest.seed_class and harvest.seed_class.id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small" for="h_date">{{ _("Erntedatum") }}</label>
+                    <input class="form-control" type="date" id="h_date" name="datum" value="{{ harvest.date.isoformat() }}">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small" for="h_fill">{{ _("Füllstand") }}</label>
+                    <select class="form-select" id="h_fill" name="fuell">
+                        {% for value, label in fills if value %}<option value="{{ value }}" {% if harvest.fill == value %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <div class="btn-group w-100" role="group" aria-label="{{ _('Modus') }}">
+                        <input type="radio" class="btn-check" name="modus" id="m_fill" value="befuellen" {% if not harvest.store %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="m_fill"><i class="bi bi-basket me-1"></i>{{ _("nur befüllen") }}</label>
+                        <input type="radio" class="btn-check" name="modus" id="m_store" value="einlagern" {% if harvest.store %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="m_store"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("befüllen + einlagern") }}</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small" for="h_wh">{{ _("Lager") }}</label>
+                    <select class="form-select" id="h_wh" name="lager">
+                        {% for w in warehouses %}<option value="{{ w.id }}" {% if harvest.chosen_warehouse and harvest.chosen_warehouse.id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+                    </select>
+                    <div class="form-text">{{ _("Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz.") }}</div>
+                </div>
+                <div class="col-12"><button class="btn btn-primary w-100"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern und einschalten") }}</button></div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="alert alert-info py-2 small {% if not (harvest_on and next_place) %}d-none{% endif %}" id="placeHint">
+        <i class="bi bi-signpost-split me-1"></i><span id="placeHintText">{% if next_place %}{{ _("Nächster Platz: {place}", place=next_place) }}{% endif %}</span>
+    </div>
+
+    <div class="card shadow-sm mb-3 overflow-hidden scan-camera">
         <div class="scan-viewport">
             <div id="reader"></div>
             <div class="scan-placeholder" id="scanPlaceholder">
                 <i class="bi bi-camera"></i>
-                <p class="mb-3">{{ _("Halte die Kamera auf den QR-Code der Kiste, Maschine oder des Schüttlagers.") }}</p>
+                <p class="mb-3 scan-hint-normal">{{ _("Halte die Kamera auf den QR-Code der Kiste, Maschine oder des Schüttlagers.") }}</p>
+                <p class="mb-3 scan-hint-harvest">{{ _("Scanne jede volle Kiste. Die Kamera bleibt an.") }}</p>
                 <button class="btn btn-primary btn-lg" id="startScan"><i class="bi bi-camera-video me-2"></i>{{ _("Kamera starten") }}</button>
             </div>
         </div>
@@ -19,34 +107,16 @@
         </div>
     </div>
 
+    <div class="alert d-none" id="scanResult" role="status"></div>
+
     <div class="alert alert-warning small d-none" id="insecureHint">
         <i class="bi bi-shield-exclamation me-1"></i>
         {{ _("Die Kamera funktioniert im Browser nur über HTTPS (oder auf localhost). Gib den Code bis dahin unten von Hand ein.") }}
     </div>
 
-    {% if current_user.can_edit %}
     <div class="card shadow-sm mb-3">
-        <div class="card-body d-flex gap-2 align-items-center">
-            <i class="bi bi-basket fs-4 text-body-secondary"></i>
-            <div class="flex-grow-1 min-w-0">
-                <div class="fw-semibold">{{ _("Ernte-Modus") }}</div>
-                <div class="small text-body-secondary text-truncate">{% if harvest_resume %}{{ harvest_resume.text }}{% else %}{{ _("Kisten befüllen und einlagern") }}{% endif %}</div>
-            </div>
-            {% if harvest_resume %}
-            <div class="d-flex gap-2 flex-shrink-0">
-                <a class="btn btn-outline-secondary" href="{{ url_for('main.harvest') }}" aria-label="{{ _('Einstellungen ändern') }}" title="{{ _('Einstellungen ändern') }}"><i class="bi bi-sliders"></i></a>
-                <a class="btn btn-primary" href="{{ harvest_resume.url }}"><i class="bi bi-play-fill me-1"></i>{{ _("Weiter") }}</a>
-            </div>
-            {% else %}
-            <a class="btn btn-outline-primary" href="{{ url_for('main.harvest') }}">{{ _("Starten") }}</a>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="card shadow-sm">
         <div class="card-body">
-            <form method="get" action="{{ url_for('main.scan') }}">
+            <form method="get" action="{{ url_for('main.scan') }}" id="manualForm">
                 <label class="form-label" for="manualCode">{{ _("Oder Code eingeben") }}</label>
                 <div class="input-group input-group-lg">
                     <span class="input-group-text">K-</span>
@@ -56,22 +126,122 @@
             </form>
         </div>
     </div>
+
+    {% if harvest %}
+    <div class="card shadow-sm harvest-only">
+        <div class="card-header d-flex justify-content-between">
+            <span><i class="bi bi-basket me-1"></i>{{ _("Befüllt") }}</span>
+            <span class="badge text-bg-primary rounded-pill" id="harvestCount">0</span>
+        </div>
+        <ul class="list-group list-group-flush" id="harvestList"></ul>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='vendor/html5-qrcode/html5-qrcode.min.js') }}"></script>
 <script>
 (function () {
+    var page = document.getElementById("scanPage");
     var startBtn = document.getElementById("startScan");
     var stopBtn = document.getElementById("stopScan");
     var placeholder = document.getElementById("scanPlaceholder");
     var status = document.getElementById("scanStatus");
+    var result = document.getElementById("scanResult");
+    var manual = document.getElementById("manualForm");
+    var sw = document.getElementById("harvestSwitch");
+    var hint = document.getElementById("placeHint");
     var target = "{{ url_for('main.scan') }}?code=";
+    var urls = {{ {"box": url_for('main.harvest_box'), "toggle": url_for('main.harvest_settings')}|tojson }};
+    var csrf = "{{ csrf_token() }}";
     var T = {{ {
         "off": _("Kamera aus"), "starting": _("Kamera wird gestartet …"), "found": _("Erkannt:"),
-        "searching": _("Suche QR-Code …"), "error": _("Kamera nicht verfügbar:")
+        "searching": _("Suche QR-Code …"), "ready": _("Bereit – nächste Kiste scannen"),
+        "error": _("Kamera nicht verfügbar:"), "failed": _("Verbindung fehlgeschlagen. Bitte erneut scannen."),
+        "next": _("Nächster Platz: {place}"), "full": _("Das Lager ist voll.")
     }|tojson }};
-    var scanner = null, done = false;
+    var scanner = null, done = false, busy = false, last = {code: null, time: 0}, count = 0;
+
+    function harvestOn() { return !!(sw && sw.checked); }
+
+    function show(ok, message) {
+        result.className = "alert " + (ok ? "alert-success fs-5" : "alert-danger");
+        result.textContent = message;
+        if (navigator.vibrate) navigator.vibrate(ok ? 80 : [60, 60, 60]);
+    }
+
+    function setMode(on) {
+        page.classList.toggle("harvest-on", on);
+        result.classList.add("d-none");
+        if (hint && !on) hint.classList.add("d-none");
+        if (scanner) status.textContent = on ? T.ready : T.searching;
+    }
+
+    // Schalter: sofort umstellen, auf dem Server (Cookie) merken
+    if (sw) sw.addEventListener("change", function () {
+        var wanted = sw.checked;
+        var body = new FormData();
+        body.append("csrf_token", csrf);
+        body.append("an", wanted ? "1" : "0");
+        fetch(urls.toggle, {method: "POST", body: body, headers: {"Accept": "application/json"}, credentials: "same-origin"})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                sw.checked = data.on;
+                setMode(data.on);
+                if (!data.ok) {
+                    show(false, data.message);
+                    bootstrap.Collapse.getOrCreateInstance(document.getElementById("harvestSettings")).show();
+                } else if (data.on && hint && document.getElementById("placeHintText").textContent.trim()) {
+                    hint.classList.remove("d-none");
+                }
+            })
+            .catch(function () { sw.checked = !wanted; show(false, T.failed); });
+    });
+
+    function addRow(data) {
+        var list = document.getElementById("harvestList");
+        var li = document.createElement("li");
+        li.className = "list-group-item d-flex gap-2 align-items-center small";
+        [["fw-semibold", data.code], ["flex-grow-1 text-body-secondary", data.text], ["fw-semibold", data.place]]
+            .forEach(function (part) {
+                var span = document.createElement("span");
+                span.className = part[0];
+                span.textContent = part[1];
+                li.appendChild(span);
+            });
+        list.insertBefore(li, list.firstChild);
+        count += 1;
+        document.getElementById("harvestCount").textContent = count;
+    }
+
+    function harvest(code) {
+        busy = true;
+        var body = new FormData();
+        body.append("csrf_token", csrf);
+        body.append("code", code);
+        return fetch(urls.box, {method: "POST", body: body, headers: {"Accept": "application/json"}, credentials: "same-origin"})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                show(data.ok, data.message);
+                if (data.ok) {
+                    addRow(data);
+                    if (hint && data.next !== null && data.next !== undefined) {
+                        document.getElementById("placeHintText").textContent = data.next ? T.next.replace("{place}", data.next) : T.full;
+                        hint.classList.remove("d-none");
+                    }
+                }
+            })
+            .catch(function () { show(false, T.failed); })
+            .then(function () { busy = false; });
+    }
+
+    manual.addEventListener("submit", function (e) {
+        if (!harvestOn()) return;              // normaler Scan: Seite der Kiste öffnen
+        e.preventDefault();
+        var input = document.getElementById("manualCode");
+        if (!input.value.trim() || busy) return;
+        harvest(input.value.trim()).then(function () { input.value = ""; input.focus(); });
+    });
 
     if (!window.isSecureContext) {
         document.getElementById("insecureHint").classList.remove("d-none");
@@ -89,6 +259,22 @@
         });
     }
 
+    function onCode(text) {
+        if (harvestOn()) {
+            var now = Date.now();
+            // dieselbe Kiste nicht mehrfach buchen, solange sie noch vor der Kamera ist
+            if (busy || (text === last.code && now - last.time < 5000)) return;
+            last = {code: text, time: now};
+            harvest(text);
+            return;
+        }
+        if (done) return;
+        done = true;
+        if (navigator.vibrate) navigator.vibrate(80);
+        status.textContent = T.found + " " + text;
+        stop().then(function () { window.location = target + encodeURIComponent(text); });
+    }
+
     function start() {
         done = false;
         scanner = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], verbose: false });
@@ -97,16 +283,10 @@
         scanner.start(
             { facingMode: "environment" },
             { fps: 10, qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
-            function (text) {
-                if (done) return;
-                done = true;
-                if (navigator.vibrate) navigator.vibrate(80);
-                status.textContent = T.found + " " + text;
-                stop().then(function () { window.location = target + encodeURIComponent(text); });
-            },
+            onCode,
             function () {}
         ).then(function () {
-            status.textContent = T.searching;
+            status.textContent = harvestOn() ? T.ready : T.searching;
             stopBtn.classList.remove("d-none");
             try { localStorage.setItem("scanAutoStart", "1"); } catch (e) {}
         }).catch(function (err) {

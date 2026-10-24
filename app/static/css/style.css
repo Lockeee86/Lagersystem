@@ -706,3 +706,14 @@ body:not(.has-tabbar) {
 .audit-changes dd { margin: 0; overflow-wrap: anywhere; }
 .audit-before { text-decoration: line-through; color: var(--bs-secondary-color); }
 .audit-after { font-weight: 600; }
+
+/* Scan-Seite mit Ernte-Modus (Schalter über der Kamera) */
+.harvest-switch .form-check-input { width: 3rem; height: 1.6rem; margin-top: 0; cursor: pointer; }
+.harvest-icon { color: var(--bs-secondary-color); }
+.scan-hint-harvest, .harvest-only { display: none; }
+.harvest-on .scan-hint-harvest { display: block; }
+.harvest-on .scan-hint-normal { display: none; }
+.harvest-on .harvest-only { display: block; }
+.harvest-on .harvest-card { border: 2px solid var(--brand); }
+.harvest-on .harvest-icon { color: var(--brand); }
+.harvest-on .scan-camera { outline: 3px solid var(--brand); outline-offset: -1px; }

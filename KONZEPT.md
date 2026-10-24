@@ -270,11 +270,15 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    „<Schlag> erntefähig“ im Kalender (für alle, auch im iCal-Abo); nach der Ernte verschwindet der Termin.
    **QR-Code am Schüttlager** (0.29.5): jeder Lagerort hat einen Code `S-001`; Etikett (Admin, Seite des
    Lagerorts → QR-Etikett, Standard A6). Scannen öffnet für Mitarbeiter gleich das Einlagern.
-   **Ernte-Modus** (0.29.6, Lager → Ernte, `/ernte`): Sorte, Schlag, Verwendung, Stufe, Erntedatum und
-   Füllstand einmal festlegen, dann Dauer-Scan. Erreichbar über Lager (Übersicht) → Ernte-Modus und über die Scan-Seite; das Gerät merkt sich die letzten Einstellungen (Cookie `ernte`, „Weiter“ auf der Scan-Seite; Erntedatum eines anderen Tages wird zu heute). Wahl „nur befüllen“ oder „befüllen + einlagern“ (Lager wählen):
-   Platzvorschlag „gleiche Sorte zusammen“ – Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der
-   höchste zuerst; sonst der freie Stellplatz am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne
-   solche Ware der erste freie. Schon befüllte Kisten werden abgewiesen.
+   **Ernte-Modus** (0.29.6, seit 0.31.3 direkt in der Scan-Seite): über der Kamera ein Schalter „Ernte-Modus“ und
+   ein Zahnrad für die Einstellungen (Sorte, Schlag, Verwendung, Stufe, Erntedatum, Füllstand, „nur befüllen“ oder
+   „befüllen + einlagern“ mit Lager). Schalter an: jeder Scan befüllt die Kiste (und lagert sie ein), die Kamera
+   bleibt an, darunter die Liste der befüllten Kisten und der nächste Platz. Schalter aus: normaler Scan. Schalter
+   und Einstellungen merkt sich jedes Gerät (Cookie `ernte`), auch wenn zwischendurch etwas anderes in der App
+   gemacht wird; ein Erntedatum von einem anderen Tag wird zu heute. Platzvorschlag „gleiche Sorte zusammen“ –
+   Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
+   am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
+   Kisten werden abgewiesen.
    **Lagerkarte am Handy** (0.29.7): größere Felder, mit zwei Fingern zoomen und verschieben, Knöpfe − / ganzes
    Lager / +. Antippen eines Stapels klappt unten ein Blatt mit seinen Kisten auf (ohne Seitenwechsel, die Karte
    bleibt bedienbar; der gewählte Stapel ist umrandet). Am PC bleibt das Fenster.

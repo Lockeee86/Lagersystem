@@ -676,15 +676,14 @@ def scan():
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))
         flash_error(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
-    last = _harvest_last() if current_user.can_edit else None
-    resume = None
-    if last:
-        s = _harvest_settings(last)
-        if s["variety"] is not None:
-            resume = {"url": url_for("main.harvest", **last, los=1),
-                      "text": " · ".join(p for p in (s["variety"].name, s["plot"].name if s["plot"] else "",
-                                                     s["warehouse"].name if s["warehouse"] else _("nur befüllen")) if p)}
-    return render_template("scan.html", harvest_resume=resume)
+    if not current_user.can_edit:
+        return render_template("scan.html", harvest=None)
+    values = _harvest_cookie()
+    settings = _harvest_settings(values)
+    return render_template(
+        "scan.html", harvest=settings, harvest_on=values.get("an") == "1" and settings["variety"] is not None,
+        harvest_values=values, next_place=_next_place(settings), open_settings=request.args.get("einstellungen") == "1",
+        **_harvest_choices())
 
 
 # --- Ernte-Modus ---------------------------------------------------------------
@@ -693,17 +692,40 @@ HARVEST_COOKIE = "ernte"
 HARVEST_KEYS = ("sorte", "schlag", "verwendung", "stufe", "datum", "fuell", "lager", "modus")
 
 
-def _harvest_last():
-    """Zuletzt benutzte Ernte-Einstellungen dieses Geräts (Cookie). Ein Datum von einem anderen Tag wird zu heute –
-    sonst würde nach einer Pause mit dem alten Erntedatum weitergebucht."""
+def _harvest_cookie():
+    """Ernte-Modus dieses Geräts (Cookie): Einstellungen und Schalter `an`. Ein Datum von einem anderen Tag wird zu
+    heute – sonst würde nach einer Pause mit dem alten Erntedatum weitergebucht."""
     from urllib.parse import parse_qsl
-    raw = request.cookies.get(HARVEST_COOKIE, "")
-    values = {k: v for k, v in parse_qsl(raw) if k in HARVEST_KEYS + ("tag",)}
-    if not values.get("sorte"):
-        return None
+    values = {k: v for k, v in parse_qsl(request.cookies.get(HARVEST_COOKIE, "")) if k in HARVEST_KEYS + ("an", "tag")}
     if values.pop("tag", None) != date.today().isoformat():
         values["datum"] = date.today().isoformat()
     return values
+
+
+def _harvest_store(response, values):
+    from urllib.parse import urlencode
+    values = {k: v for k, v in values.items() if v and k in HARVEST_KEYS + ("an",)}
+    values["tag"] = date.today().isoformat()
+    response.set_cookie(HARVEST_COOKIE, urlencode(values), max_age=120 * 86400, samesite="Lax", httponly=True,
+                        secure=request.is_secure)
+    return response
+
+
+def _harvest_choices():
+    return {"varieties": Variety.query.filter_by(active=True).order_by(Variety.name).all(),
+            "plots": sites.apply(Plot.query.filter_by(active=True), Plot).order_by(Plot.name).all(),
+            "seed_classes": SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),
+            "warehouses": Warehouse.query.order_by(Warehouse.name).all(), "usages": SORT_USAGES, "fills": FILL_LEVELS}
+
+
+def _next_place(settings):
+    if not settings["variety"] or not settings["warehouse"]:
+        return None
+    place = storage.suggest_place(settings["warehouse"], settings["variety"].id,
+                                  settings["usage"] or settings["variety"].usage,
+                                  settings["seed_class"].id if settings["seed_class"] else None)
+    return settings["warehouse"].location_label(*place) if place else ""
+
 
 def _harvest_settings(source):
     """Ernte-Einstellungen aus Formular oder Adresse (einmal festlegen, dann scannen)."""
@@ -730,41 +752,43 @@ def _harvest_settings(source):
 @bp.route("/ernte")
 @editor_required
 def harvest():
-    from urllib.parse import urlencode
-    if not request.args and (last := _harvest_last()):
-        # ohne Angaben: die letzten Einstellungen vorausfüllen (Start mit einem Tipp)
-        return redirect(url_for("main.harvest", **last))
-    settings = _harvest_settings(request.args)
-    ready = settings["variety"] is not None and request.args.get("los") == "1"
-    if ready and settings["store"] and settings["warehouse"] is None:
-        flash_error(_("Bitte das Lager wählen, in das eingelagert wird."))
-        ready = False
-    preview = None
-    if ready and settings["warehouse"]:
-        place = storage.suggest_place(settings["warehouse"], settings["variety"].id,
-                                      settings["usage"] or settings["variety"].usage,
-                                      settings["seed_class"].id if settings["seed_class"] else None)
-        preview = settings["warehouse"].location_label(*place) if place else None
-    response = make_response(render_template(
-        "harvest.html", s=settings, ready=ready, preview=preview,
-        varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
-        plots=Plot.query.filter_by(active=True).order_by(Plot.name).all(),
-        seed_classes=SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),
-        warehouses=Warehouse.query.order_by(Warehouse.name).all(), usages=SORT_USAGES, fills=FILL_LEVELS,
-        args=request.args, change_url=url_for("main.harvest", **{k: v for k, v in request.args.items() if k != "los"})))
-    if ready:
-        values = {k: request.args[k] for k in HARVEST_KEYS if request.args.get(k)}
-        values["tag"] = date.today().isoformat()
-        response.set_cookie(HARVEST_COOKIE, urlencode(values), max_age=120 * 86400, samesite="Lax", httponly=True,
-                            secure=request.is_secure)
-    return response
+    """Früher eine eigene Seite – der Ernte-Modus steckt jetzt in der Scan-Seite."""
+    return redirect(url_for("main.scan", einstellungen=1))
+
+
+@bp.route("/scan/ernte", methods=["POST"])
+@editor_required
+def harvest_settings():
+    """Ernte-Modus ein-/ausschalten (nur `an`) oder Einstellungen speichern (schaltet ihn ein)."""
+    values = _harvest_cookie()
+    if "sorte" in request.form:
+        values = {k: request.form.get(k, "") for k in HARVEST_KEYS}
+        values["an"] = "1"
+    else:
+        values["an"] = "1" if request.form.get("an") == "1" else ""
+    settings = _harvest_settings(values)
+    problem = None
+    if values.get("an") and settings["variety"] is None:
+        problem = _("Bitte zuerst die Sorte wählen.")
+    elif values.get("an") and settings["store"] and settings["warehouse"] is None:
+        problem = _("Bitte das Lager wählen, in das eingelagert wird.")
+    if problem:
+        values["an"] = ""
+    if request.accept_mimetypes.best == "application/json":
+        response = jsonify(ok=problem is None, on=bool(values.get("an")), message=problem)
+    else:
+        if problem:
+            flash_error(problem)
+        response = redirect(url_for("main.scan", einstellungen=1 if problem else None))
+    return _harvest_store(response, values)
 
 
 @bp.route("/ernte/kiste", methods=["POST"])
 @editor_required
 def harvest_box():
-    """Eine gescannte Kiste im Ernte-Modus befüllen (und einlagern) – vom Scanner per fetch (JSON)."""
-    settings = _harvest_settings(request.form)
+    """Eine gescannte Kiste im Ernte-Modus befüllen (und einlagern) – vom Scanner per fetch (JSON).
+    Die Einstellungen kommen aus dem Cookie des Geräts (oder aus dem Formular, falls mitgeschickt)."""
+    settings = _harvest_settings(request.form if request.form.get("sorte") else _harvest_cookie())
     raw = request.form.get("code", "")
     code = storage.normalize_code(raw)
     box = Box.query.filter_by(code=code).first() if code else None
@@ -788,17 +812,17 @@ def harvest_box():
         if request.accept_mimetypes.best == "application/json":
             return jsonify(ok=False, message=message)
         flash_error(message)
-        return back("main.harvest")
+        return back("main.scan")
     if place:
         message = _("{code} befüllt – auf {place} stellen.", code=box.code, place=place)
     else:
         message = _("{code} befüllt.", code=box.code)
     if request.accept_mimetypes.best == "application/json":
-        return jsonify(ok=True, message=message, code=box.code, place=place or "",
+        return jsonify(ok=True, message=message, code=box.code, place=place or "", next=_next_place(settings),
                        text=" · ".join(p for p in (box.variety.name, box.plot.name if box.plot else "",
                                                      box.fill_label) if p))
     flash(message, "success")
-    return back("main.harvest")
+    return back("main.scan")
 
 
 # --- Fotos an Kisten, Anbaujahren, Schüttlagern, Lieferscheinen ----------------

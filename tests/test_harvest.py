@@ -59,47 +59,51 @@ def test_harvest_box(db, seed):
 def test_pages(as_worker, as_viewer, db, seed):
     belana, wh = seed["belana"], seed["wh"]
     b1, b2 = boxes(db, seed, 2)
-    assert as_viewer.get("/ernte").status_code == 403
-    # auf der Lager-Übersicht erreichbar (nur für Mitarbeiter und Admins)
+    # Betrachter: normale Scan-Seite ohne Ernte-Modus
+    assert 'id="harvestSwitch"' not in as_viewer.get("/scan").get_data(as_text=True)
+    assert as_viewer.post("/scan/ernte", data={"an": "1"}).status_code == 403
+    # Mitarbeiter: Schalter über der Kamera, ohne Sorte sind die Einstellungen offen
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert 'id="harvestSwitch"' in html and 'class="collapse show" id="harvestSettings"' in html
     assert 'href="/ernte"' in as_worker.get("/lager/uebersicht").get_data(as_text=True)
-    assert 'href="/ernte"' not in as_viewer.get("/lager/uebersicht").get_data(as_text=True)
-    html = as_worker.get("/ernte").get_data(as_text=True)
-    assert "Scannen starten" in html and "befüllen + einlagern" in html
-    url = f"/ernte?los=1&sorte={belana.id}&schlag={seed['plot'].id}&datum=2026-09-10&fuell=100&modus=einlagern&lager={wh.id}"
-    html = as_worker.get(url).get_data(as_text=True)
-    assert "Nächster Platz: A-01" in html and 'name="lager" value="%d"' % wh.id in html
+    assert as_worker.get("/ernte").headers["Location"].endswith("/scan?einstellungen=1")
+
+    # Einschalten ohne Sorte geht nicht
+    r = as_worker.post("/scan/ernte", data={"an": "1"}, headers={"Accept": "application/json"})
+    assert r.get_json() == {"ok": False, "on": False, "message": "Bitte zuerst die Sorte wählen."}
+    # Einstellungen speichern schaltet ein
     form = {"sorte": belana.id, "schlag": seed["plot"].id, "datum": "2026-09-10", "fuell": "100",
             "modus": "einlagern", "lager": wh.id}
-    r = as_worker.post("/ernte/kiste", data={**form, "code": b1.code}, headers={"Accept": "application/json"})
+    as_worker.post("/scan/ernte", data=form)
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert 'id="harvestSwitch" checked' in html and "Belana · Acker Nord · Kartoffellager" in html
+    assert "Nächster Platz: A-01" in html and "harvest-on" in html
+
+    # Scannen: Kiste wird befüllt und eingelagert, nächster Platz kommt mit
+    r = as_worker.post("/ernte/kiste", data={"code": b1.code}, headers={"Accept": "application/json"})
     data = r.get_json()
-    assert data["ok"] and data["place"] == "A-01-1" and "Belana" in data["text"]
+    assert data["ok"] and data["place"] == "A-01-1" and data["next"] == "A-01" and "Belana" in data["text"]
     assert b1.harvest_date == date(2026, 9, 10)
-    r = as_worker.post("/ernte/kiste", data={**form, "code": b1.code}, headers={"Accept": "application/json"})
+    r = as_worker.post("/ernte/kiste", data={"code": b1.code}, headers={"Accept": "application/json"})
     assert not r.get_json()["ok"] and "schon befüllt" in r.get_json()["message"]
-    r = as_worker.post("/ernte/kiste", data={**form, "code": "K-9999"}, headers={"Accept": "application/json"})
-    assert not r.get_json()["ok"]
-    # nur befüllen, per Formular
-    form["modus"] = "befuellen"
-    r = as_worker.post("/ernte/kiste", data={**form, "code": b2.code, "back": "/ernte?los=1"})
-    assert r.status_code == 302 and db.session.get(Box, b2.id).fill == 100 and not b2.is_stored
+    assert not as_worker.post("/ernte/kiste", data={"code": "K-9999"},
+                              headers={"Accept": "application/json"}).get_json()["ok"]
 
-
-def test_settings_are_remembered(as_worker, db, seed, monkeypatch):
-    belana, wh = seed["belana"], seed["wh"]
-    # Scan-Seite: Einstieg in den Ernte-Modus, noch ohne „Weiter“
+    # Ausschalten: Einstellungen bleiben, Schalter aus
+    as_worker.post("/scan/ernte", data={"an": "0"}, headers={"Accept": "application/json"})
     html = as_worker.get("/scan").get_data(as_text=True)
-    assert "Ernte-Modus" in html and 'href="/ernte"' in html and "Weiter" not in html
-    as_worker.get(f"/ernte?los=1&sorte={belana.id}&schlag={seed['plot'].id}&datum=2026-09-10&fuell=100"
-                  f"&modus=einlagern&lager={wh.id}")
-    # danach: „Weiter“ mit den letzten Einstellungen
-    html = as_worker.get("/scan").get_data(as_text=True)
-    assert "Belana · Acker Nord · Kartoffellager" in html and "los=1" in html
-    # /ernte ohne Angaben füllt die letzten Einstellungen vor; altes Datum wird zu heute
-    r = as_worker.get("/ernte")
-    assert r.status_code == 302 and f"sorte={belana.id}" in r.headers["Location"]
-    assert "datum=2026-09-10" in r.headers["Location"]                       # am selben Tag bleibt das Datum
-    # am nächsten Tag: Erntedatum wird heute
-    as_worker.set_cookie("ernte", f"sorte={belana.id}&datum=2026-09-10&modus=befuellen&tag=2026-09-10")
-    r = as_worker.get("/ernte")
-    assert f"datum={date.today().isoformat()}" in r.headers["Location"] and "modus=befuellen" in r.headers["Location"]
+    assert 'id="harvestSwitch" checked' not in html and "Belana · Acker Nord" in html
+    # wieder an – ohne neue Einstellungen
+    assert as_worker.post("/scan/ernte", data={"an": "1"}, headers={"Accept": "application/json"}).get_json()["on"]
 
+    # nur befüllen
+    as_worker.post("/scan/ernte", data={**form, "modus": "befuellen"})
+    as_worker.post("/ernte/kiste", data={"code": b2.code})
+    assert db.session.get(Box, b2.id).fill == 100 and not b2.is_stored
+
+
+def test_old_date_becomes_today(as_worker, db, seed):
+    belana = seed["belana"]
+    as_worker.set_cookie("ernte", f"sorte={belana.id}&datum=2026-09-10&modus=befuellen&an=1&tag=2026-09-10")
+    html = as_worker.get("/scan").get_data(as_text=True)
+    assert f'value="{date.today().isoformat()}"' in html and 'id="harvestSwitch" checked' in html

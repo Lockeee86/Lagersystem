@@ -27,7 +27,8 @@ docker compose up --build -d
   `Setting` (Schlüssel/Wert: Hofname, Anschrift …; in Templates als `farm` bzw. `app_name`)
 - `app/storage.py`: **die gesamte Lagerlogik** (Einlagern oben auf den Stapel, Umlagern,
   Auslagern mit Nachrücken, Füllstand, Kisten anlegen, Ernte-Modus `harvest_box` mit Platzvorschlag
-  `suggest_place` – gleiche Ware zusammen). Views rufen nur diese Funktionen auf,
+  `suggest_place` – gleiche Ware zusammen; Bedienung in `scan.html`: Schalter + Einstellungen über der Kamera,
+  gemerkt im Cookie `ernte`, Routen `main.harvest_settings` / `main.harvest_box`). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
 - `app/sales.py`: Lieferscheinlogik (anlegen, Kisten verladen über `storage.ship_box`, Mengen, Waage,
   abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
