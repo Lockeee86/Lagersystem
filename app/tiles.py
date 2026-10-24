@@ -21,6 +21,7 @@ CATALOG = {
     "aufgaben": tile(N_("Aufgaben"), "bi-list-check", "tasks.task_list"),
     "lager": tile(N_("Lager"), "bi-grid-3x3-gap", "main.warehouse_map"),
     "kisten": tile(N_("Kisten"), "bi-boxes", "main.boxes"),
+    "ernte": tile(N_("Ernte"), "bi-basket", "main.harvest", ROLE_MITARBEITER),
     "verkauf": tile(N_("Verkauf"), "bi-truck", "sales.deliveries"),
     "maschinen": tile(N_("Maschinen"), "bi-gear-wide-connected", "machines.machine_list"),
     "bestellungen": tile(N_("Bestellungen"), "bi-box-seam", "purchases.purchase_list"),

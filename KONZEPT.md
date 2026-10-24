@@ -270,6 +270,11 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    „<Schlag> erntefähig“ im Kalender (für alle, auch im iCal-Abo); nach der Ernte verschwindet der Termin.
    **QR-Code am Schüttlager** (0.29.5): jeder Lagerort hat einen Code `S-001`; Etikett (Admin, Seite des
    Lagerorts → QR-Etikett, Standard A6). Scannen öffnet für Mitarbeiter gleich das Einlagern.
+   **Ernte-Modus** (0.29.6, Lager → Ernte, `/ernte`): Sorte, Schlag, Verwendung, Stufe, Erntedatum und
+   Füllstand einmal festlegen, dann Dauer-Scan. Wahl „nur befüllen“ oder „befüllen + einlagern“ (Lager wählen):
+   Platzvorschlag „gleiche Sorte zusammen“ – Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der
+   höchste zuerst; sonst der freie Stellplatz am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne
+   solche Ware der erste freie. Schon befüllte Kisten werden abgewiesen.
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

@@ -2,7 +2,7 @@ import io
 from datetime import date, timedelta
 
 import segno
-from flask import (Blueprint, Response, abort, flash, make_response, redirect, render_template, request,
+from flask import (Blueprint, Response, abort, flash, jsonify, make_response, redirect, render_template, request,
                    url_for)
 from flask_login import current_user, login_required
 from sqlalchemy import or_
@@ -12,8 +12,8 @@ from . import agenda, backup, bulk, fuel, machines, navigation, purchases, sales
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
-from .models import (MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Machine, Movement, Plot, SeedClass, User, Variety,
-                     Warehouse)
+from .models import (FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Machine, Movement, Plot,
+                     SeedClass, User, Variety, Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
                     fmt_date, fmt_kg, fmt_num, form_str)
@@ -214,6 +214,8 @@ def _status(endpoint):
         return _("Ein- und Auslagern, Änderungen"), False
     if endpoint == "main.labels":
         return _("QR-Etiketten drucken"), False
+    if endpoint == "main.harvest":
+        return _("Kisten befüllen und einlagern"), False
     if endpoint == "fields.field_map":
         p = _plot_stats()
         return (f"{p['count']} · {fmt_num(p['ha'], 0)} ha" if p["ha"] else str(p["count"])), False
@@ -669,6 +671,94 @@ def scan():
             return redirect(url_for("main.box_detail", code=code))
         flash_error(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
     return render_template("scan.html")
+
+
+# --- Ernte-Modus ---------------------------------------------------------------
+
+def _harvest_settings(source):
+    """Ernte-Einstellungen aus Formular oder Adresse (einmal festlegen, dann scannen)."""
+    def number(name):
+        try:
+            return int(source.get(name) or 0) or None
+        except ValueError:
+            return None
+    variety = db.session.get(Variety, number("sorte")) if number("sorte") else None
+    plot = db.session.get(Plot, number("schlag")) if number("schlag") else None
+    seed_class = db.session.get(SeedClass, number("stufe")) if number("stufe") else None
+    warehouse = db.session.get(Warehouse, number("lager")) if number("lager") else None
+    usage = source.get("verwendung") if source.get("verwendung") in SORT_USAGES else None
+    fill = number("fuell") if number("fuell") in (25, 50, 75, 100) else 100
+    try:
+        day = date.fromisoformat(source.get("datum") or "")
+    except ValueError:
+        day = date.today()
+    store = source.get("modus") == "einlagern"
+    return {"variety": variety, "plot": plot, "seed_class": seed_class, "usage": usage, "fill": fill, "date": day,
+            "warehouse": warehouse if store else None, "store": store, "chosen_warehouse": warehouse}
+
+
+@bp.route("/ernte")
+@editor_required
+def harvest():
+    settings = _harvest_settings(request.args)
+    ready = settings["variety"] is not None and request.args.get("los") == "1"
+    if ready and settings["store"] and settings["warehouse"] is None:
+        flash_error(_("Bitte das Lager wählen, in das eingelagert wird."))
+        ready = False
+    preview = None
+    if ready and settings["warehouse"]:
+        place = storage.suggest_place(settings["warehouse"], settings["variety"].id,
+                                      settings["usage"] or settings["variety"].usage,
+                                      settings["seed_class"].id if settings["seed_class"] else None)
+        preview = settings["warehouse"].location_label(*place) if place else None
+    return render_template(
+        "harvest.html", s=settings, ready=ready, preview=preview,
+        varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
+        plots=Plot.query.filter_by(active=True).order_by(Plot.name).all(),
+        seed_classes=SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),
+        warehouses=Warehouse.query.order_by(Warehouse.name).all(), usages=SORT_USAGES, fills=FILL_LEVELS,
+        args=request.args, change_url=url_for("main.harvest", **{k: v for k, v in request.args.items() if k != "los"}))
+
+
+@bp.route("/ernte/kiste", methods=["POST"])
+@editor_required
+def harvest_box():
+    """Eine gescannte Kiste im Ernte-Modus befüllen (und einlagern) – vom Scanner per fetch (JSON)."""
+    settings = _harvest_settings(request.form)
+    raw = request.form.get("code", "")
+    code = storage.normalize_code(raw)
+    box = Box.query.filter_by(code=code).first() if code else None
+    try:
+        if settings["variety"] is None:
+            raise StorageError(_("Bitte zuerst die Sorte wählen."))
+        if settings["store"] and settings["warehouse"] is None:
+            raise StorageError(_("Bitte das Lager wählen, in das eingelagert wird."))
+        if box is None:
+            raise StorageError(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
+        place = storage.harvest_box(
+            box, current_user, settings["variety"], settings["plot"].id if settings["plot"] else None,
+            settings["date"], usage=settings["usage"],
+            seed_class_id=settings["seed_class"].id if settings["seed_class"] else None,
+            fill=settings["fill"], warehouse=settings["warehouse"])
+        db.session.commit()
+    except (StorageError, IntegrityError) as e:
+        db.session.rollback()
+        message = str(e) if isinstance(e, StorageError) else _(
+            "Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen.")
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify(ok=False, message=message)
+        flash_error(message)
+        return back("main.harvest")
+    if place:
+        message = _("{code} befüllt – auf {place} stellen.", code=box.code, place=place)
+    else:
+        message = _("{code} befüllt.", code=box.code)
+    if request.accept_mimetypes.best == "application/json":
+        return jsonify(ok=True, message=message, code=box.code, place=place or "",
+                       text=" · ".join(p for p in (box.variety.name, box.plot.name if box.plot else "",
+                                                     box.fill_label) if p))
+    flash(message, "success")
+    return back("main.harvest")
 
 
 # --- Suche ------------------------------------------------------------------

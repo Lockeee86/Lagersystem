@@ -314,3 +314,52 @@ def create_boxes(count, box_type_id, user):
     for box in boxes:
         _log(box, "angelegt", user)
     return boxes
+
+
+# --- Ernte-Modus ---------------------------------------------------------------
+
+def _same_contents(box, variety_id, usage, seed_class_id):
+    return (box.variety_id == variety_id and (box.effective_usage or None) == (usage or None)
+            and box.seed_class_id == seed_class_id)
+
+
+def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None):
+    """Platzvorschlag „gleiche Sorte zusammen“: ein Stapel, auf dem oben dieselbe Ware steht und noch Platz ist
+    (der höchste zuerst, damit Stapel voll werden), sonst der freie Stellplatz, der am nächsten an dieser Ware
+    liegt – bevorzugt in derselben Reihe (ohne solche Stapel: der erste freie). (row, slot) oder None, wenn das Lager voll ist."""
+    stacks = stacks_overview(warehouse)
+    same = [(pos, boxes) for pos, boxes in stacks.items()
+            if _same_contents(boxes[-1], variety_id, usage, seed_class_id)]
+    room = [(pos, len(boxes)) for pos, boxes in same if len(boxes) < warehouse.max_levels]
+    if room:
+        return min(room, key=lambda r: (-r[1], r[0]))[0]
+    free = [(r, s) for r in range(1, warehouse.rows + 1) for s in range(1, warehouse.slots + 1)
+            if (r, s) not in stacks]
+    if not free:
+        return None
+    if same:
+        # in derselben Reihe zählt der Nachbarplatz näher als der gegenüber in der nächsten Reihe
+        return min(free, key=lambda p: (min(2 * abs(p[0] - q[0]) + abs(p[1] - q[1]) for q, _b in same), p))
+    return free[0]
+
+
+def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_class_id=None, fill=100,
+                warehouse=None):
+    """Ernte-Modus: leere Kiste befüllen und – mit `warehouse` – gleich auf den vorgeschlagenen Platz stellen.
+    Gibt den Platz zurück (oder None, wenn nur befüllt wurde)."""
+    if box.fill > 0:
+        what = box.variety.name if box.variety else _("Inhalt")
+        raise StorageError(_("{code} ist schon befüllt ({what}).", code=box.code, what=what))
+    usage = usage if usage and usage != variety.usage else None      # wie bei der Sorte → leer lassen
+    update_contents(box, user, variety_id=variety.id, harvest_date=harvest_date, plot_id=plot_id, grade=None,
+                    fill=fill, note=None, usage=usage, seed_class_id=seed_class_id)
+    if warehouse is None:
+        return None
+    if box.is_stored:
+        return box.location
+    _lock_warehouse(warehouse.id)
+    place = suggest_place(warehouse, variety.id, usage or variety.usage, seed_class_id)
+    if place is None:
+        raise StorageError(_("{name} ist voll.", name=warehouse.name))
+    store_box(box, warehouse.id, *place, user)
+    return box.location

@@ -29,6 +29,7 @@ AREAS = [
         item("main.warehouse_map", N_("Lagerkarte"), "bi-grid-3x3-gap", endpoints=("main.stack_view",)),
         item("main.boxes", N_("Kisten"), "bi-boxes", endpoints=("main.box_detail",)),
         item("main.history", N_("Verlauf"), "bi-clock-history"),
+        item("main.harvest", N_("Ernte"), "bi-basket", role=ROLE_MITARBEITER),
         item("main.labels", N_("Etiketten"), "bi-qr-code", role=ROLE_ADMIN),
         item("bulk.store_list", N_("Schüttlager"), "bi-minecart-loaded", prefixes=("bulk.",)),
         item("main.scan", N_("Scannen"), "bi-qr-code-scan", role=ROLE_MITARBEITER),
