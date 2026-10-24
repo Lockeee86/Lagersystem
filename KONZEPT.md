@@ -266,6 +266,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    · Frostwarnung (nachmittags, Frost in den nächsten 24 h) · Krautfäule-Ampel springt auf Rot.
    Die beiden **Wetter-Warnungen** (0.29.3) sind von sich aus nur für Admins an, alle anderen schalten sie
    bei Bedarf selbst ein (`User.push_on`; Themen mit `"default"` in `PUSH_TOPICS`).
+   **Wartezeiten im Kalender** (0.29.4): bei laufender Pflanzenschutz-Wartezeit steht am ersten erlaubten Erntetag
+   „<Schlag> erntefähig“ im Kalender (für alle, auch im iCal-Abo); nach der Ernte verschwindet der Termin.
    Nie an sich selbst; wer zu einer Störung schon eine Aufgabe bekommt, erhält die Störung nicht doppelt.
    Texte in der Sprache des Empfängers. iPhone: erst „Zum Home-Bildschirm“, dann einschalten (ab iOS 16.4).
 3. ✅ **Maschinen (0.19.0):**

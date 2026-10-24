@@ -195,3 +195,35 @@ def test_entries_and_tasks(app, as_admin, as_worker, as_viewer, db, seed):
     assert "Urlaub Max" in as_viewer.get(f"/kalender/termin/{urlaub.id}").get_data(as_text=True)
     as_admin.post(f"/kalender/termin/{frist.id}/loeschen")
     assert CalendarEntry.query.count() == 1
+
+
+def test_waiting_periods(app, as_worker, db, seed):
+    from app.models import FieldMeasure, PlotYear
+    today = date.today()
+    plot = seed["plot"]
+    entry = PlotYear(plot=plot, year=today.year, crop="Kartoffel")
+    db.session.add(entry)
+    db.session.flush()
+    db.session.add_all([
+        FieldMeasure(plot_year_id=entry.id, kind="pflanzenschutz", name="Mittel A", done_on=today - timedelta(days=3),
+                     note="Wartezeit 14 Tage"),
+        FieldMeasure(plot_year_id=entry.id, kind="pflanzenschutz", name="Mittel B", done_on=today - timedelta(days=10),
+                     note="Wartezeit 7 Tage"),                             # schon vorbei
+    ])
+    db.session.commit()
+    with app.test_request_context():
+        items, _undated = agenda.events(today, today + timedelta(days=30), today, seed["viewer"], mine_only=True)
+        (event,) = [e for e in items if e["kind"] == "wartezeit"]
+        assert event["date"] == today + timedelta(days=11) and event["title"] == "Acker Nord erntefähig"
+        assert "Mittel A" in event["note"] and "Kartoffel" in event["note"]
+        # außerhalb des Zeitraums nicht
+        assert not [e for e in agenda.events(today, today + timedelta(days=5), today)[0] if e["kind"] == "wartezeit"]
+        # geerntet → verschwindet
+        entry.harvested_on = today
+        db.session.commit()
+        assert not [e for e in agenda.events(today, today + timedelta(days=30), today)[0] if e["kind"] == "wartezeit"]
+    entry.harvested_on = None
+    db.session.commit()
+    day = today + timedelta(days=11)
+    html = as_worker.get(f"/kalender?jahr={day.year}&monat={day.month}").get_data(as_text=True)
+    assert "Acker Nord erntefähig" in html and "Ende der Wartezeit" in html

@@ -164,6 +164,29 @@ def _tasks(start, end, user):
     return events
 
 
+def _waiting(start, end, today):
+    """Laufende Pflanzenschutz-Wartezeiten: „erntefähig ab …“ am Ende der Wartezeit (für alle sichtbar).
+    Ist der Schlag geerntet oder die Wartezeit vorbei, verschwindet der Termin."""
+    from . import fielddoc
+    from .models import FieldMeasure, PlotYear
+    years = {today.year, start.year, end.year}
+    entries = (PlotYear.query.filter(PlotYear.year.in_(years))
+               .join(FieldMeasure, FieldMeasure.plot_year_id == PlotYear.id)
+               .filter(FieldMeasure.kind == "pflanzenschutz").distinct().all())
+    known = fielddoc.products() if entries else {}
+    events = []
+    for entry in entries:
+        info = fielddoc.protection(entry, known, today)
+        if not info or not info["running"] or not start <= info["until"] <= end:
+            continue
+        crop = entry.shown_crop
+        events.append(_event(info["until"], "wartezeit", f"wartezeit-{entry.id}-{info['until']:%Y%m%d}",
+                             _("{plot} erntefähig", plot=entry.plot.name), "bi-hourglass-split", "info",
+                             url_for("fields.field_detail", plot_id=entry.plot_id),
+                             " · ".join(p for p in (crop, _("Wartezeit von {name}", name=info["last"].name)) if p)))
+    return events
+
+
 # --- Eigene Termine -------------------------------------------------------------------
 
 def _advance(day, repeat, n):
@@ -211,10 +234,10 @@ def events(start, end, today=None, user=None, mine_only=False):
     today = today or date.today()
     maintenance, undated = _maintenance(start, end, today)
     items = maintenance + _deliveries(start, end) + _tasks(start, end, user) + _entries(start, end, user) \
-        + _holidays(start, end)
+        + _waiting(start, end, today) + _holidays(start, end)
     if mine_only:
         items = [e for e in items if e["mine"] or e["kind"] == "feiertag"]
-    order = {"feiertag": 0, "eintrag": 1, "aufgabe": 2, "wartung": 3, "lieferung": 4}
+    order = {"feiertag": 0, "eintrag": 1, "aufgabe": 2, "wartung": 3, "lieferung": 4, "wartezeit": 5}
     items.sort(key=lambda e: (e["date"], order.get(e["kind"], 9), e["time"] is not None, e["time"] or 0, e["title"]))
     return items, undated
 

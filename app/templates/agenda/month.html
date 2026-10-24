@@ -89,6 +89,7 @@
             <span><span class="badge text-bg-secondary">&nbsp;</span> {{ _("Wartung") }}</span>
             <span><span class="badge text-bg-primary">&nbsp;</span> {{ _("Lieferung") }}</span>
             <span><span class="badge text-bg-success">&nbsp;</span> {{ _("Aufgabe") }}</span>
+            <span><span class="badge text-bg-info">&nbsp;</span> {{ _("Ende der Wartezeit") }}</span>
             {% for key, (label, color, icon) in kinds.items() %}<span><i class="bi {{ icon }} text-{{ 'body-secondary' if color == 'dark' else color }}"></i> {{ _(label) }}</span>{% endfor %}
         </div>
     </div>

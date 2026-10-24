@@ -1573,4 +1573,7 @@ MESSAGES = {
     '{n} leere von {total} Kisten': '{n} pustych z {total} skrzyń',
     'Alle Lagerorte': 'Wszystkie miejsca składowania',
     'Wetter-Warnungen': 'Ostrzeżenia pogodowe',
+    '{plot} erntefähig': '{plot} gotowe do zbioru',
+    'Wartezeit von {name}': 'Karencja środka {name}',
+    'Ende der Wartezeit': 'Koniec karencji',
 }
