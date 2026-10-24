@@ -217,6 +217,11 @@ def _status(endpoint):
         return _("Ein- und Auslagern, Änderungen"), False
     if endpoint == "main.labels":
         return _("QR-Etiketten drucken"), False
+    if endpoint == "main.oldest":
+        rows = storage.oldest_boxes(limit=2000)
+        old = sum(1 for r in rows if r["level"])
+        return (ngettext("{n} Kiste lange gelagert", "{n} Kisten lange gelagert", old) if old
+                else _("nichts lange gelagert")), bool(old)
     if endpoint == "main.harvest":
         return _("Kisten befüllen und einlagern"), False
     if endpoint == "fields.field_map":
@@ -274,7 +279,10 @@ def storage_home():
     site = sites.chosen()
     stock = _stock_overview(8, site)
     bulk_rows, bulk_wares = bulk.overview(site)
-    return render_template("storage_home.html", **stock, bulk_rows=bulk_rows, bulk_total=sum(bulk_wares.values()))
+    old_count = sum(1 for r in storage.oldest_boxes(warehouse_id=None, limit=5000)
+                    if r["level"] and (site is None or r["box"].warehouse.site_id == site.id))
+    return render_template("storage_home.html", **stock, bulk_rows=bulk_rows, bulk_total=sum(bulk_wares.values()),
+                           old_count=old_count)
 
 
 @bp.route("/bereich/<key>")
@@ -386,6 +394,8 @@ def warehouse_map(warehouse_id=None):
             "mix": sorted(mix.values(), key=lambda e: -e["n"]),
         })
 
+    limits, today = storage.age_limits(), date.today()
+    ages = {pos: storage.stack_age_level(boxes, limits, today) for pos, boxes in stacks.items()}
     data3d = None
     if view == "3d":
         data3d = {
@@ -393,13 +403,28 @@ def warehouse_map(warehouse_id=None):
             "rowLabels": [label for _r, label in warehouse.row_labels()],
             "bottomUp": warehouse.rows_bottom_up,      # wie in Karte und Liste: erste Reihe vorne statt hinten
             "stackUrl": url_for("main.stack_view", warehouse_id=warehouse.id, row=0, slot=0, partial=1),
-            "stacks": [[r, s, [[b.color or "", b.variety_id if b.variety_id and not b.is_empty else 0] for b in boxes]]
+            "stacks": [[r, s, [[b.color or "", b.variety_id if b.variety_id and not b.is_empty else 0] for b in boxes],
+                        1 if ages.get((r, s)) else 0]
                        for (r, s), boxes in stacks.items()],
         }
 
     return render_template("warehouse_map.html", warehouse=warehouse, warehouses=warehouses,
                            stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d,
-                           shorts=shorts, varieties=[v for v in varieties if v.id in used])
+                           shorts=shorts, varieties=[v for v in varieties if v.id in used], ages=ages,
+                           age_limits=limits, any_old=any(ages.values()))
+
+
+@bp.route("/lager/aelteste")
+@login_required
+def oldest():
+    """Älteste Ware zuerst – zum Auslagern in der richtigen Reihenfolge (oben liegende Kisten markiert)."""
+    variety_id = request.args.get("sorte", type=int)
+    warehouse_id = request.args.get("lager", type=int)
+    rows = storage.oldest_boxes(variety_id, warehouse_id)
+    return render_template("oldest.html", rows=rows, limits=storage.age_limits(),
+                           varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all(),
+                           variety_id=variety_id, warehouse_id=warehouse_id, today=date.today())
 
 
 @bp.route("/lager/<int:warehouse_id>/stapel/<int:row>/<int:slot>")
@@ -410,7 +435,9 @@ def stack_view(warehouse_id, row, slot):
         abort(404)
     boxes = storage.stack(warehouse.id, row, slot)
     template = "partials/stack.html" if request.args.get("partial") else "stack.html"
-    return render_template(template, warehouse=warehouse, row=row, slot=slot, boxes=boxes)
+    limits = storage.age_limits()
+    return render_template(template, warehouse=warehouse, row=row, slot=slot, boxes=boxes,
+                           ages={b.id: storage.age_level(b, limits) for b in boxes})
 
 
 @bp.route("/lager/<int:warehouse_id>/stapel/<int:row>/<int:slot>/einlagern", methods=["POST"])
@@ -516,7 +543,7 @@ def box_detail(code):
     if box.code != code:
         return redirect(url_for("main.box_detail", code=box.code))
     return render_template(
-        "box_detail.html", box=box,
+        "box_detail.html", box=box, age=storage.age_level(box),
         above=storage.boxes_above(box),
         movements=box.movements.limit(50).all(),
         varieties=Variety.query.filter(or_(Variety.active.is_(True), Variety.id == box.variety_id))

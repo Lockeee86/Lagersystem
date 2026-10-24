@@ -409,3 +409,66 @@ def save_sizes(text):
         raise StorageError(_("Höchstens {n} Größen.", n=MAX_SIZES))
     Setting.put(SIZES_KEY, "\n".join(result))
     return result
+
+
+# --- Lagerdauer (Ampel) ---------------------------------------------------------
+
+AGE_DEFAULTS = {"age_warn_months": 6, "age_old_months": 9}
+
+
+def age_limits():
+    """Monate, ab denen eingelagerte Ware gelb bzw. rot markiert wird (Verwaltung → Kartoffellager)."""
+    from .models import Setting
+    result = {}
+    for key, default in AGE_DEFAULTS.items():
+        setting = db.session.get(Setting, key)
+        try:
+            result[key] = int(setting.value) if setting and setting.value else default
+        except ValueError:
+            result[key] = default
+    return result["age_warn_months"], result["age_old_months"]
+
+
+def save_age_limits(warn, old):
+    from .models import Setting
+    if not warn or not old or warn < 1 or old < warn or old > 60:
+        raise StorageError(_("Bitte zwei Monatszahlen angeben, die zweite mindestens so groß wie die erste."))
+    Setting.put("age_warn_months", str(warn))
+    Setting.put("age_old_months", str(old))
+
+
+def age_level(box, limits=None, today=None):
+    """„old“ (rot), „warn“ (gelb) oder None – nach dem Erntedatum befüllter Kisten."""
+    from datetime import date as _date
+    from .machines import add_months
+    if box.is_empty or not box.harvest_date:
+        return None
+    warn, old = limits or age_limits()
+    today = today or _date.today()
+    if box.harvest_date <= add_months(today, -old):
+        return "old"
+    if box.harvest_date <= add_months(today, -warn):
+        return "warn"
+    return None
+
+
+def stack_age_level(boxes, limits=None, today=None):
+    """Schlimmste Stufe eines Stapels (für die Karte)."""
+    levels = {age_level(b, limits, today) for b in boxes}
+    return "old" if "old" in levels else "warn" if "warn" in levels else None
+
+
+def oldest_boxes(variety_id=None, warehouse_id=None, limit=200):
+    """Eingelagerte, befüllte Kisten – älteste Ernte zuerst; dazu, ob sie oben liegen (gleich greifbar)."""
+    query = Box.query.filter(Box.warehouse_id.isnot(None), Box.fill > 0, Box.harvest_date.isnot(None))
+    if variety_id:
+        query = query.filter(Box.variety_id == variety_id)
+    if warehouse_id:
+        query = query.filter(Box.warehouse_id == warehouse_id)
+    boxes = query.order_by(Box.harvest_date, Box.warehouse_id, Box.row, Box.slot, Box.level.desc()).limit(limit).all()
+    heights = dict(((w, r, s), n) for w, r, s, n in db.session.query(Box.warehouse_id, Box.row, Box.slot,
+                                                                     func.count(Box.id))
+                   .filter(Box.warehouse_id.isnot(None)).group_by(Box.warehouse_id, Box.row, Box.slot))
+    limits = age_limits()
+    return [{"box": b, "on_top": heights.get((b.warehouse_id, b.row, b.slot)) == b.level,
+             "level": age_level(b, limits)} for b in boxes]

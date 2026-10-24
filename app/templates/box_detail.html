@@ -19,7 +19,7 @@
             <div class="d-flex flex-wrap gap-3 mt-2 small text-body-secondary">
                 <span>{{ fill_bar(box.fill) }} {{ box.fill_label }} · ≈ {{ box.weight_kg|kg }}</span>
                 <span><i class="bi bi-box me-1"></i>{{ box.box_type.name }}</span>
-                {% if box.harvest_date %}<span><i class="bi bi-calendar-event me-1"></i>{{ _("Ernte {date}", date=box.harvest_date|date) }}</span>{% endif %}
+                {% if box.harvest_date %}<span><i class="bi bi-calendar-event me-1"></i>{{ _("Ernte {date}", date=box.harvest_date|date) }}{% if age %} <span class="badge age-badge-{{ age }}"><i class="bi bi-hourglass-split me-1"></i>{{ _("lange gelagert") }}</span>{% endif %}</span>{% endif %}
                 {% if box.plot %}<span><i class="bi bi-map me-1"></i>{{ box.plot.name }}</span>{% endif %}
                 {% if box.grade %}<span><i class="bi bi-rulers me-1"></i>{{ box.grade }}</span>{% endif %}
             </div>

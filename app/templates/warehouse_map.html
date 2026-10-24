@@ -29,6 +29,7 @@
 <div class="map-filters mb-3" id="mapFilters">
     <button class="chip chip-filter active" data-filter="">{{ _("Alle") }}</button>
     <button class="chip chip-filter" data-filter="free"><i class="bi bi-plus-square me-1"></i>{{ _("Platz frei") }}</button>
+    {% if any_old %}<button class="chip chip-filter" data-filter="old"><i class="bi bi-hourglass-split me-1"></i>{{ _("Alte Ware") }}</button>{% endif %}
     {% for v in varieties %}
     <button class="chip chip-filter" data-filter="v{{ v.id }}" style="--chip: {{ v.color }}; --chip-text: {{ v.color|textcolor }}">{{ v.name }}</button>
     {% endfor %}
@@ -62,10 +63,11 @@
                         {% set boxes = stacks.get((r, s), []) %}
                         {% set vids = boxes|rejectattr('is_empty')|map(attribute='variety_id')|select|unique|list %}
                         <td>
-                            <a class="stack-cell {% if not boxes %}is-empty{% elif boxes|length >= warehouse.max_levels %}is-full{% endif %}"
+                            {% set age = ages.get((r, s)) %}
+                            <a class="stack-cell {% if not boxes %}is-empty{% elif boxes|length >= warehouse.max_levels %}is-full{% endif %}{% if age %} age-{{ age }}{% endif %}"
                                href="{{ url_for('main.stack_view', warehouse_id=warehouse.id, row=r, slot=s) }}"
                                data-stack-url="{{ url_for('main.stack_view', warehouse_id=warehouse.id, row=r, slot=s, partial=1) }}"
-                               data-v="{% for v in vids %}v{{ v }} {% endfor %}{% if boxes|length < warehouse.max_levels %}free{% endif %}"
+                               data-v="{% for v in vids %}v{{ v }} {% endfor %}{% if boxes|length < warehouse.max_levels %}free{% endif %}{% if age %} old{% endif %}"
                                title="{{ warehouse.location_label(r, s) }}: {{ boxes|length }} / {{ warehouse.max_levels }}">
                                 <span class="stack-levels">
                                     {% for lvl in range(warehouse.max_levels, 0, -1) %}
@@ -89,6 +91,9 @@
             <span><span class="legend-swatch is-free"></span>{{ _("freie Ebene") }}</span>
             <span><span class="legend-swatch is-full"></span>{{ _("Stapel voll") }}</span>
             <span class="d-none d-md-inline">{{ _("Klick auf einen Stapel zeigt die Kisten darin.") }}</span>
+            {% if any_old %}<span><span class="legend-swatch age-warn-swatch"></span>{{ _("ab {n} Monaten", n=age_limits[0]) }}</span>
+            <span><span class="legend-swatch age-old-swatch"></span>{{ _("ab {n} Monaten", n=age_limits[1]) }}</span>
+            <a href="{{ url_for('main.oldest', lager=warehouse.id) }}">{{ _("Älteste Ware zuerst") }}</a>{% endif %}
         </div>
     </div>
 </div>
@@ -118,7 +123,8 @@
     {% for row in rows %}
     {% set rv = namespace(tags=[]) %}
     {% for boxes in row.stacks %}{% for b in boxes %}{% if b.variety_id and not b.is_empty %}{% set rv.tags = rv.tags + ["v" ~ b.variety_id] %}{% endif %}{% endfor %}{% endfor %}
-    <details class="row-card card shadow-sm" data-v="{{ rv.tags|unique|join(' ') }}{% if row.free %} free{% endif %}">
+    {% set row_old = namespace(v=false) %}{% for boxes in row.stacks %}{% if ages.get((row.row, loop.index)) %}{% set row_old.v = true %}{% endif %}{% endfor %}
+    <details class="row-card card shadow-sm" data-v="{{ rv.tags|unique|join(' ') }}{% if row.free %} free{% endif %}{% if row_old.v %} old{% endif %}">
         <summary>
             <span class="row-card-head">
                 <span class="row-card-title">{{ _("Reihe {row}", row=row.label) }}</span>
@@ -147,7 +153,7 @@
             {% set s = loop.index %}
             <a class="row-slot" href="{{ url_for('main.stack_view', warehouse_id=warehouse.id, row=row.row, slot=s) }}"
                data-stack-url="{{ url_for('main.stack_view', warehouse_id=warehouse.id, row=row.row, slot=s, partial=1) }}">
-                <span class="row-slot-label">{{ warehouse.location_label(row.row, s) }}</span>
+                <span class="row-slot-label">{{ warehouse.location_label(row.row, s) }}{% set age = ages.get((row.row, s)) %}{% if age %} <i class="bi bi-hourglass-split age-icon-{{ age }}" title="{{ _('Alte Ware') }}"></i>{% endif %}</span>
                 <span class="row-slot-boxes">
                     {% for b in boxes %}
                     {% if b.is_empty or not b.variety_id %}<span class="short-chip chip-blank" title="{{ b.code }}">—</span>

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "macros.html" import variety_chip %}
+{% block title %}{{ _("Älteste Ware zuerst") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Älteste Ware zuerst") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Eingelagerte Kisten nach Erntedatum – gelb ab {warn}, rot ab {old} Monaten.", warn=limits[0], old=limits[1]) }}</p>
+    </div>
+</div>
+<form method="get" class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <select class="form-select" name="sorte" onchange="this.form.submit()" aria-label="{{ _('Sorte') }}">
+            <option value="">{{ _("Alle Sorten") }}</option>
+            {% for v in varieties %}<option value="{{ v.id }}" {% if variety_id == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+        </select>
+    </div>
+    {% if warehouses|length > 1 %}
+    <div class="col-6 col-md-3">
+        <select class="form-select" name="lager" onchange="this.form.submit()" aria-label="{{ _('Lager') }}">
+            <option value="">{{ _("Alle Lager") }}</option>
+            {% for w in warehouses %}<option value="{{ w.id }}" {% if warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+        </select>
+    </div>
+    {% endif %}
+</form>
+{% if rows %}
+<div class="hub-list">
+    {% for r in rows %}
+    {% set b = r.box %}
+    <a class="hub-row" href="{{ url_for('main.box_detail', code=b.code) }}">
+        <span class="hub-icon {% if r.level == 'old' %}warn{% endif %}"><i class="bi {{ 'bi-hourglass-bottom' if r.level else 'bi-hourglass-top' }}"></i></span>
+        <span class="hub-text">
+            <span class="hub-title">{{ b.code }} {{ variety_chip(b.variety) }}{% if b.grade %} <span class="small fw-normal text-body-secondary text-nowrap">{{ b.grade }}</span>{% endif %}</span>
+            <span class="hub-status">{{ _("Ernte {date}", date=b.harvest_date|date) }} · {{ b.warehouse.name }} {{ b.location }}{% if b.plot %} · {{ b.plot.name }}{% endif %}</span>
+        </span>
+        <span class="d-flex flex-column align-items-end gap-1">
+            {% if r.level %}<span class="badge age-badge-{{ r.level }}">{{ ngettext("{n} Monat", "{n} Monate", ((today - b.harvest_date).days // 30)) }}</span>{% endif %}
+            {% if r.on_top %}<span class="badge text-bg-success">{{ _("oben") }}</span>{% endif %}
+        </span>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-hourglass"></i><p>{{ _("Keine eingelagerten Kisten mit Erntedatum.") }}</p></div>
+{% endif %}
+{% endblock %}

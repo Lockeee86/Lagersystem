@@ -158,7 +158,19 @@ def warehouses():
 
     items = Warehouse.query.order_by(Warehouse.name).all()
     counts = dict(db.session.query(Box.warehouse_id, func.count(Box.id)).group_by(Box.warehouse_id))
-    return render_template("admin/warehouses.html", items=items, counts=counts)
+    return render_template("admin/warehouses.html", items=items, counts=counts, age_limits=storage.age_limits())
+
+
+@bp.route("/lager/lagerdauer", methods=["POST"])
+def storage_age():
+    try:
+        storage.save_age_limits(form_int("warn", minimum=1, maximum=60), form_int("old", minimum=1, maximum=60))
+    except StorageError as e:
+        flash_error(str(e))
+        return redirect(url_for("admin.warehouses") + "#lagerdauer")
+    db.session.commit()
+    flash(_("Lagerdauer gespeichert."), "success")
+    return redirect(url_for("admin.warehouses") + "#lagerdauer")
 
 
 @bp.route("/lager/<int:wh_id>/loeschen", methods=["POST"])

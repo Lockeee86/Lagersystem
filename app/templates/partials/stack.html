@@ -19,7 +19,7 @@
             <span class="tower-main">
                 <span class="fw-semibold">{{ b.code }}</span>
                 {{ variety_chip(b.variety, b.is_empty) }}
-                {% if b.harvest_date %}<span class="small text-body-secondary">{{ _("Ernte {date}", date=b.harvest_date|date) }}</span>{% endif %}
+                {% if b.harvest_date %}<span class="small text-body-secondary">{{ _("Ernte {date}", date=b.harvest_date|date) }}{% set age = ages.get(b.id) if ages else none %}{% if age %} <i class="bi bi-hourglass-split age-icon-{{ age }}" title="{{ _('lange gelagert') }}"></i>{% endif %}</span>{% endif %}
             </span>
             <span class="tower-fill">{{ fill_bar(b.fill) }}<span class="small">{{ b.fill_label }}</span></span>
             <i class="bi bi-chevron-right text-body-tertiary"></i>

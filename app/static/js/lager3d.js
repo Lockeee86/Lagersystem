@@ -2,7 +2,7 @@
  *
  * Daten (aus views.warehouse_map):
  *   { rows, slots, levels, rowLabels: ["A", …], stackUrl: ".../stapel/0/0?partial=1",
- *     stacks: [[row, slot, [[farbe, sortenId], …von unten nach oben]], …] }
+ *     stacks: [[row, slot, [[farbe, sortenId], …von unten nach oben], alt (1/0)], …] }
  */
 window.Lager3D = (function () {
     "use strict";
@@ -26,7 +26,8 @@ window.Lager3D = (function () {
     function create(container, data, opts) {
         var rot = 0, zoom = 1, filter = "", selected = null;
         var byPos = {};
-        data.stacks.forEach(function (st) { byPos[st[0] + ":" + st[1]] = st[2]; });
+        var oldPos = {};
+        data.stacks.forEach(function (st) { byPos[st[0] + ":" + st[1]] = st[2]; if (st[3]) oldPos[st[0] + ":" + st[1]] = 1; });
 
         try { rot = parseInt(localStorage.getItem("lager3dRot"), 10) || 0; } catch (e) {}
 
@@ -83,7 +84,8 @@ window.Lager3D = (function () {
                 var g = el("g", { "data-r": c.r, "data-s": c.s, "class": "iso-stack" + (sel ? " is-selected" : "") });
                 boxes.forEach(function (b, l) {
                     var color = b[0] || BLANK;
-                    var dim = filter && (filter === "free" ? full : "v" + b[1] !== filter);
+                    var dim = filter && (filter === "free" ? full : filter === "old" ? !oldPos[c.r + ":" + c.s]
+                                                                   : "v" + b[1] !== filter);
                     var x0 = c.gx + inset, x1 = c.gx + 1 - inset, y0 = c.gy + inset, y1 = c.gy + 1 - inset;
                     var z0 = l + 0.05, z1 = l + 0.95;
                     var attrs = dim ? { opacity: "0.15" } : {};

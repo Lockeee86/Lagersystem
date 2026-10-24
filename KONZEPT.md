@@ -279,6 +279,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Lagerdauer-Ampel** (0.32.1): eingelagerte Kisten nach Erntedatum gelb (ab 6 Monaten) bzw. rot (ab 9) umrandet
+   in Karte, Liste, Stapel und an der Kiste; Filter „Alte Ware“ (auch 3D). Seite „Älteste Ware zuerst“
+   (`/lager/aelteste`, „oben“ = gleich greifbar). Schwellen unter Verwaltung → Kartoffellager.
    **Kosten je Maschine und Jahr** (0.32.0, nur Admins): Karte auf der Maschinenseite (Jahr blättern) und Übersicht
    Maschinen → Kosten. Diesel = getankte Liter × Preis der Lieferungen im Jahr (Mittel nach Menge, sonst letzter
    Preis), Reparaturen/Wartungen = Beträge im Logbuch, Bestellungen = Bestellwünsche mit Preis (nicht abgelehnt);

@@ -731,3 +731,15 @@ body:not(.has-tabbar) {
                  border: 1px solid var(--line); }
 .machine-thumb-empty { display: flex; align-items: center; justify-content: center; background: var(--surface-2);
                        color: var(--bs-secondary-color); font-size: 1.5rem; }
+
+/* Lagerdauer-Ampel */
+.stack-cell.age-warn { box-shadow: inset 0 0 0 2px #e0a800; }
+.stack-cell.age-old { box-shadow: inset 0 0 0 2px #dc3545; }
+.age-warn-swatch { background: transparent; border: 2px solid #e0a800; }
+.age-old-swatch { background: transparent; border: 2px solid #dc3545; }
+.age-icon-warn { color: #c98f00; }
+.age-icon-old { color: #dc3545; }
+.age-badge-warn { background: #fff3cd; color: #7a5a00; }
+.age-badge-old { background: #f8d7da; color: #842029; }
+[data-bs-theme="dark"] .age-badge-warn { background: #4d3b00; color: #ffe08a; }
+[data-bs-theme="dark"] .age-badge-old { background: #4a1a20; color: #f5b5bc; }

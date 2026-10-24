@@ -59,6 +59,16 @@
         {% elif current_user.is_admin %}
         <div class="hub-list mb-3"><a class="hub-row" href="{{ url_for('admin.warehouses') }}"><i class="bi bi-plus-lg"></i>{{ _("Kartoffellager anlegen") }}</a></div>
         {% endif %}
+        <div class="hub-list mb-3">
+            <a class="hub-row" href="{{ url_for('main.oldest') }}">
+                <span class="hub-icon {% if old_count %}warn{% endif %}"><i class="bi bi-hourglass-split"></i></span>
+                <span class="hub-text">
+                    <span class="hub-title">{{ _("Älteste Ware zuerst") }}</span>
+                    <span class="hub-status">{% if old_count %}{{ ngettext("{n} Kiste lange gelagert", "{n} Kisten lange gelagert", old_count) }}{% else %}{{ _("nichts lange gelagert") }}{% endif %}</span>
+                </span>
+                <i class="bi bi-chevron-right text-body-tertiary"></i>
+            </a>
+        </div>
         {% if current_user.can_edit %}
         <div class="hub-list mb-3">
             <a class="hub-row" href="{{ url_for('main.harvest') }}">

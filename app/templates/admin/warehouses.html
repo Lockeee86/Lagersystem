@@ -39,6 +39,21 @@
     {% endfor %}
 </div>
 
+<div class="card shadow-sm mt-4" id="lagerdauer">
+    <div class="card-header"><i class="bi bi-hourglass-split me-1"></i>{{ _("Lagerdauer-Ampel") }}</div>
+    <div class="card-body">
+        <p class="small text-body-secondary">{{ _("Eingelagerte Kisten werden nach dem Erntedatum in Karte und Liste gelb bzw. rot umrandet; „Älteste Ware zuerst“ zeigt sie zum Auslagern.") }}</p>
+        <form method="post" action="{{ url_for('admin.storage_age') }}" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-6 col-md-3"><label class="form-label small" for="age_warn">{{ _("Gelb ab (Monate)") }}</label>
+                <input class="form-control" id="age_warn" name="warn" type="number" min="1" max="60" value="{{ age_limits[0] }}" required></div>
+            <div class="col-6 col-md-3"><label class="form-label small" for="age_old">{{ _("Rot ab (Monate)") }}</label>
+                <input class="form-control" id="age_old" name="old" type="number" min="1" max="60" value="{{ age_limits[1] }}" required></div>
+            <div class="col-12 col-md-3"><button class="btn btn-primary w-100">{{ _("Speichern") }}</button></div>
+        </form>
+    </div>
+</div>
+
 {% call edit_modal("whModal", _("Neues Lager"), _("Lager bearbeiten"), url_for('admin.warehouses')) %}
 <div class="mb-3">
     <label class="form-label" for="wh_name">{{ _("Name") }}</label>
