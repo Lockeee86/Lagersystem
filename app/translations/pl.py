@@ -1928,4 +1928,10 @@ MESSAGES = {
     '{n} offene Notizen': ('{n} otwarta notatka', '{n} otwarte notatki', '{n} otwartych notatek'),
     'Wer macht heute was': 'Kto co dziś robi',
     'Was der Nächste wissen muss': 'Co następna osoba musi wiedzieć',
+    '„{name}“ ist kein PDF, Bild oder keine Präsentation (PowerPoint, LibreOffice).': '„{name}” nie jest plikiem PDF, obrazem ani prezentacją (PowerPoint, LibreOffice).',
+    'Unterlagen': 'Materiały',
+    'zum Herunterladen': 'do pobrania',
+    'Noch keine Unterlagen – z. B. die Präsentation oder das Merkblatt der Berufsgenossenschaft.': 'Brak materiałów – np. prezentacja lub ulotka ubezpieczyciela wypadkowego (BG).',
+    'Titel (sonst Dateiname)': 'Tytuł (inaczej nazwa pliku)',
+    'PDF, Bild, PowerPoint, LibreOffice oder Word – höchstens 40 MB. PDFs öffnen sich direkt, Präsentationen werden heruntergeladen.': 'PDF, obraz, PowerPoint, LibreOffice lub Word – maks. 40 MB. Pliki PDF otwierają się od razu, prezentacje są pobierane.',
 }

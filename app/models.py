@@ -1493,6 +1493,42 @@ class InstructionTopic(db.Model):
     users = db.relationship("User", secondary=instruction_topic_users, order_by="User.username")
     records = db.relationship("InstructionRecord", back_populates="topic", cascade="all, delete-orphan",
                               order_by="InstructionRecord.day.desc(), InstructionRecord.id.desc()")
+    documents = db.relationship("InstructionDocument", back_populates="topic", cascade="all, delete-orphan",
+                                order_by="InstructionDocument.created_at")
+
+
+class InstructionDocument(db.Model):
+    """Unterlage zu einer Unterweisung (PDF, Präsentation der Berufsgenossenschaft …), Datei unter `dokumente/`."""
+    __tablename__ = "instruction_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey("instruction_topics.id", ondelete="CASCADE"), nullable=False,
+                         index=True)
+    title = db.Column(db.String(150), nullable=False)
+    filename = db.Column(db.String(80), nullable=False, unique=True)
+    original_name = db.Column(db.String(200))
+    mimetype = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    topic = db.relationship("InstructionTopic", back_populates="documents")
+
+    @property
+    def extension(self):
+        return self.filename.rsplit(".", 1)[-1]
+
+    @property
+    def viewable(self):
+        """Im Browser anzeigbar (PDF, Bild) – Präsentationen werden heruntergeladen."""
+        return self.mimetype in ("application/pdf", "image/jpeg", "image/png")
+
+    @property
+    def icon(self):
+        ext = self.extension
+        return ("bi-file-earmark-pdf" if ext == "pdf" else "bi-file-earmark-image" if ext in ("jpg", "png")
+                else "bi-file-earmark-slides" if ext in ("pptx", "ppsx", "ppt", "pps", "odp")
+                else "bi-file-earmark-spreadsheet" if ext in ("xlsx", "xls", "ods") else "bi-file-earmark-text")
 
 
 class InstructionRecord(db.Model):

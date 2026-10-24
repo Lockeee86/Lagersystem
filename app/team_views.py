@@ -1,14 +1,14 @@
 """Seiten fürs Team: Übergabe-Notizen, Tagesplan, Unterweisungen (Logik in team.py)."""
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 
-from . import team
+from . import team, uploads
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .instruction_pdf import render_instruction_record
-from .models import Handover, InstructionRecord, InstructionTopic, Machine, PlanEntry, Plot, Setting, User
+from .models import Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, PlanEntry, Plot, Setting, User
 from .storage import StorageError
 from .utils import admin_required, back, editor_required, flash_error, form_date, form_int, form_str, local_tz
 
@@ -253,6 +253,55 @@ def instruction_pdf(topic_id):
                     headers={"Content-Disposition": f'inline; filename="unterweisung-{topic.id}-{year}.pdf"'})
 
 
+@bp.route("/unterweisung/<int:topic_id>/unterlage", methods=["POST"])
+@admin_required
+def instruction_document_upload(topic_id):
+    topic = _get(InstructionTopic, topic_id)
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("team.instruction_detail", topic_id=topic.id) + "#unterlagen")
+    name = None
+    try:
+        name, mimetype, size = uploads.save_document(upload, office=True)
+        title = form_str("title", 150) or upload.filename.rsplit(".", 1)[0][:150]
+        db.session.add(InstructionDocument(topic=topic, title=title, filename=name, original_name=upload.filename[:200],
+                                           mimetype=mimetype, size=size, user_id=current_user.id))
+        db.session.commit()
+        flash(_("„{title}“ hochgeladen.", title=title), "success")
+    except StorageError as e:
+        db.session.rollback()
+        if name:
+            uploads.delete_document(name)
+        flash_error(str(e))
+    return redirect(url_for("team.instruction_detail", topic_id=topic.id) + "#unterlagen")
+
+
+@bp.route("/unterweisung/unterlage/<int:doc_id>")
+@admin_required
+def instruction_document(doc_id):
+    doc = _get(InstructionDocument, doc_id)
+    download = not doc.viewable or request.args.get("download") == "1"
+    response = send_from_directory(uploads.document_dir(), doc.filename, mimetype=doc.mimetype, max_age=86400,
+                                   as_attachment=download, download_name=f"{doc.title[:80]}.{doc.extension}")
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    # Hochgeladene Dateien dürfen im Browser nichts ausführen
+    response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'"
+    return response
+
+
+@bp.route("/unterweisung/unterlage/<int:doc_id>/loeschen", methods=["POST"])
+@admin_required
+def instruction_document_delete(doc_id):
+    doc = _get(InstructionDocument, doc_id)
+    topic_id, filename = doc.topic_id, doc.filename
+    db.session.delete(doc)
+    db.session.commit()
+    uploads.delete_document(filename)
+    flash(_("„{title}“ gelöscht.", title=doc.title), "success")
+    return redirect(url_for("team.instruction_detail", topic_id=topic_id) + "#unterlagen")
+
+
 @bp.route("/unterweisung/<int:topic_id>/loeschen", methods=["POST"])
 @admin_required
 def instruction_delete(topic_id):
@@ -260,7 +309,10 @@ def instruction_delete(topic_id):
     if topic.records:
         flash_error(_("{name} hat schon Nachweise – bitte nur deaktivieren.", name=topic.name))
         return redirect(url_for("team.instruction_detail", topic_id=topic.id))
+    files = [d.filename for d in topic.documents]
     db.session.delete(topic)
     db.session.commit()
+    for name in files:
+        uploads.delete_document(name)
     flash(_("{name} gelöscht.", name=topic.name), "success")
     return redirect(url_for("team.instructions"))

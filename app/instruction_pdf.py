@@ -39,6 +39,9 @@ def render_instruction_record(topic, records, year, farm):
                                                      SMALL), Spacer(1, 4 * mm)]
     if topic.content:
         story += [_p("Inhalt der Unterweisung", SMALL), _p(_lines(topic.content)), Spacer(1, 5 * mm)]
+    if topic.documents:
+        story += [_p("Unterlagen", SMALL), _p("<br/>".join(escape(d.title) for d in topic.documents)),
+                  Spacer(1, 5 * mm)]
     story.append(_p("Mit meiner Unterschrift bestätige ich, dass ich unterwiesen wurde und den Inhalt verstanden "
                     "habe.", BASE))
     story.append(Spacer(1, 4 * mm))

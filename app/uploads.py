@@ -4,6 +4,7 @@ Das Verzeichnis kommt aus `UPLOAD_DIR` (im Container ein eigenes Volume, damit F
 """
 import os
 import uuid
+import zipfile
 
 from flask import current_app, has_app_context
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -96,12 +97,50 @@ def document_dir():
     return path
 
 
-def save_document(file_storage):
-    """Speichert PDF/JPEG/PNG so wie hochgeladen. Liefert (Dateiname, MIME-Typ, Größe).
-    Der Typ wird am Dateiinhalt erkannt, nicht an der Endung."""
+# Präsentationen und Office-Dateien (z. B. Unterweisungs-Unterlagen der Berufsgenossenschaft): Endung → MIME-Typ.
+# Neue Formate sind ZIP-Archive (OOXML mit [Content_Types].xml, ODF mit `mimetype`), alte sind OLE-Dateien.
+OFFICE_ZIP = {
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "ppsx": "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "odp": "application/vnd.oasis.opendocument.presentation",
+    "odt": "application/vnd.oasis.opendocument.text",
+    "ods": "application/vnd.oasis.opendocument.spreadsheet",
+}
+OFFICE_OLE = {"ppt": "application/vnd.ms-powerpoint", "pps": "application/vnd.ms-powerpoint",
+              "doc": "application/msword", "xls": "application/vnd.ms-excel"}
+OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
+def _office_type(file_storage, head):
+    ext = (file_storage.filename or "").rsplit(".", 1)[-1].lower()
+    if head.startswith(b"PK\x03\x04") and ext in OFFICE_ZIP:
+        try:
+            with zipfile.ZipFile(file_storage.stream) as archive:
+                names = set(archive.namelist())
+        except (zipfile.BadZipFile, OSError):
+            names = set()
+        finally:
+            file_storage.stream.seek(0)
+        if "[Content_Types].xml" in names or "mimetype" in names:
+            return ext, OFFICE_ZIP[ext]
+    if head.startswith(OLE_MAGIC) and ext in OFFICE_OLE:
+        return ext, OFFICE_OLE[ext]
+    return None
+
+
+def save_document(file_storage, office=False):
+    """Speichert PDF/JPEG/PNG (mit `office` auch Präsentationen, Word, Excel) so wie hochgeladen.
+    Liefert (Dateiname, MIME-Typ, Größe). Der Typ wird am Dateiinhalt erkannt, nicht nur an der Endung."""
     head = file_storage.stream.read(8)
     file_storage.stream.seek(0)
     match = next(((ext, mime) for magic, ext, mime in DOC_TYPES if head.startswith(magic)), None)
+    if match is None and office:
+        match = _office_type(file_storage, head)
+    if match is None and office:
+        raise StorageError(_("„{name}“ ist kein PDF, Bild oder keine Präsentation (PowerPoint, LibreOffice).",
+                             name=(file_storage.filename or "")[:60]))
     if match is None:
         raise StorageError(_("„{name}“ ist kein PDF oder Bild (JPEG, PNG).", name=(file_storage.filename or "")[:60]))
     name = f"{uuid.uuid4().hex}.{match[0]}"

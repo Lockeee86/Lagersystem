@@ -299,6 +299,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Handy (`InstructionRecord.signature`, Technik wie beim Lieferschein: `signatures.py`, `static/js/signpad.js`,
    `macros.sign_modal`). Nachweis je Thema und Jahr als PDF (`instruction_pdf.py`, immer Deutsch). Fällige stehen
    für Admins unter „Jetzt wichtig“.
+   *Unterlagen* (0.36.1): an jede Unterweisung lassen sich Dateien hängen – PDF, Bilder, Präsentationen und
+   Office-Dateien der Berufsgenossenschaft (`InstructionDocument`, `uploads.save_document(office=True)`: Typ am
+   Inhalt erkannt, ZIP-/OLE-Formate nur mit passender Endung). PDFs und Bilder öffnen im Browser, der Rest wird
+   heruntergeladen; die Titel stehen auf dem Nachweis.
    **Kistenzustand** (0.35.0): auf der Kistenseite „Kiste defekt melden“ mit kurzer Angabe (Schnellwahl für die
    Metallkisten: Gitter, Rahmen, Schweißnaht, Stapelfuß; Foto über die Fotoleiste). Defekte Kisten stehen unter Lager → Kisten-Reparatur
    (`/kisten/reparatur`), werden im Ernte-Modus abgewiesen und auf Kistenliste/Stapel markiert; „Repariert“ setzt

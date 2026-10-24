@@ -189,3 +189,56 @@ def test_instruction_pages(as_admin, as_worker, db, seed):
     as_admin.post(f"/unterweisung/{topic_id}/loeschen")
     assert db.session.get(type(record.topic), topic_id) is None
 
+
+
+def _pptx():
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("ppt/presentation.xml", "<p/>")
+    buf.seek(0)
+    return buf
+
+
+def test_instruction_documents(app, as_admin, as_worker, db, seed):
+    import os
+    from app import uploads
+    from app.models import InstructionDocument
+    topic = team.save_topic(None, "Stapler", 12, None, True, [])
+    db.session.commit()
+    url = f"/unterweisung/{topic.id}/unterlage"
+    assert as_worker.post(url, data={"file": (io.BytesIO(b"%PDF-1.4 x"), "a.pdf")},
+                          content_type="multipart/form-data").status_code == 403
+    as_admin.post(url, data={"file": (io.BytesIO(b"%PDF-1.4 merkblatt"), "Merkblatt Stapler.pdf")},
+                  content_type="multipart/form-data")
+    as_admin.post(url, data={"title": "Präsentation BG", "file": (_pptx(), "stapler.pptx")},
+                  content_type="multipart/form-data")
+    # falsche Dateien: Endung passt nicht zum Inhalt, beliebiges ZIP, Text
+    for name, data in (("fake.pptx", io.BytesIO(b"PK\x03\x04kaputt")), ("x.zip", _pptx()),
+                       ("notiz.txt", io.BytesIO(b"hallo"))):
+        r = as_admin.post(url, data={"file": (data, name)}, content_type="multipart/form-data", follow_redirects=True)
+        assert "kein PDF, Bild oder keine Präsentation" in r.get_data(as_text=True)
+    pdf, pptx = InstructionDocument.query.order_by(InstructionDocument.id).all()
+    assert pdf.title == "Merkblatt Stapler" and pdf.viewable and pptx.extension == "pptx" and not pptx.viewable
+
+    html = as_admin.get(f"/unterweisung/{topic.id}").get_data(as_text=True)
+    assert "Merkblatt Stapler" in html and "Präsentation BG" in html and "zum Herunterladen" in html
+    r = as_admin.get(f"/unterweisung/unterlage/{pdf.id}")
+    assert r.mimetype == "application/pdf" and "attachment" not in r.headers.get("Content-Disposition", "")
+    assert "sandbox" in r.headers["Content-Security-Policy"]
+    r = as_admin.get(f"/unterweisung/unterlage/{pptx.id}")
+    assert "attachment" in r.headers["Content-Disposition"] and "Pr" in r.headers["Content-Disposition"]
+    assert as_worker.get(f"/unterweisung/unterlage/{pdf.id}").status_code == 403
+    # Unterlagen stehen auf dem Nachweis
+    pdf_bytes = as_admin.get(f"/unterweisung/{topic.id}/nachweis.pdf").data
+    assert pdf_bytes[:4] == b"%PDF"
+
+    # löschen entfernt die Datei; Thema löschen nimmt die übrigen mit
+    path = os.path.join(uploads.document_dir(), pdf.filename)
+    assert os.path.exists(path)
+    as_admin.post(f"/unterweisung/unterlage/{pdf.id}/loeschen")
+    assert not os.path.exists(path)
+    other = os.path.join(uploads.document_dir(), pptx.filename)
+    as_admin.post(f"/unterweisung/{topic.id}/loeschen")
+    assert not os.path.exists(other) and InstructionDocument.query.count() == 0
