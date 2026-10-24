@@ -49,3 +49,33 @@ def test_machine_image(app, as_admin, as_worker, as_viewer, db, seed):
     # entfernen
     as_worker.post(f"/maschine/{m.id}/bild", data={"entfernen": "1"})
     assert db.session.get(Machine, m.id).image is None and not os.path.exists(os.path.join(folder, second))
+
+
+def test_fuel_only_for_machines_with_tank(as_admin, as_worker, db, seed):
+    import pytest
+    from app import fuel
+    from app.storage import StorageError
+    tractor = machines.create_machine("Testschlepper", "schlepper", seed["admin"])
+    trailer = machines.create_machine("Testkipper", "anhaenger", seed["admin"])
+    combine = machines.create_machine("Testdrescher", "maehdrescher", seed["admin"],
+                                      counter_unit=machines.DEFAULT_UNITS["maehdrescher"])
+    db.session.commit()
+    assert tractor.uses_fuel and combine.uses_fuel and not trailer.uses_fuel
+    assert combine.counter_unit == "h" and any("Saisonkontrolle" in t.name for t in combine.tasks)
+    # Anhänger: keine Tank-Karte, Tanken abgewiesen, nicht in der Auswahl im Tankbuch
+    assert 'id="diesel"' not in as_worker.get(f"/maschine/{trailer.id}").get_data(as_text=True)
+    assert 'id="diesel"' in as_worker.get(f"/maschine/{tractor.id}").get_data(as_text=True)
+    with pytest.raises(StorageError, match="wird nicht getankt"):
+        fuel.refuel(trailer, seed["admin"], 50)
+    html = as_worker.get("/tankbuch").get_data(as_text=True)
+    select = html.split('id="r_machine"')[1].split("</select>")[0]
+    assert "Testschlepper" in select and "Testkipper" not in select
+
+    # je Maschine umstellbar; gleich wie Voreinstellung → wieder „nach Art“
+    form = {"name": "Testkipper", "category": "anhaenger", "refuels_form": "1", "refuels": "1"}
+    as_admin.post(f"/maschine/{trailer.id}/bearbeiten", data=form)
+    assert db.session.get(Machine, trailer.id).refuels is True and trailer.uses_fuel
+    as_admin.post(f"/maschine/{trailer.id}/bearbeiten", data={**form, "refuels": ""})
+    assert db.session.get(Machine, trailer.id).refuels is None and not trailer.uses_fuel
+    # neue Gruppe erscheint in der Liste
+    assert "Mähdrescher / Häcksler" in as_worker.get("/maschinen").get_data(as_text=True)

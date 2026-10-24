@@ -853,8 +853,13 @@ class BulkEntry(db.Model):
 MACHINE_CATEGORIES = {
     "schlepper": N_("Schlepper"),
     "fahrzeug": N_("Fahrzeug"),
+    "maehdrescher": N_("Mähdrescher / Häcksler"),
     "roder": N_("Roder"),
     "legemaschine": N_("Legemaschine"),
+    "saetechnik": N_("Sä- und Drilltechnik"),
+    "bodenbearbeitung": N_("Bodenbearbeitung (Pflug, Grubber …)"),
+    "pflanzenschutz": N_("Pflanzenschutzspritze"),
+    "duengung": N_("Düngerstreuer / Güllefass"),
     "sortieranlage": N_("Sortieranlage / Band"),
     "anhaenger": N_("Anhänger"),
     "stapler": N_("Stapler / Lader"),
@@ -862,8 +867,12 @@ MACHINE_CATEGORIES = {
     "sonstiges": N_("Sonstiges"),
 }
 COUNTER_UNITS = {"h": N_("Betriebsstunden"), "km": N_("Kilometer")}
+# Arten mit eigenem Motor und Tank (lässt sich je Maschine umstellen: Machine.refuels)
+FUEL_CATEGORIES = {"schlepper", "fahrzeug", "maehdrescher", "roder", "stapler"}
 # Symbol je Art (Liste ohne Bild)
 MACHINE_ICONS = {"schlepper": "bi-truck-front", "fahrzeug": "bi-car-front", "roder": "bi-basket",
+                 "maehdrescher": "bi-wind", "saetechnik": "bi-flower1", "bodenbearbeitung": "bi-tools",
+                 "pflanzenschutz": "bi-droplet", "duengung": "bi-moisture",
                  "legemaschine": "bi-grid-3x3", "sortieranlage": "bi-funnel", "anhaenger": "bi-truck-flatbed",
                  "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "sonstiges": "bi-gear-wide-connected"}
 
@@ -883,6 +892,8 @@ class Machine(db.Model):
     serial_no = db.Column(db.String(100))
     site_id = site_column()
     image = db.Column(db.String(80))             # Titelbild (Datei in UPLOAD_DIR, Vorschau `uploads.thumb_name`)
+    # Wird getankt? leer = nach Art (FUEL_CATEGORIES), sonst ausdrücklich ja/nein
+    refuels = db.Column(db.Boolean)
     counter_unit = db.Column(db.String(5))       # "h", "km" oder leer (ohne Zähler)
     counter = db.Column(db.Integer)              # aktueller Stand
     counter_at = db.Column(db.DateTime(timezone=True))
@@ -908,6 +919,11 @@ class Machine(db.Model):
     @property
     def icon(self):
         return MACHINE_ICONS.get(self.category, "bi-gear-wide-connected")
+
+    @property
+    def uses_fuel(self):
+        """Hat einen eigenen Tank (Schlepper, Fahrzeug …) – Anhänger, Anbaugeräte und Anlagen nicht."""
+        return self.refuels if self.refuels is not None else self.category in FUEL_CATEGORIES
 
 
 class MaintenanceTask(db.Model):

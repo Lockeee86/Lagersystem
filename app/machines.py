@@ -20,6 +20,13 @@ TASK_TEMPLATES = {
                   ("Luftfilter", 500, None), ("Hauptuntersuchung (TÜV)", None, 24), ("UVV-Prüfung", None, 12)],
     "fahrzeug": [("Inspektion", 15000, 12), ("Hauptuntersuchung (TÜV)", None, 24)],
     "roder": [("Saisonkontrolle vor der Ernte", None, 12), ("Getriebeöl", 250, 12), ("UVV-Prüfung", None, 12)],
+    "maehdrescher": [("Motoröl und Filter", 250, 12), ("Saisonkontrolle vor der Ernte", None, 12),
+                     ("Hauptuntersuchung (TÜV)", None, 24), ("UVV-Prüfung", None, 12)],
+    "saetechnik": [("Saisonkontrolle vor der Aussaat", None, 12), ("UVV-Prüfung", None, 12)],
+    "bodenbearbeitung": [("Verschleißteile prüfen", None, 12), ("UVV-Prüfung", None, 12)],
+    "pflanzenschutz": [("Pflanzenschutzgeräte-Kontrolle", None, 36), ("Düsen und Filter prüfen", None, 12),
+                       ("UVV-Prüfung", None, 12)],
+    "duengung": [("Saisonkontrolle", None, 12), ("UVV-Prüfung", None, 12)],
     "legemaschine": [("Saisonkontrolle vor dem Legen", None, 12), ("UVV-Prüfung", None, 12)],
     "sortieranlage": [("Saisonkontrolle", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
     "anhaenger": [("Hauptuntersuchung (TÜV)", None, 24), ("Bremsen prüfen", None, 12), ("UVV-Prüfung", None, 12)],
@@ -28,7 +35,7 @@ TASK_TEMPLATES = {
     "sonstiges": [],
 }
 # Fahrzeuge zählen Kilometer, alles mit Motor Betriebsstunden, der Rest nichts
-DEFAULT_UNITS = {"schlepper": "h", "fahrzeug": "km", "roder": "h", "stapler": "h"}
+DEFAULT_UNITS = {"schlepper": "h", "fahrzeug": "km", "roder": "h", "stapler": "h", "maehdrescher": "h"}
 
 SOON_DAYS = 30
 

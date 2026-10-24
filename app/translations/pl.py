@@ -1686,4 +1686,11 @@ MESSAGES = {
     'n … A – erste Reihe unten bzw. vorne': 'n … A – pierwszy rząd na dole lub z przodu',
     'Gilt für Karte, Liste und 3D-Ansicht – so einstellen, wie die Reihen in der Halle vom Tor aus liegen.': 'Dotyczy mapy, listy i widoku 3D – ustaw tak, jak rzędy leżą w hali patrząc od bramy.',
     'Reihen {first} … {last}': 'Rzędy {first} … {last}',
+    'Mähdrescher / Häcksler': 'Kombajn / sieczkarnia',
+    'Sä- und Drilltechnik': 'Siewniki',
+    'Bodenbearbeitung (Pflug, Grubber …)': 'Uprawa gleby (pług, kultywator …)',
+    'Pflanzenschutzspritze': 'Opryskiwacz',
+    'Düngerstreuer / Güllefass': 'Rozsiewacz nawozów / beczkowóz',
+    '{name} wird nicht getankt (z. B. Anhänger oder Anbaugerät).': '{name} nie jest tankowany (np. przyczepa lub maszyna zawieszana).',
+    'Wird getankt (eigener Dieseltank)': 'Tankowany (własny zbiornik paliwa)',
 }

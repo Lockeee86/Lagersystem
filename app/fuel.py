@@ -56,6 +56,8 @@ def parse_liters(text):
 
 def refuel(machine, user, liters, counter=None, day=None, note=None):
     """Aus dem Hoftank in eine Maschine getankt. Ein höherer Zählerstand wird an der Maschine übernommen."""
+    if not machine.uses_fuel:
+        raise StorageError(_("{name} wird nicht getankt (z. B. Anhänger oder Anbaugerät).", name=machine.name))
     liters = _liters(liters)
     if counter is not None:
         if not machine.counter_unit:

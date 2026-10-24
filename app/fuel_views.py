@@ -49,6 +49,7 @@ def tank():
     return render_template(
         "fuel/tank.html", status=fuel.status(), page=page, tank_site_id=sites.tank_site_id(), kinds=FUEL_KINDS, kind=kind, machine_id=machine_id,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all(),
+        fuel_machines=[m for m in Machine.query.filter_by(active=True).order_by(Machine.name) if m.uses_fuel],
         per_machine=fuel.per_machine(year), year=year, year_total=fuel.liters_in_year(year=year),
         last_price=fuel.last_price(), suppliers=purchases.suppliers(), today=date.today(),
         filter_machine=db.session.get(Machine, machine_id) if machine_id else None,

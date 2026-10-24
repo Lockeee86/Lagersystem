@@ -279,6 +279,11 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Maschinenarten und Tanken** (0.31.8): neue Arten Mähdrescher/Häcksler, Sä- und Drilltechnik, Bodenbearbeitung,
+   Pflanzenschutzspritze, Düngerstreuer/Güllefass (mit Wartungsvorschlägen, z. B. Pflanzenschutzgeräte-Kontrolle alle
+   3 Jahre). Getankt werden nur Maschinen mit eigenem Tank (`FUEL_CATEGORIES`: Schlepper, Fahrzeug, Mähdrescher,
+   Roder, Stapler); je Maschine umstellbar („Wird getankt“, `Machine.refuels`). Anhänger & Co. haben keine
+   Diesel-Karte und stehen nicht in der Auswahl im Tankbuch. Maschinen, die schon getankt wurden, behalten es.
    **Reihenfolge der Reihen** (0.31.7, Verwaltung → Kartoffellager): „A … n“ (erste Reihe oben/hinten) oder „n … A“
    (erste Reihe unten/vorne) – gilt gleich für Karte, Liste und 3D-Ansicht (`Warehouse.rows_bottom_up`).
    **Titelbild je Maschine** (0.31.6): auf der Maschinenseite oben (Mitarbeiter: „Bild hinzufügen/ändern“, Kamera

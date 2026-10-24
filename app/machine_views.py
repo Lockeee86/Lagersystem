@@ -10,7 +10,7 @@ from . import fuel, machines, purchases, push, sites, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .labels import LABEL_FORMATS, render_labels
-from .models import (COUNTER_UNITS, DOCUMENT_KINDS, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, FuelEntry, Machine,
+from .models import (COUNTER_UNITS, DOCUMENT_KINDS, FUEL_CATEGORIES, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, FuelEntry, Machine,
                      MachineDocument, MachineEvent, MachinePart, MaintenanceTask, Photo, User)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
@@ -145,6 +145,10 @@ def machine_edit(machine_id):
     for key, value in _machine_fields().items():
         setattr(machine, key, value)
     machine.active = not request.form.get("inactive")
+    # „Wird getankt“: nur speichern, wenn es von der Voreinstellung der Art abweicht
+    if "refuels_form" in request.form:
+        wanted = bool(request.form.get("refuels"))
+        machine.refuels = None if wanted == (category in FUEL_CATEGORIES) else wanted
     db.session.commit()
     flash(_("{name} gespeichert.", name=machine.name), "success")
     return _to_machine(machine)

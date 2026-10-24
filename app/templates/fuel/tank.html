@@ -28,7 +28,7 @@
             <div class="col-12 col-md-4"><label class="form-label" for="r_machine">{{ _("Maschine") }}</label>
                 <select class="form-select" id="r_machine" name="machine_id" required>
                     <option value="">–</option>
-                    {% for m in machines %}<option value="{{ m.id }}" {% if m.id == machine_id %}selected{% endif %}>{{ m.name }}{% if m.counter is not none %} ({{ m.counter }} {{ m.unit_short }}){% endif %}</option>{% endfor %}
+                    {% for m in fuel_machines %}<option value="{{ m.id }}" {% if m.id == machine_id %}selected{% endif %}>{{ m.name }}{% if m.counter is not none %} ({{ m.counter }} {{ m.unit_short }}){% endif %}</option>{% endfor %}
                 </select></div>
             <div class="col-6 col-md-2"><label class="form-label" for="r_liters">{{ _("Liter") }}</label>
                 <input class="form-control" id="r_liters" name="liters" inputmode="decimal" required maxlength="20"></div>
