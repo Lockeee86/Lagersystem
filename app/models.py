@@ -711,6 +711,13 @@ class Delivery(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     closed_at = db.Column(db.DateTime(timezone=True))
+    # Unterschriften am Handy (PNG, schwarz auf weiß): Hof = übergeben, Kunde = Ware erhalten
+    sign_farm = db.Column(db.LargeBinary)
+    sign_farm_name = db.Column(db.String(100))
+    sign_farm_at = db.Column(db.DateTime(timezone=True))
+    sign_customer = db.Column(db.LargeBinary)
+    sign_customer_name = db.Column(db.String(100))
+    sign_customer_at = db.Column(db.DateTime(timezone=True))
 
     customer = db.relationship("Customer", back_populates="deliveries")
     created_by = db.relationship("User")
@@ -740,6 +747,15 @@ class Delivery(db.Model):
     @property
     def box_count(self):
         return sum(1 for item in self.items if item.box_id)
+
+    @property
+    def is_signed(self):
+        """Mindestens eine Unterschrift – dann sind Positionen, Kunde und Waage gesperrt."""
+        return bool(self.sign_farm or self.sign_customer)
+
+    @property
+    def fully_signed(self):
+        return bool(self.sign_farm and self.sign_customer)
 
 
 class DeliveryItem(db.Model):

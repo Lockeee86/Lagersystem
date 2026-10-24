@@ -142,6 +142,12 @@ nicht löschen, Kunden mit Lieferscheinen nur deaktivieren.
   → Neue Daten an der Ware: Anerkennungsnummer je Sorte/Stufe/Erntejahr (Partie-Stammdaten, nur Info,
   Kisten bleiben Einzelkisten).
 - **Lieferschein als PDF** (reportlab wie die Etiketten), mit Hofname/Anschrift.
+- **Unterschrift am Handy** (0.34.0): auf der Lieferschein-Seite unterschreiben Hof („Übergeben“) und Empfänger
+  („Ware erhalten“) mit dem Finger, dazu der Name in Druckschrift. Gespeichert als PNG am Lieferschein
+  (`Delivery.sign_farm` / `sign_customer`, zugeschnitten, schwarz auf weiß), im PDF über der Linie mit Name und
+  Zeitpunkt. Unterschrieben = Positionen, Kunde und Waage gesperrt; entfernen kann nur der Admin bei offenem
+  Lieferschein. Der Admin stellt bei den Lieferscheinen (Zahnrad) ein, ob beide Unterschriften zum Abschließen
+  Pflicht sind (`settings` `delivery_sign_required`); ohne Pflicht kann auch nach dem Abschließen unterschrieben werden.
 - **Keine Rechnungen** in der App – die macht weiter das Büro/der Steuerberater. Export der Lieferscheine
   je Kartoffeljahr nach Excel (passt zum bestehenden Jahres-Export).
 - **Rückverfolgung**: Kiste → Schlag/Erntedatum → Lieferschein → Kunde, in beide Richtungen auffindbar.

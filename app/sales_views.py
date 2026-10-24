@@ -54,6 +54,7 @@ def deliveries():
     return render_template("sales/deliveries.html", page=page, statuses=DELIVERY_STATUSES,
                            customers=Customer.query.order_by(Customer.name).all(),
                            active_customers=_active_customers(), years=sales.delivery_years(),
+                           sign_required=sales.sign_required(),
                            today=date.today().isoformat(), args=request.args)
 
 
@@ -82,7 +83,8 @@ def delivery_detail(delivery_id):
         customers=_active_customers(delivery.customer_id),
         varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
         seed_classes=SeedClass.query.filter_by(active=True).order_by(SeedClass.position, SeedClass.name).all(),
-        usages=SORT_USAGES,
+        usages=SORT_USAGES, sign_required=sales.sign_required(),
+        signatures={who: sales.signature(delivery, who) for who in sales.SIGNERS},
         bulk_stores=[r for r in bulk.overview()[0] if r["stock"]["kg"] > 0] if delivery.is_open else [],
     )
 
@@ -116,6 +118,8 @@ def delivery_header(delivery_id):
     customer = db.session.get(Customer, form_int("customer_id", 0))
     if not delivery.is_open:
         flash_error(_("Lieferschein {number} ist abgeschlossen.", number=delivery.number))
+    elif delivery.is_signed:
+        flash_error(_(sales.SIGNED_LOCKED, number=delivery.number))
     elif customer is None:
         flash_error(_("Bitte einen Kunden wählen."))
     else:
@@ -257,6 +261,59 @@ def delivery_close(delivery_id):
         db.session.rollback()
         flash_error(str(e))
     return _to_delivery(delivery)
+
+
+@bp.route("/lieferschein/<int:delivery_id>/unterschrift/<who>", methods=["POST"])
+@editor_required
+def delivery_sign(delivery_id, who):
+    delivery = _get(Delivery, delivery_id)
+    if who not in sales.SIGNERS:
+        abort(404)
+    try:
+        sales.sign(delivery, who, request.form.get("name"), request.form.get("bild"))
+        db.session.commit()
+        flash(_("Unterschrift gespeichert."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _to_delivery(delivery, "unterschrift")
+
+
+@bp.route("/lieferschein/<int:delivery_id>/unterschrift/<who>/entfernen", methods=["POST"])
+@admin_required
+def delivery_sign_remove(delivery_id, who):
+    delivery = _get(Delivery, delivery_id)
+    if who not in sales.SIGNERS:
+        abort(404)
+    try:
+        sales.remove_signature(delivery, who)
+        db.session.commit()
+        flash(_("Unterschrift entfernt."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _to_delivery(delivery, "unterschrift")
+
+
+@bp.route("/lieferschein/<int:delivery_id>/unterschrift/<who>.png")
+@login_required
+def delivery_sign_image(delivery_id, who):
+    delivery = _get(Delivery, delivery_id)
+    if who not in sales.SIGNERS:
+        abort(404)
+    image = sales.signature(delivery, who)[0]
+    if not image:
+        abort(404)
+    return Response(image, mimetype="image/png", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@bp.route("/lieferscheine/einstellungen", methods=["POST"])
+@admin_required
+def delivery_settings():
+    sales.save_sign_required(request.form.get("sign_required") == "1")
+    db.session.commit()
+    flash(_("Einstellungen gespeichert."), "success")
+    return redirect(url_for("sales.deliveries"))
 
 
 @bp.route("/lieferschein/<int:delivery_id>/oeffnen", methods=["POST"])

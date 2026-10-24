@@ -34,6 +34,7 @@ docker compose up --build -d
   `harvest_report()` + Push `harvest_report`). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
 - `app/sales.py`: Lieferscheinlogik (anlegen, Kisten verladen über `storage.ship_box`, Mengen, Waage,
+  Unterschriften `sign()` / `remove_signature()` / `sign_required()` – unterschrieben = gesperrt,
   abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
   `app/sales_views.py` (Blueprint `sales`: Lieferscheine, Verladen per Dauer-Scanner, Kunden, Anerkennungen),
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)

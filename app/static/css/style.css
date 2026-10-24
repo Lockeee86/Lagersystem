@@ -763,3 +763,13 @@ body:not(.has-tabbar) {
 .yield-bar { display: block; height: 4px; margin-top: 2px; margin-left: auto; width: 4rem; background: var(--line); border-radius: 2px; }
 .yield-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 2px; margin-left: auto; }
 .yield-crop { max-width: 7rem; margin-left: auto; }
+
+/* Unterschrift am Lieferschein: weißes Feld wie Papier, auch im dunklen Design */
+.sign-pad { position: relative; height: 13rem; background: #fff; border: 1px solid var(--bs-border-color);
+    border-radius: .5rem; touch-action: none; overflow: hidden; }
+.sign-pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.sign-pad .sign-hint { position: absolute; left: 1rem; right: 1rem; bottom: 2.2rem; border-top: 1px solid #adb5bd;
+    color: #6c757d; font-size: .8rem; padding-top: .2rem; pointer-events: none; }
+.sign-pad.signed .sign-hint { color: transparent; }
+@media (max-width: 575.98px) { .sign-pad { height: 45vh; } }
+.sign-img { display: block; max-width: 100%; max-height: 5rem; background: #fff; border-radius: .25rem; padding: .25rem; }

@@ -10,8 +10,10 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from xml.sax.saxutils import escape
+
+from .utils import fmt_datetime
 
 USAGE_TEXT = {"pflanzgut": "Pflanzgut", "speise": "Speiseware", "futter": "Futter", "sonstiges": "Sonstiges"}
 
@@ -180,12 +182,26 @@ def render_delivery_note(delivery, lines, farm):
     if delivery.note:
         story += [_p("Bemerkung", SMALL), _p(_lines(delivery.note)), Spacer(1, 6 * mm)]
 
-    # Unterschriften
-    sign = Table([["", "", ""], [_p("Übergeben (Datum, Unterschrift)", SMALL), "",
-                                 _p("Ware erhalten (Datum, Unterschrift)", SMALL)]],
-                 colWidths=[(width - 12 * mm) / 2, 12 * mm, (width - 12 * mm) / 2], rowHeights=[16 * mm, None])
+    # Unterschriften (am Handy unterschrieben → Bild über der Linie, Name und Zeitpunkt darunter)
+    half = (width - 12 * mm) / 2
+
+    def signed(image, name, at, label):
+        if not image:
+            return "", _p(f"{label} (Datum, Unterschrift)", SMALL)
+        pic = Image(io.BytesIO(image))
+        scale = min(half / pic.imageWidth, 15 * mm / pic.imageHeight)
+        pic.drawWidth, pic.drawHeight = pic.imageWidth * scale, pic.imageHeight * scale
+        pic.hAlign = "LEFT"
+        return pic, _p(f"{label}: {escape(name or '')}, {fmt_datetime(at)}", SMALL)
+
+    farm_sign = signed(delivery.sign_farm, delivery.sign_farm_name, delivery.sign_farm_at, "Übergeben")
+    customer_sign = signed(delivery.sign_customer, delivery.sign_customer_name, delivery.sign_customer_at,
+                           "Ware erhalten")
+    sign = Table([[farm_sign[0], "", customer_sign[0]], [farm_sign[1], "", customer_sign[1]]],
+                 colWidths=[half, 12 * mm, half], rowHeights=[17 * mm, None])
     sign.setStyle(TableStyle([("LINEBELOW", (0, 0), (0, 0), 0.6, colors.black),
                               ("LINEBELOW", (2, 0), (2, 0), 0.6, colors.black),
+                              ("VALIGN", (0, 0), (-1, 0), "BOTTOM"), ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
                               ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
     story.append(KeepTogether([Spacer(1, 6 * mm), sign]))
 

@@ -62,7 +62,7 @@ SKIP_COLUMNS = {
     "boxes": {"warehouse_id", "row", "slot", "level", "fill", "variety_id", "plot_id", "harvest_date", "usage",
               "seed_class_id", "grade", "note", "box_type_id"},
 }
-MASKED = {"password_hash"}                     # nur „geändert“, kein Wert
+MASKED = {"password_hash", "sign_farm", "sign_customer"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
 BIG = {"boundary"}                             # Umriss: nur „geändert“, nicht die Koordinaten
 SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_")
 MAX_TEXT = 300

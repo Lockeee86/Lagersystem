@@ -8,12 +8,30 @@
         <p class="text-body-secondary mb-0">{{ ngettext("{n} Lieferschein", "{n} Lieferscheine", page.total) }}</p>
     </div>
     {% if current_user.is_admin %}
-    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newDelivery"><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Lieferschein") }}</button>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#deliverySettings" aria-label="{{ _('Einstellungen') }}"><i class="bi bi-gear"></i></button>
+        <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newDelivery"><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Lieferschein") }}</button>
+    </div>
     {% endif %}
 </div>
 {{ site_filter() }}
 
 {% if current_user.is_admin %}
+<div class="collapse" id="deliverySettings">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('sales.delivery_settings') }}">
+                {{ csrf() }}
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="sign_required" name="sign_required" value="1" {% if sign_required %}checked{% endif %}>
+                    <label class="form-check-label" for="sign_required">{{ _("Unterschrift von Hof und Empfänger ist Pflicht zum Abschließen") }}</label>
+                </div>
+                <div class="form-text mb-2">{{ _("Unterschrieben wird am Handy auf der Seite des Lieferscheins. Ohne Pflicht kann auch nach dem Abschließen noch unterschrieben werden.") }}</div>
+                <button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="collapse" id="newDelivery">
     <div class="card shadow-sm mb-4">
         <div class="card-body">
@@ -90,7 +108,7 @@
                 <div class="d-flex flex-wrap gap-2 align-items-baseline">
                     <span class="fw-semibold">{{ d.number }}</span>
                     <span class="text-truncate">{{ d.customer.name }}</span>
-                    <span class="badge {{ 'text-bg-warning' if d.is_open else 'text-bg-success' }}">{{ d.status_label }}</span>
+                    <span class="badge {{ 'text-bg-warning' if d.is_open else 'text-bg-success' }}">{{ d.status_label }}</span>{% if d.fully_signed %} <i class="bi bi-pen text-success" title="{{ _('unterschrieben') }}"></i>{% endif %}
                 </div>
                 <div class="small text-body-secondary">
                     {{ d.date|date }}{% if d.vehicle %} · {{ d.vehicle }}{% endif %}

@@ -256,15 +256,56 @@
         </div>
         {% endif %}
 
+        {% if delivery.items %}
+        <div class="card shadow-sm mb-4" id="unterschrift">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pen me-1"></i>{{ _("Unterschriften") }}</span>
+                {% if sign_required %}<span class="badge text-bg-secondary">{{ _("Pflicht") }}</span>{% endif %}
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for who, label in (("hof", _("Übergeben (Hof)")), ("kunde", _("Ware erhalten (Empfänger)"))) %}
+                {% set image, name, at = signatures[who] %}
+                <li class="list-group-item">
+                    <div class="small text-body-secondary mb-1">{{ label }}</div>
+                    {% if image %}
+                    <img class="sign-img" src="{{ url_for('sales.delivery_sign_image', delivery_id=delivery.id, who=who) }}?v={{ at.timestamp()|int }}" alt="{{ _('Unterschrift') }}">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                        <span class="small">{{ name }} · {{ at|datetime }}</span>
+                        {% if current_user.is_admin and delivery.is_open %}
+                        <form method="post" action="{{ url_for('sales.delivery_sign_remove', delivery_id=delivery.id, who=who) }}">
+                            {{ csrf() }}
+                            <button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('Unterschrift entfernen?') }}">{{ _("Entfernen") }}</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% elif current_user.can_edit %}
+                    <button class="btn btn-outline-primary w-100" type="button" data-bs-toggle="modal" data-bs-target="#signModal"
+                            data-sign-action="{{ url_for('sales.delivery_sign', delivery_id=delivery.id, who=who) }}"
+                            data-sign-title="{{ label }}" data-sign-name="{{ current_user.name if who == 'hof' else '' }}">
+                        <i class="bi bi-pen me-1"></i>{{ _("Unterschreiben") }}</button>
+                    {% else %}
+                    <div class="small text-body-secondary">{{ _("noch nicht unterschrieben") }}</div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% if delivery.is_signed and delivery.is_open %}
+            <div class="card-footer small text-body-secondary">{{ _("Unterschrieben – Positionen, Kunde und Waage sind gesperrt.") }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% if current_user.is_admin %}
         <div class="card shadow-sm mb-4">
             <div class="card-body d-grid gap-2">
                 {% if delivery.is_open %}
                 <form method="post" action="{{ url_for('sales.delivery_close', delivery_id=delivery.id) }}" class="d-grid">
                     {{ csrf() }}
-                    <button class="btn btn-success" {% if not delivery.items %}disabled{% endif %}
+                    {% set sign_missing = sign_required and not delivery.fully_signed %}
+                    <button class="btn btn-success" {% if not delivery.items or sign_missing %}disabled{% endif %}
                             data-confirm="{{ _('Lieferschein abschließen? Danach können keine Kisten mehr verladen werden.') }}"><i class="bi bi-check2-circle me-1"></i>{{ _("Abschließen") }}</button>
                 </form>
+                {% if delivery.items and sign_missing %}<div class="small text-body-secondary">{{ _("Vor dem Abschließen müssen Hof und Empfänger unterschreiben.") }}</div>{% endif %}
                 {% if not delivery.items %}
                 <form method="post" action="{{ url_for('sales.delivery_delete', delivery_id=delivery.id) }}" class="d-grid">
                     {{ csrf() }}
@@ -283,4 +324,87 @@
         {% endif %}
     </div>
 </div>
+{% if delivery.items and current_user.can_edit and not delivery.fully_signed %}
+<div class="modal fade" id="signModal" tabindex="-1" aria-labelledby="signTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-sm-down">
+        <form class="modal-content" method="post" id="signForm">
+            {{ csrf() }}
+            <input type="hidden" name="bild" id="signData">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="signTitle">{{ _("Unterschreiben") }}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Schließen') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-body-secondary mb-2">{{ delivery.number }} · {{ delivery.customer.name }} · {{ ngettext("{n} Position", "{n} Positionen", lines|length) }} · {{ delivery.net_kg|kg if delivery.net_kg is not none else delivery.estimated_kg|kg }}</p>
+                <div class="sign-pad"><canvas id="signCanvas"></canvas><span class="sign-hint">{{ _("Hier mit dem Finger unterschreiben") }}</span></div>
+                <label class="form-label mt-3" for="signName">{{ _("Name in Druckschrift") }}</label>
+                <input class="form-control" id="signName" name="name" maxlength="100" required autocomplete="off">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary me-auto" id="signClear"><i class="bi bi-eraser me-1"></i>{{ _("Neu") }}</button>
+                <button type="submit" class="btn btn-primary" id="signSave" disabled><i class="bi bi-check2 me-1"></i>{{ _("Speichern") }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if delivery.items and current_user.can_edit and not delivery.fully_signed %}
+<script>
+(function () {
+    var modal = document.getElementById("signModal"), canvas = document.getElementById("signCanvas"),
+        ctx = canvas.getContext("2d"), form = document.getElementById("signForm"),
+        save = document.getElementById("signSave"), pad = canvas.parentNode, drawn = false, last = null;
+
+    function resize() {
+        var ratio = window.devicePixelRatio || 1, rect = pad.getBoundingClientRect();
+        canvas.width = Math.round(rect.width * ratio);
+        canvas.height = Math.round(rect.height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#000";
+        clear();
+    }
+    function clear() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawn = false; save.disabled = true; pad.classList.remove("signed");
+    }
+    function point(e) {
+        var rect = canvas.getBoundingClientRect();
+        return {x: e.clientX - rect.left, y: e.clientY - rect.top};
+    }
+    canvas.addEventListener("pointerdown", function (e) {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        last = point(e);
+        ctx.beginPath(); ctx.arc(last.x, last.y, 1.2, 0, 2 * Math.PI); ctx.fillStyle = "#000"; ctx.fill();
+    });
+    canvas.addEventListener("pointermove", function (e) {
+        if (!last) return;
+        var p = point(e);
+        ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        last = p;
+        if (!drawn) { drawn = true; save.disabled = false; pad.classList.add("signed"); }
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (name) {
+        canvas.addEventListener(name, function () { last = null; });
+    });
+    document.getElementById("signClear").addEventListener("click", clear);
+
+    modal.addEventListener("show.bs.modal", function (e) {
+        var btn = e.relatedTarget;
+        form.action = btn.dataset.signAction;
+        document.getElementById("signTitle").textContent = btn.dataset.signTitle;
+        document.getElementById("signName").value = btn.dataset.signName || "";
+    });
+    modal.addEventListener("shown.bs.modal", resize);
+    window.addEventListener("resize", function () { if (modal.classList.contains("show") && !drawn) resize(); });
+    form.addEventListener("submit", function (e) {
+        if (!drawn) { e.preventDefault(); return; }
+        document.getElementById("signData").value = canvas.toDataURL("image/png");
+        save.disabled = true;
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
