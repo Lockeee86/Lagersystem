@@ -54,7 +54,7 @@ def test_tank_pages_and_warning(app, as_admin, as_worker, as_viewer, db, seed, t
     db.session.add(PushSubscription(user_id=seed["admin"].id, endpoint="https://push.example/a", p256dh="k", auth="a"))
     db.session.commit()
     as_admin.post("/tankbuch/einstellungen", data={"capacity": "5000", "warn": "500"})
-    assert fuel.settings() == {"capacity": 5000, "warn": 500}
+    assert fuel.settings() == {"capacity": 5000, "warn": 500, "counter_required": False}
     as_admin.post("/tankbuch/lieferung", data={"liters": "700", "price": "1,529", "supplier": "Raiffeisen"})
     assert as_worker.post("/tankbuch/lieferung", data={"liters": "700"}).status_code == 403
     assert as_viewer.post("/tankbuch/tanken", data={"machine_id": tractor.id, "liters": "10"}).status_code == 403
