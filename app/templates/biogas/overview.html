@@ -3,7 +3,7 @@
 {% block title %}{{ _("Biogas") }}{% endblock %}
 {% block content %}
 {% set motors = {} %}
-{% for m in (live.motors or []) %}{% set ignored = motors.update({m.machine.id: m}) %}{% endfor %}
+{% for m in (live.motors or []) %}{% set ignored = motors.update({m.machine_id: m}) %}{% endfor %}
 <div class="page-head">
     <div>
         <h1>{{ _("Biogas") }}</h1>

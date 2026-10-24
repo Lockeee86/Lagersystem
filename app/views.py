@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, bulk, fuel, irrigation, machines, navigation, purchases, sales, search, sites, storage,
+from . import (agenda, backup, biogas, bulk, fuel, irrigation, machines, navigation, purchases, sales, search, sites, storage,
                tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
@@ -206,6 +206,7 @@ def dashboard():
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(), my_plan=plan_today.get(current_user.id, []), plan_today=bool(plan_today),
+        bhkw=biogas.dashboard(today),
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
     if choice:

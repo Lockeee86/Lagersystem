@@ -256,7 +256,10 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Wartungen") }}</span>
                 {% if current_user.is_admin %}
+<span class="d-flex gap-1">
+                {% if copy_targets %}<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#copyTasksModal" title="{{ _('Wartungen auf andere Maschinen kopieren') }}"><i class="bi bi-copy"></i><span class="d-none d-sm-inline ms-1">{{ _("Kopieren") }}</span></button>{% endif %}
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#taskModal" data-edit='{}'><i class="bi bi-plus-lg me-1"></i>{{ _("Wartung hinzufügen") }}</button>
+                </span>
                 {% endif %}
             </div>
             <ul class="list-group list-group-flush">
@@ -632,8 +635,58 @@
 </div>
 {% endcall %}
 {% endif %}
+{% if copy_targets %}
+<div class="modal fade" id="copyTasksModal" tabindex="-1" aria-labelledby="copyTasksTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+        <form class="modal-content" method="post" action="{{ url_for('machines.tasks_copy', machine_id=machine.id) }}">
+            {{ csrf() }}
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="copyTasksTitle">{{ _("Wartungen kopieren") }}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Schließen') }}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="fw-semibold mb-1">{{ _("Welche Wartungen") }}</div>
+                {% for task, status in tasks %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="tasks" value="{{ task.id }}" id="ct{{ task.id }}" checked>
+                    <label class="form-check-label" for="ct{{ task.id }}">{{ task.name }} <span class="small text-body-secondary">{{ interval_text(task, machine) }}</span></label>
+                </div>
+                {% endfor %}
+                <div class="fw-semibold mt-3 mb-1">{{ _("Auf welche Maschinen") }}</div>
+                {% set same = copy_targets|selectattr("category", "equalto", machine.category)|list %}
+                {% if same|length > 1 %}<button type="button" class="btn btn-sm btn-link px-0" id="copySame">{{ _("Alle der Art „{category}“ wählen", category=machine.category_label) }}</button>{% endif %}
+                {% for m in copy_targets %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="targets" value="{{ m.id }}" id="cm{{ m.id }}" data-category="{{ m.category }}">
+                    <label class="form-check-label" for="cm{{ m.id }}">{{ m.name }} <span class="small text-body-secondary">{{ m.category_label }}{% if not m.counter_unit %} · {{ _("ohne Zähler") }}{% endif %}</span></label>
+                </div>
+                {% endfor %}
+                <div class="form-check form-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" name="update" value="1" id="copyUpdate" checked>
+                    <label class="form-check-label" for="copyUpdate">{{ _("Gleichnamige Wartungen anpassen (Intervall und Notiz)") }}</label>
+                </div>
+                <div class="form-text">{{ _("Fehlende Wartungen werden angelegt. „Zuletzt erledigt“ wird nicht übernommen – das bitte je Maschine eintragen.") }}</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _("Abbrechen") }}</button>
+                <button class="btn btn-primary"><i class="bi bi-copy me-1"></i>{{ _("Kopieren") }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
+<script>
+(function () {
+    var btn = document.getElementById("copySame");
+    if (btn) btn.addEventListener("click", function () {
+        document.querySelectorAll('#copyTasksModal input[name="targets"]').forEach(function (box) {
+            if (box.dataset.category === "{{ machine.category }}") box.checked = true;
+        });
+    });
+})();
+</script>
 <script>
 (function () {
     // „Störung melden“ / „Eintrag“ wählen die passende Art vor

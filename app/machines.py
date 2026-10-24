@@ -142,6 +142,34 @@ def resolve_fault(event, user):
     event.resolved_by_id = user.id if user else None
 
 
+def copy_tasks(source, targets, task_ids=None, update=True):
+    """Wartungsintervalle von `source` auf andere Maschinen übertragen (z. B. gleiche BHKW oder Schlepper).
+    Gleichnamige Wartungen beim Ziel bekommen mit `update` die Intervalle und die Notiz, fehlende werden angelegt –
+    ohne „zuletzt erledigt“, das ist je Maschine verschieden. Nur nach Zähler laufende Wartungen werden bei Zielen
+    ohne Zähler übersprungen. Gibt {"created", "updated", "skipped"} zurück."""
+    tasks = [t for t in source.tasks if task_ids is None or t.id in task_ids]
+    stats = {"created": 0, "updated": 0, "skipped": 0}
+    for target in targets:
+        if target.id == source.id:
+            continue
+        existing = {t.name.casefold(): t for t in target.tasks}
+        for task in tasks:
+            hours = task.interval_hours if target.counter_unit else None
+            if not hours and not task.interval_months:
+                stats["skipped"] += 1
+                continue
+            match = existing.get(task.name.casefold())
+            if match is None:
+                target.tasks.append(MaintenanceTask(name=task.name, interval_hours=hours,
+                                                    interval_months=task.interval_months, note=task.note))
+                stats["created"] += 1
+            elif update:
+                match.interval_hours, match.interval_months, match.note = hours, task.interval_months, task.note
+                stats["updated"] += 1
+    db.session.flush()
+    return stats
+
+
 # --- Fälligkeiten ------------------------------------------------------------
 
 def add_months(day, months):

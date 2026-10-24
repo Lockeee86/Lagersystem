@@ -313,14 +313,17 @@ def _current(series, now):
     return past[-1][1] if past else None
 
 
-def live(now=None):
-    """Aktuelle Lage: je Motor Leistung jetzt, heute erzeugt, Fahrplan der nächsten 24 h; Gasspeicher; Preis."""
+def live(now=None, cached_only=False):
+    """Aktuelle Lage: je Motor Leistung jetzt, heute erzeugt, Fahrplan der nächsten 24 h; Gasspeicher; Preis.
+    `cached_only` (Startseite): nur den Zwischenspeicher lesen, nie auf die API warten – sonst None."""
     if not configured():
-        return {"configured": False}
+        return None if cached_only else {"configured": False}
     real_now = now is None
     now = now or datetime.now(timezone.utc)
     with _lock:
         cached = _cache.get("live")
+        if cached_only:
+            return cached[1] if cached and clock.monotonic() - cached[0] < 3 * LIVE_TTL else None
         if real_now and cached and clock.monotonic() - cached[0] < LIVE_TTL:
             return cached[1]
     today = now.astimezone(local_tz()).date()
@@ -336,7 +339,7 @@ def live(now=None):
             today_rows = aggregate(points, price_map, until=now).get(today, {})
             kw_now = _current(points, now)
             result["motors"].append({
-                "machine": machine, "kw_now": kw_now, "running": (kw_now or 0) >= RUN_KW,
+                "machine_id": machine.id, "kw_now": kw_now, "running": (kw_now or 0) >= RUN_KW,
                 "today_kwh": today_rows.get("kwh", 0.0), "today_hours": today_rows.get("hours", 0.0),
                 "plan": _hourly(points, next_hour, 24),
             })
@@ -351,6 +354,38 @@ def live(now=None):
         if real_now:
             _cache["live"] = (clock.monotonic(), result)
     return result
+
+
+def refresh_live(app):
+    """Zeitplan: den Zwischenspeicher der Übersicht frisch halten, damit die Startseite sofort Werte hat."""
+    inside = has_app_context() and current_app._get_current_object() is app
+    with nullcontext() if inside else app.app_context():
+        if configured() and linked_machines():
+            live()
+
+
+def dashboard(today=None):
+    """Kurzübersicht für die Startseite: je BHKW Zustand, Leistung, Stunden gestern und die nächste Wartung."""
+    today = today or date.today()
+    machines_ = (Machine.query.filter(Machine.active.is_(True),
+                                      (Machine.category == "bhkw") | Machine.skve_chp_id.isnot(None))
+                 .order_by(Machine.name).all())
+    if not machines_:
+        return None
+    current = live(cached_only=True) or {}
+    now_by_id = {m["machine_id"]: m for m in current.get("motors") or []}
+    yesterday = {row.machine_id: row for row in
+                 ChpDay.query.filter(ChpDay.day == today - timedelta(days=1),
+                                     ChpDay.machine_id.in_([m.id for m in machines_]))}
+    rows = []
+    for machine in machines_:
+        forecast = maintenance_forecast(machine, today)
+        known = [f for f in forecast if f["left"] is not None]
+        rows.append({"machine": machine, "now": now_by_id.get(machine.id), "yesterday": yesterday.get(machine.id),
+                     "next": known[0] if known else (forecast[0] if forecast else None)})
+    return {"rows": rows, "live": bool(now_by_id),
+            "kw": sum(r["now"]["kw_now"] or 0 for r in rows if r["now"]),
+            "running": sum(1 for r in rows if r["now"] and r["now"]["running"])}
 
 
 def avg_hours(machine, today=None, days=FORECAST_DAYS):

@@ -130,6 +130,35 @@
 </section>
 </div>
 <div class="col-lg-5">
+{% if bhkw %}
+<div class="card shadow-sm mb-4" id="bhkw">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-lightning-charge me-1"></i>{{ _("BHKW") }}{% if bhkw.live %} <span class="small text-body-secondary">· {{ ngettext("{n} läuft", "{n} laufen", bhkw.running) }} · {{ bhkw.kw|num(0) }} kW</span>{% endif %}</span>
+        <a class="small" href="{{ url_for('biogas.overview') }}">{{ _("Biogas") }}</a>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for r in bhkw.rows %}
+        {% set m = r.machine %}{% set f = r.next %}
+        <a class="list-group-item list-group-item-action d-flex gap-2 align-items-center" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}">
+            <span class="motor-state {{ 'on' if r.now and r.now.running }}" title="{{ _('läuft') if r.now and r.now.running else _('steht') if r.now else _('kein aktueller Wert') }}"></span>
+            <span class="flex-grow-1 min-w-0">
+                <span class="d-flex justify-content-between gap-2">
+                    <span class="fw-semibold text-truncate">{{ m.name }}</span>
+                    <span class="small text-nowrap">{% if r.now and r.now.kw_now is not none %}{{ r.now.kw_now|num(0) }}{% if m.power_kw %} / {{ m.power_kw }}{% endif %} kW{% elif m.power_kw %}<span class="text-body-secondary">{{ m.power_kw }} kW</span>{% endif %}</span>
+                </span>
+                <span class="d-flex justify-content-between gap-2 small text-body-secondary">
+                    <span class="text-truncate">
+                        {% if f and f.left is not none %}<span class="{{ 'text-danger fw-semibold' if f.status.state == 'overdue' else 'text-warning-emphasis' if f.status.state == 'soon' }}">{{ f.task.name }}: {% if f.left <= 0 %}{{ _("fällig") }}{% else %}{{ _("in {h} h", h=f.left|num(0)) }}{% if f.due_on %} ({{ f.due_on.strftime("%d.%m.") }}){% endif %}{% endif %}</span>
+                        {% elif f %}{{ _("Wartungen eintragen") }}{% else %}{{ m.counter|num(0) if m.counter is not none else "–" }} h{% endif %}
+                    </span>
+                    <span class="text-nowrap">{% if r.yesterday %}{{ _("gestern {h} h", h=r.yesterday.hours|num(1)) }}{% endif %}</span>
+                </span>
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 {% from "agenda/_macros.html" import when %}
 {% set week_has = week|selectattr("events")|list %}
 <div class="card shadow-sm mb-4">

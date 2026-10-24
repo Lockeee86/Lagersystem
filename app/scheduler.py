@@ -12,7 +12,7 @@ CHECK_EVERY = 300                     # Sekunden zwischen zwei Prüfungen
 def _jobs():
     from . import audit, backup, biogas, push
     return [("Datensicherung", backup.tick), ("Push", push.daily), ("Protokoll aufräumen", audit.cleanup),
-            ("Biogas (SKVE)", biogas.sync)]
+            ("Biogas (SKVE)", biogas.sync), ("Biogas-Übersicht", biogas.refresh_live)]
 
 
 def start(app):

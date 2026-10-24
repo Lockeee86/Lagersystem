@@ -8,7 +8,7 @@ from werkzeug.datastructures import MultiDict
 
 from . import fuel, machines, purchases, push, sites, tasks, uploads
 from .extensions import db
-from .i18n import gettext as _
+from .i18n import gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
 from .models import (ChpDay, COUNTER_UNITS, DOCUMENT_KINDS, FUEL_CATEGORIES, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, FuelEntry, Machine,
                      MachineDocument, MachineEvent, MachinePart, MaintenanceTask, Photo, User)
@@ -156,6 +156,9 @@ def machine_detail(machine_id):
                            fault_tasks={t.machine_event_id: t for t in open_tasks if t.machine_event_id},
                            maint_tasks={t.maintenance_task_id: t for t in open_tasks if t.maintenance_task_id},
                            kinds=MACHINE_EVENT_KINDS, categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
+                           copy_targets=Machine.query.filter(Machine.active.is_(True), Machine.id != machine.id)
+                           .order_by(Machine.category != machine.category, Machine.name).all()
+                           if current_user.is_admin and machine.tasks else [],
                            faults=[e for e in machines.open_faults() if e.machine_id == machine.id],
                            total_cost=total_cost, label_formats=LABEL_FORMATS,
                            doc_kinds=DOCUMENT_KINDS, suppliers=purchases.suppliers(),
@@ -317,6 +320,26 @@ def task_save(machine_id):
     db.session.add(task)
     db.session.commit()
     flash(_("Wartung „{task}“ gespeichert.", task=task.name), "success")
+    return _to_machine(machine, "wartungen")
+
+
+@bp.route("/maschine/<int:machine_id>/wartungen/kopieren", methods=["POST"])
+@admin_required
+def tasks_copy(machine_id):
+    machine = _get(Machine, machine_id)
+    target_ids = {int(v) for v in request.form.getlist("targets") if v.isdigit()} - {machine.id}
+    task_ids = {int(v) for v in request.form.getlist("tasks") if v.isdigit()}
+    targets = Machine.query.filter(Machine.id.in_(target_ids)).order_by(Machine.name).all() if target_ids else []
+    if not targets or not task_ids:
+        flash_error(_("Bitte Wartungen und mindestens eine Maschine auswählen."))
+        return _to_machine(machine, "wartungen")
+    stats = machines.copy_tasks(machine, targets, task_ids, update=bool(request.form.get("update")))
+    db.session.commit()
+    flash(_("Wartungen kopiert auf {machines}: {created} neu, {updated} angepasst.",
+            machines=", ".join(m.name for m in targets), created=stats["created"], updated=stats["updated"])
+          + (" " + ngettext("{n} Wartung nach Zähler übersprungen (Maschine ohne Zähler).",
+                            "{n} Wartungen nach Zähler übersprungen (Maschine ohne Zähler).", stats["skipped"])
+             if stats["skipped"] else ""), "success")
     return _to_machine(machine, "wartungen")
 
 

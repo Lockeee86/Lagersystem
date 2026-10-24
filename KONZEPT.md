@@ -297,6 +297,13 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Fahrplan und Gasspeicher der nächsten 24 h und den Strompreis (zwischengespeichert 10 Minuten). „Jetzt abrufen“
    (Admin) holt sofort. Weitere Ideen für die Rubrik: Warnungen Gasspeicher/Stillstand, Eigenkontrolle/Rundgang,
    Fütterung und Silo (über das Schüttlager), Gärrest, Prüffristen der Anlage.
+   **BHKW auf der Startseite** (0.38.1): Karte „BHKW“ in der rechten Spalte – je Motor läuft/steht, Leistung jetzt
+   von Nennleistung, Stunden gestern und die nächste Wartung nach Laufzeit (`biogas.dashboard()`). Die Startseite
+   liest nur den Zwischenspeicher (`live(cached_only=True)`), den der Zeitplan alle 10 Minuten auffrischt
+   (`refresh_live`) – sie wartet nie auf die API.
+   **Wartungen kopieren** (0.38.1): an der Maschine „Kopieren“ → Wartungen und Zielmaschinen wählen
+   (`machines.copy_tasks`): fehlende werden angelegt, gleichnamige auf Wunsch angepasst (Intervall, Notiz),
+   „zuletzt erledigt“ bleibt je Maschine; Wartungen nur nach Zähler werden bei Maschinen ohne Zähler übersprungen.
    **Beregnung** (0.37.0, Feld & Hof → Beregnung, `/beregnung`, `irrigation.py`): Import des RainDancer-Berichts
    „Wasserbuch“ als „Excel 97-2003“ (.xls über `xlrd`, auch .xlsx). Der CSV-Export von RainDancer ist unbrauchbar
    (nur ein Einsatz + Summe) und wird abgewiesen; die Summe der Einsätze muss zum „Total“ passen. Gruppen = Brunnen

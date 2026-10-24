@@ -153,3 +153,22 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed, fake_api):
     as_admin.post(f"/maschine/{other.id}/bearbeiten", data={"name": "BHKW Test 2", "category": "bhkw",
                                                            "bhkw_form": "1", "skve_chp_id": "12", "power_kw": "250"})
     assert (db.session.get(Machine, other.id).skve_chp_id, db.session.get(Machine, other.id).power_kw) == (12, 250)
+
+
+def test_dashboard_card(app, as_viewer, db, seed, fake_api):
+    motor = make_bhkw(db, seed, 11, "BHKW Test 1")
+    machines.set_counter(motor, 9000, seed["admin"])
+    oil = next(t for t in motor.tasks if t.name == "Ölwechsel")
+    oil.last_done_counter, oil.last_done_on = 7100, date.today() - timedelta(days=90)
+    db.session.commit()
+    # ohne Zwischenspeicher: keine API-Abfrage beim Laden der Startseite
+    html = as_viewer.get("/").get_data(as_text=True)
+    assert 'id="bhkw"' in html and "BHKW Test 1" in html and "Ölwechsel: in 100 h" in html and not fake_api
+    biogas.refresh_live(app)                                   # wie der Zeitplan
+    assert fake_api
+    html = as_viewer.get("/").get_data(as_text=True)
+    assert "/ 500 kW" in html                                   # aktueller Wert aus dem Zwischenspeicher
+    # ohne BHKW keine Karte
+    motor.active = False
+    db.session.commit()
+    assert 'id="bhkw"' not in as_viewer.get("/").get_data(as_text=True)
