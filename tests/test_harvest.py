@@ -60,6 +60,9 @@ def test_pages(as_worker, as_viewer, db, seed):
     belana, wh = seed["belana"], seed["wh"]
     b1, b2 = boxes(db, seed, 2)
     assert as_viewer.get("/ernte").status_code == 403
+    # auf der Lager-Übersicht erreichbar (nur für Mitarbeiter und Admins)
+    assert 'href="/ernte"' in as_worker.get("/lager/uebersicht").get_data(as_text=True)
+    assert 'href="/ernte"' not in as_viewer.get("/lager/uebersicht").get_data(as_text=True)
     html = as_worker.get("/ernte").get_data(as_text=True)
     assert "Scannen starten" in html and "befüllen + einlagern" in html
     url = f"/ernte?los=1&sorte={belana.id}&schlag={seed['plot'].id}&datum=2026-09-10&fuell=100&modus=einlagern&lager={wh.id}"

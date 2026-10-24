@@ -59,6 +59,18 @@
         {% elif current_user.is_admin %}
         <div class="hub-list mb-3"><a class="hub-row" href="{{ url_for('admin.warehouses') }}"><i class="bi bi-plus-lg"></i>{{ _("Kartoffellager anlegen") }}</a></div>
         {% endif %}
+        {% if current_user.can_edit %}
+        <div class="hub-list mb-3">
+            <a class="hub-row" href="{{ url_for('main.harvest') }}">
+                <span class="hub-icon"><i class="bi bi-basket"></i></span>
+                <span class="hub-text">
+                    <span class="hub-title">{{ _("Ernte-Modus") }}</span>
+                    <span class="hub-status">{{ _("Kisten befüllen und einlagern") }}</span>
+                </span>
+                <i class="bi bi-chevron-right text-body-tertiary"></i>
+            </a>
+        </div>
+        {% endif %}
 
     </section>
     {# Handy: Schüttlager gleich unter den Hallen, am PC rechts #}

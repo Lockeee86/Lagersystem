@@ -1666,4 +1666,5 @@ MESSAGES = {
     'Alle Bereiche': 'Wszystkie obszary',
     'System': 'System',
     'Keine Einträge.': 'Brak wpisów.',
+    'Ernte-Modus': 'Tryb zbioru',
 }
