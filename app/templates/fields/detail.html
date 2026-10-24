@@ -58,6 +58,51 @@
     </div>
 
     <div class="col-lg-7">
+        <div class="card shadow-sm mb-4" id="notizen">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pin-map me-1"></i>{{ _("Notizen vom Feld") }}</span>
+                {% if current_user.can_edit %}<button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#noteForm" aria-expanded="{{ 'true' if open_note else 'false' }}"><i class="bi bi-plus-lg me-1"></i>{{ _("Notiz") }}</button>{% endif %}
+            </div>
+            {% if current_user.can_edit %}
+            <form class="collapse card-body border-bottom {% if open_note %}show{% endif %}" id="noteForm" method="post" enctype="multipart/form-data"
+                  action="{{ url_for('fields.field_note_add', plot_id=plot.id) }}">
+                {{ csrf() }}
+                <input type="hidden" name="year" value="{{ this_year }}">
+                <input type="hidden" name="lat" id="note_lat" value="{{ note_lat }}">
+                <input type="hidden" name="lon" id="note_lon" value="{{ note_lon }}">
+                <label class="form-label small" for="note_text">{{ _("Was ist zu sehen? (z. B. Krautfäule am Vorgewende, Wildschaden)") }}</label>
+                <textarea class="form-control mb-2" id="note_text" name="text" rows="3" maxlength="4000" required></textarea>
+                <label class="form-label small" for="note_photos">{{ _("Fotos (optional)") }}</label>
+                <input class="form-control mb-2" type="file" id="note_photos" name="photos" accept="image/*" multiple>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="noteLocate"><i class="bi bi-geo-alt me-1"></i>{{ _("Standort übernehmen") }}</button>
+                    <span class="small text-body-secondary" id="noteLocState">{% if note_lat %}<i class="bi bi-geo-alt-fill text-success"></i> {{ _("Standort übernommen") }}{% endif %}</span>
+                </div>
+            </form>
+            {% endif %}
+            <ul class="list-group list-group-flush">
+                {% for n in notes %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between gap-2">
+                        <div class="small text-body-secondary">{{ n.created_at|datetime }}{% if n.user %} · {{ n.user.name }}{% endif %}
+                            {% if n.lat is not none %} · <i class="bi bi-geo-alt" title="{{ n.lat }}, {{ n.lon }}"></i>{% endif %}
+                            {% if n.plot_year.year != this_year %} · {{ n.plot_year.year }}{% endif %}</div>
+                        {% if current_user.is_admin or (current_user.can_edit and n.user_id == current_user.id) %}
+                        <form method="post" action="{{ url_for('fields.field_note_delete', note_id=n.id) }}">
+                            {{ csrf() }}<button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('Notiz löschen?') }}" aria-label="{{ _('Notiz löschen') }}"><i class="bi bi-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div style="white-space: pre-line">{{ n.text }}</div>
+                    {% if n.photos %}<div class="d-flex flex-wrap gap-2 mt-2">{% for p in n.photos %}<a href="{{ url_for('machines.photo', photo_id=p.id) }}" target="_blank"><img class="photo-thumb" src="{{ url_for('machines.photo', photo_id=p.id) }}" alt="" loading="lazy"></a>{% endfor %}</div>{% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item small text-body-secondary">{{ _("Noch keine Notizen. Auf der Schlagkarte findet „Ich bin hier“ den Schlag am Standort.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
         <h2 class="h5">{{ _("Fruchtfolge und Ertrag") }}</h2>
         {% for h in history %}
         {% set e = h.entry %}
@@ -133,8 +178,26 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script>
+(function () {
+    // Feldnotiz: Standort des Handys übernehmen
+    var btn = document.getElementById("noteLocate");
+    if (!btn || !navigator.geolocation) { if (btn) btn.classList.add("d-none"); return; }
+    btn.addEventListener("click", function () {
+        var state = document.getElementById("noteLocState");
+        state.textContent = {{ _("Standort wird ermittelt …")|tojson }};
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            document.getElementById("note_lat").value = pos.coords.latitude.toFixed(6);
+            document.getElementById("note_lon").value = pos.coords.longitude.toFixed(6);
+            state.textContent = {{ _("Standort übernommen")|tojson }};
+        }, function () { state.textContent = {{ _("Standort nicht verfügbar.")|tojson }}; },
+        {enableHighAccuracy: true, timeout: 15000});
+    });
+})();
+</script>
 {% if map_data %}
 <script src="{{ url_for('static', filename='js/schlagkarte.js') }}?v={{ app_version }}"></script>
-<script>Schlagkarte.create(document.getElementById("fieldMap"), {{ map_data|tojson }}, { labels: false, aerial: {{ aerial|tojson }} });</script>
+<script>
+Schlagkarte.create(document.getElementById("fieldMap"), {{ map_data|tojson }}, { labels: false, aerial: {{ aerial|tojson }} });</script>
 {% endif %}
 {% endblock %}

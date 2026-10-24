@@ -29,7 +29,9 @@ docker compose up --build -d
   Auslagern mit Nachrücken, Füllstand, Kisten anlegen, Ernte-Modus `harvest_box` mit Platzvorschlag
   `suggest_place` – gleiche Ware zusammen; Bedienung in `scan.html`: Schalter + Einstellungen über der Kamera,
   gemerkt im Cookie `ernte`, Routen `main.harvest_settings` / `main.harvest_box`; Kartoffelgrößen `sizes()` /
-  `save_sizes()` in `settings` `potato_sizes`, Auswahl über `macros.size_select`). Views rufen nur diese Funktionen auf,
+  `save_sizes()` in `settings` `potato_sizes`, Auswahl über `macros.size_select`; Nachsortieren `main.sort_box`;
+  Lagerdauer `age_level()` / `oldest_boxes()` (Schwellen `age_warn_months`/`age_old_months`); Ernte-Tagesbericht
+  `harvest_report()` + Push `harvest_report`). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
 - `app/sales.py`: Lieferscheinlogik (anlegen, Kisten verladen über `storage.ship_box`, Mengen, Waage,
   abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
@@ -39,7 +41,8 @@ docker compose up --build -d
   Waage und Qualität; Bestand `stock()`, Qualität `quality()`, Herkunft `plot_shares()`), committet nicht;
   `app/bulk_views.py` (Blueprint `bulk`). Code `S-001` je Lagerort (`bulk.normalize_code`, QR-Etikett; `/scan` öffnet
   das Einlagern). Verkauf über `sales.add_bulk` (Lieferschein-Position mit `bulk_entry`)
-- `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen), committet nicht.
+- `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen, Kosten je Jahr
+  `costs()` / `cost_overview()`), committet nicht.
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`; gelöschte
   `Photo`-Zeilen verlieren ihre Datei nach dem Commit). Fotoleiste an Kiste, Anbaujahr, Schüttlager, Lieferschein:
   `macros.photo_strip` (mit `with context` importieren), Routen `main.photos_add` / `main.photo_delete`.
@@ -83,7 +86,8 @@ docker compose up --build -d
   Wartezeiten: `fielddoc.protection()` / `protection_overview()` (Bemerkung „Wartezeit n Tage/F“, sonst
   `PesticideProduct`), Seite `fields.protection` (`/pflanzenschutz`).
   Fruchtfolgeplan: `fielddoc.parse_plan/apply_rotation` → `PlotYear.planned_crop` (Anzeige über `shown_crop`),
-  Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`).
+  Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`). Ertragsvergleich `fields.yield_history`
+  (`/ertraege`); Feldnotizen `FieldNote` mit Fotos, Standort → Schlag `fields.locate` (`/schlag/ort`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
 - `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`

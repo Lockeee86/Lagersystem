@@ -18,6 +18,12 @@
     </form>
 </div>
 {{ site_filter() }}
+{% if current_user.can_edit %}
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <button class="btn btn-primary" type="button" id="hereBtn" data-url="{{ url_for('fields.field_locate') }}"><i class="bi bi-geo-alt me-1"></i>{{ _("Ich bin hier – Notiz") }}</button>
+    <span class="small text-body-secondary" id="hereState"></span>
+</div>
+{% endif %}
 
 {% if map_data %}
 <div class="card shadow-sm mb-3 overflow-hidden">
@@ -78,6 +84,32 @@
 <p class="small text-body-tertiary mt-2">{{ _("Ertrag geschätzt aus den Kisten des Schlags (höchster Füllstand in der Saison × Kistengewicht).") }}</p>
 {% endblock %}
 {% block scripts %}
+<script>
+(function () {
+    // „Ich bin hier“: Standort → Schlag finden → Notiz auf der Schlagseite öffnen
+    var btn = document.getElementById("hereBtn");
+    if (!btn) return;
+    var state = document.getElementById("hereState");
+    var T = {{ {"wait": _("Standort wird ermittelt …"), "none": _("Standort nicht verfügbar."),
+                "failed": _("Verbindung fehlgeschlagen.")}|tojson }};
+    if (!navigator.geolocation || !window.isSecureContext) { btn.disabled = true; state.textContent = T.none; return; }
+    btn.addEventListener("click", function () {
+        btn.disabled = true;
+        state.textContent = T.wait;
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            var url = btn.dataset.url + "?lat=" + pos.coords.latitude + "&lon=" + pos.coords.longitude;
+            fetch(url, {credentials: "same-origin", headers: {"Accept": "application/json"}})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.ok) { window.location = data.url; return; }
+                    state.textContent = data.message; btn.disabled = false;
+                })
+                .catch(function () { state.textContent = T.failed; btn.disabled = false; });
+        }, function () { state.textContent = T.none; btn.disabled = false; },
+        {enableHighAccuracy: true, timeout: 15000});
+    });
+})();
+</script>
 <script src="{{ url_for('static', filename='js/schlagkarte.js') }}?v={{ app_version }}"></script>
 <script>
 (function () {

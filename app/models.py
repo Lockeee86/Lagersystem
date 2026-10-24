@@ -367,6 +367,8 @@ class PlotYear(db.Model):
 
     plot = db.relationship("Plot", back_populates="years")
     photos = db.relationship("Photo", back_populates="plot_year", order_by="Photo.id", cascade="all, delete-orphan")
+    notes = db.relationship("FieldNote", back_populates="plot_year", order_by="FieldNote.created_at.desc()",
+                            cascade="all, delete-orphan")
     variety = db.relationship("Variety")
     measures = db.relationship("FieldMeasure", back_populates="plot_year", cascade="all, delete-orphan",
                                order_by=lambda: (FieldMeasure.done_on, FieldMeasure.id))
@@ -391,6 +393,24 @@ FIELD_MEASURE_KINDS = {
     "person": N_("Personen"),
 }
 NUTRIENTS = ("n_total", "n_avail", "p2o5", "k2o", "mgo", "s", "cao")
+
+
+class FieldNote(db.Model):
+    """Notiz vom Feld (z. B. beim Rundgang: Krautfäule-Befall, Unkraut, Wildschaden) zum Anbaujahr eines Schlags,
+    optional mit Standort und Fotos."""
+    __tablename__ = "field_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    plot_year_id = db.Column(db.Integer, db.ForeignKey("plot_years.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = db.Column(db.Text, nullable=False)
+    lat = db.Column(db.Numeric(9, 6))
+    lon = db.Column(db.Numeric(9, 6))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    plot_year = db.relationship("PlotYear", back_populates="notes")
+    user = db.relationship("User")
+    photos = db.relationship("Photo", back_populates="field_note", order_by="Photo.id", cascade="all, delete-orphan")
 
 
 class FieldMeasure(db.Model):
@@ -1005,6 +1025,7 @@ class Photo(db.Model):
     plot_year_id = db.Column(db.Integer, db.ForeignKey("plot_years.id"), index=True)
     bulk_store_id = db.Column(db.Integer, db.ForeignKey("bulk_stores.id"), index=True)
     delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id"), index=True)
+    field_note_id = db.Column(db.Integer, db.ForeignKey("field_notes.id"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -1016,6 +1037,7 @@ class Photo(db.Model):
     plot_year = db.relationship("PlotYear", back_populates="photos")
     bulk_store = db.relationship("BulkStore", back_populates="photos")
     delivery = db.relationship("Delivery", back_populates="photos")
+    field_note = db.relationship("FieldNote", back_populates="photos")
     user = db.relationship("User")
 
 

@@ -361,3 +361,55 @@ def yield_history(plots, years):
     best = max((c["t_ha"] or 0 for row in by_plot.values() for c in row.values()), default=0)
     best_v = max((v["t_ha"] or 0 for per_year in by_variety.values() for v in per_year.values()), default=0)
     return by_plot, dict(sorted(by_variety.items(), key=lambda kv: kv[0].casefold())), best, best_v
+
+
+# --- Standort → Schlag (Feldnotizen „Ich bin hier“) -----------------------------
+
+def _inside(lon, lat, ring):
+    """Punkt im Polygon (Strahl-Verfahren); ring = [[lon, lat], …]."""
+    inside = False
+    j = len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / ((yj - yi) or 1e-12) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def _distance_m(lon1, lat1, lon2, lat2):
+    import math
+    dx = (lon2 - lon1) * 111320 * math.cos(math.radians((lat1 + lat2) / 2))
+    dy = (lat2 - lat1) * 110540
+    return math.hypot(dx, dy)
+
+
+def _edge_distance_m(lon, lat, a, b):
+    """Abstand in Metern vom Punkt zur Strecke a–b (für kurze Strecken eben gerechnet)."""
+    import math
+    kx, ky = 111320 * math.cos(math.radians(lat)), 110540
+    px, py = 0.0, 0.0
+    ax, ay = (a[0] - lon) * kx, (a[1] - lat) * ky
+    bx, by = (b[0] - lon) * kx, (b[1] - lat) * ky
+    dx, dy = bx - ax, by - ay
+    t = 0.0 if dx == dy == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(ax + t * dx - px, ay + t * dy - py)
+
+
+def locate(lat, lon, plots=None, max_m=300):
+    """Schlag am Standort: der Umriss, in dem der Punkt liegt; sonst der nächste Schlag (Umriss-Ecke oder Punkt aus der
+    Schlagdokumentation) im Umkreis von `max_m` Metern. (plot, Entfernung in m) oder (None, None)."""
+    plots = plots if plots is not None else Plot.query.filter_by(active=True).all()
+    best, best_d = None, None
+    for p in plots:
+        rings = p.rings
+        if any(_inside(lon, lat, r) for r in rings if len(r) >= 3):
+            return p, 0
+        distances = [_edge_distance_m(lon, lat, r[i], r[i + 1]) for r in rings for i in range(len(r) - 1)]
+        if not rings and p.lat is not None and p.lon is not None:
+            distances = [_distance_m(lon, lat, float(p.lon), float(p.lat))]
+        for d in distances:
+            if d <= max_m and (best_d is None or d < best_d):
+                best, best_d = p, d
+    return best, (round(best_d) if best_d is not None else None)

@@ -279,6 +279,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Feldnotizen** (0.33.0): Schlagkarte → „Ich bin hier – Notiz“ (Standort des Handys) findet den Schlag (im Umriss
+   oder bis 300 m daneben) und öffnet auf der Schlagseite „Notizen vom Feld“ mit Text, Fotos und Standort zum
+   aktuellen Anbaujahr (`FieldNote`, `fields.locate`). Löschen: Admin oder Verfasser.
    **Ertragsvergleich** (0.32.4, Feld & Hof → Erträge, `/ertraege`): t/ha je Schlag über die letzten Jahre (mit Sorten
    bzw. Kultur) und je Sorte (nur Schläge, auf denen die Sorte allein stand); Filter „nur Kartoffeln“ und Betrieb
    (`fields.yield_history`).

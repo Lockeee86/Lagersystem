@@ -1,15 +1,16 @@
 """Seiten der Schlagkartei: Schlagkarte (alle Umrisse), Schlag mit Fruchtfolge, Pflanzung, Rodung und Ertrag."""
 from datetime import date
 
-from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import (Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request,
+                   url_for)
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
-from . import aerial, fielddoc, fields, sites, tasks, weather
+from . import aerial, fielddoc, fields, sites, tasks, uploads, weather
 from .extensions import db
 from .i18n import gettext as _
 from .models import FIELD_MEASURE_KINDS, Box, Plot, PlotYear, Setting, Variety
-from .utils import admin_required, editor_required, form_date, form_int, form_str
+from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
 bp = Blueprint("fields", __name__)
 
@@ -88,15 +89,89 @@ def field_detail(plot_id):
                         "doc": fielddoc.summary(entry), "protection": fielddoc.protection(entry, known)})
     outline_ha = sum(fields.ring_area_ha(r) for r in plot.rings) if plot.rings else None
     stored = Box.query.filter(Box.plot_id == plot.id, Box.fill > 0).count()
+    notes = sorted((n for py in plot.years for n in py.notes), key=lambda n: n.created_at, reverse=True)[:30]
     return render_template(
         "fields/detail.html", plot=plot, history=history, this_year=this_year, outline_ha=outline_ha,
         stored=stored, map_data=fields.map_data([plot], this_year), open_tasks=tasks.for_plot(plot.id),
         aerial=aerial_options(), kinds=FIELD_MEASURE_KINDS,
-        today=date.today(),
+        today=date.today(), notes=notes, open_note=request.args.get("notiz") == "1",
+        note_lat=request.args.get("lat", ""), note_lon=request.args.get("lon", ""),
         varieties=Variety.query.filter(or_(Variety.active.is_(True),
                                            Variety.id.in_([py.variety_id for py in plot.years if py.variety_id])))
         .order_by(Variety.name).all(),
     )
+
+
+# --- Feldnotizen („Ich bin hier“) ---------------------------------------------------
+
+def _coord(name, low, high):
+    try:
+        value = float((request.values.get(name) or "").replace(",", "."))
+    except ValueError:
+        return None
+    return value if low <= value <= high else None
+
+
+@bp.route("/schlag/ort")
+@login_required
+def field_locate():
+    """Standort des Handys → Schlag (im Umriss oder in der Nähe)."""
+    lat, lon = _coord("lat", -90, 90), _coord("lon", -180, 180)
+    if lat is None or lon is None:
+        return jsonify(ok=False, message=_("Standort nicht erkannt."))
+    plot, distance = fields.locate(lat, lon, sites.apply(Plot.query.filter_by(active=True), Plot).all())
+    if plot is None:
+        return jsonify(ok=False, message=_("Kein Schlag in der Nähe (300 m)."))
+    return jsonify(ok=True, plot_id=plot.id, name=plot.name, distance=distance,
+                   url=url_for("fields.field_detail", plot_id=plot.id, notiz=1, lat=f"{lat:.6f}", lon=f"{lon:.6f}")
+                   + "#notizen")
+
+
+@bp.route("/schlag/<int:plot_id>/notiz", methods=["POST"])
+@editor_required
+def field_note_add(plot_id):
+    from .models import FieldNote, Photo
+    from .storage import StorageError
+    plot = db.session.get(Plot, plot_id) or abort(404)
+    text = form_str("text", 4000)
+    target = url_for("fields.field_detail", plot_id=plot.id) + "#notizen"
+    if not text:
+        flash_error(_("Bitte etwas zur Notiz schreiben."))
+        return redirect(target)
+    year = form_int("year", date.today().year, minimum=1990, maximum=2100)
+    entry = plot.year(year)
+    if entry is None:
+        entry = PlotYear(plot=plot, year=year)
+        db.session.add(entry)
+    names = []
+    try:
+        names = uploads.save_photos(request.files.getlist("photos"))
+        note = FieldNote(plot_year=entry, text=text, user_id=current_user.id,
+                         lat=_coord("lat", -90, 90), lon=_coord("lon", -180, 180))
+        for name in names:
+            note.photos.append(Photo(filename=name, user_id=current_user.id))
+        db.session.add(note)
+        db.session.commit()
+        flash(_("Notiz gespeichert."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        uploads.delete_files(names)
+        flash_error(str(e))
+    return redirect(target)
+
+
+@bp.route("/notiz/<int:note_id>/loeschen", methods=["POST"])
+@editor_required
+def field_note_delete(note_id):
+    from .models import FieldNote
+    note = db.session.get(FieldNote, note_id) or abort(404)
+    if not (current_user.is_admin or note.user_id == current_user.id):
+        abort(403)
+    plot_id = note.plot_year.plot_id
+    db.session.delete(note)
+    db.session.commit()
+    flash(_("Notiz gelöscht."), "success")
+    return redirect(url_for("fields.field_detail", plot_id=plot_id) + "#notizen")
 
 
 @bp.route("/schlag/<int:plot_id>/jahr", methods=["POST"])
