@@ -689,7 +689,7 @@ def scan():
 # --- Ernte-Modus ---------------------------------------------------------------
 
 HARVEST_COOKIE = "ernte"
-HARVEST_KEYS = ("sorte", "schlag", "verwendung", "stufe", "datum", "fuell", "lager", "reihe", "modus")
+HARVEST_KEYS = ("sorte", "schlag", "verwendung", "stufe", "groesse", "datum", "fuell", "lager", "reihe", "modus")
 
 
 def _harvest_cookie():
@@ -723,7 +723,8 @@ def _next_place(settings):
         return None
     place = storage.suggest_place(settings["warehouse"], settings["variety"].id,
                                   settings["usage"] or settings["variety"].usage,
-                                  settings["seed_class"].id if settings["seed_class"] else None, row=settings["row"])
+                                  settings["seed_class"].id if settings["seed_class"] else None, row=settings["row"],
+                                  grade=settings["grade"])
     return settings["warehouse"].location_label(*place) if place else ""
 
 
@@ -748,7 +749,9 @@ def _harvest_settings(source):
     row = number("reihe")                          # feste Reihe (sonst automatisch)
     if warehouse is None or row is None or not 1 <= row <= warehouse.rows:
         row = None
+    grade = storage.normalize_size(source.get("groesse") or "") or None
     return {"variety": variety, "plot": plot, "seed_class": seed_class, "usage": usage, "fill": fill, "date": day,
+            "grade": grade,
             "warehouse": warehouse if store else None, "store": store, "chosen_warehouse": warehouse,
             "row": row if store else None, "chosen_row": row}
 
@@ -807,7 +810,7 @@ def harvest_box():
             box, current_user, settings["variety"], settings["plot"].id if settings["plot"] else None,
             settings["date"], usage=settings["usage"],
             seed_class_id=settings["seed_class"].id if settings["seed_class"] else None,
-            fill=settings["fill"], warehouse=settings["warehouse"], row=settings["row"])
+            fill=settings["fill"], warehouse=settings["warehouse"], row=settings["row"], grade=settings["grade"])
         db.session.commit()
     except (StorageError, IntegrityError) as e:
         db.session.rollback()
@@ -824,7 +827,7 @@ def harvest_box():
     if request.accept_mimetypes.best == "application/json":
         return jsonify(ok=True, message=message, code=box.code, place=place or "", next=_next_place(settings),
                        text=" · ".join(p for p in (box.variety.name, box.plot.name if box.plot else "",
-                                                     box.fill_label) if p))
+                                                     box.grade or "", box.fill_label) if p))
     flash(message, "success")
     return back("main.scan")
 

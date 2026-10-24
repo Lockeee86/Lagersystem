@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import size_select %}
 {% block title %}{{ _("Scannen") }}{% endblock %}
 {% block content %}
 {% set hv = harvest_values or {} %}
@@ -13,7 +14,7 @@
             <div class="flex-grow-1 min-w-0">
                 <label class="fw-semibold d-block mb-0" for="harvestSwitch">{{ _("Ernte-Modus") }}</label>
                 <div class="small text-body-secondary text-truncate" id="harvestSummary">
-                    {% if harvest.variety %}{{ harvest.variety.name }}{% if harvest.plot %} · {{ harvest.plot.name }}{% endif %} · {% if harvest.warehouse %}{{ harvest.warehouse.name }}{% if harvest.row %} · {{ _("Reihe {row}", row=harvest.warehouse.row_label(harvest.row)) }}{% endif %}{% else %}{{ _("nur befüllen") }}{% endif %}
+                    {% if harvest.variety %}{{ harvest.variety.name }}{% if harvest.grade %} {{ harvest.grade }}{% endif %}{% if harvest.plot %} · {{ harvest.plot.name }}{% endif %} · {% if harvest.warehouse %}{{ harvest.warehouse.name }}{% if harvest.row %} · {{ _("Reihe {row}", row=harvest.warehouse.row_label(harvest.row)) }}{% endif %}{% else %}{{ _("nur befüllen") }}{% endif %}
                     {% else %}{{ _("Kisten beim Scannen befüllen und einlagern") }}{% endif %}
                 </div>
             </div>
@@ -56,6 +57,7 @@
                         {% for c in seed_classes %}<option value="{{ c.id }}" {% if harvest.seed_class and harvest.seed_class.id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
                     </select>
                 </div>
+                <div class="col-12">{{ size_select(harvest.grade, name="groesse", id="h_size", small=true, label=_("Größe (optional)")) }}</div>
                 <div class="col-6">
                     <label class="form-label small" for="h_date">{{ _("Erntedatum") }}</label>
                     <input class="form-control" type="date" id="h_date" name="datum" value="{{ harvest.date.isoformat() }}">

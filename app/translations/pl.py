@@ -1669,4 +1669,11 @@ MESSAGES = {
     'Nur bei „befüllen + einlagern“: Platzvorschlag neben der gleichen Sorte, sonst der nächste freie Stellplatz – mit fester Reihe nur in dieser Reihe.': 'Tylko przy „napełnij + składuj”: propozycja miejsca obok tej samej odmiany, w przeciwnym razie najbliższe wolne miejsce – przy wybranym rzędzie tylko w tym rzędzie.',
     'Reihe {row} ist voll – bitte eine andere Reihe wählen.': 'Rząd {row} jest pełny – wybierz inny rząd.',
     'automatisch': 'automatycznie',
+    'Höchstens {n} Größen.': 'Najwyżej {n} rozmiarów.',
+    'Kartoffelgrößen (Kaliber)': 'Rozmiary ziemniaków (kaliber)',
+    'Stehen beim Befüllen und Nachsortieren einer Kiste, im Ernte-Modus und beim Lieferschein zur Auswahl. Eine Größe je Zeile, in der gewünschten Reihenfolge – „25-28“ wird zu „25–28 mm“.': 'Do wyboru przy napełnianiu i dosortowaniu skrzyni, w trybie zbioru i na dowodzie dostawy. Jeden rozmiar w wierszu, w wybranej kolejności – „25-28” zmienia się na „25–28 mm”.',
+    'Größen': 'Rozmiary',
+    'Größe': 'Rozmiar',
+    'Größe (optional)': 'Rozmiar (opcjonalnie)',
+    '{n} Größen gespeichert.': ('Zapisano {n} rozmiar.', 'Zapisano {n} rozmiary.', 'Zapisano {n} rozmiarów.'),
 }

@@ -318,12 +318,12 @@ def create_boxes(count, box_type_id, user):
 
 # --- Ernte-Modus ---------------------------------------------------------------
 
-def _same_contents(box, variety_id, usage, seed_class_id):
+def _same_contents(box, variety_id, usage, seed_class_id, grade=None):
     return (box.variety_id == variety_id and (box.effective_usage or None) == (usage or None)
-            and box.seed_class_id == seed_class_id)
+            and box.seed_class_id == seed_class_id and (box.grade or None) == (grade or None))
 
 
-def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=None):
+def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=None, grade=None):
     """Platzvorschlag „gleiche Sorte zusammen“: ein Stapel, auf dem oben dieselbe Ware steht und noch Platz ist
     (der höchste zuerst, damit Stapel voll werden), sonst der freie Stellplatz, der am nächsten an dieser Ware
     liegt – bevorzugt in derselben Reihe (ohne solche Stapel: der erste freie). Mit `row` nur in dieser Reihe.
@@ -332,7 +332,7 @@ def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=Non
     if row is not None:
         stacks = {pos: boxes for pos, boxes in stacks.items() if pos[0] == row}
     same = [(pos, boxes) for pos, boxes in stacks.items()
-            if _same_contents(boxes[-1], variety_id, usage, seed_class_id)]
+            if _same_contents(boxes[-1], variety_id, usage, seed_class_id, grade)]
     room = [(pos, len(boxes)) for pos, boxes in same if len(boxes) < warehouse.max_levels]
     if room:
         return min(room, key=lambda r: (-r[1], r[0]))[0]
@@ -347,24 +347,65 @@ def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=Non
 
 
 def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_class_id=None, fill=100,
-                warehouse=None, row=None):
+                warehouse=None, row=None, grade=None):
     """Ernte-Modus: leere Kiste befüllen und – mit `warehouse` – gleich auf den vorgeschlagenen Platz stellen.
     Gibt den Platz zurück (oder None, wenn nur befüllt wurde)."""
     if box.fill > 0:
         what = box.variety.name if box.variety else _("Inhalt")
         raise StorageError(_("{code} ist schon befüllt ({what}).", code=box.code, what=what))
     usage = usage if usage and usage != variety.usage else None      # wie bei der Sorte → leer lassen
-    update_contents(box, user, variety_id=variety.id, harvest_date=harvest_date, plot_id=plot_id, grade=None,
+    update_contents(box, user, variety_id=variety.id, harvest_date=harvest_date, plot_id=plot_id, grade=grade or None,
                     fill=fill, note=None, usage=usage, seed_class_id=seed_class_id)
     if warehouse is None:
         return None
     if box.is_stored:
         return box.location
     _lock_warehouse(warehouse.id)
-    place = suggest_place(warehouse, variety.id, usage or variety.usage, seed_class_id, row=row)
+    place = suggest_place(warehouse, variety.id, usage or variety.usage, seed_class_id, row=row, grade=grade)
     if place is None and row is not None:
         raise StorageError(_("Reihe {row} ist voll – bitte eine andere Reihe wählen.", row=warehouse.row_label(row)))
     if place is None:
         raise StorageError(_("{name} ist voll.", name=warehouse.name))
     store_box(box, warehouse.id, *place, user)
     return box.location
+
+
+# --- Kartoffelgrößen (Kaliber) ------------------------------------------------
+
+SIZES_KEY = "potato_sizes"
+MAX_SIZES = 40
+_SIZE_RANGE = re.compile(r"^(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)\s*(mm)?$", re.IGNORECASE)
+_SIZE_OPEN = re.compile(r"^([<>]|über|unter|ab|bis)\s*(\d+(?:[.,]\d+)?)\s*(mm)?$", re.IGNORECASE)
+
+
+def normalize_size(text):
+    """„25-28“, „25 - 28mm“ → „25–28 mm“; „>55“ → „> 55 mm“; sonst der Text, wie er ist (gekürzt)."""
+    text = " ".join((text or "").split())[:50]
+    m = _SIZE_RANGE.match(text)
+    if m:
+        return f"{m.group(1)}–{m.group(2)} mm"
+    m = _SIZE_OPEN.match(text)
+    if m:
+        return f"{m.group(1)} {m.group(2)} mm"
+    return text
+
+
+def sizes():
+    """Die in der Verwaltung hinterlegten Kartoffelgrößen in der eingestellten Reihenfolge."""
+    from .models import Setting
+    setting = db.session.get(Setting, SIZES_KEY)
+    return [s for s in (setting.value or "").split("\n") if s] if setting else []
+
+
+def save_sizes(text):
+    """Eine Größe je Zeile (Reihenfolge bleibt, doppelte fallen weg). Committet nicht."""
+    from .models import Setting
+    result = []
+    for line in (text or "").splitlines():
+        size = normalize_size(line)
+        if size and size.casefold() not in {r.casefold() for r in result}:
+            result.append(size)
+    if len(result) > MAX_SIZES:
+        raise StorageError(_("Höchstens {n} Größen.", n=MAX_SIZES))
+    Setting.put(SIZES_KEY, "\n".join(result))
+    return result

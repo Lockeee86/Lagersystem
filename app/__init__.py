@@ -122,6 +122,8 @@ def create_app(config=None):
     app.jinja_env.globals["url_set"] = url_set
 
     from . import audit, sites  # noqa: F401 – audit registriert die Protokoll-Hooks
+    from . import storage as _storage
+    app.jinja_env.globals["potato_sizes"] = _storage.sizes
     app.jinja_env.globals.update(any_sites=sites.any_sites, chosen_site=sites.chosen, all_sites=sites.sites,
                                   default_site_id=sites.default_id)
     app.after_request(sites.remember)

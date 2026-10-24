@@ -37,6 +37,24 @@
     </div>
 </div>
 
+<div class="card shadow-sm mt-4" id="groessen">
+    <div class="card-header"><i class="bi bi-rulers me-1"></i>{{ _("Kartoffelgrößen (Kaliber)") }}</div>
+    <div class="card-body">
+        <p class="small text-body-secondary">{{ _("Stehen beim Befüllen und Nachsortieren einer Kiste, im Ernte-Modus und beim Lieferschein zur Auswahl. Eine Größe je Zeile, in der gewünschten Reihenfolge – „25-28“ wird zu „25–28 mm“.") }}</p>
+        {% if sizes %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for s in sizes %}<span class="badge text-bg-light border fs-6 fw-normal">{{ s }}{% if size_counts.get(s) %} <span class="text-body-secondary small">· {{ ngettext("{n} Kiste", "{n} Kisten", size_counts[s]) }}</span>{% endif %}</span>{% endfor %}
+        </div>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin.potato_sizes') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label" for="sizes">{{ _("Größen") }}</label>
+            <textarea class="form-control font-monospace" id="sizes" name="sizes" rows="6" placeholder="25–28 mm&#10;28–35 mm&#10;35–55 mm&#10;> 55 mm">{{ sizes|join("\n") }}</textarea>
+            <button class="btn btn-primary mt-2"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+        </form>
+    </div>
+</div>
+
 {% call edit_modal("typeModal", _("Neuer Kistentyp"), _("Kistentyp bearbeiten"), url_for('admin.box_types')) %}
 <div class="mb-3">
     <label class="form-label" for="t_name">{{ _("Name") }}</label>

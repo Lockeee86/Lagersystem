@@ -279,6 +279,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Kartoffelgrößen** (0.31.5, Verwaltung → Kistentypen): Liste der Kaliber (eine je Zeile, „25-28“ → „25–28 mm“),
+   Auswahl beim Befüllen/Nachsortieren der Kiste („Sortierung / Größe“, ein alter abweichender Wert bleibt
+   wählbar), im Ernte-Modus (optional; gleiche Größe kommt beim Platzvorschlag zusammen) und als Kaliber beim
+   Lieferschein. Gespeichert in `settings` `potato_sizes`; an der Kiste steht der Text in `Box.grade`.
    **Lagerkarte am Handy** (0.29.7): größere Felder, mit zwei Fingern zoomen und verschieben, Knöpfe − / ganzes
    Lager / +. Antippen eines Stapels klappt unten ein Blatt mit seinen Kisten auf (ohne Seitenwechsel, die Karte
    bleibt bedienbar; der gewählte Stapel ist umrandet). Am PC bleibt das Fenster.

@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import aerial, agenda, audit, backup, branding, fielddoc, fields, sites, tiles, transfer, weather
+from . import aerial, agenda, audit, backup, branding, fielddoc, fields, sites, storage, tiles, transfer, weather
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -563,7 +563,23 @@ def box_types():
 
     items = BoxType.query.order_by(BoxType.name).all()
     counts = dict(db.session.query(Box.box_type_id, func.count(Box.id)).group_by(Box.box_type_id))
-    return render_template("admin/box_types.html", items=items, counts=counts)
+    size_counts = dict(db.session.query(Box.grade, func.count(Box.id)).filter(Box.fill > 0, Box.grade.isnot(None))
+                       .group_by(Box.grade))
+    return render_template("admin/box_types.html", items=items, counts=counts, sizes=storage.sizes(),
+                           size_counts=size_counts)
+
+
+@bp.route("/kistentypen/groessen", methods=["POST"])
+def potato_sizes():
+    try:
+        saved = storage.save_sizes(request.form.get("sizes", ""))
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("admin.box_types") + "#groessen")
+    db.session.commit()
+    flash(ngettext("{n} Größe gespeichert.", "{n} Größen gespeichert.", len(saved)), "success")
+    return redirect(url_for("admin.box_types") + "#groessen")
 
 
 @bp.route("/kistentypen/<int:t_id>/loeschen", methods=["POST"])

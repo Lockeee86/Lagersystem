@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf %}
 {% from "macros.html" import photo_strip with context %}
+{% from "macros.html" import size_select %}
 {% block title %}{{ box.code }}{% endblock %}
 {% block content %}
 <div class="box-hero card shadow-sm mb-4" style="--c: {{ box.color or 'var(--box-blank)' }}">
@@ -171,8 +172,7 @@
                             {% if not plots and current_user.is_admin %}<div class="form-text"><a href="{{ url_for('admin.plots') }}">{{ _("Schläge anlegen") }}</a></div>{% endif %}
                         </div>
                         <div class="col-sm-6">
-                            <label class="form-label" for="grade">{{ _("Sortierung / Größe") }}</label>
-                            <input class="form-control" name="grade" id="grade" value="{{ box.grade or '' }}" maxlength="50" placeholder="{{ _('z. B. 35–55 mm') }}">
+                            {{ size_select(box.grade, label=_("Sortierung / Größe")) }}
                         </div>
                         <div class="col-sm-6">
                             <label class="form-label" for="fill">{{ _("Füllstand") }}</label>

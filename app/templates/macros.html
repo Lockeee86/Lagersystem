@@ -142,3 +142,19 @@
 </select>
 {% endif %}
 {% endmacro %}
+
+{# Auswahl „Größe“ aus den hinterlegten Kartoffelgrößen (Verwaltung → Kistentypen); ein abweichender alter Wert
+   bleibt wählbar. Ohne hinterlegte Größen ein freies Feld. #}
+{% macro size_select(selected=none, name="grade", id="grade", small=false, label=none) %}
+{% set list = potato_sizes() %}
+<label class="form-label{% if small %} small{% endif %}" for="{{ id }}">{{ label or _("Größe") }}</label>
+{% if list %}
+<select class="form-select{% if small %} form-select-sm{% endif %}" id="{{ id }}" name="{{ name }}">
+    <option value="">–</option>
+    {% for s in list %}<option value="{{ s }}" {% if selected == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    {% if selected and selected not in list %}<option value="{{ selected }}" selected>{{ selected }}</option>{% endif %}
+</select>
+{% else %}
+<input class="form-control{% if small %} form-control-sm{% endif %}" id="{{ id }}" name="{{ name }}" value="{{ selected or '' }}" maxlength="50" placeholder="{{ _('z. B. 35–55 mm') }}">
+{% endif %}
+{% endmacro %}

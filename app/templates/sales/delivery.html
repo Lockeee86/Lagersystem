@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, variety_chip, site_select %}
+{% from "macros.html" import csrf, variety_chip, site_select, size_select %}
 {% from "macros.html" import photo_strip with context %}
 {% block title %}{{ delivery.number }}{% endblock %}
 {% block content %}
@@ -170,8 +170,7 @@
                         <input class="form-control" type="number" id="q_kg" name="unit_kg" min="1" required>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label" for="q_grade">{{ _("Kaliber") }}</label>
-                        <input class="form-control" id="q_grade" name="grade" maxlength="50">
+                        {{ size_select(id="q_grade", label=_("Kaliber")) }}
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-outline-primary w-100 text-nowrap" id="addQuantity"><i class="bi bi-plus-lg me-1"></i>{{ _("Hinzufügen") }}</button>
