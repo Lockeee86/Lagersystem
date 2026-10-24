@@ -1553,3 +1553,47 @@ class InstructionRecord(db.Model):
     @property
     def label(self):
         return f"{self.topic.name}: {self.signed_name} {self.day.strftime('%d.%m.%Y')}"
+
+
+# --- Beregnung (Import aus RainDancer) ---------------------------------------------------
+
+class Well(db.Model):
+    """Brunnen bzw. Entnahmestelle mit genehmigter Jahresmenge (wasserrechtliche Erlaubnis, Kalenderjahr)."""
+    __tablename__ = "wells"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    number = db.Column(db.String(30))
+    permit_m3 = db.Column(db.Integer)
+    note = db.Column(db.String(300))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    @property
+    def label(self):
+        return f"{self.name} ({self.number})" if self.number else self.name
+
+
+class Irrigation(db.Model):
+    """Ein Beregnungseinsatz (aus dem RainDancer-Wasserbuch). Ein neuer Import ersetzt den Zeitraum der Datei."""
+    __tablename__ = "irrigations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    well_id = db.Column(db.Integer, db.ForeignKey("wells.id", ondelete="SET NULL"), index=True)
+    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id", ondelete="SET NULL"), index=True)
+    plot_name = db.Column(db.String(100), nullable=False)       # Schlag laut Datei
+    sprinkler = db.Column(db.String(100))
+    start_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    end_at = db.Column(db.DateTime(timezone=True))
+    hours = db.Column(db.Numeric(7, 1))
+    m3 = db.Column(db.Numeric(10, 2), nullable=False)
+    source = db.Column(db.String(20), nullable=False, default="raindancer")
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    well = db.relationship("Well")
+    plot = db.relationship("Plot")
+
+    @property
+    def mm(self):
+        """Niederschlagshöhe auf dem Schlag: m³ ÷ (ha × 10)."""
+        area = self.plot.area_ha if self.plot else None
+        return float(self.m3) / (float(area) * 10) if area else None

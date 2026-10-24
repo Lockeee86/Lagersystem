@@ -96,6 +96,11 @@ docker compose up --build -d
   Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`). Ertragsvergleich `fields.yield_history`
   (`/ertraege`); Feldnotizen `FieldNote` mit Fotos, Standort → Schlag `fields.locate` (`/schlag/ort`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
+- `app/irrigation.py`: Beregnung – RainDancer-Wasserbuch (Excel) `parse_file()` → Vorschau `plan()` → `apply()` (ersetzt
+  den Zeitraum der Datei, committet nicht; Routen `admin.irrigation_preview/_apply`), `Well` (genehmigte Jahresmenge),
+  `Irrigation` (Einsatz), Auswertung `overview()` / `plot_summary()` / `mm_by_plot_year()` / `alerts()`, Seite
+  `fields.irrigation_page`. Testdateien erzeugt `tests/test_irrigation.py` mit xlwt – echte RainDancer-Dateien nie
+  committen
 - `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
   (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es

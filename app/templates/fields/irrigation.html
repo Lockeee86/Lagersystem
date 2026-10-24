@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Beregnung") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Beregnung") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Wasser je Brunnen und Schlag aus dem RainDancer-Wasserbuch") }}</p>
+    </div>
+    {% if years|length > 1 %}
+    <div class="btn-group" role="group" aria-label="{{ _('Jahr') }}">
+        {% for y in years[:5] %}<a class="btn btn-outline-secondary {{ 'active' if y == year }}" href="{{ url_for('fields.irrigation_page', jahr=y) }}">{{ y }}</a>{% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-droplet"></i>{{ _("Wasser {year}", year=year) }}</div><div class="stat-value">{{ data.m3|num(0) }} m³</div><div class="stat-sub">{{ ngettext("{n} Einsatz", "{n} Einsätze", data.count) }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-clock"></i>{{ _("Laufzeit") }}</div><div class="stat-value">{{ data.hours|num(0) }} h</div><div class="stat-sub">{{ ngettext("{n} Schlag beregnet", "{n} Schläge beregnet", data.plots|length) }}</div></div></div>
+    {% if rain and rain.total is not none %}
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-cloud-rain"></i>{{ _("Regen seit 1. Januar") }}</div><div class="stat-value">{{ rain.total|num(0) }} mm</div><div class="stat-sub">{{ _("Deutscher Wetterdienst") }}</div></div></div>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm mb-4" id="brunnen">
+    <div class="card-header"><i class="bi bi-moisture me-1"></i>{{ _("Brunnen") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for w in data.wells %}
+        <li class="list-group-item">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+                <span class="fw-semibold">{{ w.well.label if w.well else _("ohne Brunnen") }}</span>
+                <span>{{ w.m3|num(0) }} m³{% if w.well and w.well.permit_m3 %} <span class="text-body-secondary">{{ _("von {permit} m³", permit=w.well.permit_m3|num(0)) }}</span>{% endif %}</span>
+            </div>
+            {% if w.percent is not none %}
+            <div class="progress mt-1" style="height: 8px" role="progressbar" aria-valuenow="{{ w.percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ _('Anteil der genehmigten Jahresmenge') }}">
+                <div class="progress-bar" style="width: {{ [w.percent, 100]|min }}%; background: var(--bs-{{ 'danger' if w.level == 'danger' else 'warning' if w.level == 'warning' else 'info' }})"></div>
+            </div>
+            <div class="small {{ 'text-danger fw-semibold' if w.level == 'danger' else 'text-warning-emphasis' if w.level == 'warning' else 'text-body-secondary' }}">{{ _("{percent} % der genehmigten Jahresmenge", percent=w.percent) }}</div>
+            {% endif %}
+            {% if w.well and w.well.note %}<div class="small text-body-secondary">{{ w.well.note }}</div>{% endif %}
+            {% if current_user.is_admin and w.well %}
+            <form method="post" action="{{ url_for('fields.well_save', well_id=w.well.id) }}" class="row g-2 mt-1 align-items-end collapse" id="well{{ w.well.id }}">
+                {{ csrf() }}<input type="hidden" name="jahr" value="{{ year }}">
+                <div class="col-sm-4"><label class="form-label small mb-0" for="permit{{ w.well.id }}">{{ _("Genehmigte Jahresmenge (m³)") }}</label>
+                    <input class="form-control form-control-sm" id="permit{{ w.well.id }}" name="permit_m3" type="number" min="1" inputmode="numeric" value="{{ w.well.permit_m3 or '' }}"></div>
+                <div class="col-sm-6"><label class="form-label small mb-0" for="note{{ w.well.id }}">{{ _("Notiz (z. B. Aktenzeichen der Erlaubnis)") }}</label>
+                    <input class="form-control form-control-sm" id="note{{ w.well.id }}" name="note" maxlength="300" value="{{ w.well.note or '' }}"></div>
+                <div class="col-sm-2 d-grid"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
+            </form>
+            <button class="btn btn-sm btn-link px-0" type="button" data-bs-toggle="collapse" data-bs-target="#well{{ w.well.id }}">{{ _("Genehmigung eintragen") if not w.well.permit_m3 else _("Genehmigung ändern") }}</button>
+            {% endif %}
+        </li>
+        {% else %}
+        <li class="list-group-item text-body-secondary">{{ _("Noch keine Brunnen – sie werden beim ersten Import angelegt.") }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="card shadow-sm mb-4" id="schlaege">
+    <div class="card-header"><i class="bi bi-map me-1"></i>{{ _("Schläge {year}", year=year) }}</div>
+    {% if data.plots %}
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("mm") }}</th><th class="text-end">m³</th><th class="text-end d-none d-sm-table-cell">{{ _("Einsätze") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Stunden") }}</th><th class="d-none d-md-table-cell">{{ _("Zuletzt") }}</th></tr></thead>
+            <tbody>
+                {% for p in data.plots %}
+                <tr>
+                    <td>{% if p.plot %}<a href="{{ url_for('fields.field_detail', plot_id=p.plot.id) }}#beregnung">{{ p.name }}</a>{% else %}{{ p.name }} <span class="badge text-bg-warning">{{ _("nicht zugeordnet") }}</span>{% endif %}</td>
+                    <td class="text-end fw-semibold">{{ p.mm|num(0) if p.mm is not none else "–" }}</td>
+                    <td class="text-end">{{ p.m3|num(0) }}</td>
+                    <td class="text-end d-none d-sm-table-cell">{{ p.count }}</td>
+                    <td class="text-end d-none d-md-table-cell">{{ p.hours|num(1) }}</td>
+                    <td class="d-none d-md-table-cell small text-body-secondary">{{ p.last|date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body text-body-secondary">{{ _("In diesem Jahr noch keine Beregnung.") }}</div>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="import">
+    <div class="card-header"><i class="bi bi-upload me-1"></i>{{ _("Wasserbuch aus RainDancer einlesen") }}</div>
+    <div class="card-body">
+        <ol class="small text-body-secondary ps-3">
+            <li>{{ _("In RainDancer: Reports → Wasserbuch, Zeitraum wählen (z. B. die ganze Saison).") }}</li>
+            <li>{{ _("Exportieren als „Excel 97-2003“ („Split Worksheet On Page Break“ aus).") }}</li>
+            <li>{{ _("Hier hochladen – erst kommt eine Vorschau. Ein neuer Import ersetzt den Zeitraum der Datei, doppelt wird nichts gezählt.") }}</li>
+        </ol>
+        <form method="post" action="{{ url_for('admin.irrigation_preview') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2">
+            {{ csrf() }}
+            <input class="form-control" style="max-width: 24rem" type="file" name="file" accept=".xls,.xlsx" required aria-label="{{ _('Datei') }}">
+            <button class="btn btn-primary"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, bulk, fuel, machines, navigation, purchases, sales, search, sites, storage, tasks, team,
-               tiles, uploads, weather)
+from . import (agenda, backup, bulk, fuel, irrigation, machines, navigation, purchases, sales, search, sites, storage,
+               tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
@@ -88,7 +88,7 @@ def _tile_info(key):
 
 
 def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=(),
-               instructions_due=0):
+               instructions_due=0, water_alerts=()):
     """„Jetzt wichtig“ auf der Startseite: eine Liste statt einzelner Karten, Dringendes zuerst.
     Je Eintrag {level: danger|warning|success, title, sub, url}. Aufgaben stehen in einem eigenen Block darunter;
     Störungen, zu denen es schon eine fällige Aufgabe gibt, erscheinen nur dort. `unclaimed`: Bestellwünsche, die
@@ -114,6 +114,10 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     for r in unclaimed:
         items.append({"level": "warning", "title": r.title, "sub": _("Bestellwunsch · noch frei"),
                       "url": url_for("purchases.purchase_detail", req_id=r.id)})
+    for w in water_alerts:
+        items.append({"level": "danger" if w["level"] == "danger" else "warning", "title": w["well"].label,
+                      "sub": _("{percent} % der genehmigten Jahresmenge", percent=w["percent"]),
+                      "url": url_for("fields.irrigation_page") + "#brunnen"})
     if instructions_due:
         items.append({"level": "warning", "title": _("Unterweisungen"),
                       "sub": ngettext("{n} Person fällig", "{n} Personen fällig", instructions_due),
@@ -192,7 +196,8 @@ def dashboard():
     unclaimed = [r for r in purchases.open_requests(current_user) if not r.assignee] if current_user.is_buyer else []
     important = _important(due_now, faults, due_maintenance, open_deliveries if current_user.can_edit else [],
                            arrived, backup_alert, today, unclaimed,
-                           team.due_count(today) if current_user.is_admin else 0)
+                           team.due_count(today) if current_user.is_admin else 0,
+                           irrigation.alerts() if current_user.is_admin else ())
     plan_today = team.plan_for(today)
     response = make_response(render_template(
         "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
@@ -252,6 +257,10 @@ def _status(endpoint):
     if endpoint == "fields.field_map":
         p = _plot_stats()
         return (f"{p['count']} · {fmt_num(p['ha'], 0)} ha" if p["ha"] else str(p["count"])), False
+    if endpoint == "fields.irrigation_page":
+        data = irrigation.overview(date.today().year)
+        alert = any(w["level"] in ("warning", "danger") for w in data["wells"])
+        return (_("{m3} m³ in diesem Jahr", m3=fmt_num(data["m3"], 0)) if data["count"] else _("Wasserbuch aus RainDancer")), alert
     if endpoint == "fields.yields_page":
         return _("t/ha je Schlag und Sorte über die Jahre"), False
     if endpoint == "fields.rotation_page":

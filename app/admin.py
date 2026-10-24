@@ -10,7 +10,8 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import aerial, agenda, audit, backup, branding, fielddoc, fields, sites, storage, tiles, transfer, weather
+from . import (aerial, agenda, audit, backup, branding, fielddoc, fields, irrigation, sites, storage, tiles, transfer,
+               weather)
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -384,6 +385,59 @@ def plots_csv_apply():
             year=year, created=stats["created"], updated=stats["updated"],
             measures=stats["measures"]), "success")
     return redirect(url_for("admin.plots"))
+
+
+@bp.route("/beregnung/import", methods=["POST"])
+def irrigation_preview():
+    """RainDancer-Wasserbuch (Excel) – erst Vorschau mit Zuordnung der Schläge, dann übernehmen."""
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("fields.irrigation_page"))
+    data_bytes = upload.read()
+    try:
+        parsed = irrigation.parse_file(data_bytes)
+    except irrigation.IrrigationImportError as e:
+        flash_error(str(e))
+        return redirect(url_for("fields.irrigation_page"))
+    _cleanup_imports()
+    token = secrets.token_hex(16)
+    with open(os.path.join(_import_dir(), token), "wb") as f:
+        f.write(data_bytes)
+    session["irrigation_import"] = {"token": token}
+    return render_template("admin/irrigation_preview.html", parsed=parsed, plan=irrigation.plan(parsed),
+                           filename=upload.filename, plots=Plot.query.order_by(Plot.active.desc(), Plot.name).all())
+
+
+@bp.route("/beregnung/uebernehmen", methods=["POST"])
+def irrigation_apply():
+    info, path = _pending_import("irrigation_import")
+    if not info:
+        flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
+        return redirect(url_for("fields.irrigation_page"))
+    with open(path, "rb") as f:
+        data_bytes = f.read()
+    try:
+        parsed = irrigation.parse_file(data_bytes)
+        names = sorted({e["plot"] for e in parsed["events"]})
+        chosen = {name: form_int(f"plot_{i}") for i, name in enumerate(names)}
+        with audit.paused():
+            stats = irrigation.apply(parsed, chosen)
+        audit.note("irrigations", "RainDancer", {"events": stats["events"], "removed": stats["removed"]})
+        db.session.commit()
+    except irrigation.IrrigationImportError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("fields.irrigation_page"))
+    os.remove(path)
+    session.pop("irrigation_import", None)
+    flash(_("Wasserbuch übernommen: {n} Einsätze ({removed} alte ersetzt).", n=stats["events"],
+            removed=stats["removed"]), "success")
+    for w in irrigation.alerts():
+        flash(_("{name}: {percent} % der genehmigten Jahresmenge verbraucht.", name=w["well"].label,
+                percent=w["percent"]), "danger" if w["level"] == "danger" else "warning")
+    year = max(e["start"] for e in parsed["events"]).year
+    return redirect(url_for("fields.irrigation_page", jahr=year))
 
 
 @bp.route("/schlaege/fruchtfolge", methods=["POST"])

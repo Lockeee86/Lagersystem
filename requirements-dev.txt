@@ -1,2 +1,3 @@
 -r requirements.txt
 pytest==9.1.1
+xlwt==1.3.0                              # nur Tests: .xls-Dateien erzeugen

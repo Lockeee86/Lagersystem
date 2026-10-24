@@ -6,10 +6,11 @@ from flask import (Blueprint, Response, abort, current_app, flash, jsonify, redi
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
-from . import aerial, fielddoc, fields, sites, tasks, uploads, weather
+from . import aerial, fielddoc, fields, irrigation, sites, tasks, uploads, weather
 from .extensions import db
 from .i18n import gettext as _
-from .models import FIELD_MEASURE_KINDS, Box, Plot, PlotYear, Setting, Variety
+from .models import FIELD_MEASURE_KINDS, Box, Plot, PlotYear, Setting, Variety, Well
+from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
 bp = Blueprint("fields", __name__)
@@ -68,7 +69,8 @@ def yields_page():
         plots = [p for p in plots if any("kartoffel" in (c["crop"] or "").lower() for c in by_plot[p.id].values())]
     plots = [p for p in plots if any(c["kg"] for c in by_plot[p.id].values())]
     return render_template("fields/yields.html", years=years, plots=plots, by_plot=by_plot, by_variety=by_variety,
-                           best=best, best_v=best_v, only_potatoes=only_potatoes)
+                           best=best, best_v=best_v, only_potatoes=only_potatoes,
+                           water=irrigation.mm_by_plot_year([p.id for p in plots], years))
 
 
 @bp.route("/schlag/<int:plot_id>")
@@ -95,11 +97,43 @@ def field_detail(plot_id):
         stored=stored, map_data=fields.map_data([plot], this_year), open_tasks=tasks.for_plot(plot.id),
         aerial=aerial_options(), kinds=FIELD_MEASURE_KINDS,
         today=date.today(), notes=notes, open_note=request.args.get("notiz") == "1",
+        water=irrigation.plot_summary(plot, this_year),
         note_lat=request.args.get("lat", ""), note_lon=request.args.get("lon", ""),
         varieties=Variety.query.filter(or_(Variety.active.is_(True),
                                            Variety.id.in_([py.variety_id for py in plot.years if py.variety_id])))
         .order_by(Variety.name).all(),
     )
+
+
+# --- Beregnung (RainDancer) --------------------------------------------------------
+
+@bp.route("/beregnung")
+@login_required
+def irrigation_page():
+    """Wasser je Brunnen (mit genehmigter Jahresmenge) und je Schlag für ein Kalenderjahr."""
+    this_year = date.today().year
+    years = sorted(set(irrigation.years()) | {this_year}, reverse=True)
+    year = request.args.get("jahr", type=int)
+    year = year if year in years else this_year
+    rain = weather.rain_year(weather.get_weather()) if year == this_year else None
+    return render_template("fields/irrigation.html", year=year, years=years, data=irrigation.overview(year),
+                           rain=rain, warn_percent=irrigation.WARN_PERCENT)
+
+
+@bp.route("/brunnen/<int:well_id>", methods=["POST"])
+@admin_required
+def well_save(well_id):
+    well = db.session.get(Well, well_id)
+    if well is None:
+        abort(404)
+    try:
+        irrigation.save_permit(well, form_int("permit_m3"), form_str("note", 300))
+        db.session.commit()
+        flash(_("{name} gespeichert.", name=well.label), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("fields.irrigation_page", jahr=request.form.get("jahr")) + "#brunnen")
 
 
 # --- Feldnotizen („Ich bin hier“) ---------------------------------------------------

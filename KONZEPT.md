@@ -285,6 +285,15 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Beregnung** (0.37.0, Feld & Hof → Beregnung, `/beregnung`, `irrigation.py`): Import des RainDancer-Berichts
+   „Wasserbuch“ als „Excel 97-2003“ (.xls über `xlrd`, auch .xlsx). Der CSV-Export von RainDancer ist unbrauchbar
+   (nur ein Einsatz + Summe) und wird abgewiesen; die Summe der Einsätze muss zum „Total“ passen. Gruppen = Brunnen
+   (`Well`, „Name (Nr)“), Einsätze = `Irrigation` (Schlag, Regner, Start/Ende in Ortszeit → UTC, Stunden, m³; der
+   Mandant wird nicht gespeichert). Vorschau mit Zuordnung der Schläge (gleicher Name automatisch, sonst Auswahl –
+   gemerkt in `settings` `raindancer_plots`); ein neuer Import ersetzt alle RainDancer-Einsätze im Zeitraum der Datei.
+   Anzeige: je Brunnen m³ gegen die genehmigte Jahresmenge (Kalenderjahr, ab 80 % Hinweis, „Jetzt wichtig“ für
+   Admins), je Schlag m³ und mm (m³ ÷ ha ÷ 10), Karte „Beregnung“ auf der Schlagseite, mm im Ertragsvergleich,
+   Regen seit 1. Januar daneben.
    **Team** (0.36.0, `team.py` / `team_views.py`):
    *Tagesplan* (`/tagesplan`, Übersicht → Tagesplan): der Admin teilt je Mitarbeiter ein, was an einem Tag zu tun
    ist (Text, optional Maschine und Schlag; nachmittags öffnet sich der nächste Tag), „Vom … übernehmen“ kopiert den

@@ -14,3 +14,4 @@ reportlab==4.4.4
 pillow==13.0.0
 tzdata==2026.5
 pywebpush==2.5.0
+xlrd==2.0.1

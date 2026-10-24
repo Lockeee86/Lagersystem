@@ -57,6 +57,7 @@
                 <td class="text-end">
                     {% if c.kg %}<span class="fw-semibold">{% if c.t_ha %}{{ c.t_ha|num(1) }}{% else %}{{ c.kg|kg }}{% endif %}</span>{{ bar(c.t_ha, best) }}{% endif %}
                     <div class="small text-body-tertiary text-truncate yield-crop">{{ c.varieties|join(", ") if c.varieties else (c.crop or "") }}</div>
+                    {% set w = water.get((p.id, y)) %}{% if w %}<div class="small text-info" title="{{ _('Beregnung') }}"><i class="bi bi-droplet"></i> {{ w|num(0) }} mm</div>{% endif %}
                 </td>
                 {% endfor %}
             </tr>

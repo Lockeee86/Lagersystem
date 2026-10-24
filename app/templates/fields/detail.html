@@ -58,6 +58,29 @@
     </div>
 
     <div class="col-lg-7">
+        {% if water %}
+        <div class="card shadow-sm mb-4" id="beregnung">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-droplet me-1"></i>{{ _("Beregnung {year}", year=this_year) }}</span>
+                <a class="small" href="{{ url_for('fields.irrigation_page', jahr=this_year) }}">{{ _("Alle Schläge") }}</a>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-4 mb-2">
+                    <div><div class="small text-body-secondary">{{ _("Wasser") }}</div><div class="fs-5 fw-semibold">{% if water.mm is not none %}{{ water.mm|num(0) }} mm{% else %}–{% endif %}</div></div>
+                    <div><div class="small text-body-secondary">{{ _("Menge") }}</div><div class="fs-5 fw-semibold">{{ water.m3|num(0) }} m³</div></div>
+                    <div><div class="small text-body-secondary">{{ _("Einsätze") }}</div><div class="fs-5 fw-semibold">{{ water.count }}</div></div>
+                </div>
+                {% if water.mm is none %}<div class="small text-body-secondary mb-2">{{ _("Für mm fehlt die Fläche des Schlags.") }}</div>{% endif %}
+                <ul class="list-unstyled small mb-0 irrigation-list">
+                    {% for e in water.events[:12] %}
+                    <li><span class="fw-semibold">{{ e.start_at|date }}</span> · {% if e.mm is not none %}{{ e.mm|num(0) }} mm · {% endif %}{{ e.m3|num(0) }} m³{% if e.hours %} · {{ e.hours|num(1) }} h{% endif %}{% if e.sprinkler %} <span class="text-body-secondary">· {{ e.sprinkler }}</span>{% endif %}</li>
+                    {% endfor %}
+                </ul>
+                {% if water.count > 12 %}<div class="small text-body-secondary mt-1">{{ ngettext("und {n} weiterer Einsatz", "und {n} weitere Einsätze", water.count - 12) }}</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card shadow-sm mb-4" id="notizen">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-pin-map me-1"></i>{{ _("Notizen vom Feld") }}</span>
