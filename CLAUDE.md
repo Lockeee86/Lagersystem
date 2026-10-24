@@ -42,7 +42,8 @@ docker compose up --build -d
 - `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen), committet nicht.
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`; gelöschte
   `Photo`-Zeilen verlieren ihre Datei nach dem Commit). Fotoleiste an Kiste, Anbaujahr, Schüttlager, Lieferschein:
-  `macros.photo_strip` (mit `with context` importieren), Routen `main.photos_add` / `main.photo_delete`
+  `macros.photo_strip` (mit `with context` importieren), Routen `main.photos_add` / `main.photo_delete`.
+  Titelbild der Maschine `Machine.image` (+ Vorschau `uploads.thumb_name`), Routen `machines.machine_image(_save)`
 - `app/weather.py`: Wetter über Bright Sky (DWD), Zwischenspeicher im Speicher, Frost und Krautfäule (Hutton),
   Niederschlag seit 1. Januar `rain_year()` (Monatswerte zwischengespeichert);
   in Tests `weather._fetch` ersetzen (kein Netz)

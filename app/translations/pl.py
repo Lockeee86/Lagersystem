@@ -1676,4 +1676,10 @@ MESSAGES = {
     'Größe': 'Rozmiar',
     'Größe (optional)': 'Rozmiar (opcjonalnie)',
     '{n} Größen gespeichert.': ('Zapisano {n} rozmiar.', 'Zapisano {n} rozmiary.', 'Zapisano {n} rozmiarów.'),
+    'Bild ändern': 'Zmień zdjęcie',
+    'Bild hinzufügen': 'Dodaj zdjęcie',
+    'Bild entfernen?': 'Usunąć zdjęcie?',
+    'Bild entfernen': 'Usuń zdjęcie',
+    'Bild entfernt.': 'Zdjęcie usunięte.',
+    'Bild gespeichert.': 'Zdjęcie zapisane.',
 }

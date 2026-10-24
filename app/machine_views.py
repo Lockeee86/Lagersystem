@@ -414,6 +414,46 @@ def photo(photo_id):
     return response
 
 
+@bp.route("/maschine/<int:machine_id>/bild.jpg")
+@login_required
+def machine_image(machine_id):
+    """Titelbild der Maschine; `?klein=1` = quadratische Vorschau für die Liste."""
+    machine = _get(Machine, machine_id)
+    if not machine.image:
+        abort(404)
+    name = uploads.thumb_name(machine.image) if request.args.get("klein") else machine.image
+    response = send_from_directory(uploads.upload_dir(), name, mimetype="image/jpeg", max_age=86400)
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    return response
+
+
+@bp.route("/maschine/<int:machine_id>/bild", methods=["POST"])
+@editor_required
+def machine_image_save(machine_id):
+    """Titelbild setzen, ersetzen (eine Datei) oder entfernen (`entfernen=1`)."""
+    machine = _get(Machine, machine_id)
+    old = machine.image
+    if request.form.get("entfernen"):
+        machine.image = None
+        message = _("Bild entfernt.")
+    else:
+        upload = request.files.get("image")
+        if not upload or not upload.filename:
+            flash_error(_("Bitte ein Foto auswählen."))
+            return redirect(url_for("machines.machine_detail", machine_id=machine.id))
+        try:
+            machine.image = uploads.save_with_thumb(upload)
+        except StorageError as e:
+            flash_error(str(e))
+            return redirect(url_for("machines.machine_detail", machine_id=machine.id))
+        message = _("Bild gespeichert.")
+    db.session.commit()
+    if old and old != machine.image:
+        uploads.delete_files([old, uploads.thumb_name(old)])
+    flash(message, "success")
+    return redirect(url_for("machines.machine_detail", machine_id=machine.id))
+
+
 @bp.route("/maschine/<int:machine_id>/etikett.pdf", methods=["POST"])
 @admin_required
 def machine_label(machine_id):

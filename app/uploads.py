@@ -40,6 +40,24 @@ def save_photo(file_storage):
     return name
 
 
+THUMB_SIDE = 240
+
+
+def thumb_name(name):
+    """Dateiname der quadratischen Vorschau zu einem Bild (`abc.jpg` → `abc_t.jpg`)."""
+    return name[:-4] + "_t.jpg" if name and name.endswith(".jpg") else name
+
+
+def save_with_thumb(file_storage):
+    """Bild speichern (wie `save_photo`) und eine quadratische Vorschau für Listen dazu (THUMB_SIDE Pixel)."""
+    name = save_photo(file_storage)
+    path = os.path.join(upload_dir(), name)
+    with Image.open(path) as img:
+        ImageOps.fit(img, (THUMB_SIDE, THUMB_SIDE)).save(os.path.join(upload_dir(), thumb_name(name)), "JPEG",
+                                                         quality=80, optimize=True)
+    return name
+
+
 def save_photos(files):
     files = [f for f in files if f and f.filename]
     if len(files) > MAX_PHOTOS:

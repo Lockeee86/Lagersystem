@@ -279,6 +279,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Stapel mit derselben Ware (Sorte, Verwendung, Stufe) und Platz, der höchste zuerst; sonst der freie Stellplatz
    am nächsten daran (Nachbar in derselben Reihe vor gegenüber), ohne solche Ware der erste freie. Schon befüllte
    Kisten werden abgewiesen.
+   **Titelbild je Maschine** (0.31.6): auf der Maschinenseite oben (Mitarbeiter: „Bild hinzufügen/ändern“, Kamera
+   oder Galerie), in der Maschinenliste als quadratische Vorschau (ohne Bild das Symbol der Art). `Machine.image`,
+   Vorschau `uploads.save_with_thumb` / `thumb_name`; beim Ersetzen/Entfernen verschwinden die alten Dateien.
    **Kartoffelgrößen** (0.31.5, Verwaltung → Kistentypen): Liste der Kaliber (eine je Zeile, „25-28“ → „25–28 mm“),
    Auswahl beim Befüllen/Nachsortieren der Kiste („Sortierung / Größe“, ein alter abweichender Wert bleibt
    wählbar), im Ernte-Modus (optional; gleiche Größe kommt beim Platzvorschlag zusammen) und als Kaliber beim

@@ -4,6 +4,33 @@
 {% from "admin/_macros.html" import edit_modal %}
 {% block title %}{{ machine.name }}{% endblock %}
 {% block content %}
+<div class="machine-hero mb-3">
+    {% if machine.image %}
+    <a href="{{ url_for('machines.machine_image', machine_id=machine.id) }}" target="_blank" class="machine-hero-img">
+        <img src="{{ url_for('machines.machine_image', machine_id=machine.id) }}" alt="{{ machine.name }}">
+    </a>
+    {% elif current_user.can_edit %}
+    <div class="machine-hero-empty"><i class="bi {{ machine.icon }}"></i></div>
+    {% endif %}
+    {% if current_user.can_edit %}
+    <div class="machine-hero-tools">
+        <form method="post" action="{{ url_for('machines.machine_image_save', machine_id=machine.id) }}" enctype="multipart/form-data">
+            {{ csrf() }}
+            <label class="btn btn-sm btn-light shadow-sm mb-0">
+                <i class="bi bi-camera me-1"></i>{{ _("Bild ändern") if machine.image else _("Bild hinzufügen") }}
+                <input type="file" name="image" accept="image/*" class="visually-hidden" data-autosubmit>
+            </label>
+        </form>
+        {% if machine.image %}
+        <form method="post" action="{{ url_for('machines.machine_image_save', machine_id=machine.id) }}">
+            {{ csrf() }}<input type="hidden" name="entfernen" value="1">
+            <button class="btn btn-sm btn-light shadow-sm" data-confirm="{{ _('Bild entfernen?') }}" aria-label="{{ _('Bild entfernen') }}"><i class="bi bi-trash"></i></button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
 <div class="page-head">
     <div class="min-w-0">
         <h1 class="d-flex flex-wrap align-items-center gap-2">{{ machine.name }}

@@ -113,6 +113,8 @@
     <div class="list-group list-group-flush">
         {% for m, state, faults_count in rows %}
         <a class="list-group-item list-group-item-action d-flex gap-3 align-items-center {% if not m.active %}text-body-tertiary{% endif %}" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}">
+            {% if m.image %}<img class="machine-thumb" src="{{ url_for('machines.machine_image', machine_id=m.id, klein=1) }}" alt="" loading="lazy">
+            {% else %}<span class="machine-thumb machine-thumb-empty"><i class="bi {{ m.icon }}"></i></span>{% endif %}
             <div class="flex-grow-1 min-w-0">
                 <div class="d-flex flex-wrap gap-2 align-items-baseline">
                     <span class="fw-semibold">{{ m.name }}</span>
@@ -123,9 +125,18 @@
                     {% if m.counter_unit %}{{ m.counter if m.counter is not none else "–" }} {{ m.unit_short }}{% endif %}
                     {% if m.manufacturer or m.model %}{% if m.counter_unit %} · {% endif %}{{ m.manufacturer or "" }} {{ m.model or "" }}{% endif %}
                 </div>
+                {# Handy: Marken unter dem Namen, damit der Name Platz hat #}
+                {% if faults_count or m.tasks %}
+                <div class="d-flex flex-wrap gap-1 mt-1 d-md-none">
+                    {% if faults_count %}<span class="badge text-bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ faults_count }}</span>{% endif %}
+                    {% if m.tasks %}{{ state_badge(state) }}{% endif %}
+                </div>
+                {% endif %}
             </div>
+            <span class="d-none d-md-flex gap-2 align-items-center">
             {% if faults_count %}<span class="badge text-bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ faults_count }}</span>{% endif %}
             {% if m.tasks %}{{ state_badge(state) }}{% endif %}
+            </span>
             <i class="bi bi-chevron-right text-body-tertiary"></i>
         </a>
         {% endfor %}

@@ -862,6 +862,10 @@ MACHINE_CATEGORIES = {
     "sonstiges": N_("Sonstiges"),
 }
 COUNTER_UNITS = {"h": N_("Betriebsstunden"), "km": N_("Kilometer")}
+# Symbol je Art (Liste ohne Bild)
+MACHINE_ICONS = {"schlepper": "bi-truck-front", "fahrzeug": "bi-car-front", "roder": "bi-basket",
+                 "legemaschine": "bi-grid-3x3", "sortieranlage": "bi-funnel", "anhaenger": "bi-truck-flatbed",
+                 "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "sonstiges": "bi-gear-wide-connected"}
 
 
 class Machine(db.Model):
@@ -878,6 +882,7 @@ class Machine(db.Model):
     plate = db.Column(db.String(30))             # Kennzeichen
     serial_no = db.Column(db.String(100))
     site_id = site_column()
+    image = db.Column(db.String(80))             # Titelbild (Datei in UPLOAD_DIR, Vorschau `uploads.thumb_name`)
     counter_unit = db.Column(db.String(5))       # "h", "km" oder leer (ohne Zähler)
     counter = db.Column(db.Integer)              # aktueller Stand
     counter_at = db.Column(db.DateTime(timezone=True))
@@ -899,6 +904,10 @@ class Machine(db.Model):
     @property
     def unit_short(self):
         return {"h": "h", "km": "km"}.get(self.counter_unit, "")
+
+    @property
+    def icon(self):
+        return MACHINE_ICONS.get(self.category, "bi-gear-wide-connected")
 
 
 class MaintenanceTask(db.Model):
