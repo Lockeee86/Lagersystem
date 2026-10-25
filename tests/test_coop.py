@@ -180,3 +180,58 @@ def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
 def test_sunrise():
     rise = chickens.sunrise(datetime(2026, 6, 21).date(), 52.4, 10.5).astimezone(BERLIN)
     assert (4, 40) <= (rise.hour, rise.minute) <= (5, 10)
+
+
+def _varint(n):
+    out = b""
+    while True:
+        byte, n = n & 0x7F, n >> 7
+        out += bytes([byte | (0x80 if n else 0)])
+        if not n:
+            return out
+
+
+def _field(number, wire, value):
+    import struct
+    key = _varint(number << 3 | wire)
+    if wire == 0:
+        return key + _varint(value)
+    if wire == 2:
+        return key + _varint(len(value)) + value
+    if wire == 5:
+        return key + (struct.pack("<f", value) if isinstance(value, float) else struct.pack("<I", value))
+    raise ValueError(wire)
+
+
+def _envelope(sender, packet_id, port, payload, encrypt_key=None, bridge=None):
+    data = _field(1, 0, port) + _field(2, 2, payload)
+    packet = _field(1, 5, sender) + _field(2, 5, 0xFFFFFFFF) + _field(6, 5, packet_id) + _field(7, 5, 1761400000)
+    packet += _field(8, 5, 6.5) + _field(12, 0, (-95) & 0xFFFFFFFFFFFFFFFF)
+    if encrypt_key:
+        packet += _field(5, 2, bridge._decrypt(data, packet_id, sender, encrypt_key))   # CTR: hin = zurück
+    else:
+        packet += _field(4, 2, data)
+    return _field(1, 2, packet) + _field(2, 2, b"LongFast") + _field(3, 2, b"!00000009")
+
+
+def test_bridge_protobuf():
+    """Ohne JSON-Schalter: ServiceEnvelope (msh/…/e/…) selbst lesen, auch verschlüsselt mit dem Kanal-Schlüssel."""
+    bridge = load_bridge()
+    env = _field(1, 5, 23.5) + _field(2, 5, 64.25)
+    telemetry = _field(1, 5, 1761400000) + _field(3, 2, env)
+    message = bridge.envelope_to_message(_envelope(0xA1B2C3D4, 77, 67, telemetry))
+    assert message["type"] == "telemetry" and message["rssi"] == -95 and message["snr"] == 6.5
+    data = bridge.parse_meshtastic(message, "!a1b2c3d4", "klappe", "open")
+    assert data["temperature"] == 23.5 and data["humidity"] == 64.2 and data["node"] == "!a1b2c3d4"
+    device = _field(2, 2, _field(1, 0, 87) + _field(2, 5, 3.95))
+    data = bridge.parse_meshtastic(bridge.envelope_to_message(_envelope(5, 78, 67, device)), "", "klappe", "open")
+    assert data["battery"] == 87 and data["voltage"] == 3.95
+    text = bridge.envelope_to_message(_envelope(5, 79, 10, b"Klappe state: 0"))
+    assert bridge.parse_meshtastic(text, "", "klappe", "open")["door"] == "closed"
+    # verschlüsselt: ohne Schlüssel nur Hinweis, mit Standardschlüssel („AQ==“) lesbar
+    key = bridge.channel_key("AQ==")
+    assert key == bridge.DEFAULT_KEY and len(bridge.channel_key("Ag==")) == 16
+    raw = _envelope(5, 80, 1, b"Klappe detected", encrypt_key=key, bridge=bridge)
+    assert bridge.envelope_to_message(raw)["encrypted"]
+    assert bridge.parse_meshtastic(bridge.envelope_to_message(raw, key), "", "klappe", "open")["door"] == "open"
+    assert bridge.envelope_to_message(_envelope(5, 81, 3, b"\x01")) is None        # andere Ports (Position …)

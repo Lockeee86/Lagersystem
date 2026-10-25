@@ -354,6 +354,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    `CoopDoorEvent.position` = oben) → Zustand zu/offen/halb (`coop.combined`), Push „hängt“ nach 5 min;
    1 h nach Sonnenaufgang (`chickens.sunrise`) noch zu → Push; Tabelle auf/oben/zu der letzten 7 Tage
    (`coop.day_times`). Alles über Thema `coop_open` (`coop.door_watch`).
+   **Ohne JSON-Schalter** (0.43.2): die Brücke liest auch das normale Protobuf-Format (`msh/…/e/…`, eigener
+   kleiner Decoder) und entschlüsselt mit `COOP_CHANNEL_PSK`, falls die MQTT-Verschlüsselung am Gateway an ist.
    Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
    Bereiche es beim Speichern gab; später dazugekommene (Hühner) folgen der eingebauten Voreinstellung.
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen

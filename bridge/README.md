@@ -6,7 +6,7 @@ Temperatur, Luftfeuchte, Akku und Klappe (auf/zu) vom Hühnerstall in die App �
 Stall:  Meshtastic-Knoten + Sensor (SHT31/SHT4x/BME280) + Reedkontakt an der Klappe
           │  LoRa (30 m sind kein Problem)
 Haus:   Meshtastic-Knoten mit WLAN (ESP32, z. B. Heltec V3)
-          │  MQTT (JSON)
+          │  MQTT
 Server: Mosquitto ──► coop-bridge ──► Lagersystem  POST /api/huehner/sensor
 ```
 
@@ -51,8 +51,8 @@ Am besten mit der Meshtastic-App (Handy) oder `meshtastic --set …` per USB.
 | MQTT → aktiviert | **an** |
 | MQTT → Server | IP des Servers mit dem Stack (Portainer), Port 1883 |
 | MQTT → Benutzer/Passwort | leer |
-| MQTT → **JSON** | **an** |
-| MQTT → Verschlüsselung | aus (bleibt im Hof-Netz) |
+| MQTT → JSON | egal – die Brücke versteht beide Formate (den Schalter gibt es nicht bei jedem Gerät) |
+| MQTT → **Verschlüsselung** | **aus** (bleibt im Hof-Netz) – oder an lassen und im Stack `COOP_CHANNEL_PSK` setzen |
 | Kanal (der private) → **Uplink** | **an** |
 
 Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knotenliste auftaucht. Seine ID
@@ -73,6 +73,7 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 | `COOP_DOOR_ACTIVE` | `open` (Standard: „aktiv“ = Klappe offen) – zeigt die App es verkehrt herum, `closed` |
 | `COOP_TOP_NODE` | wahlweise: ID des zweiten Knotens mit dem Kontakt oben (siehe unten) |
 | `COOP_TOP_ACTIVE` | `away` (Standard: „aktiv“ = nicht oben) – verkehrt herum: `top` |
+| `COOP_CHANNEL_PSK` | nur wenn die MQTT-Verschlüsselung am Gateway an bleibt: Kanal-Schlüssel (Base64) |
 | `COOP_DEBUG` | `1`, um alle MQTT-Nachrichten im Log der Brücke zu sehen |
 
 3. Stack neu bereitstellen (mit „Re-pull/Re-build“). Danach laufen zusätzlich `lagersystem-mqtt` und
@@ -97,8 +98,10 @@ weder ganz unten noch ganz oben ist.
 
 - Log von `lagersystem-coop-bridge`: „MQTT verbunden“, danach „eingetragen: {…}“ bei jedem Messwert.
 - Klappe öffnen → nach wenigen Sekunden „eingetragen: {'door': 'open' …}“, in der App „Klappe offen“.
-- Kommt nichts an: `COOP_DEBUG=1` setzen und schauen, ob überhaupt Nachrichten unter `msh/…/json/…`
-  ankommen (sonst am Gateway JSON und Uplink prüfen). Steht im Text etwas anderes als „Klappe detected“ bzw.
+- Kommt nichts an: `COOP_DEBUG=1` setzen und schauen, ob überhaupt Nachrichten unter `msh/…/e/…` bzw.
+  `msh/…/json/…` ankommen (sonst am Gateway MQTT-Server und Uplink prüfen). Meldet die Brücke
+  „Verschlüsseltes Paket“, am Gateway die MQTT-Verschlüsselung ausschalten oder den Kanal-Schlüssel (PSK, Base64
+  aus den Kanal-Einstellungen) als `COOP_CHANNEL_PSK` eintragen. Steht im Text etwas anderes als „Klappe detected“ bzw.
   „Klappe state: 1“, den Namen im Detection-Sensor-Modul bzw. `COOP_DOOR_NAME` anpassen.
 
 ## Was die App damit macht

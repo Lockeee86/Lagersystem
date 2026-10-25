@@ -53,6 +53,7 @@ services:
       - TOP_ACTIVE=${COOP_TOP_ACTIVE:-away}
       - DOOR_NAME=${COOP_DOOR_NAME:-Klappe}
       - DOOR_ACTIVE=${COOP_DOOR_ACTIVE:-open}
+      - CHANNEL_PSK=${COOP_CHANNEL_PSK:-}
       - DEBUG=${COOP_DEBUG:-}
       - TZ=${TZ:-Europe/Berlin}
     depends_on:

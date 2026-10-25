@@ -1,4 +1,4 @@
-"""Brücke Hühnerstall: Meshtastic (MQTT, JSON) → Lagersystem (`POST /api/huehner/sensor`).
+"""Brücke Hühnerstall: Meshtastic (MQTT, Protobuf oder JSON) → Lagersystem (`POST /api/huehner/sensor`).
 
 Der Meshtastic-Knoten im Haus (mit WLAN) schickt alle Pakete an den MQTT-Server (Mosquitto im selben Stack).
 Diese Brücke liest sie, nimmt vom Stall-Knoten
@@ -9,9 +9,11 @@ und trägt sie per HTTP in die App ein. Eigene ESP32-Sensoren können unter `COO
 
 Einstellungen über Umgebungsvariablen (siehe README.md in diesem Ordner).
 """
+import base64
 import json
 import os
 import re
+import struct
 import sys
 import time
 import urllib.error
@@ -33,6 +35,7 @@ DOOR_ACTIVE = (os.environ.get("DOOR_ACTIVE") or "open").strip().lower()  # „ak
 # (Kontakt bei offener Klappe geschlossen = LOW, wie unten bei geschlossener Klappe).
 COOP_TOP_NODE = (os.environ.get("COOP_TOP_NODE") or "").strip().lower()
 TOP_ACTIVE = (os.environ.get("TOP_ACTIVE") or "away").strip().lower()   # away | top
+CHANNEL_PSK = (os.environ.get("CHANNEL_PSK") or "").strip()            # Base64 aus den Kanal-Einstellungen
 DEBUG = os.environ.get("DEBUG", "") not in ("", "0", "false")
 
 STATE_RE = re.compile(r"state:\s*([01])\b", re.I)
@@ -109,6 +112,122 @@ def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active
     return None
 
 
+# --- Meshtastic-Protobuf ohne JSON-Schalter -------------------------------------------------
+# Das Gateway schickt ohne „JSON“ ein ServiceEnvelope (Topic msh/…/e/…). Die wenigen Felder, die wir brauchen,
+# lesen wir selbst (kein großes meshtastic-Paket nötig). Feldnummern laut meshtastic/protobufs.
+PORT_TEXT, PORT_DETECTION, PORT_TELEMETRY = 1, 10, 67
+DEFAULT_KEY = bytes([0xD4, 0xF1, 0xBB, 0x3A, 0x20, 0x29, 0x07, 0x59, 0xF0, 0xBC, 0xFF, 0xAB, 0xCF, 0x4E, 0x69, 0x01])
+
+
+def _fields(data):
+    """Protobuf → {Feldnummer: [Werte]} (varint → int, fixed32 → 4 Bytes, fixed64 → 8 Bytes, Länge → Bytes)."""
+    fields, i = {}, 0
+    while i < len(data):
+        key, i = _varint(data, i)
+        number, wire = key >> 3, key & 7
+        if wire == 0:
+            value, i = _varint(data, i)
+        elif wire == 1:
+            value, i = data[i:i + 8], i + 8
+        elif wire == 2:
+            length, i = _varint(data, i)
+            value, i = data[i:i + length], i + length
+        elif wire == 5:
+            value, i = data[i:i + 4], i + 4
+        else:
+            raise ValueError("unbekannter Protobuf-Typ")
+        fields.setdefault(number, []).append(value)
+    return fields
+
+
+def _varint(data, i):
+    result = shift = 0
+    while True:
+        if i >= len(data):
+            raise ValueError("Protobuf zu kurz")
+        byte = data[i]
+        i += 1
+        result |= (byte & 0x7F) << shift
+        if not byte & 0x80:
+            return result, i
+        shift += 7
+
+
+def _first(fields, number, default=None):
+    return fields.get(number, [default])[0]
+
+
+def _f32(raw):
+    return struct.unpack("<f", raw)[0] if isinstance(raw, bytes) and len(raw) == 4 else None
+
+
+def _u32(raw):
+    return struct.unpack("<I", raw)[0] if isinstance(raw, bytes) and len(raw) == 4 else raw
+
+
+def channel_key(psk=CHANNEL_PSK):
+    """PSK aus den Kanal-Einstellungen (Base64) → AES-Schlüssel; „AQ==“ = Standardschlüssel."""
+    if not psk:
+        return None
+    key = base64.b64decode(psk)
+    if len(key) == 1:                                   # Kurzform: Standardschlüssel, letztes Byte verschoben
+        return DEFAULT_KEY[:-1] + bytes([(DEFAULT_KEY[-1] + key[0] - 1) & 0xFF]) if key[0] else None
+    return key
+
+
+def _decrypt(encrypted, packet_id, sender, key):
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    nonce = struct.pack("<Q", packet_id) + struct.pack("<I", sender) + bytes(4)
+    decryptor = Cipher(algorithms.AES(key), modes.CTR(nonce)).decryptor()
+    return decryptor.update(encrypted) + decryptor.finalize()
+
+
+def _round(value, digits=2):
+    return round(value, digits) if value is not None else None
+
+
+def envelope_to_message(raw, key=None):
+    """ServiceEnvelope (Bytes) → dieselbe Form wie Meshtastic-JSON ({from, id, type, payload, …}) oder None."""
+    packet = _fields(_first(_fields(raw), 1, b""))
+    sender, packet_id = _u32(_first(packet, 1)), _u32(_first(packet, 6, 0))
+    if sender is None:
+        return None
+    decoded = _first(packet, 4)
+    if decoded is None and _first(packet, 5) is not None:
+        if key is None:
+            return {"from": sender, "id": packet_id, "encrypted": True}
+        decoded = _decrypt(_first(packet, 5), packet_id, sender, key)
+    if decoded is None:
+        return None
+    try:
+        data = _fields(decoded)
+    except ValueError:
+        return {"from": sender, "id": packet_id, "encrypted": True}   # falscher Schlüssel
+    port, payload = _first(data, 1), _first(data, 2, b"")
+    message = {"from": sender, "id": packet_id, "timestamp": _u32(_first(packet, 7)),
+               "snr": _round(_f32(_first(packet, 8)))}
+    rssi = _first(packet, 12)
+    if isinstance(rssi, int):
+        message["rssi"] = rssi - (1 << 64) if rssi >= 1 << 63 else rssi   # int32 als varint (negativ)
+    if port in (PORT_TEXT, PORT_DETECTION):
+        message.update(type="text", payload={"text": payload.decode("utf-8", errors="replace")})
+        return message
+    if port == PORT_TELEMETRY:
+        telemetry = _fields(payload)
+        values = {}
+        if 2 in telemetry:                              # DeviceMetrics: 1 battery_level, 2 voltage
+            device = _fields(telemetry[2][0])
+            values["battery_level"] = _first(device, 1)
+            values["voltage"] = _round(_f32(_first(device, 2)))
+        if 3 in telemetry:                              # EnvironmentMetrics: 1 temperature, 2 relative_humidity
+            env = _fields(telemetry[3][0])
+            values["temperature"] = _round(_f32(_first(env, 1)))
+            values["relative_humidity"] = _round(_f32(_first(env, 2)), 1)
+        message.update(type="telemetry", payload={k: v for k, v in values.items() if v is not None})
+        return message
+    return None
+
+
 class Sender:
     """Schickt an die App; bei Fehlern kurz zwischenspeichern und später nachreichen."""
 
@@ -151,7 +270,7 @@ def main():
     import paho.mqtt.client as mqtt
 
     sender = Sender()
-    seen = deque(maxlen=500)                           # dieselbe Nachricht über mehrere Knoten nur einmal
+    seen = deque(maxlen=500)
 
     def on_connect(client, userdata, flags, reason_code, properties=None):
         log("MQTT verbunden:", reason_code, "– höre auf", MQTT_TOPIC, "und", COOP_TOPIC)
@@ -159,25 +278,42 @@ def main():
         if COOP_TOPIC:
             client.subscribe(COOP_TOPIC)
 
+    key = channel_key()
+    warned = set()
+
     def on_message(client, userdata, msg):
-        try:
-            message = json.loads(msg.payload.decode())
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return                                     # Protobuf („…/e/…“) o. Ä. – nur JSON auswerten
-        if not isinstance(message, dict):
-            return
-        if COOP_TOPIC and mqtt.topic_matches_sub(COOP_TOPIC, msg.topic):
-            data = message
+        if "/e/" in msg.topic or "/c/" in msg.topic:   # Protobuf (ohne JSON-Schalter am Gateway)
+            try:
+                message = envelope_to_message(msg.payload, key)
+            except (ValueError, IndexError, struct.error):
+                return
+            if not message:
+                return
+            if message.get("encrypted"):
+                if message["from"] not in warned:
+                    warned.add(message["from"])
+                    log("Verschlüsseltes Paket von", node_id(message["from"]), "– am Gateway unter MQTT die",
+                        "Verschlüsselung ausschalten oder COOP_CHANNEL_PSK (Kanal-Schlüssel, Base64) eintragen.")
+                return
         else:
+            try:
+                message = json.loads(msg.payload.decode())
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return
+            if not isinstance(message, dict):
+                return
+            if COOP_TOPIC and mqtt.topic_matches_sub(COOP_TOPIC, msg.topic):
+                sender.send(message)
+                return
             if "/json/" not in msg.topic:
                 return
-            key = (message.get("from"), message.get("id"))
-            if key[1] is not None and key in seen:
-                return
-            seen.append(key)
-            if DEBUG:
-                log("MQTT", msg.topic, message)
-            data = parse_meshtastic(message)
+        packet = (message.get("from"), message.get("id"))
+        if packet[1] and packet in seen:               # dieselbe Nachricht über mehrere Gateways nur einmal
+            return
+        seen.append(packet)
+        if DEBUG:
+            log("MQTT", msg.topic, message)
+        data = parse_meshtastic(message)
         if data:
             sender.send(data)
 
