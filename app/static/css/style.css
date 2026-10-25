@@ -801,3 +801,12 @@ body:not(.has-tabbar) {
 .chp-bars.gas span { background: var(--bs-info); }
 .motor-state { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; background: var(--bs-secondary-color); }
 .motor-state.on { background: var(--bs-success); box-shadow: 0 0 0 3px rgba(var(--bs-success-rgb), .25); }
+
+/* Rundgang: Prüfpunkte antippen = nicht in Ordnung */
+.check-item { display: flex; align-items: center; gap: .75rem; padding: .85rem 1rem; margin: 0; cursor: pointer; min-height: 3.2rem; }
+.check-item .check-ok { color: var(--bs-success); font-size: 1.35rem; }
+.check-item .check-bad { display: none; color: var(--bs-danger); font-size: 1.35rem; }
+.btn-check:checked + .check-item { background: var(--bs-danger-bg-subtle); }
+.btn-check:checked + .check-item .check-ok { display: none; }
+.btn-check:checked + .check-item .check-bad { display: inline; }
+.btn-check:focus-visible + .check-item { outline: 2px solid var(--bs-primary); outline-offset: -2px; }

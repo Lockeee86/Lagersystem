@@ -96,6 +96,7 @@ def create_app(config=None):
     from .branding import bp as branding_bp
     from .team_views import bp as team_bp
     from .biogas_views import bp as biogas_bp
+    from .rounds_views import bp as rounds_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -112,6 +113,7 @@ def create_app(config=None):
     app.register_blueprint(branding_bp)
     app.register_blueprint(team_bp)
     app.register_blueprint(biogas_bp)
+    app.register_blueprint(rounds_bp)
 
     from . import cli
     cli.register(app)

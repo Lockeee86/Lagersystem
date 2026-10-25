@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Rundgang") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Rundgang") }}</h1>
+        <p class="text-body-secondary mb-0">
+            {% if data.rows %}{{ ngettext("{n} Station", "{n} Stationen", data.rows|length) }}{% if data.overdue %} · <span class="text-danger">{{ ngettext("{n} nicht kontrolliert", "{n} nicht kontrolliert", data.overdue) }}</span>{% endif %}{% if data.issues %} · <span class="text-warning-emphasis">{{ ngettext("{n} offener Mangel", "{n} offene Mängel", data.issues) }}</span>{% endif %}
+            {% else %}{{ _("Eigenkontrolle mit QR-Stationen an der Anlage") }}{% endif %}
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if current_user.can_edit %}<a class="btn btn-primary" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-1"></i>{{ _("Station scannen") }}</a>{% endif %}
+        {% if current_user.is_admin %}<button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#newStation"><i class="bi bi-plus-lg me-1"></i>{{ _("Station") }}</button>{% endif %}
+    </div>
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse {{ 'show' if not data.rows and not suggestions }}" id="newStation">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <form method="post" action="{{ url_for('rounds.station_create') }}" class="row g-2">
+            {{ csrf() }}
+            <div class="col-md-6"><label class="form-label" for="sName">{{ _("Name") }}</label><input class="form-control" id="sName" name="name" maxlength="100" required placeholder="{{ _('z. B. Fermenter 2') }}"></div>
+            <div class="col-md-3"><label class="form-label" for="sDays">{{ _("Kontrolle alle … Tage") }}</label><input class="form-control" id="sDays" name="interval_days" type="number" min="1" max="365" value="1"></div>
+            <div class="col-12"><label class="form-label" for="sItems">{{ _("Prüfpunkte (einer je Zeile)") }}</label><textarea class="form-control" id="sItems" name="items" rows="4" placeholder="{{ _('Rührwerk läuft') }}&#10;{{ _('Keine Leckage') }}"></textarea></div>
+            <div class="col-12"><button class="btn btn-primary">{{ _("Anlegen") }}</button></div>
+        </form>
+    </div></div>
+</div>
+{% if suggestions %}
+<div class="card shadow-sm mb-4"><div class="card-body">
+    <div class="small text-body-secondary mb-2">{{ _("Vorschläge für die Biogasanlage – mit einem Tipp anlegen, danach anpassen:") }}</div>
+    <div class="d-flex flex-wrap gap-2">
+        {% for index, name in suggestions %}
+        <form method="post" action="{{ url_for('rounds.station_create') }}">{{ csrf() }}<input type="hidden" name="vorschlag" value="{{ index }}"><button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus me-1"></i>{{ name }}</button></form>
+        {% endfor %}
+    </div>
+</div></div>
+{% endif %}
+{% endif %}
+
+<div class="hub-list mb-4">
+    {% for r in data.rows %}
+    {% set s = r.station %}
+    <a class="hub-row" href="{{ url_for('rounds.station', code=s.code) }}">
+        <span class="hub-icon {{ 'warn' if r.overdue or r.open }}"><i class="bi {{ 'bi-exclamation-triangle' if r.open else 'bi-check2-circle' if not r.overdue else 'bi-clock-history' }}"></i></span>
+        <span class="hub-text">
+            <span class="hub-title">{{ s.name }} <span class="small text-body-secondary fw-normal">{{ s.code }}</span></span>
+            <span class="hub-status {{ 'warn' if r.overdue }}">
+                {% if r.last %}{{ _("zuletzt {date}", date=r.last.created_at|datetime) }}{% if r.last.user %} · {{ r.last.user.name }}{% endif %}{% else %}{{ _("noch nie kontrolliert") }}{% endif %}
+                {% if r.open %} · {{ ngettext("{n} offener Mangel", "{n} offene Mängel", r.open|length) }}{% endif %}
+            </span>
+        </span>
+        <i class="bi bi-chevron-right hub-chevron"></i>
+    </a>
+    {% else %}
+    <div class="hub-row text-body-secondary">{{ _("Noch keine Stationen.") }}</div>
+    {% endfor %}
+</div>
+
+{% if current_user.is_admin and data.rows %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-qr-code me-1"></i>{{ _("QR-Etiketten für alle Stationen") }}</div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('rounds.labels') }}" target="_blank" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-md-8"><select class="form-select" name="format" aria-label="{{ _('Format') }}">{% for key, f in label_formats.items() %}<option value="{{ key }}" {% if key == '2x2' %}selected{% endif %}>{{ _(f[4]) }}</option>{% endfor %}</select></div>
+            <div class="col-md-4 d-grid"><button class="btn btn-outline-primary"><i class="bi bi-printer me-1"></i>{{ _("Etiketten drucken") }}</button></div>
+        </form>
+        <div class="form-text">{{ _("Wetterfest einschweißen oder Etikettenfolie verwenden. Gescannt wird mit der Scan-Taste unten in der App.") }}</div>
+    </div>
+</div>
+{% endif %}
+
+{% if inactive %}
+<details class="mb-4"><summary class="text-body-secondary">{{ ngettext("{n} deaktivierte Station", "{n} deaktivierte Stationen", inactive|length) }}</summary>
+    <ul class="list-group mt-2">{% for s in inactive %}<li class="list-group-item"><a href="{{ url_for('rounds.station', code=s.code) }}">{{ s.name }}</a> <span class="small text-body-secondary">{{ s.code }}</span></li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% endblock %}

@@ -20,7 +20,7 @@ def overview():
     return render_template("biogas/overview.html", live=biogas.live(), rows=biogas.overview(),
                            status=biogas.status(), configured=biogas.configured(), today=date.today(),
                            linked=biogas.linked_machines(), windows=windows, windows_error=windows_error,
-                           work=biogas.window_hours())
+                           work=biogas.window_hours(), week=biogas.week_report())
 
 
 @bp.route("/biogas/arbeitszeit", methods=["POST"])

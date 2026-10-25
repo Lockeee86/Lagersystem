@@ -228,3 +228,26 @@ def test_maintenance_windows_page(app, as_admin, as_viewer, db, seed, fake_api):
     day = (date.today() + timedelta(days=2)).isoformat()
     html = as_admin.get(f"/aufgaben?neu=1&wartung={oil.id}&datum={day}").get_data(as_text=True)
     assert f'value="{day}"' in html
+
+
+def test_week_report_and_push(app, db, seed, fake_api):
+    from app import push
+    from app.models import PushSubscription
+    motor = make_bhkw(db, seed, 11, "BHKW Test 1")
+    idle = make_bhkw(db, seed, 12, "BHKW Test 2")
+    db.session.add(PushSubscription(user_id=seed["admin"].id, endpoint="https://push.example/a", p256dh="k", auth="a"))
+    db.session.commit()
+    monday = date(2026, 10, 26)
+    biogas.sync(app, now=datetime(2026, 10, 26, 3, 0, tzinfo=TZ))
+    report = biogas.week_report(monday)
+    assert (report["monday"], report["sunday"]) == (date(2026, 10, 19), date(2026, 10, 25))
+    rows = {r["machine"].name: r for r in report["rows"]}
+    assert rows["BHKW Test 1"]["hours"] == pytest.approx(56.0) and rows["BHKW Test 2"]["idle_days"] == 7
+    assert report["kwh"] == pytest.approx(28000.0) and report["avg_price"] == pytest.approx(100.0)
+    push.outbox.clear()
+    with app.test_request_context("/"):
+        assert biogas.week_push(monday) == 1
+    message = push.outbox[-1]
+    assert message["title"] == "Biogas letzte Woche: 28,0 MWh"
+    assert "56 Betriebsstunden" in message["body"] and "BHKW Test 2: 7 Tage Stillstand" in message["body"]
+    assert "Ø 100 €/MWh" in message["body"]

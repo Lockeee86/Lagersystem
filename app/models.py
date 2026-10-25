@@ -187,6 +187,12 @@ PUSH_TOPICS = {
     "tank": {"label": N_("Hoftank wird leer"), "group": N_("Maschinen"), "who": lambda u: u.is_buyer},
     "harvest_report": {"label": N_("Abends: Ernte-Tagesbericht"), "group": N_("Lager"), "who": lambda u: u.can_edit,
                        "default": lambda u: u.is_admin},
+    "round_issue": {"label": N_("Rundgang: Mangel an einer Station"), "group": N_("Biogas"),
+                    "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
+    "round_due": {"label": N_("Morgens: Stationen, die nicht kontrolliert wurden"), "group": N_("Biogas"),
+                  "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
+    "biogas_week": {"label": N_("Montags: Wochenbericht Biogas"), "group": N_("Biogas"), "who": lambda u: u.can_edit,
+                    "default": lambda u: u.is_admin},
     "day_plan": {"label": N_("Mein Tagesplan, wenn er verschickt wird"), "group": N_("Team"), "who": lambda u: u.can_edit},
     "handover": {"label": N_("Neue Übergabe-Notiz"), "group": N_("Team"), "who": lambda u: u.can_edit,
                  "default": lambda u: False},
@@ -1082,6 +1088,7 @@ class Photo(db.Model):
     bulk_store_id = db.Column(db.Integer, db.ForeignKey("bulk_stores.id"), index=True)
     delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id"), index=True)
     field_note_id = db.Column(db.Integer, db.ForeignKey("field_notes.id"), index=True)
+    check_id = db.Column(db.Integer, db.ForeignKey("station_checks.id", ondelete="CASCADE"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -1624,3 +1631,51 @@ class ChpDay(db.Model):
 
     machine = db.relationship("Machine", backref=db.backref("chp_days", lazy="dynamic", cascade="all, delete-orphan",
                                                             passive_deletes=True))
+
+
+# --- Rundgang (Eigenkontrolle mit QR-Stationen) ----------------------------------------
+
+class CheckStation(db.Model):
+    """Station für den Rundgang (Fermenter, Pumpenhaus, BHKW-Raum …) mit QR-Code `R-01` und einer Checkliste."""
+    __tablename__ = "check_stations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    items = db.Column(db.Text)                     # Prüfpunkte, einer je Zeile
+    interval_days = db.Column(db.Integer, nullable=False, default=1)   # spätestens alle n Tage kontrollieren
+    position = db.Column(db.Integer, nullable=False, default=0)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    checks = db.relationship("StationCheck", back_populates="station", lazy="dynamic", cascade="all, delete-orphan",
+                             order_by="StationCheck.created_at.desc()")
+
+    @property
+    def item_list(self):
+        return [line.strip() for line in (self.items or "").splitlines() if line.strip()]
+
+
+class StationCheck(db.Model):
+    """Eine Kontrolle an einer Station: je Prüfpunkt in Ordnung oder nicht, Notiz, Fotos."""
+    __tablename__ = "station_checks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    station_id = db.Column(db.Integer, db.ForeignKey("check_stations.id", ondelete="CASCADE"), nullable=False,
+                           index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    results = db.Column(db.JSON)                   # [[Prüfpunkt, true/false], …] – Text so, wie er damals hieß
+    ok = db.Column(db.Boolean, nullable=False, default=True)
+    note = db.Column(db.Text)
+    resolved_at = db.Column(db.DateTime(timezone=True))      # Mangel behoben
+    resolved_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+
+    station = db.relationship("CheckStation", back_populates="checks")
+    user = db.relationship("User", foreign_keys=[user_id])
+    resolved_by = db.relationship("User", foreign_keys=[resolved_by_id])
+    photos = db.relationship("Photo", order_by="Photo.id", cascade="all, delete-orphan")
+
+    @property
+    def failed(self):
+        return [item for item, ok in (self.results or []) if not ok]

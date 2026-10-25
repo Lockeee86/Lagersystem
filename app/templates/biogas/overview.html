@@ -48,6 +48,28 @@
 </div>
 {% endif %}
 
+{% if week %}
+<div class="card shadow-sm mb-4" id="woche">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-week me-1"></i>{{ _("Letzte Woche") }}</span>
+        <span class="small text-body-secondary">{{ week.monday|date }} – {{ week.sunday|date }}</span>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-4 mb-2">
+            <div><div class="small text-body-secondary">{{ _("Erzeugt") }}</div><div class="fs-5 fw-semibold">{{ (week.kwh / 1000)|num(1) }} MWh</div></div>
+            <div><div class="small text-body-secondary">{{ _("Betriebsstunden") }}</div><div class="fs-5 fw-semibold">{{ week.hours|num(0) }} h</div></div>
+            {% if week.avg_price is not none %}<div><div class="small text-body-secondary">{{ _("Ø Preis") }}</div><div class="fs-5 fw-semibold">{{ week.avg_price|num(0) }} €/MWh</div></div>{% endif %}
+            {% if current_user.is_admin and week.revenue is not none %}<div><div class="small text-body-secondary">{{ _("Erlös (Day-Ahead)") }}</div><div class="fs-5 fw-semibold">{{ week.revenue|num(0) }} €</div></div>{% endif %}
+        </div>
+        <ul class="list-unstyled small mb-0">
+            {% for r in week.rows %}<li class="d-flex justify-content-between gap-2 border-top py-1"><span>{{ r.machine.name }}</span><span class="text-body-secondary">{{ r.hours|num(0) }} h · {{ (r.kwh / 1000)|num(1) }} MWh{% if r.idle_days %} · <span class="text-warning-emphasis">{{ ngettext("{n} Tag Stillstand", "{n} Tage Stillstand", r.idle_days) }}</span>{% endif %}</span></li>{% endfor %}
+        </ul>
+        {% if week.issues %}<div class="small mt-2"><a href="{{ url_for('rounds.overview') }}">{{ ngettext("{n} Mangel beim Rundgang", "{n} Mängel beim Rundgang", week.issues) }}</a></div>{% endif %}
+        <div class="form-text">{{ _("Kommt montags früh auch aufs Handy (Push-Thema „Montags: Wochenbericht Biogas“, für Admins eingeschaltet).") }}</div>
+    </div>
+</div>
+{% endif %}
+
 {% if configured and linked %}
 <div class="card shadow-sm mb-4" id="fenster">
     <div class="card-header d-flex justify-content-between align-items-center gap-2">

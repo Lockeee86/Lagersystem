@@ -301,6 +301,16 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    von Nennleistung, Stunden gestern und die nächste Wartung nach Laufzeit (`biogas.dashboard()`). Die Startseite
    liest nur den Zwischenspeicher (`live(cached_only=True)`), den der Zeitplan alle 10 Minuten auffrischt
    (`refresh_live`) – sie wartet nie auf die API.
+   **Rundgang** (0.39.0, Biogas → Rundgang, `rounds.py`): Stationen mit QR-Code `R-01` (Etiketten-PDF wie bei den
+   Kisten), Prüfpunkte je Zeile und Intervall in Tagen; Vorschläge für die Biogasanlage (Fermenter, Nachgärer,
+   BHKW-Raum, Pumpenhaus, Feststoffeintrag, Gasfackel). Scannen öffnet die Checkliste: antippen, was nicht in Ordnung
+   ist, Notiz/Foto, speichern (`StationCheck`, Prüfpunkte als Text gespeichert). Mangel → Push „Rundgang: Mangel“
+   (von sich aus Admins), offen bis „Behoben“; morgens Push für nicht kontrollierte Stationen; beides auch unter
+   „Jetzt wichtig“. Nachweis der Eigenkontrolle über den Verlauf je Station.
+   **Wochenbericht Biogas** (0.39.0): montags früh Push (Thema „Montags: Wochenbericht Biogas“, von sich aus Admins)
+   mit MWh, Betriebsstunden, Ø Preis, Stillstandstagen je Motor, nächster Wartung und Rundgang-Mängeln der Vorwoche
+   (`biogas.week_report` / `week_push`); dieselben Zahlen als Karte „Letzte Woche“ auf der Biogas-Seite.
+   Zurückgestellt: Fütterung/Silo (läuft über die BGA-Software) und Erntemengen (Waagensoftware).
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen
    fällig werden (Prognose aus der Laufzeit) oder schon „bald fällig“/überfällig sind, sucht `biogas.best_windows` die
    drei günstigsten Zeitfenster – Länge = Stillstand der Wartung (`MaintenanceTask.downtime_hours`, Vorlagen z. B.

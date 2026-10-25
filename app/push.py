@@ -366,6 +366,10 @@ def daily(app, now=None):
             _morning_tasks(today)
             _maintenance(today)
             _weather_check(now, {"blight"})
+            from . import biogas, rounds
+            rounds.morning_due(today)
+            if today.weekday() == 0:             # montags: Wochenbericht der Biogasanlage
+                biogas.week_push(today)
         if now.hour >= FROST_HOUR and not _job_done("frost", today):
             _mark_job("frost", today)
             _weather_check(now, {"frost"})

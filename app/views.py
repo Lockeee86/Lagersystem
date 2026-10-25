@@ -8,12 +8,12 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, biogas, bulk, fuel, irrigation, machines, navigation, purchases, sales, search, sites, storage,
-               tasks, team, tiles, uploads, weather)
+from . import (agenda, backup, biogas, bulk, fuel, irrigation, machines, navigation, purchases, rounds, sales, search,
+               sites, storage, tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
-from .models import (BOX_CONDITIONS, BOX_DEFECT, BOX_RETIRED, FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
+from .models import (CheckStation, BOX_CONDITIONS, BOX_DEFECT, BOX_RETIRED, FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
                      Photo, Plot, PlotYear, SeedClass, User, Variety, Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
@@ -88,7 +88,7 @@ def _tile_info(key):
 
 
 def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=(),
-               instructions_due=0, water_alerts=()):
+               instructions_due=0, water_alerts=(), round_info=None):
     """„Jetzt wichtig“ auf der Startseite: eine Liste statt einzelner Karten, Dringendes zuerst.
     Je Eintrag {level: danger|warning|success, title, sub, url}. Aufgaben stehen in einem eigenen Block darunter;
     Störungen, zu denen es schon eine fällige Aufgabe gibt, erscheinen nur dort. `unclaimed`: Bestellwünsche, die
@@ -114,6 +114,14 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     for r in unclaimed:
         items.append({"level": "warning", "title": r.title, "sub": _("Bestellwunsch · noch frei"),
                       "url": url_for("purchases.purchase_detail", req_id=r.id)})
+    if round_info and round_info["issues"]:
+        items.append({"level": "danger", "title": _("Rundgang"),
+                      "sub": ngettext("{n} offener Mangel", "{n} offene Mängel", round_info["issues"]),
+                      "url": url_for("rounds.overview")})
+    if round_info and round_info["overdue"]:
+        items.append({"level": "warning", "title": _("Rundgang"),
+                      "sub": ngettext("{n} nicht kontrolliert", "{n} nicht kontrolliert", round_info["overdue"]),
+                      "url": url_for("rounds.overview")})
     for w in water_alerts:
         items.append({"level": "danger" if w["level"] == "danger" else "warning", "title": w["well"].label,
                       "sub": _("{percent} % der genehmigten Jahresmenge", percent=w["percent"]),
@@ -197,7 +205,8 @@ def dashboard():
     important = _important(due_now, faults, due_maintenance, open_deliveries if current_user.can_edit else [],
                            arrived, backup_alert, today, unclaimed,
                            team.due_count(today) if current_user.is_admin else 0,
-                           irrigation.alerts() if current_user.is_admin else ())
+                           irrigation.alerts() if current_user.is_admin else (),
+                           rounds.overview() if current_user.can_edit and rounds.has_stations() else None)
     plan_today = team.plan_for(today)
     response = make_response(render_template(
         "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
@@ -243,6 +252,15 @@ def _status(endpoint):
                 else _("nichts lange gelagert")), bool(old)
     if endpoint == "main.harvest":
         return _("Kisten befüllen und einlagern"), False
+    if endpoint == "rounds.overview":
+        if not rounds.has_stations():
+            return _("Eigenkontrolle mit QR-Stationen"), False
+        data = rounds.overview()
+        if data["issues"]:
+            return ngettext("{n} offener Mangel", "{n} offene Mängel", data["issues"]), True
+        if data["overdue"]:
+            return ngettext("{n} nicht kontrolliert", "{n} nicht kontrolliert", data["overdue"]), True
+        return _("alles kontrolliert"), False
     if endpoint == "biogas.overview":
         from .models import ChpDay
         yesterday = date.today() - timedelta(days=1)
@@ -785,6 +803,9 @@ def scan():
             # am Lagerort gescannt: gleich das Einlagern öffnen (Betrachter sehen nur den Bestand)
             return redirect(url_for("bulk.store_detail", store_id=store.id,
                                     einlagern=1 if current_user.can_edit else None))
+        station_code = rounds.normalize_code(raw)
+        if station_code and CheckStation.query.filter_by(code=station_code).first():
+            return redirect(url_for("rounds.station", code=station_code))       # Rundgang: Checkliste öffnen
         code = storage.normalize_code(raw)
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))

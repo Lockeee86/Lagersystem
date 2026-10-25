@@ -51,6 +51,7 @@ AREAS = [
     ]},
     {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge", "items": [
         item("biogas.overview", N_("Übersicht"), "bi-lightning-charge", endpoints=("biogas.sync_now", "biogas.window_settings")),
+        item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",)),
     ]},
     {"key": "verkauf", "label": N_("Verkauf"), "icon": "bi-truck", "items": [
         item("sales.deliveries", N_("Lieferscheine"), "bi-truck",

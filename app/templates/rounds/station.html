@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ station.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div class="min-w-0">
+        <h1 class="d-flex flex-wrap align-items-center gap-2">{{ station.name }} <span class="badge text-bg-secondary fs-6">{{ station.code }}</span>{% if not station.active %} <span class="badge text-bg-secondary fs-6">{{ _("deaktiviert") }}</span>{% endif %}</h1>
+        <p class="text-body-secondary mb-0 {{ 'text-danger' if state.overdue }}">
+            {% if state.last %}{{ _("Zuletzt kontrolliert {date}", date=state.last.created_at|datetime) }}{% if state.last.user %} · {{ state.last.user.name }}{% endif %}{% else %}{{ _("noch nie kontrolliert") }}{% endif %}
+            · {{ ngettext("täglich", "alle {n} Tage", station.interval_days) }}
+        </p>
+    </div>
+    {% if current_user.is_admin %}<button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#editStation" aria-label="{{ _('Bearbeiten') }}"><i class="bi bi-pencil"></i></button>{% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse" id="editStation">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <form method="post" action="{{ url_for('rounds.station_edit', code=station.code) }}" class="row g-2">
+            {{ csrf() }}
+            <div class="col-md-6"><label class="form-label" for="eName">{{ _("Name") }}</label><input class="form-control" id="eName" name="name" maxlength="100" required value="{{ station.name }}"></div>
+            <div class="col-md-3"><label class="form-label" for="eDays">{{ _("Kontrolle alle … Tage") }}</label><input class="form-control" id="eDays" name="interval_days" type="number" min="1" max="365" value="{{ station.interval_days }}"></div>
+            <div class="col-12"><label class="form-label" for="eItems">{{ _("Prüfpunkte (einer je Zeile)") }}</label><textarea class="form-control" id="eItems" name="items" rows="5">{{ station.items or '' }}</textarea></div>
+            <div class="col-12 form-check form-switch ms-2"><input class="form-check-input" type="checkbox" role="switch" name="active" value="1" id="eActive" {% if station.active %}checked{% endif %}><label class="form-check-label" for="eActive">{{ _("Aktiv") }}</label></div>
+            <div class="col-12 d-flex flex-wrap gap-2"><button class="btn btn-primary">{{ _("Speichern") }}</button></div>
+        </form>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <form method="post" action="{{ url_for('rounds.labels') }}" target="_blank">{{ csrf() }}<input type="hidden" name="codes" value="{{ station.code }}"><input type="hidden" name="format" value="2x2"><button class="btn btn-sm btn-outline-primary"><i class="bi bi-qr-code me-1"></i>{{ _("QR-Etikett drucken") }}</button></form>
+            {% if not state.last %}<form method="post" action="{{ url_for('rounds.station_delete', code=station.code) }}">{{ csrf() }}<button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('{name} löschen?', name=station.name) }}">{{ _("Löschen") }}</button></form>{% endif %}
+        </div>
+    </div></div>
+</div>
+{% endif %}
+
+{% for issue in state.open %}
+<div class="alert alert-warning d-flex gap-2 align-items-start">
+    <i class="bi bi-exclamation-triangle"></i>
+    <div class="flex-grow-1">
+        <div class="fw-semibold">{{ issue.failed|join(", ") or _("Mangel") }}</div>
+        {% if issue.note %}<div class="small" style="white-space: pre-line">{{ issue.note }}</div>{% endif %}
+        <div class="small text-body-secondary">{{ issue.created_at|datetime }}{% if issue.user %} · {{ issue.user.name }}{% endif %}</div>
+        {% if issue.photos %}<div class="d-flex flex-wrap gap-2 mt-1">{% for p in issue.photos %}<a href="{{ url_for('machines.photo', photo_id=p.id) }}" target="_blank"><img class="photo-thumb" src="{{ url_for('machines.photo', photo_id=p.id) }}" alt="" loading="lazy"></a>{% endfor %}</div>{% endif %}
+        {% if current_user.can_edit %}
+        <form method="post" action="{{ url_for('rounds.check_resolve', check_id=issue.id) }}" class="mt-2">{{ csrf() }}<button class="btn btn-sm btn-success"><i class="bi bi-check2 me-1"></i>{{ _("Behoben") }}</button></form>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+{% if current_user.can_edit and station.active %}
+<form method="post" action="{{ url_for('rounds.station_check', code=station.code) }}" enctype="multipart/form-data" class="card shadow-sm mb-4" id="kontrolle">
+    {{ csrf() }}
+    <div class="card-header"><i class="bi bi-clipboard-check me-1"></i>{{ _("Kontrolle") }} <span class="small text-body-secondary">· {{ _("Antippen, was nicht in Ordnung ist") }}</span></div>
+    <ul class="list-group list-group-flush">
+        {% for item in station.item_list %}
+        <li class="list-group-item p-0">
+            <input class="btn-check" type="checkbox" name="failed" value="{{ loop.index0 }}" id="f{{ loop.index0 }}" autocomplete="off">
+            <label class="check-item" for="f{{ loop.index0 }}"><span class="check-ok"><i class="bi bi-check-circle-fill"></i></span><span class="check-bad"><i class="bi bi-x-circle-fill"></i></span><span class="flex-grow-1">{{ item }}</span></label>
+        </li>
+        {% else %}
+        <li class="list-group-item small text-body-secondary">{{ _("Keine Prüfpunkte – die Kontrolle wird nur als „gesehen“ gespeichert.") }}</li>
+        {% endfor %}
+    </ul>
+    <div class="card-body">
+        <label class="form-label" for="cNote">{{ _("Notiz") }}</label>
+        <textarea class="form-control mb-2" id="cNote" name="note" rows="2" maxlength="2000" placeholder="{{ _('z. B. Rührwerk 2 läuft unruhig') }}"></textarea>
+        <label class="btn btn-outline-secondary btn-sm mb-3"><i class="bi bi-camera me-1"></i>{{ _("Foto") }}<input type="file" name="photos" accept="image/*" multiple class="visually-hidden"></label>
+        <div class="d-grid"><button class="btn btn-primary btn-lg"><i class="bi bi-check2-all me-1"></i>{{ _("Kontrolle speichern") }}</button></div>
+    </div>
+</form>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-clock-history me-1"></i>{{ _("Letzte Kontrollen") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for c in history %}
+        <li class="list-group-item d-flex gap-2 align-items-start">
+            <i class="bi {{ 'bi-check-circle text-success' if c.ok else ('bi-check2-square text-body-secondary' if c.resolved_at else 'bi-exclamation-triangle text-warning') }} mt-1"></i>
+            <span class="flex-grow-1 min-w-0 small">
+                <span class="fw-semibold">{{ c.created_at|datetime }}</span>{% if c.user %} · {{ c.user.name }}{% endif %}
+                {% if not c.ok %}<span class="d-block">{{ c.failed|join(", ") }}{% if c.resolved_at %} · {{ _("behoben {date}", date=c.resolved_at|date) }}{% if c.resolved_by %} ({{ c.resolved_by.name }}){% endif %}{% endif %}</span>{% endif %}
+                {% if c.note %}<span class="d-block text-body-secondary" style="white-space: pre-line">{{ c.note }}</span>{% endif %}
+            </span>
+            {% if c.photos %}<i class="bi bi-camera text-body-secondary" title="{{ _('Fotos') }}"></i>{% endif %}
+        </li>
+        {% else %}
+        <li class="list-group-item small text-body-secondary">{{ _("Noch keine Kontrollen.") }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

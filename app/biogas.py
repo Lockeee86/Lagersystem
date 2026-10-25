@@ -26,6 +26,7 @@ from sqlalchemy import func
 
 from .extensions import db
 from .models import ChpDay, Machine, Setting, utcnow
+from .push import Msg
 from .utils import local_tz
 
 RUN_KW = 1.0                  # ab dieser Leistung läuft der Motor
@@ -567,3 +568,77 @@ def maintenance_windows(today=None, now=None):
         until = _midnight(row["due_on"] + timedelta(days=1)) if row["due_on"] and row["due_on"] > today else None
         row["windows"] = best_windows(row["machine"].power_kw, row["downtime"], outlook, now, until=until)
     return rows, None
+
+
+# --- Wochenbericht ------------------------------------------------------------------
+
+def week_report(today=None):
+    """Letzte volle Woche (Mo–So): je BHKW Stunden, MWh, Erlös, Tage ohne Lauf; Summen, Ø Preis, nächste Wartung,
+    Rundgang-Mängel. None, wenn es keine BHKW-Daten gibt."""
+    from .models import StationCheck
+    today = today or date.today()
+    monday = today - timedelta(days=today.weekday() + 7)
+    sunday = monday + timedelta(days=6)
+    machines_ = linked_machines()
+    rows = []
+    for machine in machines_:
+        days = machine.chp_days.filter(ChpDay.day >= monday, ChpDay.day <= sunday).all()
+        if not days:
+            continue
+        revenue = [float(d.revenue_eur) for d in days if d.revenue_eur is not None]
+        rows.append({"machine": machine, "hours": sum(float(d.hours) for d in days),
+                     "kwh": sum(float(d.kwh) for d in days), "revenue": sum(revenue) if revenue else None,
+                     "idle_days": sum(1 for d in days if float(d.hours) == 0)})
+    if not rows:
+        return None
+    kwh = sum(r["kwh"] for r in rows)
+    revenues = [r["revenue"] for r in rows if r["revenue"] is not None]
+    revenue = sum(revenues) if revenues else None
+    upcoming = []
+    for machine in machines_:
+        for f in maintenance_forecast(machine, today):
+            if f["due_on"] is not None:
+                upcoming.append((f["due_on"], machine, f["task"]))
+    upcoming.sort(key=lambda u: (u[0], u[1].name))
+    since = _midnight(monday)
+    until = _midnight(sunday + timedelta(days=1))
+    issues = StationCheck.query.filter(StationCheck.ok.is_(False), StationCheck.created_at >= since,
+                                       StationCheck.created_at < until).count()
+    return {"monday": monday, "sunday": sunday, "rows": rows, "kwh": kwh, "hours": sum(r["hours"] for r in rows),
+            "revenue": revenue, "avg_price": revenue / (kwh / 1000) if revenue is not None and kwh else None,
+            "idle": [r for r in rows if r["idle_days"]], "next": upcoming[0] if upcoming else None, "issues": issues}
+
+
+def week_push(today=None):
+    """Montags aus dem Zeitplan: Wochenbericht als Push (Thema „Montags: Wochenbericht Biogas“)."""
+    from flask import url_for
+    from . import push
+    report = week_report(today)
+    if report is None:
+        return 0
+    parts = [Msg("{hours} Betriebsstunden", hours=f"{report['hours']:.0f}")]
+    if report["avg_price"] is not None:
+        parts.append(Msg("Ø {price} €/MWh", price=f"{report['avg_price']:.0f}"))
+    for r in report["idle"]:
+        parts.append(Msg("{name}: {n} Tag Stillstand", "{name}: {n} Tage Stillstand", r["idle_days"],
+                         name=r["machine"].name))
+    if report["next"]:
+        due_on, machine, task = report["next"]
+        parts.append(Msg("nächste Wartung: {task} {machine} ca. {date}", task=task.name, machine=machine.name,
+                         date=due_on.strftime("%d.%m.")))
+    if report["issues"]:
+        parts.append(Msg("{n} Mangel beim Rundgang", "{n} Mängel beim Rundgang", report["issues"]))
+    body = _Joined(parts)
+    return push.notify(push.editors(), "biogas_week",
+                       Msg("Biogas letzte Woche: {mwh} MWh", mwh=f"{report['kwh'] / 1000:.1f}".replace(".", ",")),
+                       body, url_for("biogas.overview") + "#woche", tag=f"biogas-week-{report['monday'].isoformat()}")
+
+
+class _Joined(Msg):
+    """Mehrere `Msg` mit „ · “ verbunden – jede wird beim Empfänger in seiner Sprache übersetzt."""
+
+    def __init__(self, parts):                   # noqa: super-Aufruf nicht nötig, render() ist ersetzt
+        self.parts = parts
+
+    def render(self):
+        return " · ".join(p.render() for p in self.parts)

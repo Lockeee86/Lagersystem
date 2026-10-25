@@ -107,6 +107,10 @@ docker compose up --build -d
   `live()` (Übersicht, Zwischenspeicher; `refresh_live` im Zeitplan, Startseite nur `cached_only`), `dashboard()`,
   `maintenance_forecast()`, Wartungsfenster `maintenance_windows()` / `best_windows()` (Stillstand
   `MaintenanceTask.downtime_hours`). `app/biogas_views.py` (Blueprint `biogas`). Wartungen kopieren: `machines.copy_tasks`
+- `app/rounds.py`: Rundgang – `CheckStation` (Code `R-01`, `normalize_code`, `/scan` erkennt ihn) und `StationCheck`
+  (Ergebnis je Prüfpunkt, Fotos über `Photo.check_id`), `record_check()` / `resolve()` / `status()` / `overview()`,
+  Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint
+  `rounds`). Wochenbericht `biogas.week_report()` / `week_push()` montags aus `push.daily`
 - `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
   (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es
