@@ -223,7 +223,7 @@ PUSH_TOPICS = {
                    "who": lambda u: u.keeps_chickens, "default": lambda u: False},
     "coop_issue": {"label": N_("Stallkontrolle: Mangel gemeldet"), "group": N_("Hühner"),
                    "who": lambda u: u.keeps_chickens},
-    "coop_open": {"label": N_("Nach Sonnenuntergang: Sensor meldet Klappe offen"), "group": N_("Hühner"),
+    "coop_open": {"label": N_("Klappe laut Sensor: abends offen, hängt oder morgens nicht aufgegangen"), "group": N_("Hühner"),
                   "who": lambda u: u.keeps_chickens},
     "coop_sensor": {"label": N_("Stall-Sensor: Frost, Hitze oder keine Verbindung"), "group": N_("Hühner"),
                     "who": lambda u: u.keeps_chickens},
@@ -1889,10 +1889,12 @@ class CoopReading(db.Model):
 
 
 class CoopDoorEvent(db.Model):
-    """Klappe auf/zu – jede Änderung (Reedkontakt am Stall); Zustand = letzter Eintrag."""
+    """Klappe – jede Änderung eines Reedkontakts; Zustand = letzter Eintrag je Kontakt.
+    `position` „unten“: is_open = Klappe nicht ganz unten. „oben“ (zweiter Kontakt, wahlweise): is_open = ganz oben."""
     __tablename__ = "coop_door_events"
 
     id = db.Column(db.Integer, primary_key=True)
     at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
     is_open = db.Column(db.Boolean, nullable=False)
+    position = db.Column(db.String(10), nullable=False, default="unten", server_default="unten")
     node = db.Column(db.String(20))

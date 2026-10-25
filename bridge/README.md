@@ -71,11 +71,27 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 | `COOP_NODE` | ID des Stall-Knotens, z. B. `!a1b2c3d4` (leer = alle Knoten) |
 | `MQTT_PORT` | wahlweise, Standard 1883 |
 | `COOP_DOOR_ACTIVE` | `open` (Standard: „aktiv“ = Klappe offen) – zeigt die App es verkehrt herum, `closed` |
+| `COOP_TOP_NODE` | wahlweise: ID des zweiten Knotens mit dem Kontakt oben (siehe unten) |
+| `COOP_TOP_ACTIVE` | `away` (Standard: „aktiv“ = nicht oben) – verkehrt herum: `top` |
 | `COOP_DEBUG` | `1`, um alle MQTT-Nachrichten im Log der Brücke zu sehen |
 
 3. Stack neu bereitstellen (mit „Re-pull/Re-build“). Danach laufen zusätzlich `lagersystem-mqtt` und
    `lagersystem-coop-bridge`.
 4. Port 1883 nur im Hof-Netz erreichbar lassen (nicht im Router freigeben) – Mosquitto ist ohne Passwort.
+
+## Wahlweise: zweiter Knoten für „ganz offen“
+
+Mit nur dem Kontakt unten kennt die App „zu“ und „nicht zu“. Soll sie auch sehen, ob die Klappe **ganz oben**
+angekommen ist (Motor hängt, Klappe klemmt), kommt ein zweiter Meshtastic-Knoten mit eigenem Reedkontakt dazu:
+
+- Kontakt **seitlich am Rahmen** auf der Höhe, wo der Magnet bei offener Klappe steht – oben würde er die Klappe
+  blockieren. Er ist geschlossen, wenn die Klappe ganz oben ist.
+- Detection Sensor am zweiten Knoten wie unten: Pin, Pull-up an, beide Flanken aktiv HIGH, Name z. B.
+  **Klappe oben**, Status alle 900 s. Telemetrie braucht er nicht.
+- Im Stack `COOP_TOP_NODE` auf seine ID setzen.
+
+Die App zeigt dann **zu / offen / hängt** und schickt „Hühnerklappe hängt!“, wenn die Klappe länger als 5 Minuten
+weder ganz unten noch ganz oben ist.
 
 ## 4. Prüfen
 
@@ -87,9 +103,11 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 
 ## Was die App damit macht
 
-- Hühner-Übersicht und Startseiten-Karte: Klappe offen/zu seit …, Temperatur, Feuchte, Akku, Kurve der letzten
-  48 Stunden, Zeiten der Klappe.
+- Hühner-Übersicht und Startseiten-Karte: Klappe offen/zu (mit oberem Knoten auch „hängt“) seit …, Temperatur,
+  Feuchte, Akku, Kurve der letzten 48 Stunden, Fahrzeiten der letzten 7 Tage (auf, ganz oben, zu).
 - Nach Sonnenuntergang: Klappe laut Sensor zu → keine Erinnerung; offen → Push „Hühnerklappe ist noch offen!“.
+- Eine Stunde nach Sonnenaufgang noch zu → Push „Hühnerklappe heute noch nicht aufgegangen“ (Batterie, Lichtsensor
+  oder Motor der Klappe prüfen).
 - Push bei Frost (≤ 0,5 °C) oder Hitze (≥ 30 °C) im Stall und wenn der Sensor sich 2 Stunden nicht meldet.
 
 ## Eigene Sensoren ohne Meshtastic

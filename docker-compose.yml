@@ -49,6 +49,8 @@ services:
       - MQTT_HOST=mqtt
       - MQTT_TOPIC=${MESHTASTIC_TOPIC:-msh/#}
       - COOP_NODE=${COOP_NODE:-}
+      - COOP_TOP_NODE=${COOP_TOP_NODE:-}
+      - TOP_ACTIVE=${COOP_TOP_ACTIVE:-away}
       - DOOR_NAME=${COOP_DOOR_NAME:-Klappe}
       - DOOR_ACTIVE=${COOP_DOOR_ACTIVE:-open}
       - DEBUG=${COOP_DEBUG:-}

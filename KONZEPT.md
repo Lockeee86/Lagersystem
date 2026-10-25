@@ -350,6 +350,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Hühner-Übersicht (Kurve 48 h, Zeiten der Klappe) und Startseiten-Karte. Push zur Klappe nach Sonnenuntergang nur
    noch, wenn der Sensor „offen“ meldet (dann dringend, Thema `coop_open`); Push bei Frost/Hitze/Sensor stumm
    (`coop_sensor`). Einrichtung in `bridge/README.md`.
+   **Klappe oben, morgens, Fahrzeiten** (0.43.1): wahlweise zweiter Knoten mit Kontakt oben (`COOP_TOP_NODE`,
+   `CoopDoorEvent.position` = oben) → Zustand zu/offen/halb (`coop.combined`), Push „hängt“ nach 5 min;
+   1 h nach Sonnenaufgang (`chickens.sunrise`) noch zu → Push; Tabelle auf/oben/zu der letzten 7 Tage
+   (`coop.day_times`). Alles über Thema `coop_open` (`coop.door_watch`).
    Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
    Bereiche es beim Speichern gab; später dazugekommene (Hühner) folgen der eingebauten Voreinstellung.
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen

@@ -55,12 +55,19 @@
         {{ sensor_line(sensor) }}
         {% if sensor.min24 is not none %}<div class="small text-body-secondary mb-2">{{ _("Letzte 24 h: {lo} bis {hi} °C", lo=sensor.min24|num(1), hi=sensor.max24|num(1)) }}</div>{% endif %}
         {{ sensor_chart(sensor_history) }}
-        {% if door_events %}
-        <div class="small mt-3">
-            <div class="text-body-secondary mb-1">{{ _("Klappe") }}</div>
-            <div class="d-flex flex-wrap gap-2">
-                {% for e in door_events %}<span class="badge {{ 'text-bg-warning' if e.is_open else 'text-bg-secondary' }}"><i class="bi {{ 'bi-door-open' if e.is_open else 'bi-door-closed' }}"></i> {{ e.at|datetime }}</span>{% endfor %}
-            </div>
+        {% if door_times %}
+        <div class="table-responsive mt-3">
+            <table class="table table-sm small mb-0">
+                <thead><tr><th>{{ _("Klappe") }}</th><th class="text-end">{{ _("auf") }}</th>{% if sensor.has_top %}<th class="text-end">{{ _("ganz oben") }}</th>{% endif %}<th class="text-end">{{ _("zu") }}</th></tr></thead>
+                <tbody>
+                {% for d in door_times %}
+                <tr><td>{{ d.day|weekday }} {{ d.day.strftime("%d.%m.") }}</td>
+                    <td class="text-end">{{ d.opened.strftime("%H:%M") if d.opened else "–" }}</td>
+                    {% if sensor.has_top %}<td class="text-end">{{ d.top.strftime("%H:%M") if d.top else "–" }}</td>{% endif %}
+                    <td class="text-end">{{ d.closed.strftime("%H:%M") if d.closed else "–" }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
         {% endif %}
         {% else %}

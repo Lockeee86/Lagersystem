@@ -54,7 +54,7 @@ def test_api(client, db, seed, token):
     assert post(client, {"door": "closed", "at": datetime.now(timezone.utc).timestamp()}, token).get_json()["door_changed"]
     assert CoopReading.query.count() == 1 and CoopDoorEvent.query.count() == 2
     info = coop.status()
-    assert info["temperature"] == 7.5 and info["humidity"] == 81 and info["door"] is False and not info["offline"]
+    assert info["temperature"] == 7.5 and info["humidity"] == 81 and info["state"] == "zu" and not info["offline"]
     # neuer Schlüssel: der alte gilt nicht mehr
     coop.new_token()
     db.session.commit()
@@ -128,3 +128,55 @@ def test_bridge_parse():
     assert door("Klappe state: 0") == "closed" and door("Klappe state: 1") == "open"
     assert door("Klappe state: 1", active="closed") == "closed"
     assert door("Hallo zusammen") is None                                          # andere Textnachricht
+    # oberer Knoten: Kontakt geschlossen (state: 0) = ganz oben
+    top = {"from": 2, "type": "text", "payload": {"text": "Klappe oben state: 0"}}
+    assert bridge.parse_meshtastic(top, "!00000001", "klappe", "open", "!00000002", "away")["door_top"] == "open"
+    top["payload"]["text"] = "Klappe oben detected"
+    assert bridge.parse_meshtastic(top, "!00000001", "klappe", "open", "!00000002", "away")["door_top"] == "closed"
+    top_telemetry = {"from": 2, "type": "telemetry", "payload": {"voltage": 3.9}}
+    assert bridge.parse_meshtastic(top_telemetry, "!00000001", "klappe", "open", "!00000002", "away") is None
+
+
+def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
+    """Wahlweise oberer Kontakt: zu / halb (hängt) / offen; morgens Push, wenn sie noch zu ist."""
+    keeper = seed["worker"]
+    keeper.chickens = True
+    db.session.add(PushSubscription(user_id=keeper.id, endpoint="https://push.example/w", p256dh="k", auth="a"))
+    chickens.add_flock_event(datetime(2026, 10, 1).date(), "gekauft", 20, keeper)
+    db.session.commit()
+    now = datetime.now(timezone.utc)
+    coop.record({"door": "closed"}, now=now - timedelta(hours=3))
+    assert coop.status(now)["state"] == "zu" and not coop.status(now)["has_top"]
+    coop.record({"door": "open"}, now=now - timedelta(minutes=30))
+    assert coop.status(now)["state"] == "offen"                                   # ohne oberen Kontakt
+    coop.record({"door_top": "closed"}, now=now - timedelta(minutes=20))         # oben nicht angekommen
+    db.session.commit()
+    info = coop.status(now)
+    assert info["state"] == "halb" and info["has_top"]
+    monkeypatch.setattr(chickens, "farm_sunset", lambda day: None)
+    monkeypatch.setattr(chickens, "farm_sunrise", lambda day: None)
+    push.daily(app, now.astimezone(BERLIN))
+    assert [m["title"] for m in push.outbox if m["tag"].startswith("coop-hang")] == ["Hühnerklappe hängt!"]
+    push.daily(app, (now + timedelta(minutes=5)).astimezone(BERLIN))                # nur einmal je Hängen
+    assert len([m for m in push.outbox if m["tag"].startswith("coop-hang")]) == 1
+    coop.record({"door_top": "open"}, now=now)
+    db.session.commit()
+    assert coop.status(now)["state"] == "offen"
+    rows = coop.day_times(BERLIN, now=now + timedelta(minutes=1))
+    assert rows[0]["top"] is not None or rows[-1]["top"] is not None
+
+    # Morgen: noch zu eine Stunde nach Sonnenaufgang → Push (feste Zeit, damit es nicht von der Uhrzeit abhängt)
+    push.outbox.clear()
+    morning = datetime(2026, 10, 27, 9, 30, tzinfo=BERLIN)
+    coop.record({"door": "closed"}, now=morning.astimezone(timezone.utc) - timedelta(minutes=1))
+    db.session.commit()
+    monkeypatch.setattr(chickens, "farm_sunrise", lambda day: morning - timedelta(hours=2))
+    monkeypatch.setattr(coop, "utcnow", lambda: morning.astimezone(timezone.utc))
+    push.daily(app, morning)
+    assert [m["title"] for m in push.outbox if m["tag"].startswith("coop-morning")] == \
+        ["Hühnerklappe heute noch nicht aufgegangen"]
+
+
+def test_sunrise():
+    rise = chickens.sunrise(datetime(2026, 6, 21).date(), 52.4, 10.5).astimezone(BERLIN)
+    assert (4, 40) <= (rise.hour, rise.minute) <= (5, 10)

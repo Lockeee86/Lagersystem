@@ -52,8 +52,8 @@
 {% macro sensor_line(sensor) %}
 {% if sensor %}
 <div class="d-flex flex-wrap gap-3 align-items-center small mb-2 coop-line">
-    {% if sensor.door is not none %}
-    <span class="fw-semibold {{ 'text-warning-emphasis' if sensor.door else 'text-success' }}"><i class="bi {{ 'bi-door-open' if sensor.door else 'bi-door-closed' }} me-1"></i>{{ _("Klappe offen") if sensor.door else _("Klappe zu") }} <span class="fw-normal text-body-secondary">{{ _("seit {time}", time=sensor.door_since|time) }}</span></span>
+    {% if sensor.state %}
+    <span class="fw-semibold {{ 'text-success' if sensor.state == 'zu' else 'text-danger' if sensor.state == 'halb' else 'text-warning-emphasis' }}"><i class="bi {{ 'bi-door-closed' if sensor.state == 'zu' else 'bi-exclamation-triangle' if sensor.state == 'halb' else 'bi-door-open' }} me-1"></i>{{ _("Klappe zu") if sensor.state == "zu" else _("Klappe hängt") if sensor.state == "halb" else _("Klappe offen") }} <span class="fw-normal text-body-secondary">{{ _("seit {time}", time=sensor.state_since|time) }}</span></span>
     {% endif %}
     {% if sensor.temperature is not none %}<span><i class="bi bi-thermometer-half me-1"></i>{{ sensor.temperature|num(1) }} °C</span>{% endif %}
     {% if sensor.humidity is not none %}<span><i class="bi bi-droplet me-1"></i>{{ sensor.humidity|num(0) }} %</span>{% endif %}

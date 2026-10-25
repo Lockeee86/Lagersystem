@@ -29,6 +29,10 @@ COOP_TOPIC = os.environ.get("COOP_TOPIC", "huehnerstall/#")
 COOP_NODE = (os.environ.get("COOP_NODE") or "").strip().lower()        # z. B. !a1b2c3d4 – leer: alle Knoten
 DOOR_NAME = (os.environ.get("DOOR_NAME") or "Klappe").strip().lower()   # Name im Detection-Sensor-Modul
 DOOR_ACTIVE = (os.environ.get("DOOR_ACTIVE") or "open").strip().lower()  # „aktiv“ (detected / state: 1) heißt …
+# Wahlweise zweiter Knoten mit Reedkontakt oben (Klappe ganz offen); „aktiv“ heißt dort „nicht oben“
+# (Kontakt bei offener Klappe geschlossen = LOW, wie unten bei geschlossener Klappe).
+COOP_TOP_NODE = (os.environ.get("COOP_TOP_NODE") or "").strip().lower()
+TOP_ACTIVE = (os.environ.get("TOP_ACTIVE") or "away").strip().lower()   # away | top
 DEBUG = os.environ.get("DEBUG", "") not in ("", "0", "false")
 
 STATE_RE = re.compile(r"state:\s*([01])\b", re.I)
@@ -61,10 +65,12 @@ def _door_from_text(text, door_name=DOOR_NAME, active=DOOR_ACTIVE):
     return is_active if active == "open" else not is_active
 
 
-def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active=DOOR_ACTIVE):
+def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active=DOOR_ACTIVE,
+                     top_node=COOP_TOP_NODE, top_active=TOP_ACTIVE):
     """Eine Meshtastic-JSON-Nachricht (MQTT „…/json/…“) → Daten für die App oder None."""
     node = node_id(message.get("from"))
-    if wanted_node and node != wanted_node:
+    is_top = bool(top_node) and node == top_node
+    if wanted_node and node != wanted_node and not is_top:
         return None
     payload = message.get("payload")
     if not isinstance(payload, dict):
@@ -77,16 +83,24 @@ def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active
             data[key] = message[key]
     kind = message.get("type")
     if kind == "telemetry":
+        if is_top:                                     # Messwerte nur vom Stall-Knoten, nicht vom oberen
+            return None
         mapping = {"temperature": "temperature", "relative_humidity": "humidity",
                    "battery_level": "battery", "voltage": "voltage"}
         values = {target: payload[source] for source, target in mapping.items() if payload.get(source) is not None}
-        if not values:
-            return None
         if values.get("battery", 0) > 100:            # 101 = am Netz
             values.pop("battery")
+        if not values:
+            return None
         data.update(values)
         return data
     if "text" in payload:                              # Textnachricht bzw. Detection-Sensor-Modul
+        if is_top:                                     # oberer Kontakt: „open“ = Klappe ganz oben
+            at_top = _door_from_text(payload.get("text"), door_name, "closed" if top_active == "away" else "open")
+            if at_top is None:
+                return None
+            data["door_top"] = "open" if at_top else "closed"
+            return data
         door = _door_from_text(payload.get("text"), door_name, active)
         if door is None:
             return None

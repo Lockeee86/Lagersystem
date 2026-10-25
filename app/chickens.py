@@ -144,7 +144,8 @@ def fair_order(today=None, days=30):
                      "last_eggs": last.eggs if last else None,
                      "days_since": (today - last.day).days if last else None,
                      "recent": recent.get(household.id, 0), "year": year.get(household.id, 0)})
-    rows.sort(key=lambda r: (r["last_day"] is not None, r["last_day"] or date.min, r["recent"], r["household"].position))
+    rows.sort(key=lambda r: (r["last_day"] is not None, r["last_day"] or date.min, r["recent"],
+                             r["household"].position))
     return rows
 
 
@@ -326,8 +327,8 @@ def summary(today=None):
 
 # --- Sonnenuntergang und Push -------------------------------------------------------------
 
-def sunset(day, lat, lon):
-    """Sonnenuntergang (UTC) nach der NOAA-Näherung; None bei Polartag/-nacht."""
+def _sun(day, lat, lon, rising):
+    """Sonnenaufgang bzw. -untergang (UTC) nach der NOAA-Näherung; None bei Polartag/-nacht."""
     n = day.timetuple().tm_yday
     gamma = 2 * math.pi / 365 * (n - 1)
     eqtime = 229.18 * (0.000075 + 0.001868 * math.cos(gamma) - 0.032077 * math.sin(gamma)
@@ -338,13 +339,31 @@ def sunset(day, lat, lon):
     cos_ha = (math.cos(math.radians(90.833)) / (math.cos(lat_r) * math.cos(decl))) - math.tan(lat_r) * math.tan(decl)
     if not -1 <= cos_ha <= 1:
         return None
-    minutes = 720 - 4 * (lon - math.degrees(math.acos(cos_ha))) - eqtime
+    ha = math.degrees(math.acos(cos_ha))
+    minutes = 720 - 4 * (lon + ha if rising else lon - ha) - eqtime
     return datetime.combine(day, time(), tzinfo=timezone.utc) + timedelta(minutes=minutes)
 
 
-def farm_sunset(day):
+def sunset(day, lat, lon):
+    return _sun(day, lat, lon, rising=False)
+
+
+def sunrise(day, lat, lon):
+    return _sun(day, lat, lon, rising=True)
+
+
+def _location():
     from .weather import parse_location
-    location = parse_location(Setting.all().get("farm_location"))
+    return parse_location(Setting.all().get("farm_location"))
+
+
+def farm_sunrise(day):
+    location = _location()
+    return sunrise(day, *location) if location else None
+
+
+def farm_sunset(day):
+    location = _location()
     return sunset(day, *location) if location else None
 
 
@@ -360,11 +379,11 @@ def evening_check(now, done, mark):
                         tag=f"eggs-{today.isoformat()}")
     from . import coop
     sensor = coop.status()
-    known = sensor is not None and not sensor["offline"] and sensor["door"] is not None
+    known = sensor is not None and not sensor["offline"] and sensor["state"] is not None
     set_at = farm_sunset(today)
     if set_at and now >= set_at + COOP_DELAY and not done("coop", today):
         local = set_at.astimezone(now.tzinfo)
-        if known and not sensor["door"]:
+        if known and sensor["state"] == "zu":
             mark("coop", today)                    # Sensor meldet „zu“ – keine Erinnerung nötig
         elif known:
             # Sensor meldet „offen“: dringend, und von sich aus an alle Hühner-Leute (auch ohne „Klappe zu?“)
@@ -378,6 +397,8 @@ def evening_check(now, done, mark):
                 push.notify(keepers(), "coop_close", Msg("Hühnerklappe zu?"),
                             Msg("Sonnenuntergang war um {time} Uhr.", time=local.strftime("%H:%M")),
                             url_for("chickens.overview"), tag=f"coop-{today.isoformat()}")
+    if flock_size(today) > 0:
+        coop.door_watch(now, done, mark, keepers(), sunrise=farm_sunrise(today))
     coop.alerts(now, done, mark, keepers())
     if not done("coop_cleanup", today):
         mark("coop_cleanup", today)
