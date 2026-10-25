@@ -2193,4 +2193,11 @@ MESSAGES = {
     'Anbaupause': 'Przerwa w uprawie',
     'Jahre ohne diese Kultur dazwischen. Beispiel bei 4: Kartoffeln {year}, wieder ab {next}.': 'Lata bez tej uprawy pomiędzy. Przykład przy 4: ziemniaki {year}, ponownie od {next}.',
     'Jahre': 'lat',
+    'Abhaken kann nur, wer eingeteilt ist.': 'Odhaczyć może tylko osoba przydzielona.',
+    'Es gibt nichts Unerledigtes zu übernehmen.': 'Nie ma nic niezałatwionego do przeniesienia.',
+    '{n} unerledigte Einträge übernommen.': ('Przeniesiono {n} niezałatwiony wpis.', 'Przeniesiono {n} niezałatwione wpisy.', 'Przeniesiono {n} niezałatwionych wpisów.'),
+    'Das Unerledigte steht schon im Plan.': 'To, co niezałatwione, jest już w planie.',
+    'Unerledigtes vom {date} übernehmen ({n})': 'Przenieś niezałatwione z {date} ({n})',
+    '„{entry}“ aus dem Plan löschen?': 'Usunąć „{entry}” z planu?',
+    'erledigt {time}': 'załatwione {time}',
 }

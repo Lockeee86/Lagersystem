@@ -90,6 +90,8 @@ def day_plan():
         "team/day_plan.html", day=day, plan=plan, members=members, today=date.today(), timedelta1=timedelta(days=1),
         recent_texts=recent, sent=db.session.get(Setting, f"push_plan_sent_{day.isoformat()}") is not None,
         previous=team.last_planned_day(day) if current_user.is_admin else None,
+        open_day=(open_day := team.last_open_day(day) if current_user.is_admin else None),
+        open_count=len(team.carry_candidates(open_day, day)) if open_day else 0,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_admin else [],
         plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.is_admin else [],
     )
@@ -134,6 +136,35 @@ def plan_copy():
         db.session.rollback()
         flash_error(str(e))
     return _to_plan(day)
+
+
+@bp.route("/tagesplan/offenes", methods=["POST"])
+@admin_required
+def plan_carry_over():
+    day = _form_day()
+    source = team.last_open_day(day)
+    try:
+        n = team.carry_over(source, day, current_user)
+        db.session.commit()
+        flash(ngettext("{n} unerledigter Eintrag übernommen.", "{n} unerledigte Einträge übernommen.", n)
+              if n else _("Das Unerledigte steht schon im Plan."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _to_plan(day)
+
+
+@bp.route("/tagesplan/eintrag/<int:entry_id>/erledigt", methods=["POST"])
+@editor_required
+def plan_check(entry_id):
+    entry = _get(PlanEntry, entry_id)
+    try:
+        team.toggle_plan_entry(entry, current_user)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return back("team.day_plan", datum=entry.day.isoformat(), _anchor=f"p{entry.user_id}")
 
 
 @bp.route("/tagesplan/verschicken", methods=["POST"])

@@ -70,7 +70,7 @@
         <a class="small" href="{{ url_for('team.day_plan', datum=today.isoformat()) }}">{{ _("Ganzer Tagesplan") }}</a>
     </div>
     <div class="hub-list"><div class="hub-row d-block">
-        {% if my_plan %}{{ plan_lines(my_plan) }}{% else %}<span class="text-body-secondary">{{ _("Für dich ist heute nichts eingeteilt.") }}</span>{% endif %}
+        {% if my_plan %}{{ plan_lines(my_plan, url_for('main.dashboard') ~ '#meinplan') }}{% else %}<span class="text-body-secondary">{{ _("Für dich ist heute nichts eingeteilt.") }}</span>{% endif %}
     </div></div>
 </section>
 {% endif %}

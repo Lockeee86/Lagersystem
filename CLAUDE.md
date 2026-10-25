@@ -40,7 +40,7 @@ docker compose up --build -d
   `app/sales_views.py` (Blueprint `sales`: Lieferscheine, Verladen per Dauer-Scanner, Kunden, Anerkennungen),
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
 - `app/team.py`: Team-Alltag – Übergabe-Notizen (`Handover`, `open_handovers()`), Tagesplan (`PlanEntry`, `plan_for()`,
-  `copy_plan()`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
+  `copy_plan()`, Abhaken `toggle_plan_entry()`, Unerledigtes `carry_over()`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
   `overview()`, `sign_instruction()`), committet nicht; `app/team_views.py` (Blueprint `team`), `app/instruction_pdf.py`
   (Nachweis, immer Deutsch). Unterschriften allgemein: `app/signatures.py` (`to_png`, `pdf_image`),
   `static/js/signpad.js` + `macros.sign_modal`

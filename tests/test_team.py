@@ -124,6 +124,39 @@ def test_plan_pages_and_push(as_admin, as_worker, as_viewer, db, seed):
     assert not team.plan_for(tomorrow)
 
 
+def test_plan_check_and_carry_over(as_admin, as_worker, as_viewer, db, seed):
+    """Eingeteilte Person (oder Admin) hakt ab; Unerledigtes lässt sich am nächsten Tag übernehmen."""
+    worker, admin = seed["worker"], seed["admin"]
+    yesterday, today = date.today() - timedelta(days=1), date.today()
+    sort = team.add_plan_entry(yesterday, worker, "Sortieren Halle 2", admin)
+    sweep = team.add_plan_entry(yesterday, worker, "Hof fegen", admin)
+    own = team.add_plan_entry(today, admin, "Büro", admin)
+    db.session.commit()
+
+    assert as_viewer.post(f"/tagesplan/eintrag/{sort.id}/erledigt").status_code == 403
+    as_worker.post(f"/tagesplan/eintrag/{own.id}/erledigt")                  # nicht seiner
+    assert own.done_at is None
+    r = as_worker.post(f"/tagesplan/eintrag/{sort.id}/erledigt", data={"back": "/#meinplan"})
+    assert r.headers["Location"].endswith("/#meinplan") and sort.done_at and sort.done_by_id == worker.id
+    html = as_worker.get(f"/tagesplan?datum={yesterday.isoformat()}").get_data(as_text=True)
+    assert "is-done" in html and "erledigt" in html and "Wieder öffnen" in html
+    as_worker.post(f"/tagesplan/eintrag/{sort.id}/erledigt")                 # wieder öffnen
+    assert sort.done_at is None
+    as_admin.post(f"/tagesplan/eintrag/{sort.id}/erledigt")                  # Admin hakt für ihn ab
+    assert sort.done_by_id == admin.id
+
+    # heute: „Hof fegen“ ist offen → übernehmen (nur einmal)
+    html = as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert "Unerledigtes vom" in html and "(1)" in html and "data-confirm" in html
+    as_admin.post("/tagesplan/offenes", data={"datum": today.isoformat()})
+    assert [e.text for e in team.plan_for(today)[worker.id]] == ["Hof fegen"]
+    as_admin.post("/tagesplan/offenes", data={"datum": today.isoformat()})
+    assert len(team.plan_for(today)[worker.id]) == 1
+    assert "Unerledigtes vom" not in as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert as_worker.post("/tagesplan/offenes", data={"datum": today.isoformat()}).status_code == 403
+    assert sweep.done_at is None
+
+
 # --- Unterweisungen ----------------------------------------------------------
 
 def test_instruction_status(db, seed):

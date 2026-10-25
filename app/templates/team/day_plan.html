@@ -25,6 +25,12 @@
         <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-files me-1"></i>{{ _("Vom {date} übernehmen", date=previous|date) }}</button>
     </form>
     {% endif %}
+    {% if open_count %}
+    <form method="post" action="{{ url_for('team.plan_carry_over') }}">
+        {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+        <button class="btn btn-outline-warning btn-sm"><i class="bi bi-arrow-return-right me-1"></i>{{ _("Unerledigtes vom {date} übernehmen ({n})", date=open_day|date, n=open_count) }}</button>
+    </form>
+    {% endif %}
     {% if plan %}
     <form method="post" action="{{ url_for('team.plan_send') }}">
         {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
@@ -53,7 +59,7 @@
                 {% call(e) plan_lines(entries) %}
                 {% if current_user.is_admin %}
                 <form method="post" action="{{ url_for('team.plan_delete', entry_id=e.id) }}" class="ms-auto">
-                    {{ csrf() }}<button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Entfernen') }}"><i class="bi bi-x-lg"></i></button>
+                    {{ csrf() }}<button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Entfernen') }}" title="{{ _('Entfernen') }}" data-confirm="{{ _('„{entry}“ aus dem Plan löschen?', entry=e.text) }}"><i class="bi bi-x-lg"></i></button>
                 </form>
                 {% endif %}
                 {% endcall %}

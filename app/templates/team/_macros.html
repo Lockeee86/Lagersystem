@@ -25,12 +25,20 @@
 {% endmacro %}
 
 {# Einträge einer Person im Tagesplan #}
-{% macro plan_lines(entries) %}
+{% macro plan_lines(entries, back_url=none) %}
 {% for e in entries %}
-<div class="plan-line">
+<div class="plan-line {{ 'is-done' if e.done_at }}">
+    {% if e.can_check(current_user) %}
+    <form method="post" action="{{ url_for('team.plan_check', entry_id=e.id) }}" class="plan-check">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if back_url %}<input type="hidden" name="back" value="{{ back_url }}">{% endif %}
+        <button class="btn btn-link p-0" aria-label="{{ _('Wieder öffnen') if e.done_at else _('Erledigt') }}" title="{{ _('Wieder öffnen') if e.done_at else _('Erledigt') }}"><i class="bi {{ 'bi-check-square-fill text-success' if e.done_at else 'bi-square' }}"></i></button>
+    </form>
+    {% elif e.done_at %}<i class="bi bi-check-square-fill text-success plan-check"></i>{% endif %}
     <span class="plan-text">{{ e.text }}</span>
     {% if e.machine %}<a class="badge text-bg-secondary text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}"><i class="bi {{ e.machine.icon }} me-1"></i>{{ e.machine.name }}</a>{% endif %}
     {% if e.plot %}<a class="badge text-bg-light text-decoration-none" href="{{ url_for('fields.field_detail', plot_id=e.plot_id) }}"><i class="bi bi-map me-1"></i>{{ e.plot.name }}</a>{% endif %}
+    {% if e.done_at %}<span class="small text-body-secondary text-nowrap">{{ _("erledigt {time}", time=e.done_at|time) }}{% if e.done_by and e.done_by_id != e.user_id %} · {{ e.done_by.name }}{% endif %}</span>{% endif %}
     {{ caller(e) if caller }}
 </div>
 {% endfor %}

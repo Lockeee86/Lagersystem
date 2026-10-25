@@ -125,6 +125,52 @@ def copy_plan(source_day, target_day, actor):
     return copied
 
 
+def toggle_plan_entry(entry, user):
+    """Abhaken bzw. wieder öffnen (eingeteilte Person oder Admin). Gibt True zurück, wenn jetzt erledigt."""
+    if not entry.can_check(user):
+        raise StorageError(_("Abhaken kann nur, wer eingeteilt ist."))
+    if entry.done_at:
+        entry.done_at, entry.done_by_id = None, None
+    else:
+        entry.done_at, entry.done_by_id = utcnow(), user.id
+    return entry.done_at is not None
+
+
+def open_entries(day):
+    """Nicht erledigte Einträge eines Tages."""
+    return [e for entries in plan_for(day).values() for e in entries if not e.done_at]
+
+
+def last_open_day(before):
+    """Letzter Tag vor `before` mit unerledigten Einträgen – höchstens eine Woche zurück."""
+    return (db.session.query(func.max(PlanEntry.day))
+            .filter(PlanEntry.day < before, PlanEntry.day >= before - timedelta(days=7), PlanEntry.done_at.is_(None))
+            .scalar())
+
+
+def carry_candidates(source_day, target_day):
+    """Unerledigtes von `source_day`, das am `target_day` noch fehlt (gleiche Person, gleicher Text nur einmal)."""
+    if source_day is None:
+        return []
+    members = {u.id for u in team_members()}
+    target = {(e.user_id, e.text) for entries in plan_for(target_day).values() for e in entries}
+    return [e for e in open_entries(source_day) if e.user_id in members and (e.user_id, e.text) not in target]
+
+
+def carry_over(source_day, target_day, actor):
+    """Unerledigtes von `source_day` an `target_day` hinten anhängen. Gibt die Anzahl zurück."""
+    if source_day is None:
+        raise StorageError(_("Es gibt nichts Unerledigtes zu übernehmen."))
+    candidates = carry_candidates(source_day, target_day)
+    for e in candidates:
+        position = (db.session.query(func.max(PlanEntry.position))
+                    .filter_by(day=target_day, user_id=e.user_id).scalar() or 0) + 1
+        db.session.add(PlanEntry(day=target_day, user_id=e.user_id, text=e.text, machine_id=e.machine_id,
+                                 plot_id=e.plot_id, position=position, created_by_id=actor.id if actor else None))
+        db.session.flush()
+    return len(candidates)
+
+
 def send_plan(day, actor):
     """Jedem Eingeteilten seinen Plan aufs Handy schicken (nach dem Commit). Gibt die Zahl der Empfänger zurück."""
     sent = 0

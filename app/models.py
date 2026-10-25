@@ -1486,10 +1486,17 @@ class PlanEntry(db.Model):
     position = db.Column(db.Integer, nullable=False, default=0)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    done_at = db.Column(db.DateTime(timezone=True))
+    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
 
     user = db.relationship("User", foreign_keys=[user_id])
+    done_by = db.relationship("User", foreign_keys=[done_by_id])
     machine = db.relationship("Machine")
     plot = db.relationship("Plot")
+
+    def can_check(self, user):
+        """Abhaken darf die eingeteilte Person und der Admin."""
+        return bool(user and user.is_authenticated and (user.id == self.user_id or user.is_admin))
 
     @property
     def label(self):                             # fürs Änderungsprotokoll
