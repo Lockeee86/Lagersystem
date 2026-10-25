@@ -546,7 +546,8 @@ K/M/RW/… mit Legende darunter). Er setzt je Schlag und Jahr `PlotYear.planned_
 „Sonst,“ → „Sonstige“, „-“ = Schlag in dem Jahr nicht im Plan, leer = Planung gelöscht); die tatsächliche Kultur
 aus Schlagdokumentation/KML bleibt unberührt und geht in der Anzeige vor (`PlotYear.shown_crop`). Neue Schläge aus
 dem Plan werden auf Wunsch angelegt (Nummer, Fläche). Feld & Hof → Fruchtfolge: Tabelle Schlag × Jahr (tatsächlich
-ausgefüllt, geplant gestrichelt), Hinweis bei unterschrittener Anbaupause (Kartoffel, Rübe: 3 Jahre) und
+ausgefüllt, geplant gestrichelt), Hinweis bei unterschrittener Anbaupause (Kartoffel, Rübe; einstellbar
+auf der Seite – Admin, `fielddoc.rotation_breaks()`, `settings` `rotation_break_*`, von sich aus 3 Jahre dazwischen, 0.40.5) und
 Anbauumfang in ha je Kultur und Jahr. Schlagkarte und Schlagseite zeigen für Planjahre die geplante Kultur.
 Farben je Kultur jetzt auch über den Namen (Mais = Silomais, Winterweichweizen = Winterweizen, Spelz = Dinkel).
 Echte Hofdaten (Schlagnamen, Flächen, Personen, Hofname) gehören nicht ins Repo – Tests nutzen erfundene Daten.

@@ -21,8 +21,31 @@
 <p class="small text-body-secondary">
     <span class="rotation-chip">{{ _("Kultur") }}</span> {{ _("laut Schlagdokumentation") }} ·
     <span class="rotation-chip planned">{{ _("geplant") }}</span> {{ _("laut Fruchtfolgeplan") }} ·
-    <i class="bi bi-exclamation-triangle-fill text-warning"></i> {{ _("Anbaupause unterschritten (Kartoffel, Rübe: 3 Jahre)") }}
+    <i class="bi bi-exclamation-triangle-fill text-warning"></i> {{ _("Anbaupause unterschritten") }}
+    ({% for word, label, key, d in groups %}{{ _(label) }} {{ ngettext("{n} Jahr", "{n} Jahre", breaks[word]) }}{{ ", " if not loop.last }}{% endfor %})
+    {% if current_user.is_admin %}<a class="ms-1 text-nowrap" data-bs-toggle="collapse" href="#breakForm" role="button" aria-expanded="false" aria-controls="breakForm"><i class="bi bi-gear"></i> {{ _("einstellen") }}</a>{% endif %}
 </p>
+{% if current_user.is_admin %}
+<div class="collapse" id="breakForm">
+    <form method="post" action="{{ url_for('fields.rotation_breaks', **request.args) }}" class="card card-body shadow-sm mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="fw-semibold mb-1">{{ _("Anbaupause") }}</div>
+        <p class="small text-body-secondary mb-2">{{ _("Jahre ohne diese Kultur dazwischen. Beispiel bei 4: Kartoffeln {year}, wieder ab {next}.", year=this_year, next=this_year + 5) }}</p>
+        <div class="d-flex flex-wrap gap-3 align-items-end">
+            {% for word, label, key, d in groups %}
+            <div>
+                <label class="form-label small mb-1" for="break_{{ key }}">{{ _(label) }}</label>
+                <div class="input-group input-group-sm" style="width: 9rem">
+                    <input type="number" class="form-control" id="break_{{ key }}" name="break_{{ key }}" min="1" max="{{ break_max }}" value="{{ breaks[word] }}" required>
+                    <span class="input-group-text">{{ _("Jahre") }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            <button class="btn btn-sm btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
+        </div>
+    </form>
+</div>
+{% endif %}
 
 {% if rows %}
 <div class="card shadow-sm mb-4">

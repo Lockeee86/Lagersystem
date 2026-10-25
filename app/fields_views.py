@@ -256,10 +256,25 @@ def rotation_page():
     plots = Plot.query.filter_by(active=True).order_by(Plot.name).all()
     if request.args.get("kartoffeln") == "1":
         plots = [p for p in plots if any("kartoffel" in (py.shown_crop or "").lower() for py in p.years)]
-    rows, summary = fielddoc.rotation(plots, years)
+    breaks = fielddoc.rotation_breaks()
+    rows, summary = fielddoc.rotation(plots, years, breaks)
     return render_template("fields/rotation.html", rows=rows, summary=summary, years=years, this_year=this_year,
+                           breaks=breaks, groups=fielddoc.ROTATION_GROUPS, break_max=fielddoc.ROTATION_MAX,
                            first=first, only_potatoes=request.args.get("kartoffeln") == "1",
                            first_options=list(range(min([this_year - 10, *data_years]), last + 1)))
+
+
+@bp.route("/fruchtfolge/anbaupause", methods=["POST"])
+@admin_required
+def rotation_breaks():
+    try:
+        fielddoc.save_rotation_breaks({word: form_int(f"break_{key}") for word, _label, key, _d in fielddoc.ROTATION_GROUPS})
+        db.session.commit()
+        flash(_("Anbaupause gespeichert."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("fields.rotation_page", **request.args))
 
 
 # --- Pflanzenschutz -------------------------------------------------------------------

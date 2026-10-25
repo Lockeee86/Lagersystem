@@ -96,7 +96,7 @@ docker compose up --build -d
   Wartezeiten: `fielddoc.protection()` / `protection_overview()` (Bemerkung „Wartezeit n Tage/F“, sonst
   `PesticideProduct`), Seite `fields.protection` (`/pflanzenschutz`).
   Fruchtfolgeplan: `fielddoc.parse_plan/apply_rotation` → `PlotYear.planned_crop` (Anzeige über `shown_crop`),
-  Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`). Ertragsvergleich `fields.yield_history`
+  Seite `fields.rotation_page` (`/fruchtfolge`, `fielddoc.rotation()`, Anbaupause `rotation_breaks()`). Ertragsvergleich `fields.yield_history`
   (`/ertraege`); Feldnotizen `FieldNote` mit Fotos, Standort → Schlag `fields.locate` (`/schlag/ort`).
   Echte Myfarm24-Dateien nie committen – Tests mit erfundenen Daten
 - `app/irrigation.py`: Beregnung – RainDancer-Wasserbuch (Excel) `parse_file()` → Vorschau `plan()` → `apply()` (ersetzt

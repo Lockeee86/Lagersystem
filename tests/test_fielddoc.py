@@ -344,7 +344,15 @@ def test_rotation_pages(as_admin, as_worker, as_viewer, db, seed):
     assert r.headers["Location"].endswith("/fruchtfolge") and Plot.query.count() == 5
     html = as_viewer.get("/fruchtfolge?von=2025").get_data(as_text=True)
     assert "Rübenacker" in html and "Winterweichweizen" in html and "Anbauumfang" in html
-    assert "Gleiche Kultur schon 2026" in html
+    assert "Gleiche Kultur schon 2026" in html and "Rübe 3 Jahre" in html and "breakForm" not in html
+    # Anbaupause einstellbar (nur Admin): Rübe 1 Jahr → 2026/2028 ist dann in Ordnung
+    assert as_worker.post("/fruchtfolge/anbaupause", data={"break_rotation_break_ruebe": "1"}).status_code == 403
+    assert "Anbaupause bitte" in as_admin.post("/fruchtfolge/anbaupause", data={"break_rotation_break_ruebe": "11"},
+                                               follow_redirects=True).get_data(as_text=True)
+    as_admin.post("/fruchtfolge/anbaupause", data={"break_rotation_break_kartoffel": "5", "break_rotation_break_ruebe": "1"})
+    assert fielddoc.rotation_breaks() == {"kartoffel": 5, "rübe": 1}
+    html = as_admin.get("/fruchtfolge?von=2025").get_data(as_text=True)
+    assert "Gleiche Kultur schon 2026" not in html and "Kartoffel 5 Jahre" in html and "breakForm" in html
     assert "Hofkoppel" in as_viewer.get("/fruchtfolge?kartoffeln=1").get_data(as_text=True)
     assert "Bachfeld" in as_viewer.get("/schlagkarte?jahr=2028&kartoffeln=1").get_data(as_text=True)   # geplant
     bach = Plot.query.filter_by(name="Bachfeld").one()

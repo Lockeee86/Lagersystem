@@ -16,8 +16,9 @@ from decimal import Decimal, InvalidOperation
 
 from .extensions import db
 from .fields import FieldImportError, _match, _numbered_name, _same_name
-from .i18n import gettext as _
-from .models import FieldMeasure, NUTRIENTS, PesticideProduct, Plot, PlotYear, Variety
+from .i18n import N_, gettext as _
+from .models import FieldMeasure, NUTRIENTS, PesticideProduct, Plot, PlotYear, Setting, Variety
+from .storage import StorageError
 
 SOURCE = "myfarm"
 YEAR_RE = re.compile(r"Schlagdokumentation\s+Erntejahr\s+(\d{4})")
@@ -530,19 +531,45 @@ def apply_rotation(entries, years, create=True):
     return stats
 
 
-ROTATION_BREAKS = [("kartoffel", 3), ("rübe", 3)]   # Anbaupause in Jahren (Nematoden, Krankheiten)
+# Anbaupause (Nematoden, Krankheiten): Kulturgruppe (Wort im Namen), Anzeige, Setting-Schlüssel, Jahre von sich aus.
+# Pause = Jahre ohne diese Kultur dazwischen (3: Kartoffeln 2026 → wieder ab 2030).
+ROTATION_GROUPS = [("kartoffel", N_("Kartoffel"), "rotation_break_kartoffel", 3),
+                   ("rübe", N_("Rübe"), "rotation_break_ruebe", 3)]
+ROTATION_MAX = 10
 
 
-def _crop_group(crop):
+def rotation_breaks():
+    """{Wort: Jahre} – eingestellt unter Fruchtfolge (Admin), sonst die Voreinstellung."""
+    result = {}
+    for word, _label, key, default in ROTATION_GROUPS:
+        setting = db.session.get(Setting, key)
+        value = int(setting.value) if setting and (setting.value or "").isdigit() else default
+        result[word] = min(max(value, 1), ROTATION_MAX)
+    return result
+
+
+def save_rotation_breaks(values):
+    """`values`: {Wort: Jahre}; nur 1 bis ROTATION_MAX."""
+    for word, _label, key, _default in ROTATION_GROUPS:
+        years = values.get(word)
+        if years is None:
+            continue
+        if not 1 <= years <= ROTATION_MAX:
+            raise StorageError(_("Anbaupause bitte zwischen 1 und {n} Jahren.", n=ROTATION_MAX))
+        Setting.put(key, str(years))
+
+
+def _crop_group(crop, breaks):
     lower = (crop or "").lower()
-    return next(((word, years) for word, years in ROTATION_BREAKS if word in lower), None)
+    return next(((word, breaks[word]) for word, *_rest in ROTATION_GROUPS if word in lower), None)
 
 
-def rotation(plots, years):
+def rotation(plots, years, breaks=None):
     """Fruchtfolge-Tabelle: je Schlag und Jahr {crop, planned, color, warn}, dazu Hektar je Kultur und Jahr.
-    `warn` = gleiche Kultur(gruppe) innerhalb der Anbaupause (Kartoffel, Rübe)."""
+    `warn` = gleiche Kultur(gruppe) innerhalb der Anbaupause (Kartoffel, Rübe; `rotation_breaks()`)."""
     from .fields import crop_color
-    first = min(years) - max(y for _w, y in ROTATION_BREAKS)
+    breaks = breaks or rotation_breaks()
+    first = min(years) - max(breaks.values())
     rows, totals = [], {y: {} for y in years}
     for plot in plots:
         by_year = {py.year: py for py in plot.years}
@@ -553,11 +580,11 @@ def rotation(plots, years):
             planned = entry.planned_crop if entry else None
             shown = crop or (planned if planned != PLAN_NONE else None)
             warn = None
-            group = _crop_group(shown)
+            group = _crop_group(shown, breaks)
             if group:
                 for back in range(1, group[1] + 1):
                     earlier = by_year.get(year - back)
-                    if year - back >= first and earlier and _crop_group(earlier.shown_crop) == group:
+                    if year - back >= first and earlier and _crop_group(earlier.shown_crop, breaks) == group:
                         warn = year - back
                         break
             cells.append({"year": year, "crop": crop, "planned": planned, "shown": shown, "warn": warn,
