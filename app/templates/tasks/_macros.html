@@ -1,3 +1,4 @@
+{% from "macros.html" import plot_pick %}
 {% macro task_item(task, today, back="", extra_class="") %}
 {% set can_tick = not task.is_done and current_user.can_edit and (current_user.is_admin or task.is_for(current_user)) %}
 <li class="list-group-item gap-2 align-items-start task-item {% if task.is_done %}is-done{% endif %} {{ extra_class or 'd-flex' }}">
@@ -87,24 +88,7 @@
     <div class="col-12"><div class="small text-body-secondary mt-1">{{ _("Bezug (optional)") }}</div></div>
     <div class="col-12 col-md-6 col-xl-3">
         {% set chosen = task.plots|map(attribute="id")|list if task else prefill.get('plot_ids') or [] %}
-        {% set chosen_names = plots|selectattr("id", "in", chosen)|map(attribute="label")|list %}
-        <div class="dropdown plot-pick" data-plot-pick>
-            <button class="form-select form-select-sm text-start d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="{{ _('Schläge') }}">
-                <span class="text-truncate flex-grow-1" data-plot-summary data-none="{{ _('– kein Schlag –') }}">{{ chosen_names|join(", ") if chosen_names else _("– kein Schlag –") }}</span>
-                <span class="badge text-bg-primary {{ 'd-none' if chosen_names|length < 2 }}" data-plot-count>{{ chosen_names|length }}</span>
-            </button>
-            <div class="dropdown-menu p-2 w-100">
-                <input type="search" class="form-control form-control-sm mb-2" placeholder="{{ _('Schlag suchen …') }}" aria-label="{{ _('Schlag suchen …') }}" data-plot-filter>
-                <div class="plot-pick-list">
-                    {% for p in plots %}
-                    <label class="dropdown-item d-flex align-items-center gap-2 rounded" data-plot-name="{{ p.label|lower }}">
-                        <input class="form-check-input m-0" type="checkbox" name="plot_ids" value="{{ p.id }}" data-label="{{ p.label }}" {% if p.id in chosen %}checked{% endif %}>
-                        <span class="text-truncate">{{ p.label }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
+        {{ plot_pick(plots, chosen, _("– kein Schlag –")) }}
     </div>
     <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">

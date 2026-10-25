@@ -37,7 +37,7 @@
     {% elif e.done_at %}<i class="bi bi-check-square-fill text-success plan-check"></i>{% endif %}
     <span class="plan-text">{{ e.text }}</span>
     {% if e.machine %}<a class="badge text-bg-secondary text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}"><i class="bi {{ e.machine.icon }} me-1"></i>{{ e.machine.name }}</a>{% endif %}
-    {% if e.plot %}<a class="badge text-bg-light text-decoration-none" href="{{ url_for('fields.field_detail', plot_id=e.plot_id) }}"><i class="bi bi-map me-1"></i>{{ e.plot.name }}</a>{% endif %}
+    {% for p in e.plots %}<a class="badge text-bg-light text-decoration-none" href="{{ url_for('fields.field_detail', plot_id=p.id) }}"><i class="bi bi-map me-1"></i>{{ p.name }}</a>{% endfor %}
     {% if e.done_at %}<span class="small text-body-secondary text-nowrap">{{ _("erledigt {time}", time=e.done_at|time) }}{% if e.done_by and e.done_by_id != e.user_id %} · {{ e.done_by.name }}{% endif %}</span>{% endif %}
     {{ caller(e) if caller }}
 </div>

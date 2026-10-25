@@ -138,7 +138,7 @@ docker compose up --build -d
 - `app/static/js/mapzoom.js`: Lagerkarte am Handy/Tablet zoomen und verschieben (zwei Finger); ein Stapel klappt dort
   unten als Blatt auf (`#stackSheet`, Offcanvas), am PC als Fenster
 - `app/static/js/lager3d.js`: 3D-Ansicht der Lagerkarte (isometrisches SVG aus JSON, das `views.warehouse_map` liefert)
-- `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html`
+- `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html` (Mehrfachauswahl Schläge: `plot_pick`)
 - `app/static/vendor/`: lokal abgelegte Bibliotheken (Bootstrap, Bootstrap Icons, html5-qrcode), **kein CDN**
   (die CSP erlaubt nur `'self'`)
 - `migrations/`: Alembic. Der Container führt beim Start `flask db upgrade` aus (`entrypoint.sh`).

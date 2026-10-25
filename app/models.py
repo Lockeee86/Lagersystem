@@ -1478,9 +1478,15 @@ class Handover(db.Model):
     user = db.relationship("User", foreign_keys=[user_id])
     done_by = db.relationship("User", foreign_keys=[done_by_id])
 
+plan_entry_plots = db.Table(
+    "plan_entry_plots",
+    db.Column("entry_id", db.Integer, db.ForeignKey("plan_entries.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("plot_id", db.Integer, db.ForeignKey("plots.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
+
 
 class PlanEntry(db.Model):
-    """Eintrag im Tagesplan: wer macht an einem Tag was (optional mit Maschine und Schlag)."""
+    """Eintrag im Tagesplan: wer macht an einem Tag was (optional mit Maschine und Schlägen)."""
     __tablename__ = "plan_entries"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1488,7 +1494,6 @@ class PlanEntry(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     text = db.Column(db.String(200), nullable=False)
     machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"))
-    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id", ondelete="SET NULL"))
     position = db.Column(db.Integer, nullable=False, default=0)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -1498,7 +1503,7 @@ class PlanEntry(db.Model):
     user = db.relationship("User", foreign_keys=[user_id])
     done_by = db.relationship("User", foreign_keys=[done_by_id])
     machine = db.relationship("Machine")
-    plot = db.relationship("Plot")
+    plots = db.relationship("Plot", secondary=plan_entry_plots, order_by="Plot.name")
 
     def can_check(self, user):
         """Abhaken darf die eingeteilte Person und wer den Tagesplan pflegt."""

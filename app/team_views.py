@@ -116,7 +116,8 @@ def plan_add():
     user = db.session.get(User, form_int("user_id", 0))
     try:
         team.add_plan_entry(day, user, request.form.get("text"), current_user,
-                            machine_id=form_int("machine_id"), plot_id=form_int("plot_id"))
+                            machine_id=form_int("machine_id"),
+                            plot_ids=[int(v) for v in request.form.getlist("plot_ids") if v.isdigit()])
         db.session.commit()
     except StorageError as e:
         db.session.rollback()

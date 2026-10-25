@@ -359,6 +359,7 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    übernehmen“ hängt Offenes des letzten Tages (bis eine Woche zurück) an (`team.carry_over`).
    **Tagesplan pflegen** (0.41.1): in der Benutzerverwaltung „Darf den Tagesplan pflegen“ (`User.can_plan`,
    `is_planner`, `team_views.planner_required`) – wie der Admin einteilen, abhaken, löschen, übernehmen, verschicken.
+   **Mehrere Schläge je Eintrag** (0.41.2): gleiche Auswahl wie bei Aufgaben (`macros.plot_pick`, `PlanEntry.plots`).
    *Übergabe* (`/uebergabe`): Notiz zum Feierabend („Was der Nächste wissen muss“), steht oben auf der Startseite,
    bis jemand sie abhakt oder sie älter als 3 Tage ist; Push-Thema „Neue Übergabe-Notiz“ ist von sich aus aus
    (`Handover`).
@@ -599,7 +600,7 @@ Admins. Filter „Nur meine“. Im Abo-Link erscheinen alle Termine (Uhrzeiten i
 ### Aufgabe mit Schlag (0.22.1)
 Aufgaben können sich auf einen Schlag beziehen (neben Maschine, Lieferschein, Lagerplatz). Auf der Schlagseite
 stehen die offenen Aufgaben und ein Knopf „Aufgabe“, der den Schlag vorbelegt; Wiederholungen behalten den Schlag.
-**Mehrere Schläge** (0.40.4): Mehrfachauswahl mit Suchfeld (`Task.plots`, Tabelle `task_plots`); die Aufgabe
+**Mehrere Schläge** (0.40.4): Mehrfachauswahl mit Suchfeld (`macros.plot_pick`, `Task.plots`, Tabelle `task_plots`); die Aufgabe
 erscheint auf jeder ihrer Schlagseiten.
 
 ### Kacheln auf der Übersicht (0.22.0)

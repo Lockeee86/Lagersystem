@@ -193,3 +193,25 @@
 {% endmacro %}
 
 {% macro motor_start(s) %}{% if s %}<span class="text-nowrap" title="{{ _('Nächster geplanter Start') }}"><i class="bi bi-clock me-1"></i>{% if s.day == "today" %}{{ _("Start heute {time} Uhr", time=s.time) }}{% elif s.day == "tomorrow" %}{{ _("Start morgen {time} Uhr", time=s.time) }}{% else %}{{ _("Start {day} {time} Uhr", day=s.day.strftime("%d.%m."), time=s.time) }}{% endif %}</span>{% endif %}{% endmacro %}
+
+{# Mehrfachauswahl Schläge (Checkboxen `plot_ids` mit Suchfeld; Verhalten in app.js) #}
+{% macro plot_pick(plots, chosen, none_label) %}
+{% set chosen_names = plots|selectattr("id", "in", chosen)|map(attribute="label")|list %}
+<div class="dropdown plot-pick" data-plot-pick>
+    <button class="form-select form-select-sm text-start d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="{{ _('Schläge') }}">
+        <span class="text-truncate flex-grow-1" data-plot-summary data-none="{{ none_label }}">{{ chosen_names|join(", ") if chosen_names else none_label }}</span>
+        <span class="badge text-bg-primary {{ 'd-none' if chosen_names|length < 2 }}" data-plot-count>{{ chosen_names|length }}</span>
+    </button>
+    <div class="dropdown-menu p-2 w-100">
+        <input type="search" class="form-control form-control-sm mb-2" placeholder="{{ _('Schlag suchen …') }}" aria-label="{{ _('Schlag suchen …') }}" data-plot-filter>
+        <div class="plot-pick-list">
+            {% for p in plots %}
+            <label class="dropdown-item d-flex align-items-center gap-2 rounded" data-plot-name="{{ p.label|lower }}">
+                <input class="form-check-input m-0" type="checkbox" name="plot_ids" value="{{ p.id }}" data-label="{{ p.label }}" {% if p.id in chosen %}checked{% endif %}>
+                <span class="text-truncate">{{ p.label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endmacro %}

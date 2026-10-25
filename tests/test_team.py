@@ -6,7 +6,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app import push, team
-from app.models import Handover, InstructionRecord, Machine, PlanEntry, PushSubscription
+from app.models import Handover, InstructionRecord, Machine, PlanEntry, Plot, PushSubscription
 from app.storage import StorageError
 
 
@@ -71,7 +71,10 @@ def test_plan_logic(db, seed):
     db.session.add(tractor)
     db.session.flush()
     monday, tuesday = date(2026, 10, 26), date(2026, 10, 27)
-    team.add_plan_entry(monday, worker, "Roden", admin, machine_id=tractor.id, plot_id=seed["plot"].id)
+    south = Plot(name="Wiese Süd")
+    db.session.add(south)
+    db.session.flush()
+    team.add_plan_entry(monday, worker, "Roden", admin, machine_id=tractor.id, plot_ids=[south.id, seed["plot"].id])
     team.add_plan_entry(monday, worker, "Kisten fahren", admin)
     team.add_plan_entry(monday, admin, "Büro", admin)
     with pytest.raises(StorageError, match="Mitarbeiter"):
@@ -80,11 +83,13 @@ def test_plan_logic(db, seed):
         team.add_plan_entry(monday, worker, " ", admin)
     plan = team.plan_for(monday)
     assert [e.text for e in plan[worker.id]] == ["Roden", "Kisten fahren"] and plan[worker.id][0].machine == tractor
+    assert [p.name for p in plan[worker.id][0].plots] == ["Acker Nord", "Wiese Süd"]
 
     # übernehmen: nur für Leute ohne Plan
     team.add_plan_entry(tuesday, admin, "Lieferung", admin)
     assert team.last_planned_day(tuesday) == monday
     assert team.copy_plan(monday, tuesday, admin) == 2
+    assert [p.name for p in team.plan_for(tuesday)[worker.id][0].plots] == ["Acker Nord", "Wiese Süd"]
     assert [e.text for e in team.plan_for(tuesday)[admin.id]] == ["Lieferung"]
     with pytest.raises(StorageError):
         team.copy_plan(None, tuesday, admin)
@@ -96,7 +101,7 @@ def test_plan_pages_and_push(as_admin, as_worker, as_viewer, db, seed):
     assert as_worker.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id,
                                                       "text": "x"}).status_code == 403
     r = as_admin.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id,
-                                                  "text": "Sortieren Halle 2", "plot_id": seed["plot"].id})
+                                                  "text": "Sortieren Halle 2", "plot_ids": [seed["plot"].id]})
     assert r.headers["Location"].endswith(f"/tagesplan?datum={today.isoformat()}#p{worker.id}")
     html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
     assert "Sortieren Halle 2" in html and "Acker Nord" in html and 'name="text"' not in html

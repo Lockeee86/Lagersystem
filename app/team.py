@@ -86,16 +86,16 @@ def plan_for(day):
     return plan
 
 
-def add_plan_entry(day, user, text, actor, machine_id=None, plot_id=None):
+def add_plan_entry(day, user, text, actor, machine_id=None, plot_ids=()):
     text = _text(text, 200)
     if not text:
         raise StorageError(_("Bitte eintragen, was zu tun ist."))
     if user is None or not user.active or not user.can_edit:
         raise StorageError(_("Bitte einen Mitarbeiter wählen."))
     machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
-    plot_id = plot_id if plot_id and db.session.get(Plot, plot_id) else None
+    plots = Plot.query.filter(Plot.id.in_(set(plot_ids))).order_by(Plot.name).all() if plot_ids else []
     position = (db.session.query(func.max(PlanEntry.position)).filter_by(day=day, user_id=user.id).scalar() or 0) + 1
-    entry = PlanEntry(day=day, user_id=user.id, text=text, machine_id=machine_id, plot_id=plot_id,
+    entry = PlanEntry(day=day, user_id=user.id, text=text, machine_id=machine_id, plots=plots,
                       position=position, created_by_id=actor.id if actor else None)
     db.session.add(entry)
     db.session.flush()
@@ -118,7 +118,7 @@ def copy_plan(source_day, target_day, actor):
             continue
         for e in entries:
             db.session.add(PlanEntry(day=target_day, user_id=user_id, text=e.text, machine_id=e.machine_id,
-                                     plot_id=e.plot_id, position=e.position,
+                                     plots=list(e.plots), position=e.position,
                                      created_by_id=actor.id if actor else None))
             copied += 1
     db.session.flush()
@@ -166,7 +166,7 @@ def carry_over(source_day, target_day, actor):
         position = (db.session.query(func.max(PlanEntry.position))
                     .filter_by(day=target_day, user_id=e.user_id).scalar() or 0) + 1
         db.session.add(PlanEntry(day=target_day, user_id=e.user_id, text=e.text, machine_id=e.machine_id,
-                                 plot_id=e.plot_id, position=position, created_by_id=actor.id if actor else None))
+                                 plots=list(e.plots), position=position, created_by_id=actor.id if actor else None))
         db.session.flush()
     return len(candidates)
 
