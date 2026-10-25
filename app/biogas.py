@@ -660,10 +660,26 @@ def _color(rank):
     return "#%02x%02x%02x" % AMPEL[-1][1]
 
 
-def price_strip(series, now=None):
+PRICE_VIEW_KEY = "price_colors"
+PRICE_VIEWS = ("verbraucher", "erzeuger")     # verbraucher: niedrig = grün · erzeuger (BGA): hoch = grün
+
+
+def price_view():
+    setting = db.session.get(Setting, PRICE_VIEW_KEY)
+    return setting.value if setting and setting.value in PRICE_VIEWS else "verbraucher"
+
+
+def save_price_view(view):
+    Setting.put(PRICE_VIEW_KEY, view if view in PRICE_VIEWS else "verbraucher")
+
+
+def price_strip(series, now=None, view=None):
     """Ampel aus Viertelstunden-Preisen (heute ab 0 Uhr, morgen sobald bekannt): Farbe nach Rang innerhalb des
-    angezeigten Zeitraums (günstigste grün, teuerste rot). None ohne Preise.
-    {"segments": [{start, end, price, color, width}], "now_pct", "now_price", "level", "cheapest", "days"}"""
+    angezeigten Zeitraums. Sicht „verbraucher“: günstig grün, teuer rot; „erzeuger“: umgekehrt, und statt der
+    günstigsten wird die teuerste Stunde genannt. None ohne Preise.
+    {"segments": [{start, end, price, color, width}], "now_pct", "now_price", "level", "good", "best", "view", "days"}"""
+    view = view or price_view()
+    producer = view == "erzeuger"
     if not series:
         return None
     now = now or datetime.now(timezone.utc)
@@ -683,7 +699,7 @@ def price_strip(series, now=None):
     for i, (ts, price) in enumerate(points):
         end = points[i + 1][0] if i + 1 < len(points) else ts + timedelta(minutes=15)
         segments.append({"start": ts.astimezone(tz), "end": end.astimezone(tz), "price": price,
-                         "color": _color(rank(price)), "width": (end - ts).total_seconds() / total * 100})
+                         "color": _color(1 - rank(price) if producer else rank(price)), "width": (end - ts).total_seconds() / total * 100})
     now_price = _current(points, now)
     level = None
     if now_price is not None:
@@ -694,7 +710,9 @@ def price_strip(series, now=None):
     for ts, price in points:
         if ts + timedelta(minutes=15) > now:
             hours.setdefault(ts.replace(minute=0, second=0, microsecond=0), []).append(price)
-    cheapest = min(((h, sum(v) / len(v)) for h, v in hours.items() if len(v) >= 1), key=lambda x: x[1], default=None)
+    averages = [(h, sum(v) / len(v)) for h, v in hours.items() if v]
+    pick = max if producer else min
+    best = pick(averages, key=lambda x: x[1], default=None)
     days = []
     day = first.astimezone(tz).date()
     while _midnight(day) < last:
@@ -703,5 +721,8 @@ def price_strip(series, now=None):
         day += timedelta(days=1)
     return {"segments": segments, "now_pct": max(0, min(100, (now - first).total_seconds() / total * 100))
             if first <= now <= last else None, "now_price": now_price, "level": level,
-            "cheapest": (cheapest[0].astimezone(tz), cheapest[1]) if cheapest else None,
+            # gut = grün: für Verbraucher niedrige, für Erzeuger hohe Preise
+            "good": None if level is None else ("good" if level == ("high" if producer else "low")
+                                                else "bad" if level == ("low" if producer else "high") else "mid"),
+            "best": (best[0].astimezone(tz), best[1]) if best else None, "view": view,
             "min": ordered[0], "max": ordered[-1], "days": days}

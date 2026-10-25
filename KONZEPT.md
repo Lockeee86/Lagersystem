@@ -306,6 +306,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    jetzt, gestrichelt = Tageswechsel; dazu Preis jetzt mit „günstig/mittel/teuer“ (unteres/oberes Drittel) und die
    günstigste Stunde ab jetzt (`biogas.price_strip`, Vorlage `partials/price_strip.html`). Auf der Startseite und
    der Biogas-Seite; die Startseite liest nur den Zwischenspeicher, den der Zeitplan auch ohne BHKW frisch hält.
+   **Farben der Ampel** (0.40.1, Verwaltung → Startseite, gilt für alle, `settings` `price_colors`): „Verbraucher“
+   (niedrig grün, hoch rot, günstigste Stunde) oder „Erzeuger“ (z. B. BGA: hoch grün, niedrig rot, teuerste Stunde);
+   das Etikett günstig/mittel/teuer bleibt, seine Farbe folgt der Sicht (`biogas.price_view`).
    **Startseite einstellbar** (0.40.0): Bereiche (Strompreis, Jetzt wichtig, Tagesplan, Übergabe, Aufgaben, BHKW,
    Diese Woche, Wetter, Lager und Bestand) wie die Kacheln: Voreinstellung je Rolle unter Verwaltung → Startseite
    (`settings` `home_<rolle>`; von sich aus: Admin alles, Mitarbeiter ohne Strompreis/BHKW, Betrachter nur Wichtiges,

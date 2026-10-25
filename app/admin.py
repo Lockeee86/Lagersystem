@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import (aerial, agenda, audit, backup, branding, fielddoc, fields, irrigation, sites, storage, tiles, transfer,
+from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, sites, storage, tiles, transfer,
                weather)
 from .auth import validate_password
 from .extensions import db
@@ -121,6 +121,8 @@ def tile_defaults():
         for role in tiles.ROLE_ORDER:
             tiles.save_role_default(role, request.form.getlist(f"tiles_{role}"))
             tiles.save_section_default(role, request.form.getlist(f"home_{role}"))
+        if request.form.get("price_colors"):
+            biogas.save_price_view(request.form["price_colors"])
         db.session.commit()
         flash(_("Voreinstellung gespeichert."), "success")
         return redirect(url_for("admin.tile_defaults"))
@@ -128,6 +130,7 @@ def tile_defaults():
     return render_template("admin/tiles.html", catalog=tiles.CATALOG, roles=tiles.ROLE_ORDER, role_labels=ROLES,
                            defaults={r: tiles.role_default(r) for r in tiles.ROLE_ORDER},
                            sections=tiles.SECTIONS, section_defaults={r: tiles.section_default(r) for r in tiles.ROLE_ORDER},
+                           price_view=biogas.price_view(),
                            can_see_section=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.SECTIONS[key]["role"]],
                            can_see=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.CATALOG[key]["role"]])
 

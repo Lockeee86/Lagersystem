@@ -2168,4 +2168,12 @@ MESSAGES = {
     'Was steht für jede Rolle auf der Startseite? Jeder kann danach selbst Bereiche und Kacheln dazunehmen oder ausblenden.': 'Co jest na stronie głównej dla każdej roli? Każdy może potem sam dodać lub ukryć sekcje i kafelki.',
     'Bereiche der Startseite': 'Sekcje strony głównej',
     'Schnellzugriff am Handy (die ersten vier)': 'Szybki dostęp na telefonie (pierwsze cztery)',
+    'Teuerste Stunde: {day} {hour} Uhr ({price} €/MWh)': 'Najdroższa godzina: {day} {hour}:00 ({price} €/MWh)',
+    'Strompreis-Ampel: Farben': 'Sygnalizator ceny prądu: kolory',
+    'Verbraucher': 'Odbiorca',
+    'niedrige Preise grün, hohe rot – günstigste Stunde': 'niskie ceny na zielono, wysokie na czerwono – najtańsza godzina',
+    'Erzeuger (z. B. Biogasanlage)': 'Wytwórca (np. biogazownia)',
+    'hohe Preise grün, niedrige rot – teuerste Stunde': 'wysokie ceny na zielono, niskie na czerwono – najdroższa godzina',
+    'niedrig': 'nisko',
+    'hoch': 'wysoko',
 }

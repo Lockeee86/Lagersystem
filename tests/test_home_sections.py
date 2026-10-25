@@ -29,6 +29,11 @@ def test_sections_per_role_and_user(app, as_admin, as_worker, as_viewer, db, see
     assert db.session.get(Setting, "home_mitarbeiter").value == ",".join(keys)
     html = as_admin.get("/startseite/kacheln").get_data(as_text=True)
     assert "Startseite anpassen" in html and "Strompreis-Ampel" in html
+    # Farben der Ampel: Erzeuger-Sicht für alle
+    form["price_colors"] = "erzeuger"
+    as_admin.post("/admin/startseite", data=form)
+    assert biogas.price_view() == "erzeuger"
+    assert 'value="erzeuger" id="pc_erzeuger" checked' in as_admin.get("/admin/startseite").get_data(as_text=True)
 
 
 def test_price_strip(app):
@@ -37,13 +42,18 @@ def test_price_strip(app):
     series = [(start + timedelta(minutes=15 * i), 50.0 + (i // 4) * 5) for i in range(96)]     # steigt über den Tag
     series += [(start + timedelta(days=1, minutes=15 * i), 20.0) for i in range(96)]           # morgen billig
     now = start + timedelta(hours=12)
-    strip = biogas.price_strip(series, now=now)
+    strip = biogas.price_strip(series, now=now, view="verbraucher")
     assert len(strip["segments"]) == 192 and abs(sum(s["width"] for s in strip["segments"]) - 100) < 0.01
-    assert strip["now_price"] == 110.0 and strip["level"] == "high"
+    assert strip["now_price"] == 110.0 and strip["level"] == "high" and strip["good"] == "bad"
     assert strip["segments"][0]["color"] != strip["segments"][95]["color"]
-    assert strip["cheapest"][1] == 20.0 and strip["cheapest"][0].date() == (start + timedelta(days=1)).astimezone(tz).date()
+    assert strip["best"][1] == 20.0 and strip["best"][0].date() == (start + timedelta(days=1)).astimezone(tz).date()
     assert [d["pct"] for d in strip["days"]] == [0, 50.0] and round(strip["now_pct"], 1) == 25.0
     assert biogas.price_strip([]) is None
+    # Erzeuger: Farben umgekehrt, hoher Preis ist gut, genannt wird die teuerste Stunde
+    seller = biogas.price_strip(series, now=now, view="erzeuger")
+    cheapest = min(range(192), key=lambda i: series[i][1])
+    assert seller["segments"][cheapest]["color"] == "#c9403a" and strip["segments"][cheapest]["color"] == "#2e9e5b"
+    assert seller["good"] == "good" and seller["best"][1] == 165.0 and seller["best"][0].hour == 23
 
 
 def test_dashboard_strip_from_cache_only(app, as_admin, db, seed, monkeypatch):
