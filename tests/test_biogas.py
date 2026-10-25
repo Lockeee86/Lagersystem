@@ -169,7 +169,9 @@ def test_dashboard_card(app, as_viewer, db, seed, fake_api):
     biogas.refresh_live(app)                                   # wie der Zeitplan
     assert fake_api
     html = as_viewer.get("/").get_data(as_text=True)
-    assert "/ 500 kW" in html                                   # aktueller Wert aus dem Zwischenspeicher
+    # aktueller Wert aus dem Zwischenspeicher: läuft der Motor (Fahrplan 6–14 Uhr), die Leistung, sonst der nächste Start
+    running = biogas.live(cached_only=True)["motors"][0]["running"]
+    assert ("/ 500 kW" if running else "Nächster geplanter Start") in html
     # ohne BHKW keine Karte
     motor.active = False
     db.session.commit()

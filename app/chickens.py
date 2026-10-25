@@ -127,6 +127,27 @@ def share_summary(start, end):
     return [(h, int(n)) for h, n in rows]
 
 
+def fair_order(today=None, days=30):
+    """Aktive Haushalte, wer am längsten nichts bekommen hat zuerst (noch nie → ganz vorn, bei Gleichstand wer
+    in den letzten `days` Tagen weniger bekam). Je Haushalt: last_day, last_eggs, days_since, recent, year."""
+    today = today or date.today()
+    last_rows = {}
+    for share in (EggShare.query.join(Household).filter(Household.active.is_(True))
+                  .order_by(EggShare.day.desc(), EggShare.id.desc())):
+        last_rows.setdefault(share.household_id, share)
+    recent = {h.id: n for h, n in share_summary(today - timedelta(days=days - 1), today)}
+    year = {h.id: n for h, n in share_summary(today.replace(month=1, day=1), today)}
+    rows = []
+    for household in households():
+        last = last_rows.get(household.id)
+        rows.append({"household": household, "last_day": last.day if last else None,
+                     "last_eggs": last.eggs if last else None,
+                     "days_since": (today - last.day).days if last else None,
+                     "recent": recent.get(household.id, 0), "year": year.get(household.id, 0)})
+    rows.sort(key=lambda r: (r["last_day"] is not None, r["last_day"] or date.min, r["recent"], r["household"].position))
+    return rows
+
+
 # --- Herde --------------------------------------------------------------------------------
 
 def add_flock_event(day, reason, count, user, breed=None, hatched_on=None, note=None):
@@ -294,7 +315,9 @@ def summary(today=None):
     week_eggs = db.session.query(func.coalesce(func.sum(EggEntry.eggs), 0)).filter(EggEntry.day >= week_start).scalar()
     size = flock_size(today)
     checks = [{"station": s, **rounds.status(s)} for s in stations()]
+    order = fair_order(today)
     return {"today": eggs_on(today), "flock": size, "stock": stock(), "blocked": blocked(today),
+            "next": order[0] if order else None,
             "week_eggs": int(week_eggs), "week_rate": laying_rate(int(week_eggs), _hen_days(week_start, today)),
             "checks": checks, "overdue": sum(1 for c in checks if c["overdue"]),
             "issues": sum(len(c["open"]) for c in checks)}

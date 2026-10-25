@@ -175,3 +175,24 @@ def test_evening_push(app, db, seed, keeper, monkeypatch):
     push.daily(app, datetime(2026, 10, 25, 19, 0, tzinfo=BERLIN))
     assert not [m for m in push.outbox if m["tag"].startswith("eggs-")]
     assert set_at.tzinfo is not None and set_at.astimezone(timezone.utc)
+
+
+def test_fair_order(as_worker, db, seed, keeper):
+    """Wer am längsten nichts bekommen hat, steht vorn und ist im Formular vorgewählt."""
+    today = date.today()
+    a = chickens.save_household(None, "Haus A")
+    b = chickens.save_household(None, "Haus B")
+    c = chickens.save_household(None, "Haus C")
+    chickens.give_eggs(today - timedelta(days=5), a, 10, None, keeper)
+    chickens.give_eggs(today - timedelta(days=1), b, 10, None, keeper)
+    db.session.commit()
+    order = chickens.fair_order(today)
+    assert [r["household"] for r in order] == [c, a, b]                       # C noch nie, dann A (vor 5 Tagen)
+    assert order[1]["days_since"] == 5 and order[1]["last_eggs"] == 10
+    chickens.give_eggs(today, c, 6, None, keeper)
+    db.session.commit()
+    assert chickens.fair_order(today)[0]["household"] == a
+    assert chickens.summary(today)["next"]["household"] == a
+    html = as_worker.get("/huehner/eier-haushalte").get_data(as_text=True)
+    assert f'value="{a.id}" id="hh{a.id}" required checked' in html and "als Nächstes dran" in html
+    assert "vor 5 Tagen" in html

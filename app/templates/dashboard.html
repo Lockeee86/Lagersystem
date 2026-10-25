@@ -236,6 +236,7 @@
             <div><div class="small text-body-secondary">{{ _("Vorrat") }}</div><div class="fs-4 fw-bold">{{ hens.stock }}</div></div>
             {% if hens.week_rate is not none %}<div><div class="small text-body-secondary">{{ _("Legeleistung (7 Tage)") }}</div><div class="fs-4 fw-bold">{{ hens.week_rate }} %</div></div>{% endif %}
         </div>
+        {% if hens.next %}<a class="d-block small mb-2 text-decoration-none" href="{{ url_for('chickens.eggs') }}#verteilen"><i class="bi bi-house-heart me-1"></i>{{ _("Als Nächstes dran: {name}", name=hens.next.household.name) }} <span class="text-body-secondary">({% if hens.next.last_day %}{{ _("zuletzt {date}", date=hens.next.last_day|date) }}{% else %}{{ _("noch nie") }}{% endif %})</span></a>{% endif %}
         {% if current_user.keeps_chickens or current_user.is_admin %}{{ egg_form(today, url_for('main.dashboard') ~ '#huehner', compact=true) }}{% endif %}
         {% if hens.issues or hens.overdue %}
         <div class="small mt-2 text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>

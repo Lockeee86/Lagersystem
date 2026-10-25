@@ -125,13 +125,9 @@ def task_suggestion():
 @viewer_required
 def eggs():
     today = date.today()
-    year_start = today.replace(month=1, day=1)
-    month_start = today.replace(day=1)
     return render_template(
         "chickens/eggs.html", today=today, stock=chickens.stock(), months=chickens.months(today),
-        households=chickens.households(active_only=False), active_households=chickens.households(),
-        month_shares={h.id: n for h, n in chickens.share_summary(month_start, today)},
-        year_shares=chickens.share_summary(year_start, today),
+        households=chickens.households(active_only=False), turns=chickens.fair_order(today),
         shares=EggShare.query.order_by(EggShare.day.desc(), EggShare.id.desc()).limit(40).all(),
         entries=EggEntry.query.order_by(EggEntry.day.desc(), EggEntry.id.desc()).limit(40).all(),
         blocked=chickens.blocked(today),

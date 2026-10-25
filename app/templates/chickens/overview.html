@@ -13,7 +13,7 @@
             {% if sunset %} · <i class="bi bi-sunset"></i> {{ _("Sonnenuntergang {time} Uhr", time=sunset|time) }}{% endif %}
         </p>
     </div>
-    {% if can_keep %}<a class="btn btn-outline-primary" href="{{ url_for('chickens.eggs') }}#verteilen"><i class="bi bi-house-heart me-1"></i>{{ _("Eier verteilen") }}</a>{% endif %}
+    {% if can_keep %}<a class="btn btn-outline-primary" href="{{ url_for('chickens.eggs') }}#verteilen"><i class="bi bi-house-heart me-1"></i>{{ _("Eier verteilen") }}{% if info.next %} <span class="d-block small">{{ _("als Nächstes: {name}", name=info.next.household.name) }}</span>{% endif %}</a>{% endif %}
 </div>
 
 {{ blocked_alert(info.blocked) }}

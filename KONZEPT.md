@@ -340,6 +340,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    ausmisten wöchentlich, Milben monatlich, Wurmkur alle 3, Impfung alle 6 Monate). Startseite: Bereich „Hühner“
    mit Schnelleingabe. Push: 18 Uhr „noch keine Eier eingetragen“, nach Sonnenuntergang (NOAA-Formel, Hof-Standort)
    „Hühnerklappe zu?“ (von sich aus aus).
+   **Wer ist dran?** (0.42.2): `chickens.fair_order()` – wer am längsten keine Eier bekam (noch nie zuerst, dann
+   ältestes „zuletzt“, bei Gleichstand weniger in 30 Tagen) steht vorn, ist beim Verteilen vorgewählt und steht als
+   „Als Nächstes dran“ auf Startseite und Hühner-Übersicht.
    Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
    Bereiche es beim Speichern gab; später dazugekommene (Hühner) folgen der eingebauten Voreinstellung.
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen

@@ -2,6 +2,7 @@
 {% from "macros.html" import csrf %}
 {% from "chickens/_macros.html" import blocked_alert %}
 {% block title %}{{ _("Eier & Haushalte") }}{% endblock %}
+{% macro macros_since(t) %}{% if t.days_since is none %}{{ _("noch nie") }}{% elif t.days_since == 0 %}{{ _("heute") }}{% elif t.days_since == 1 %}{{ _("gestern") }}{% else %}{{ _("vor {n} Tagen", n=t.days_since) }}{% endif %}{% endmacro %}
 {% block content %}
 {% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
 <div class="page-head">
@@ -19,14 +20,15 @@
         <div class="card shadow-sm mb-4" id="verteilen">
             <div class="card-body">
                 <h2 class="h6 mb-3"><i class="bi bi-house-heart me-1"></i>{{ _("Eier verteilen") }}</h2>
-                {% if active_households %}
+                {% if turns %}
                 <form method="post" action="{{ url_for('chickens.share_add') }}" class="row g-2 align-items-end">
                     {{ csrf() }}
                     <div class="col-12">
+                        <div class="small text-body-secondary mb-2"><i class="bi bi-arrow-right-circle me-1"></i>{{ _("Vorgewählt ist, wer am längsten keine Eier bekommen hat.") }}</div>
                         <div class="d-flex flex-wrap gap-2" role="group" aria-label="{{ _('Haushalt') }}">
-                            {% for h in active_households %}
-                            <input type="radio" class="btn-check" name="household_id" value="{{ h.id }}" id="hh{{ h.id }}" required>
-                            <label class="btn btn-outline-primary" for="hh{{ h.id }}">{{ h.name }}</label>
+                            {% for t in turns %}{% set h = t.household %}
+                            <input type="radio" class="btn-check" name="household_id" value="{{ h.id }}" id="hh{{ h.id }}" required {% if loop.first %}checked{% endif %}>
+                            <label class="btn btn-outline-primary text-start lh-sm" for="hh{{ h.id }}">{{ h.name }}<span class="d-block small opacity-75">{{ macros_since(t) }}</span></label>
                             {% endfor %}
                         </div>
                     </div>
@@ -46,14 +48,22 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-header d-flex justify-content-between">
-                <span>{{ _("Verteilt") }}</span>
-                <span class="small text-body-secondary">{{ _("Monat") }} · {{ _("Jahr") }}</span>
+                <span>{{ _("Wer ist dran?") }}</span>
+                <span class="small text-body-secondary">{{ _("30 Tage") }} · {{ _("Jahr") }}</span>
             </div>
             <ul class="list-group list-group-flush">
-                {% for h, n in year_shares %}
-                <li class="list-group-item d-flex justify-content-between"><span>{{ h.name }}</span><span><strong>{{ month_shares.get(h.id, 0) }}</strong> · {{ n }}</span></li>
+                {% for t in turns %}
+                <li class="list-group-item d-flex justify-content-between align-items-center gap-2 {{ 'list-group-item-success' if loop.first }}">
+                    <span class="min-w-0">
+                        <span class="fw-semibold">{{ t.household.name }}</span>{% if loop.first %} <span class="badge text-bg-success">{{ _("als Nächstes dran") }}</span>{% endif %}
+                        <span class="d-block small text-body-secondary">
+                            {% if t.last_day %}{{ ngettext("zuletzt {date}: {n} Ei", "zuletzt {date}: {n} Eier", t.last_eggs, date=t.last_day|date) }} · {{ macros_since(t) }}{% else %}{{ _("hat noch keine Eier bekommen") }}{% endif %}
+                        </span>
+                    </span>
+                    <span class="text-nowrap"><strong>{{ t.recent }}</strong> · {{ t.year }}</span>
+                </li>
                 {% else %}
-                <li class="list-group-item small text-body-secondary">{{ _("In diesem Jahr noch nichts verteilt.") }}</li>
+                <li class="list-group-item small text-body-secondary">{{ _("Noch keine Haushalte.") }}</li>
                 {% endfor %}
             </ul>
         </div>
