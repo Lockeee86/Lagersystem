@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import movement_item, variety_chip %}
+{% from "macros.html" import movement_item, variety_chip, motor_start %}
 {% block title %}{{ _("Übersicht") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -165,7 +165,7 @@
             <span class="flex-grow-1 min-w-0">
                 <span class="d-flex justify-content-between gap-2">
                     <span class="fw-semibold text-truncate">{{ m.name }}</span>
-                    <span class="small text-nowrap">{% if r.now and r.now.kw_now is not none %}{{ r.now.kw_now|num(0) }}{% if m.power_kw %} / {{ m.power_kw }}{% endif %} kW{% elif m.power_kw %}<span class="text-body-secondary">{{ m.power_kw }} kW</span>{% endif %}</span>
+                    <span class="small text-nowrap">{% if r.start %}<span class="text-body-secondary">{{ motor_start(r.start) }}</span>{% elif r.now and r.now.kw_now is not none %}{{ r.now.kw_now|num(0) }}{% if m.power_kw %} / {{ m.power_kw }}{% endif %} kW{% elif m.power_kw %}<span class="text-body-secondary">{{ m.power_kw }} kW</span>{% endif %}</span>
                 </span>
                 <span class="d-flex justify-content-between gap-2 small text-body-secondary">
                     <span class="text-truncate">

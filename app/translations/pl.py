@@ -2179,4 +2179,8 @@ MESSAGES = {
     'Antippen = ein- oder ausblenden, mit den Pfeilen die Reihenfolge ändern.': 'Dotknij = pokaż lub ukryj, strzałkami zmień kolejność.',
     '{name} nach oben': '{name} w górę',
     '{name} nach unten': '{name} w dół',
+    'Nächster geplanter Start': 'Następny planowany start',
+    'Start heute {time} Uhr': 'Start dziś o {time}',
+    'Start morgen {time} Uhr': 'Start jutro o {time}',
+    'Start {day} {time} Uhr': 'Start {day} o {time}',
 }

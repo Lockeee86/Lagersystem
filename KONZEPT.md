@@ -301,6 +301,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    von Nennleistung, Stunden gestern und die nächste Wartung nach Laufzeit (`biogas.dashboard()`). Die Startseite
    liest nur den Zwischenspeicher (`live(cached_only=True)`), den der Zeitplan alle 10 Minuten auffrischt
    (`refresh_live`) – sie wartet nie auf die API.
+   **Nächster Start** (0.40.3): steht ein Motor, zeigen Startseite und Biogas-Seite den nächsten Start laut Fahrplan
+   („Start heute 17:30 Uhr“ / „morgen …“; `biogas._next_start`, `start_label`).
    **Strompreis-Ampel** (0.40.0): Balken mit den Day-Ahead-Preisen je Viertelstunde von heute 0 Uhr bis morgen
    24 Uhr (sobald veröffentlicht), Farbe nach Rang im angezeigten Zeitraum (günstig grün → teuer rot), Strich =
    jetzt, gestrichelt = Tageswechsel; dazu Preis jetzt mit „günstig/mittel/teuer“ (unteres/oberes Drittel) und die

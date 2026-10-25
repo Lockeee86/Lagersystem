@@ -22,7 +22,8 @@ def overview():
                            strip=biogas.price_strip(live.get("price_series")) if not live.get("error") else None, rows=biogas.overview(),
                            status=biogas.status(), configured=biogas.configured(), today=date.today(),
                            linked=biogas.linked_machines(), windows=windows, windows_error=windows_error,
-                           work=biogas.window_hours(), week=biogas.week_report())
+                           work=biogas.window_hours(), week=biogas.week_report(),
+                           starts={m["machine_id"]: biogas.start_label(m) for m in live.get("motors") or []})
 
 
 @bp.route("/biogas/arbeitszeit", methods=["POST"])

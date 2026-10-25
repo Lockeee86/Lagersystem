@@ -107,7 +107,7 @@ docker compose up --build -d
 - `app/biogas.py`: Rubrik Biogas – Speicher-Kraftwerk-API (nur lesend, `SKVE_API_*` in der Konfiguration; in Tests
   `biogas._get` ersetzen), `sync()` im Zeitplan (einmal am Tag: `ChpDay` je BHKW-Maschine mit `Machine.skve_chp_id`,
   Zähler = `skve_base_counter` + Stunden nach `skve_base_day`; `machines.set_counter` setzt die Basis neu),
-  `live()` (Übersicht, Zwischenspeicher; `refresh_live` im Zeitplan, Startseite nur `cached_only`), `dashboard()`,
+  `live()` (Übersicht, Zwischenspeicher, nächster Start `start_label()`; `refresh_live` im Zeitplan, Startseite nur `cached_only`), `dashboard()`,
   `maintenance_forecast()`, Wartungsfenster `maintenance_windows()` / `best_windows()` (Stillstand
   `MaintenanceTask.downtime_hours`). `app/biogas_views.py` (Blueprint `biogas`). Wartungen kopieren: `machines.copy_tasks`
 - `app/rounds.py`: Rundgang – `CheckStation` (Code `R-01`, `normalize_code`, `/scan` erkennt ihn) und `StationCheck`

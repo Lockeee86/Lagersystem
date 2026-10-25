@@ -314,6 +314,19 @@ def _current(series, now):
     return past[-1][1] if past else None
 
 
+def _next_start(points, now):
+    """Erster geplanter Start nach `now` (Leistung steigt laut Fahrplan auf mindestens RUN_KW) – sonst None."""
+    running = (_current(points, now) or 0) >= RUN_KW
+    for ts, kw in points:
+        if ts <= now:
+            continue
+        on = (kw or 0) >= RUN_KW
+        if on and not running:
+            return ts
+        running = on
+    return None
+
+
 def live(now=None, cached_only=False):
     """Aktuelle Lage: je Motor Leistung jetzt, heute erzeugt, Fahrplan der nächsten 24 h; Gasspeicher; Preis.
     `cached_only` (Startseite): nur den Zwischenspeicher lesen, nie auf die API warten – sonst None."""
@@ -345,7 +358,7 @@ def live(now=None, cached_only=False):
             result["motors"].append({
                 "machine_id": machine.id, "kw_now": kw_now, "running": (kw_now or 0) >= RUN_KW,
                 "today_kwh": today_rows.get("kwh", 0.0), "today_hours": today_rows.get("hours", 0.0),
-                "plan": _hourly(points, next_hour, 24),
+                "plan": _hourly(points, next_hour, 24), "next_start": _next_start(points, now),
             })
         levels = gas_levels(now - timedelta(hours=6), end)
         if levels:
@@ -368,6 +381,20 @@ def refresh_live(app):
             live()
 
 
+def start_label(motor, today=None, now=None):
+    """Nächster Start eines stehenden Motors für die Anzeige: {"day": "today"|"tomorrow"|date, "time": "17:30"}."""
+    if not motor or motor.get("running") or not motor.get("next_start"):
+        return None
+    now = now or datetime.now(timezone.utc)
+    if motor["next_start"] <= now:                     # Zwischenspeicher älter als der Start
+        return None
+    local = motor["next_start"].astimezone(local_tz())
+    today = today or now.astimezone(local_tz()).date()
+    days = (local.date() - today).days
+    return {"day": "today" if days == 0 else "tomorrow" if days == 1 else local.date(),
+            "time": local.strftime("%H:%M")}
+
+
 def dashboard(today=None):
     """Kurzübersicht für die Startseite: je BHKW Zustand, Leistung, Stunden gestern und die nächste Wartung."""
     today = today or date.today()
@@ -385,8 +412,10 @@ def dashboard(today=None):
     for machine in machines_:
         forecast = maintenance_forecast(machine, today)
         known = [f for f in forecast if f["left"] is not None]
-        rows.append({"machine": machine, "now": now_by_id.get(machine.id), "yesterday": yesterday.get(machine.id),
-                     "next": known[0] if known else (forecast[0] if forecast else None)})
+        current_row = now_by_id.get(machine.id)
+        rows.append({"machine": machine, "now": current_row, "yesterday": yesterday.get(machine.id),
+                     "next": known[0] if known else (forecast[0] if forecast else None),
+                     "start": start_label(current_row, today)})
     return {"rows": rows, "live": bool(now_by_id),
             "kw": sum(r["now"]["kw_now"] or 0 for r in rows if r["now"]),
             "running": sum(1 for r in rows if r["now"] and r["now"]["running"])}

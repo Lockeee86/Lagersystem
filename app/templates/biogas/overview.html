@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, motor_start %}
 {% block title %}{{ _("Biogas") }}{% endblock %}
 {% block content %}
 {% set motors = {} %}
@@ -128,6 +128,7 @@
                 <a class="fw-semibold text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}"><span class="motor-state {{ 'on' if now and now.running }} me-2"></span>{{ m.name }}</a>
                 <span class="small text-body-secondary text-end">
                     {% if now and now.kw_now is not none %}{{ now.kw_now|num(0) }} kW{% if m.power_kw %} {{ _("von {kw}", kw=m.power_kw) }}{% endif %}{% elif m.power_kw %}{{ m.power_kw }} kW{% endif %}
+                    {% if starts.get(m.id) %}<span class="d-block">{{ motor_start(starts.get(m.id)) }}</span>{% endif %}
                 </span>
             </div>
             <div class="card-body">

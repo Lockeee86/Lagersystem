@@ -253,3 +253,19 @@ def test_week_report_and_push(app, db, seed, fake_api):
     assert message["title"] == "Biogas letzte Woche: 28,0 MWh"
     assert "56 Betriebsstunden" in message["body"] and "BHKW Test 2: 7 Tage Stillstand" in message["body"]
     assert "Ø 100 €/MWh" in message["body"]
+
+
+def test_next_start(app, db, seed, fake_api):
+    make_bhkw(db, seed, 11, "BHKW Test")
+    day = date(2026, 7, 1)
+    on_from, on_to = run_window(day)
+    stopped = biogas.live(now=on_from - timedelta(hours=2))["motors"][0]
+    assert not stopped["running"] and stopped["next_start"] == on_from
+    label = biogas.start_label(stopped, day, now=on_from - timedelta(hours=2))
+    assert label == {"day": "today", "time": "06:00"}
+    evening = on_to + timedelta(hours=1)                           # heute fertig → morgen 6 Uhr
+    motor = biogas.live(now=evening)["motors"][0]
+    assert biogas.start_label(motor, day, now=evening) == {"day": "tomorrow", "time": "06:00"}
+    running = biogas.live(now=on_from + timedelta(hours=1))["motors"][0]
+    assert running["running"] and biogas.start_label(running, day) is None
+    assert biogas.start_label(stopped, day, now=on_from + timedelta(minutes=1)) is None    # Start schon vorbei
