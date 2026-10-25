@@ -2200,4 +2200,6 @@ MESSAGES = {
     'Unerledigtes vom {date} übernehmen ({n})': 'Przenieś niezałatwione z {date} ({n})',
     '„{entry}“ aus dem Plan löschen?': 'Usunąć „{entry}” z planu?',
     'erledigt {time}': 'załatwione {time}',
+    'Darf den Tagesplan pflegen': 'Może prowadzić plan dnia',
+    'Darf den Tagesplan pflegen (einteilen, abhaken, verschicken; Admins dürfen das immer)': 'Może prowadzić plan dnia (przydzielać, odhaczać, wysyłać; administratorzy zawsze)',
 }

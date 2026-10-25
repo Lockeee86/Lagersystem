@@ -93,6 +93,7 @@ class User(UserMixin, db.Model):
     map_view = db.Column(db.String(10), nullable=False, default="karte", server_default="karte")
     # Besteller: bearbeitet Bestellwünsche (Admins dürfen das immer)
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    can_plan = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Geheimer Schlüssel für den Kalender-Abo-Link (leer = noch nie abonniert)
     calendar_token = db.Column(db.String(64), unique=True)
     # Kacheln auf der Übersicht: Abweichungen von der Voreinstellung der Rolle (kommagetrennt, siehe tiles.py)
@@ -150,6 +151,11 @@ class User(UserMixin, db.Model):
     def is_buyer(self):
         """Darf Bestellwünsche bearbeiten (bestellen, Liefertermin eintragen …)."""
         return self.is_admin or (self.can_order and self.can_edit)
+
+    @property
+    def is_planner(self):
+        """Darf den Tagesplan pflegen (einteilen, löschen, übernehmen, verschicken)."""
+        return self.is_admin or (self.can_plan and self.can_edit)
 
     def push_topics(self):
         """Push-Themen, die für diesen Benutzer in Frage kommen (je nach Rolle)."""
@@ -1495,8 +1501,8 @@ class PlanEntry(db.Model):
     plot = db.relationship("Plot")
 
     def can_check(self, user):
-        """Abhaken darf die eingeteilte Person und der Admin."""
-        return bool(user and user.is_authenticated and (user.id == self.user_id or user.is_admin))
+        """Abhaken darf die eingeteilte Person und wer den Tagesplan pflegt."""
+        return bool(user and user.is_authenticated and (user.id == self.user_id or user.is_planner))
 
     @property
     def label(self):                             # fürs Änderungsprotokoll

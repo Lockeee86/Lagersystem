@@ -707,6 +707,7 @@ def users():
         user.role = role
         user.active = active
         user.can_order = bool(request.form.get("can_order"))
+        user.can_plan = bool(request.form.get("can_plan"))
         language = form_str("language", 5)
         if language in LANGUAGES:
             user.language = language

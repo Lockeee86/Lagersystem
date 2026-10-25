@@ -38,7 +38,7 @@ ACTIONS = {"geaendert": N_("geändert"), "geloescht": N_("gelöscht"), "import":
 FIELDS = {
     "name": N_("Name"), "note": N_("Notiz"), "active": N_("Aktiv"), "address": N_("Anschrift"), "phone": N_("Telefon"),
     "email": N_("E-Mail"), "role": N_("Rolle"), "display_name": N_("Anzeigename"), "password_hash": N_("Passwort"),
-    "can_order": N_("Darf bestellen"), "area_ha": N_("Fläche"), "site_id": N_("Betriebsstätte"),
+    "can_order": N_("Darf bestellen"), "can_plan": N_("Darf den Tagesplan pflegen"), "area_ha": N_("Fläche"), "site_id": N_("Betriebsstätte"),
     "crop": N_("Kultur"), "variety_id": N_("Sorte"), "variety_name": N_("Sorte"), "planted_on": N_("Gepflanzt am"),
     "harvested_on": N_("Gerodet am"), "seed_note": N_("Pflanzgut"), "planned_crop": N_("Geplante Kultur"),
     "boundary": N_("Umriss"), "number": N_("Nummer"), "date": N_("Datum"), "vehicle": N_("Fahrzeug"),

@@ -357,6 +357,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **Abhaken** (0.41.0): die eingeteilte Person (oder der Admin) hakt ihre Einträge ab – durchgestrichen mit Uhrzeit
    (`PlanEntry.done_at/done_by`, `team.toggle_plan_entry`); das ✕ (löschen, nur Admin) fragt nach. „Unerledigtes vom …
    übernehmen“ hängt Offenes des letzten Tages (bis eine Woche zurück) an (`team.carry_over`).
+   **Tagesplan pflegen** (0.41.1): in der Benutzerverwaltung „Darf den Tagesplan pflegen“ (`User.can_plan`,
+   `is_planner`, `team_views.planner_required`) – wie der Admin einteilen, abhaken, löschen, übernehmen, verschicken.
    *Übergabe* (`/uebergabe`): Notiz zum Feierabend („Was der Nächste wissen muss“), steht oben auf der Startseite,
    bis jemand sie abhakt oder sie älter als 3 Tage ist; Push-Thema „Neue Übergabe-Notiz“ ist von sich aus aus
    (`Handover`).

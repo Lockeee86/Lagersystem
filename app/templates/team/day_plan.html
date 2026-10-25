@@ -17,7 +17,7 @@
     </div>
 </div>
 
-{% if current_user.is_admin %}
+{% if current_user.is_planner %}
 <div class="d-flex flex-wrap gap-2 mb-3">
     {% if previous %}
     <form method="post" action="{{ url_for('team.plan_copy') }}">
@@ -41,14 +41,14 @@
 </div>
 {% endif %}
 
-{% if not plan and not current_user.is_admin %}
+{% if not plan and not current_user.is_planner %}
 <div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Für diesen Tag ist noch niemand eingeteilt.") }}</div></div>
 {% endif %}
 
 <div class="row g-3">
     {% for user in members %}
     {% set entries = plan.get(user.id, []) %}
-    {% if entries or current_user.is_admin %}
+    {% if entries or current_user.is_planner %}
     <div class="col-md-6 col-xl-4">
         <div class="card shadow-sm h-100 plan-card {{ 'is-me' if user.id == current_user.id }}" id="p{{ user.id }}">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -57,13 +57,13 @@
             </div>
             <div class="card-body py-2">
                 {% call(e) plan_lines(entries) %}
-                {% if current_user.is_admin %}
+                {% if current_user.is_planner %}
                 <form method="post" action="{{ url_for('team.plan_delete', entry_id=e.id) }}" class="ms-auto">
                     {{ csrf() }}<button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Entfernen') }}" title="{{ _('Entfernen') }}" data-confirm="{{ _('„{entry}“ aus dem Plan löschen?', entry=e.text) }}"><i class="bi bi-x-lg"></i></button>
                 </form>
                 {% endif %}
                 {% endcall %}
-                {% if current_user.is_admin %}
+                {% if current_user.is_planner %}
                 <form method="post" action="{{ url_for('team.plan_add') }}" class="plan-add mt-2">
                     {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ user.id }}">
                     <div class="input-group input-group-sm">
@@ -88,7 +88,7 @@
     {% endif %}
     {% endfor %}
 </div>
-{% if current_user.is_admin %}
+{% if current_user.is_planner %}
 <datalist id="planTexts">{% for text in recent_texts %}<option value="{{ text }}">{% endfor %}</datalist>
 {% endif %}
 {% endblock %}

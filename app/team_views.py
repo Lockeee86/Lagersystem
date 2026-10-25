@@ -1,5 +1,6 @@
 """Seiten fürs Team: Übergabe-Notizen, Tagesplan, Unterweisungen (Logik in team.py)."""
 from datetime import date, datetime, timedelta
+from functools import wraps
 
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
@@ -13,6 +14,17 @@ from .storage import StorageError
 from .utils import admin_required, back, editor_required, flash_error, form_date, form_int, form_str, local_tz
 
 bp = Blueprint("team", __name__)
+
+
+def planner_required(view):
+    """Tagesplan pflegen: Admin oder Mitarbeiter mit „Darf den Tagesplan pflegen“."""
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not current_user.is_planner:
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapped
 
 
 def _get(model, obj_id):
@@ -59,7 +71,7 @@ def handover_done(note_id):
 def _default_day():
     """Nachmittags plant man meist den nächsten Tag."""
     now = datetime.now(local_tz())
-    return now.date() + timedelta(days=1) if current_user.is_admin and now.hour >= 14 else now.date()
+    return now.date() + timedelta(days=1) if current_user.is_planner and now.hour >= 14 else now.date()
 
 
 def _form_day():
@@ -82,23 +94,23 @@ def day_plan():
     # Leute mit Einträgen zuerst, dann die übrigen; der eigene Plan ganz oben
     members.sort(key=lambda u: (u.id != current_user.id, u.id not in plan))
     recent = []
-    if current_user.is_admin:                    # Vorschläge fürs Textfeld: zuletzt verwendete Einträge
+    if current_user.is_planner:                  # Vorschläge fürs Textfeld: zuletzt verwendete Einträge
         for (text,) in (db.session.query(PlanEntry.text).filter(PlanEntry.day >= day - timedelta(days=60))
                         .group_by(PlanEntry.text).order_by(db.func.max(PlanEntry.id).desc()).limit(40)):
             recent.append(text)
     return render_template(
         "team/day_plan.html", day=day, plan=plan, members=members, today=date.today(), timedelta1=timedelta(days=1),
         recent_texts=recent, sent=db.session.get(Setting, f"push_plan_sent_{day.isoformat()}") is not None,
-        previous=team.last_planned_day(day) if current_user.is_admin else None,
-        open_day=(open_day := team.last_open_day(day) if current_user.is_admin else None),
+        previous=team.last_planned_day(day) if current_user.is_planner else None,
+        open_day=(open_day := team.last_open_day(day) if current_user.is_planner else None),
         open_count=len(team.carry_candidates(open_day, day)) if open_day else 0,
-        machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_admin else [],
-        plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.is_admin else [],
+        machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_planner else [],
+        plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.is_planner else [],
     )
 
 
 @bp.route("/tagesplan/eintrag", methods=["POST"])
-@admin_required
+@planner_required
 def plan_add():
     day = _form_day()
     user = db.session.get(User, form_int("user_id", 0))
@@ -113,7 +125,7 @@ def plan_add():
 
 
 @bp.route("/tagesplan/eintrag/<int:entry_id>/loeschen", methods=["POST"])
-@admin_required
+@planner_required
 def plan_delete(entry_id):
     entry = _get(PlanEntry, entry_id)
     day, user_id = entry.day, entry.user_id
@@ -123,7 +135,7 @@ def plan_delete(entry_id):
 
 
 @bp.route("/tagesplan/uebernehmen", methods=["POST"])
-@admin_required
+@planner_required
 def plan_copy():
     day = _form_day()
     source = team.last_planned_day(day)
@@ -139,7 +151,7 @@ def plan_copy():
 
 
 @bp.route("/tagesplan/offenes", methods=["POST"])
-@admin_required
+@planner_required
 def plan_carry_over():
     day = _form_day()
     source = team.last_open_day(day)
@@ -168,7 +180,7 @@ def plan_check(entry_id):
 
 
 @bp.route("/tagesplan/verschicken", methods=["POST"])
-@admin_required
+@planner_required
 def plan_send():
     day = _form_day()
     if not team.plan_for(day):

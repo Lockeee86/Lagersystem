@@ -157,6 +157,30 @@ def test_plan_check_and_carry_over(as_admin, as_worker, as_viewer, db, seed):
     assert sweep.done_at is None
 
 
+def test_plan_editor(as_admin, as_worker, db, seed):
+    """Admin erlaubt einem Mitarbeiter in der Benutzerverwaltung, den Tagesplan zu pflegen."""
+    worker, admin = seed["worker"], seed["admin"]
+    today = date.today()
+    data = {"datum": today.isoformat(), "user_id": admin.id, "text": "Büro aufräumen"}
+    assert as_worker.post("/tagesplan/eintrag", data=data).status_code == 403
+    assert 'name="text"' not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter", "active": "1",
+                                           "can_plan": "1"})
+    assert worker.can_plan and worker.is_planner
+    assert "Tagesplan" in as_admin.get("/admin/benutzer").get_data(as_text=True)
+    as_worker.post("/tagesplan/eintrag", data=data)
+    entry = PlanEntry.query.filter_by(text="Büro aufräumen").one()
+    html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert 'name="text"' in html and "Plan aufs Handy schicken" in html
+    as_worker.post(f"/tagesplan/eintrag/{entry.id}/erledigt")               # darf auch für andere abhaken
+    assert entry.done_by_id == worker.id
+    as_worker.post(f"/tagesplan/eintrag/{entry.id}/loeschen")
+    assert PlanEntry.query.count() == 0
+    worker.role = "betrachter"                                               # nur zusammen mit Bearbeiten-Recht
+    db.session.commit()
+    assert not worker.is_planner
+
+
 # --- Unterweisungen ----------------------------------------------------------
 
 def test_instruction_status(db, seed):
