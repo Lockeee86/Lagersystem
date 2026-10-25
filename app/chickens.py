@@ -315,9 +315,10 @@ def summary(today=None):
     week_eggs = db.session.query(func.coalesce(func.sum(EggEntry.eggs), 0)).filter(EggEntry.day >= week_start).scalar()
     size = flock_size(today)
     checks = [{"station": s, **rounds.status(s)} for s in stations()]
+    from . import coop
     order = fair_order(today)
     return {"today": eggs_on(today), "flock": size, "stock": stock(), "blocked": blocked(today),
-            "next": order[0] if order else None,
+            "next": order[0] if order else None, "sensor": coop.status(),
             "week_eggs": int(week_eggs), "week_rate": laying_rate(int(week_eggs), _hen_days(week_start, today)),
             "checks": checks, "overdue": sum(1 for c in checks if c["overdue"]),
             "issues": sum(len(c["open"]) for c in checks)}
@@ -357,14 +358,31 @@ def evening_check(now, done, mark):
             push.notify(keepers(), "eggs_missing", Msg("Hühner: noch keine Eier eingetragen"),
                         Msg("Bitte die Eier von heute eintragen."), url_for("chickens.overview", eier=1),
                         tag=f"eggs-{today.isoformat()}")
+    from . import coop
+    sensor = coop.status()
+    known = sensor is not None and not sensor["offline"] and sensor["door"] is not None
     set_at = farm_sunset(today)
     if set_at and now >= set_at + COOP_DELAY and not done("coop", today):
-        mark("coop", today)
-        if flock_size(today) > 0:
-            local = set_at.astimezone(now.tzinfo)
-            push.notify(keepers(), "coop_close", Msg("Hühnerklappe zu?"),
+        local = set_at.astimezone(now.tzinfo)
+        if known and not sensor["door"]:
+            mark("coop", today)                    # Sensor meldet „zu“ – keine Erinnerung nötig
+        elif known:
+            # Sensor meldet „offen“: dringend, und von sich aus an alle Hühner-Leute (auch ohne „Klappe zu?“)
+            mark("coop", today)
+            push.notify(keepers(), "coop_open", Msg("Hühnerklappe ist noch offen!"),
                         Msg("Sonnenuntergang war um {time} Uhr.", time=local.strftime("%H:%M")),
                         url_for("chickens.overview"), tag=f"coop-{today.isoformat()}")
+        else:
+            mark("coop", today)
+            if flock_size(today) > 0:
+                push.notify(keepers(), "coop_close", Msg("Hühnerklappe zu?"),
+                            Msg("Sonnenuntergang war um {time} Uhr.", time=local.strftime("%H:%M")),
+                            url_for("chickens.overview"), tag=f"coop-{today.isoformat()}")
+    coop.alerts(now, done, mark, keepers())
+    if not done("coop_cleanup", today):
+        mark("coop_cleanup", today)
+        coop.cleanup()
+        db.session.commit()
 
 
 def issue_reported(check):

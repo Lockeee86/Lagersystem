@@ -192,7 +192,7 @@ def create_app(config=None):
     @app.before_request
     def require_setup():
         """Solange kein Benutzer existiert, führt jeder Weg zur Ersteinrichtung."""
-        if request.endpoint in ("auth.setup", "static", "api.health", "branding.logo"):
+        if request.endpoint in ("auth.setup", "static", "api.health", "api.coop_sensor", "branding.logo"):
             return None
         if not app.config.get("_setup_done"):
             if db.session.query(User.id).first() is None:

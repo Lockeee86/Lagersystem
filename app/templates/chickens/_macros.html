@@ -47,3 +47,42 @@
     <span>{{ days[0][0]|date }}</span><span>{{ _("max. {n} am Tag", n=top) }}</span><span>{{ _("Heute") }}</span>
 </div>
 {% endmacro %}
+
+{# Stall-Sensor: Klappe, Temperatur, Feuchte (coop.status); compact = Startseite #}
+{% macro sensor_line(sensor) %}
+{% if sensor %}
+<div class="d-flex flex-wrap gap-3 align-items-center small mb-2 coop-line">
+    {% if sensor.door is not none %}
+    <span class="fw-semibold {{ 'text-warning-emphasis' if sensor.door else 'text-success' }}"><i class="bi {{ 'bi-door-open' if sensor.door else 'bi-door-closed' }} me-1"></i>{{ _("Klappe offen") if sensor.door else _("Klappe zu") }} <span class="fw-normal text-body-secondary">{{ _("seit {time}", time=sensor.door_since|time) }}</span></span>
+    {% endif %}
+    {% if sensor.temperature is not none %}<span><i class="bi bi-thermometer-half me-1"></i>{{ sensor.temperature|num(1) }} °C</span>{% endif %}
+    {% if sensor.humidity is not none %}<span><i class="bi bi-droplet me-1"></i>{{ sensor.humidity|num(0) }} %</span>{% endif %}
+    {% if sensor.offline %}<span class="text-danger"><i class="bi bi-wifi-off me-1"></i>{{ _("Sensor stumm seit {date}", date=sensor.seen|datetime) }}</span>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro sensor_chart(points) %}
+{% set temps = points|map(attribute=1)|reject("none")|list %}
+{% if temps|length > 1 %}
+{% set lo, hi = (temps|min) - 1, (temps|max) + 1 %}
+{% set t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp() %}
+{% set span = [t1 - t0, 1]|max %}
+{% set ns = namespace(temp="", hum="") %}
+{% for at, t, h in points %}
+{% set x = (1000 * (at.timestamp() - t0) / span)|round(1) %}
+{% if t is not none %}{% set ns.temp = ns.temp ~ x ~ "," ~ (200 - 200 * (t - lo) / (hi - lo))|round(1) ~ " " %}{% endif %}
+{% if h is not none %}{% set ns.hum = ns.hum ~ x ~ "," ~ (200 - 2 * h)|round(1) ~ " " %}{% endif %}
+{% endfor %}
+<svg class="coop-chart" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('Temperatur und Luftfeuchte der letzten 48 Stunden') }}">
+    {% if lo < 0 < hi %}<line x1="0" x2="1000" y1="{{ (200 - 200 * (0 - lo) / (hi - lo))|round(1) }}" y2="{{ (200 - 200 * (0 - lo) / (hi - lo))|round(1) }}" class="coop-zero"/>{% endif %}
+    {% if ns.hum %}<polyline points="{{ ns.hum }}" class="coop-hum"/>{% endif %}
+    <polyline points="{{ ns.temp }}" class="coop-temp"/>
+</svg>
+<div class="d-flex justify-content-between small text-body-secondary mt-1">
+    <span>{{ points[0][0]|datetime }}</span>
+    <span><span class="coop-key coop-key-temp"></span>{{ _("Temperatur") }} {{ (temps|min)|num(1) }}–{{ (temps|max)|num(1) }} °C · <span class="coop-key coop-key-hum"></span>{{ _("Feuchte") }}</span>
+    <span>{{ _("jetzt") }}</span>
+</div>
+{% endif %}
+{% endmacro %}

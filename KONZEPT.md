@@ -343,6 +343,13 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **Wer ist dran?** (0.42.2): `chickens.fair_order()` – wer am längsten keine Eier bekam (noch nie zuerst, dann
    ältestes „zuletzt“, bei Gleichstand weniger in 30 Tagen) steht vorn, ist beim Verteilen vorgewählt und steht als
    „Als Nächstes dran“ auf Startseite und Hühner-Übersicht.
+   **Stall-Sensor über Meshtastic** (0.43.0, `coop.py`, `bridge/`): Knoten am Stall (SHT31/BME280 + Reedkontakt
+   über das Detection-Sensor-Modul) → LoRa → Gateway im Haus → MQTT (Mosquitto im Stack, Profil `huehner`) →
+   `coop-bridge` → `POST /api/huehner/sensor` (Schlüssel per Admin erzeugt, nur Hash in `settings`).
+   Gespeichert: `CoopReading` (°C, %, Akku, Spannung, RSSI/SNR), `CoopDoorEvent` (nur Änderungen). Anzeige auf
+   Hühner-Übersicht (Kurve 48 h, Klappen-Zeiten) und Startseiten-Karte. Klappen-Push nach Sonnenuntergang nur
+   noch, wenn der Sensor „offen“ meldet (dann dringend, Thema `coop_open`); Push bei Frost/Hitze/Sensor stumm
+   (`coop_sensor`). Einrichtung in `bridge/README.md`.
    Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
    Bereiche es beim Speichern gab; später dazugekommene (Hühner) folgen der eingebauten Voreinstellung.
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen

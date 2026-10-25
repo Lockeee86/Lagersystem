@@ -30,6 +30,34 @@ services:
       retries: 3
       start_period: 20s
 
+  # --- Hühnerstall-Sensor (Meshtastic) – nur mit COMPOSE_PROFILES=huehner, siehe bridge/README.md ---
+  mqtt:
+    build: ./bridge/mosquitto
+    container_name: lagersystem-mqtt
+    profiles: ["huehner"]
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    restart: unless-stopped
+
+  coop-bridge:
+    build: ./bridge
+    container_name: lagersystem-coop-bridge
+    profiles: ["huehner"]
+    environment:
+      - APP_URL=http://web:5000/api/huehner/sensor
+      - COOP_API_TOKEN=${COOP_API_TOKEN:-}
+      - MQTT_HOST=mqtt
+      - MQTT_TOPIC=${MESHTASTIC_TOPIC:-msh/#}
+      - COOP_NODE=${COOP_NODE:-}
+      - DOOR_NAME=${COOP_DOOR_NAME:-Klappe}
+      - DOOR_ACTIVE=${COOP_DOOR_ACTIVE:-open}
+      - DEBUG=${COOP_DEBUG:-}
+      - TZ=${TZ:-Europe/Berlin}
+    depends_on:
+      - mqtt
+      - web
+    restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     container_name: lagersystem-db

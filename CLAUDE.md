@@ -120,6 +120,9 @@ docker compose up --build -d
   Rundgang mit `CheckStation.area == "huehner"`, Aufgaben `Task.area`; Push `evening_check()` aus `push.daily`
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Rubriken mit
   `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer
+- `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` aus `api.coop_sensor` (`/api/huehner/sensor`, Schlüssel
+  `new_token()`/`check_token()`), `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;
+  Brücke MQTT → App in `bridge/` (eigener Container, Compose-Profil `huehner`, Anleitung `bridge/README.md`)
 - `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
   (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es
