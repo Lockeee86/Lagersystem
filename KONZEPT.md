@@ -593,6 +593,8 @@ Admins. Filter „Nur meine“. Im Abo-Link erscheinen alle Termine (Uhrzeiten i
 ### Aufgabe mit Schlag (0.22.1)
 Aufgaben können sich auf einen Schlag beziehen (neben Maschine, Lieferschein, Lagerplatz). Auf der Schlagseite
 stehen die offenen Aufgaben und ein Knopf „Aufgabe“, der den Schlag vorbelegt; Wiederholungen behalten den Schlag.
+**Mehrere Schläge** (0.40.4): Mehrfachauswahl mit Suchfeld (`Task.plots`, Tabelle `task_plots`); die Aufgabe
+erscheint auf jeder ihrer Schlagseiten.
 
 ### Kacheln auf der Übersicht (0.22.0)
 Die Kacheln am Handy sind einstellbar: Der Admin legt unter Verwaltung → Startseite fest, welche Kacheln jede Rolle

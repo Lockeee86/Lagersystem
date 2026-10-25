@@ -25,8 +25,8 @@
                 <dl class="row small mb-0">
                     <dt class="col-4 fw-normal text-body-secondary">{{ _("Für") }}</dt>
                     <dd class="col-8">{{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</dd>
-                    {% if task.plot %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Schlag") }}</dt>
-                    <dd class="col-8"><a href="{{ url_for('fields.field_detail', plot_id=task.plot_id) }}">{{ task.plot.label }}</a></dd>{% endif %}
+                    {% if task.plots %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Schläge") if task.plots|length > 1 else _("Schlag") }}</dt>
+                    <dd class="col-8">{% for p in task.plots %}<a href="{{ url_for('fields.field_detail', plot_id=p.id) }}">{{ p.label }}</a>{{ ", " if not loop.last }}{% endfor %}</dd>{% endif %}
                     {% if task.machine %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Maschine") }}</dt>
                     <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}">{{ task.machine.name }}</a></dd>{% endif %}
                     {% if task.machine_event %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Störung") }}</dt>

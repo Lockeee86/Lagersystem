@@ -1124,6 +1124,12 @@ task_assignees = db.Table(
     db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
 )
 
+task_plots = db.Table(
+    "task_plots",
+    db.Column("task_id", db.Integer, db.ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("plot_id", db.Integer, db.ForeignKey("plots.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
+
 
 class Task(db.Model):
     """Aufgabe für eine oder mehrere Personen (keine Zuteilung = für alle). Einer hakt für alle ab.
@@ -1141,7 +1147,6 @@ class Task(db.Model):
     delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id", ondelete="SET NULL"))
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"))
     row = db.Column(db.Integer)
-    plot_id = db.Column(db.Integer, db.ForeignKey("plots.id", ondelete="SET NULL"), index=True)
     # Aus einer Störung bzw. fälligen Wartung entstanden: Abhaken erledigt beides
     machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"), index=True)
     maintenance_task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"), index=True)
@@ -1157,7 +1162,7 @@ class Task(db.Model):
     machine = db.relationship("Machine")
     delivery = db.relationship("Delivery")
     warehouse = db.relationship("Warehouse")
-    plot = db.relationship("Plot")
+    plots = db.relationship("Plot", secondary=task_plots, order_by="Plot.name")
     machine_event = db.relationship("MachineEvent")
     maintenance_task = db.relationship("MaintenanceTask")
     done_by = db.relationship("User", foreign_keys=[done_by_id])

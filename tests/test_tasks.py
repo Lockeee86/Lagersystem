@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 
 from app import machines, tasks
-from app.models import Task
+from app.models import Plot, Task
 from app.storage import StorageError
 
 MON = date(2026, 10, 19)   # Montag
@@ -153,12 +153,19 @@ def test_task_for_plot(as_admin, as_worker, db, seed):
     """Aufgabe mit Bezug zu einem Schlag – angelegt von der Schlagseite aus, dort auch sichtbar."""
     plot = seed["plot"]
     html = as_worker.get(f"/aufgaben?neu=1&schlag={plot.id}").get_data(as_text=True)
-    assert f'<option value="{plot.id}" selected>' in html
-    as_admin.post("/aufgaben/neu", data={"title": "Steine sammeln", "plot_id": str(plot.id), "recurrence": "woechentlich"})
+    assert f'name="plot_ids" value="{plot.id}" data-label="{plot.label}" checked' in html
+    other = Plot(name="Wiese Süd")
+    db.session.add(other)
+    db.session.commit()
+    as_admin.post("/aufgaben/neu", data={"title": "Steine sammeln", "plot_ids": [str(plot.id), str(other.id)],
+                                         "recurrence": "woechentlich"})
     task = Task.query.filter_by(title="Steine sammeln").one()
-    assert task.plot == plot
+    assert task.plots == [plot, other]
+    assert [t.title for t in tasks.for_plot(other.id)] == ["Steine sammeln"]
     page = as_worker.get(f"/schlag/{plot.id}").get_data(as_text=True)
     assert "Steine sammeln" in page and f"schlag={plot.id}" in page
     assert "Acker Nord" in as_worker.get(f"/aufgabe/{task.id}").get_data(as_text=True)
     follow_up = tasks.complete_task(task, seed["admin"])
-    assert follow_up.plot_id == plot.id                                  # Wiederholung behält den Schlag
+    assert follow_up.plots == [plot, other]                              # Wiederholung behält die Schläge
+    as_admin.post(f"/aufgabe/{follow_up.id}/bearbeiten", data={"title": "Steine sammeln", "plot_ids": [str(other.id)]})
+    assert follow_up.plots == [other]

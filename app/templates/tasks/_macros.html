@@ -25,7 +25,7 @@
             <span class="{{ 'text-danger fw-semibold' if task.due_on < today }}">{{ _("Heute") if task.due_on == today else task.due_on|weekday ~ " " ~ task.due_on|date }}</span>
             {% endif %}
             <span><i class="bi bi-person"></i> {{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</span>
-            {% if task.plot %}<span><i class="bi bi-map"></i> {{ task.plot.name }}</span>{% endif %}
+            {% if task.plots %}<span><i class="bi bi-map"></i> {{ task.plots|map(attribute="name")|join(", ") }}</span>{% endif %}
             {% if task.machine %}<span><i class="bi bi-gear-wide-connected"></i> {{ task.machine.name }}</span>{% endif %}
             {% if task.delivery %}<span><i class="bi bi-truck"></i> {{ task.delivery.number }}</span>{% endif %}
             {% if task.location_label %}<span><i class="bi bi-geo-alt"></i> {{ task.location_label }}</span>{% endif %}
@@ -86,11 +86,25 @@
     </div>
     <div class="col-12"><div class="small text-body-secondary mt-1">{{ _("Bezug (optional)") }}</div></div>
     <div class="col-12 col-md-6 col-xl-3">
-        <select class="form-select form-select-sm" name="plot_id" aria-label="{{ _('Schlag') }}">
-            <option value="">{{ _("– kein Schlag –") }}</option>
-            {% set pid = task.plot_id if task else prefill.get('plot_id') %}
-            {% for p in plots %}<option value="{{ p.id }}" {% if p.id == pid %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
-        </select>
+        {% set chosen = task.plots|map(attribute="id")|list if task else prefill.get('plot_ids') or [] %}
+        {% set chosen_names = plots|selectattr("id", "in", chosen)|map(attribute="label")|list %}
+        <div class="dropdown plot-pick" data-plot-pick>
+            <button class="form-select form-select-sm text-start d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="{{ _('Schläge') }}">
+                <span class="text-truncate flex-grow-1" data-plot-summary data-none="{{ _('– kein Schlag –') }}">{{ chosen_names|join(", ") if chosen_names else _("– kein Schlag –") }}</span>
+                <span class="badge text-bg-primary {{ 'd-none' if chosen_names|length < 2 }}" data-plot-count>{{ chosen_names|length }}</span>
+            </button>
+            <div class="dropdown-menu p-2 w-100">
+                <input type="search" class="form-control form-control-sm mb-2" placeholder="{{ _('Schlag suchen …') }}" aria-label="{{ _('Schlag suchen …') }}" data-plot-filter>
+                <div class="plot-pick-list">
+                    {% for p in plots %}
+                    <label class="dropdown-item d-flex align-items-center gap-2 rounded" data-plot-name="{{ p.label|lower }}">
+                        <input class="form-check-input m-0" type="checkbox" name="plot_ids" value="{{ p.id }}" data-label="{{ p.label }}" {% if p.id in chosen %}checked{% endif %}>
+                        <span class="text-truncate">{{ p.label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">

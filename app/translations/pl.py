@@ -2183,4 +2183,5 @@ MESSAGES = {
     'Start heute {time} Uhr': 'Start dziś o {time}',
     'Start morgen {time} Uhr': 'Start jutro o {time}',
     'Start {day} {time} Uhr': 'Start {day} o {time}',
+    'Schlag suchen …': 'Szukaj pola …',
 }

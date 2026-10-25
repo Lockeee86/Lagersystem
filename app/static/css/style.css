@@ -839,3 +839,7 @@ body:not(.has-tabbar) {
     .home-flow.home-cols { columns: 2; column-gap: 1.5rem; }
     .home-block { break-inside: avoid; }
 }
+
+/* Mehrfachauswahl Schläge (Aufgaben) */
+.plot-pick .plot-pick-list { max-height: 16rem; overflow-y: auto; }
+.plot-pick .dropdown-item { white-space: normal; cursor: pointer; }

@@ -115,6 +115,25 @@ window.App = (function () {
         });
     });
 
+    // Mehrfachauswahl Schläge (Aufgaben): Suchfeld filtert, Knopf zeigt die Auswahl
+    document.addEventListener("input", function (e) {
+        if (!e.target.matches("[data-plot-filter]")) return;
+        var q = e.target.value.trim().toLowerCase();
+        e.target.closest("[data-plot-pick]").querySelectorAll("[data-plot-name]").forEach(function (row) {
+            row.classList.toggle("d-none", q !== "" && row.dataset.plotName.indexOf(q) < 0);
+        });
+    });
+    document.addEventListener("change", function (e) {
+        var pick = e.target.closest && e.target.closest("[data-plot-pick]");
+        if (!pick || e.target.name !== "plot_ids") return;
+        var names = Array.prototype.map.call(pick.querySelectorAll("input[name=plot_ids]:checked"),
+                                             function (box) { return box.dataset.label; });
+        var summary = pick.querySelector("[data-plot-summary]"), count = pick.querySelector("[data-plot-count]");
+        summary.textContent = names.length ? names.join(", ") : summary.dataset.none;
+        count.textContent = names.length;
+        count.classList.toggle("d-none", names.length < 2);
+    });
+
     // Datei gewählt → Formular gleich abschicken (Fotoleiste)
     document.addEventListener("change", function (e) {
         if (e.target.matches("input[type=file][data-autosubmit]") && e.target.files.length) {
