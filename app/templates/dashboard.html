@@ -49,15 +49,20 @@
     <a class="quick-item" href="{{ url_for('main.tile_settings') }}"><span class="quick-icon quick-edit"><i class="bi bi-plus-lg"></i></span><span>{{ _("Anpassen") }}</span></a>
 </div>
 
+
+{% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
+{% from "tasks/_macros.html" import task_item with context %}
+{% from "agenda/_macros.html" import when %}
+{% set week_has = week|selectattr("events")|list %}
+
+{# Jeder Bereich wird erst erfasst und dann in der eingestellten Reihenfolge ausgegeben (tiles.sections_for). #}
+{% set sec_strompreis %}
 {% if "strompreis" in show and price_configured %}
 {% from "partials/price_strip.html" import price_strip with context %}
 {{ price_strip(strip, link=url_for('biogas.overview')) }}
 {% endif %}
-
-{# Handy: untereinander; PC: links „Jetzt wichtig“ und Aufgaben, rechts Termine und Wetter #}
-<div class="row g-lg-4">
-<div class="col-lg-7">
-{% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
+{% endset %}
+{% set sec_plan %}
 {% if "plan" in show and (my_plan or (plan_today and current_user.can_edit)) %}
 <section class="mb-4" id="meinplan">
     <div class="d-flex justify-content-between align-items-baseline">
@@ -69,6 +74,8 @@
     </div></div>
 </section>
 {% endif %}
+{% endset %}
+{% set sec_uebergabe %}
 {% if "uebergabe" in show and (handovers or current_user.can_edit) %}
 <section class="mb-4" id="uebergabe">
     <div class="d-flex justify-content-between align-items-baseline">
@@ -86,6 +93,8 @@
     {% endif %}
 </section>
 {% endif %}
+{% endset %}
+{% set sec_wichtig %}
 {% if "wichtig" in show %}
 <section class="mb-4">
     <h2 class="hub-heading mt-0">{{ _("Jetzt wichtig") }}</h2>
@@ -110,8 +119,8 @@
     {% endif %}
 </section>
 {% endif %}
-
-{% from "tasks/_macros.html" import task_item with context %}
+{% endset %}
+{% set sec_aufgaben %}
 {% if "aufgaben" in show %}
 <section class="mb-4">
     <div class="d-flex justify-content-between align-items-baseline">
@@ -140,8 +149,8 @@
     {% endif %}
 </section>
 {% endif %}
-</div>
-<div class="col-lg-5">
+{% endset %}
+{% set sec_bhkw %}
 {% if bhkw %}
 <div class="card shadow-sm mb-4" id="bhkw">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -171,8 +180,8 @@
     </div>
 </div>
 {% endif %}
-{% from "agenda/_macros.html" import when %}
-{% set week_has = week|selectattr("events")|list %}
+{% endset %}
+{% set sec_woche %}
 {% if "woche" in show %}
 <div class="card shadow-sm mb-4">
     <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
@@ -211,6 +220,8 @@
     {% endif %}
 </div>
 {% endif %}
+{% endset %}
+{% set sec_wetter %}
 {% if "wetter" in show and weather and not weather.error %}
 {% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
 <div class="d-none d-lg-block">{{ frost_alert(weather.frost) }}</div>
@@ -246,14 +257,30 @@
 {% elif "wetter" in show and weather is none and current_user.is_admin %}
 <div class="alert alert-light small"><i class="bi bi-cloud-sun me-1"></i>{{ _("Für das Wetter fehlt noch der Standort des Hofs.") }} <a href="{{ url_for('admin.settings') }}">{{ _("Jetzt unter Verwaltung → Hof eintragen") }}</a></div>
 {% endif %}
-</div>
-</div>
-
-{# Am Handy stehen die Lagerzahlen auf der Lager-Bereichsseite #}
+{% endset %}
+{% set sec_bestand %}
 {% if "bestand" in show %}
 <div class="d-none d-lg-block">
 {% include "partials/stock_overview.html" %}
 </div>
 {% endif %}
+{% endset %}
+{% set blocks = {"strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
+{# Handy: untereinander in der eingestellten Reihenfolge. PC: Strompreis und Bestand über die volle Breite, die
+   Bereiche dazwischen in derselben Reihenfolge auf zwei Spalten verteilt (ein einzelner nutzt die volle Breite). #}
+{% set wide = ["strompreis", "bestand"] %}
+{% set ns = namespace(segments=[], current=[]) %}
+{% for key in show_order %}{% set html = blocks.get(key) %}{% if html and html|trim %}
+{% if key in wide %}
+{% if ns.current %}{% set ns.segments = ns.segments + [ns.current] %}{% set ns.current = [] %}{% endif %}
+{% set ns.segments = ns.segments + [[key]] %}
+{% else %}{% set ns.current = ns.current + [key] %}{% endif %}
+{% endif %}{% endfor %}
+{% if ns.current %}{% set ns.segments = ns.segments + [ns.current] %}{% endif %}
+{% for segment in ns.segments %}
+<div class="home-flow {{ 'home-cols' if segment|length > 1 }}">
+{% for key in segment %}<div class="home-block home-{{ key }}">{{ blocks[key] }}</div>{% endfor %}
+</div>
+{% endfor %}
 {% endblock %}
 {% block scripts %}<script>App.autoRefresh();</script>{% endblock %}

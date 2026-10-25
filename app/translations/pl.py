@@ -2176,4 +2176,7 @@ MESSAGES = {
     'hohe Preise grün, niedrige rot – teuerste Stunde': 'wysokie ceny na zielono, niskie na czerwono – najdroższa godzina',
     'niedrig': 'nisko',
     'hoch': 'wysoko',
+    'Antippen = ein- oder ausblenden, mit den Pfeilen die Reihenfolge ändern.': 'Dotknij = pokaż lub ukryj, strzałkami zmień kolejność.',
+    '{name} nach oben': '{name} w górę',
+    '{name} nach unten': '{name} w dół',
 }

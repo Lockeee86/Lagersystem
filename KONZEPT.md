@@ -314,6 +314,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    (`settings` `home_<rolle>`; von sich aus: Admin alles, Mitarbeiter ohne Strompreis/BHKW, Betrachter nur Wichtiges,
    Übergabe, Woche, Wetter, Bestand), jeder passt unter „Startseite anpassen“ an (`User.home_add/home_hide`,
    `tiles.sections_for`).
+   **Reihenfolge** (0.40.2): mit den Pfeilen unter „Startseite anpassen“ (`User.home_order`, `tiles.section_order`;
+   „Voreinstellung wiederherstellen“ setzt sie zurück). Am PC laufen die Bereiche zwischen Strompreis und Bestand
+   in derselben Reihenfolge zweispaltig.
    **Rundgang** (0.39.0, Biogas → Rundgang, `rounds.py`): Stationen mit QR-Code `R-01` (Etiketten-PDF wie bei den
    Kisten), Prüfpunkte je Zeile und Intervall in Tagen; Vorschläge für die Biogasanlage (Fermenter, Nachgärer,
    BHKW-Raum, Pumpenhaus, Feststoffeintrag, Gasfackel). Scannen öffnet die Checkliste: antippen, was nicht in Ordnung

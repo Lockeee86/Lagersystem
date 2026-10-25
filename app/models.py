@@ -105,6 +105,7 @@ class User(UserMixin, db.Model):
     # Bereiche der Startseite: Abweichung von der Voreinstellung der Rolle (tiles.SECTIONS)
     home_add = db.Column(db.String(300), nullable=False, default="", server_default="")
     home_hide = db.Column(db.String(300), nullable=False, default="", server_default="")
+    home_order = db.Column(db.String(300), nullable=False, default="", server_default="")   # eigene Reihenfolge
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))

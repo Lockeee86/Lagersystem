@@ -11,13 +11,19 @@
 <form method="post" style="max-width: 48rem">
     {{ csrf() }}
     <h2 class="h6 mt-2">{{ _("Bereiche") }}</h2>
-    <div class="tile-pick tile-pick-wide mb-2">
-        {% for key in allowed_sections %}
+    <p class="small text-body-secondary mb-2">{{ _("Antippen = ein- oder ausblenden, mit den Pfeilen die Reihenfolge ändern.") }}</p>
+    <div class="tile-pick tile-pick-wide section-order mb-2" id="sectionOrder">
+        {% for key in section_order %}
         {% set sec = sections[key] %}
-        <div>
+        <div class="section-item">
+            <input type="hidden" name="order" value="{{ key }}">
             <input class="btn-check" type="checkbox" name="section" value="{{ key }}" id="sec_{{ key }}" {% if key in chosen_sections %}checked{% endif %}>
             <label for="sec_{{ key }}"><i class="bi {{ sec.icon }}"></i><span>{{ _(sec.label) }}{% if sec.hint %}<span class="d-block small text-body-secondary fw-normal">{{ _(sec.hint) }}</span>{% endif %}</span>
                 {% if key in section_defaults %}<i class="bi bi-star-fill ms-auto small text-body-tertiary" style="font-size: .7rem" title="{{ _('Voreinstellung') }}"></i>{% endif %}</label>
+            <span class="section-move">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-move="-1" aria-label="{{ _('{name} nach oben', name=_(sec.label)) }}"><i class="bi bi-chevron-up"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-move="1" aria-label="{{ _('{name} nach unten', name=_(sec.label)) }}"><i class="bi bi-chevron-down"></i></button>
+            </span>
         </div>
         {% endfor %}
     </div>
@@ -41,4 +47,22 @@
         <a class="btn btn-link" href="{{ url_for('main.dashboard') }}">{{ _("Abbrechen") }}</a>
     </div>
 </form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var list = document.getElementById("sectionOrder");
+    list.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-move]");
+        if (!btn) return;
+        var item = btn.closest(".section-item");
+        if (btn.dataset.move === "-1" && item.previousElementSibling) {
+            list.insertBefore(item, item.previousElementSibling);
+        } else if (btn.dataset.move === "1" && item.nextElementSibling) {
+            list.insertBefore(item.nextElementSibling, item);
+        }
+        btn.focus();
+    });
+})();
+</script>
 {% endblock %}

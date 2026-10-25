@@ -135,13 +135,33 @@ def save_section_default(role, keys):
     Setting.put(f"home_{role}", ",".join(k for k in SECTIONS if k in keys) or ",")
 
 
+def section_order(user):
+    """Reihenfolge: eigene (`User.home_order`), dann die der Voreinstellung, dann der Katalog."""
+    order = []
+    for key in _split_sections(user.home_order) + section_default(user.role) + list(SECTIONS):
+        if key not in order:
+            order.append(key)
+    return order
+
+
 def sections_for(user):
+    """Sichtbare Bereiche in der Reihenfolge, in der sie auf der Startseite stehen."""
     base = set(section_default(user.role)) | set(_split_sections(user.home_add))
     base -= set(_split_sections(user.home_hide))
-    return [key for key in allowed_sections(user) if key in base]
+    allowed = set(allowed_sections(user))
+    return [key for key in section_order(user) if key in base and key in allowed]
 
 
-def save_user_sections(user, keys):
+def save_user_sections(user, keys, order=None):
+    """Auswahl als Abweichung von der Voreinstellung; `order` = alle Bereiche in der gewünschten Reihenfolge."""
+    if order:
+        cleaned = []
+        for key in _split_sections(",".join(order)):
+            if key not in cleaned:
+                cleaned.append(key)
+        default_order = [k for k in section_default(user.role) + list(SECTIONS) if k in SECTIONS]
+        default_order = list(dict.fromkeys(default_order))
+        user.home_order = "" if cleaned == default_order[:len(cleaned)] else ",".join(cleaned)
     chosen = {k for k in keys if k in allowed_sections(user)}
     default = set(section_default(user.role))
     user.home_add = ",".join(k for k in SECTIONS if k in chosen - default)
@@ -149,4 +169,4 @@ def save_user_sections(user, keys):
 
 
 def reset_user_sections(user):
-    user.home_add = user.home_hide = ""
+    user.home_add = user.home_hide = user.home_order = ""

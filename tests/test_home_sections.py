@@ -70,3 +70,23 @@ def test_dashboard_strip_from_cache_only(app, as_admin, db, seed, monkeypatch):
     html = as_admin.get("/").get_data(as_text=True)
     assert "price-bar" in html and "80 €/MWh" in html
     biogas.clear_cache()
+
+
+def test_section_order(app, as_worker, db, seed):
+    worker = seed["worker"]
+    default = tiles.sections_for(worker)
+    assert default[:2] == ["wichtig", "plan"]
+    html = as_worker.get("/startseite/kacheln").get_data(as_text=True)
+    assert 'name="order" value="wichtig"' in html and "nach oben" in html
+    # Aufgaben ganz nach oben, Wetter vor Woche
+    order = ["aufgaben", "strompreis", "wichtig", "plan", "uebergabe", "bhkw", "wetter", "woche", "bestand"]
+    as_worker.post("/startseite/kacheln", data={"section": default, "order": order})
+    shown = tiles.sections_for(worker)
+    assert shown[0] == "aufgaben" and shown.index("wetter") < shown.index("woche")
+    assert worker.home_order.startswith("aufgaben,")
+    html = as_worker.get("/").get_data(as_text=True)
+    assert html.index("home-aufgaben") < html.index("home-wichtig") < html.index("home-woche")
+    # Reihenfolge wie die Voreinstellung → nichts Eigenes gespeichert; zurücksetzen löscht sie
+    as_worker.post("/startseite/kacheln", data={"section": default, "order": tiles.section_order(worker)})
+    as_worker.post("/startseite/kacheln", data={"reset": "1"})
+    assert worker.home_order == "" and tiles.sections_for(worker) == default

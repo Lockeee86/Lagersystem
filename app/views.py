@@ -208,7 +208,8 @@ def dashboard():
                            irrigation.alerts() if current_user.is_admin else (),
                            rounds.overview() if current_user.can_edit and rounds.has_stations() else None)
     plan_today = team.plan_for(today)
-    show = set(tiles.sections_for(current_user))
+    show_order = tiles.sections_for(current_user)
+    show = set(show_order)
     strip = None
     if "strompreis" in show:
         cached = biogas.live(cached_only=True)       # nie auf die API warten – der Zeitplan hält ihn frisch
@@ -220,7 +221,7 @@ def dashboard():
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(), my_plan=plan_today.get(current_user.id, []), plan_today=bool(plan_today),
-        bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show, strip=strip,
+        bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show, show_order=show_order, strip=strip,
         price_configured=biogas.configured(),
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
@@ -385,7 +386,7 @@ def tile_settings():
             flash(_("Startseite auf die Voreinstellung zurückgesetzt."), "success")
         else:
             tiles.save_user(current_user, request.form.getlist("tile"))
-            tiles.save_user_sections(current_user, request.form.getlist("section"))
+            tiles.save_user_sections(current_user, request.form.getlist("section"), request.form.getlist("order"))
             flash(_("Startseite gespeichert."), "success")
         db.session.commit()
         return redirect(url_for("main.dashboard"))
@@ -393,9 +394,12 @@ def tile_settings():
                            chosen=tiles.for_user(current_user), defaults=tiles.role_default(current_user.role),
                            sections=tiles.SECTIONS, allowed_sections=tiles.allowed_sections(current_user),
                            chosen_sections=tiles.sections_for(current_user),
+                           section_order=[k for k in tiles.section_order(current_user)
+                                          if k in tiles.allowed_sections(current_user)],
                            section_defaults=tiles.section_default(current_user.role),
                            customized=bool(current_user.tiles_add or current_user.tiles_hide
-                                           or current_user.home_add or current_user.home_hide))
+                                           or current_user.home_add or current_user.home_hide
+                                           or current_user.home_order))
 
 
 # --- Wetter -----------------------------------------------------------------
