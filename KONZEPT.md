@@ -340,6 +340,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    ausmisten wöchentlich, Milben monatlich, Wurmkur alle 3, Impfung alle 6 Monate). Startseite: Bereich „Hühner“
    mit Schnelleingabe. Push: 18 Uhr „noch keine Eier eingetragen“, nach Sonnenuntergang (NOAA-Formel, Hof-Standort)
    „Hühnerklappe zu?“ (von sich aus aus).
+   Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
+   Bereiche es beim Speichern gab; später dazugekommene (Hühner) folgen der eingebauten Voreinstellung.
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen
    fällig werden (Prognose aus der Laufzeit) oder schon „bald fällig“/überfällig sind, sucht `biogas.best_windows` die
    drei günstigsten Zeitfenster – Länge = Stillstand der Wartung (`MaintenanceTask.downtime_hours`, Vorlagen z. B.

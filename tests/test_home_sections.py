@@ -90,3 +90,17 @@ def test_section_order(app, as_worker, db, seed):
     as_worker.post("/startseite/kacheln", data={"section": default, "order": tiles.section_order(worker)})
     as_worker.post("/startseite/kacheln", data={"reset": "1"})
     assert worker.home_order == "" and tiles.sections_for(worker) == default
+
+
+def test_new_section_after_saved_default(db, seed):
+    """Eine früher gespeicherte Voreinstellung blendet später dazugekommene Bereiche (Hühner) nicht aus."""
+    worker = seed["worker"]
+    Setting.put("home_mitarbeiter", "wichtig,aufgaben")                  # gespeichert vor dem Bereich Hühner
+    db.session.commit()
+    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "huehner"]
+    assert "huehner" not in tiles.sections_for(worker)                    # nur mit Freischaltung
+    worker.chickens = True
+    assert "huehner" in tiles.sections_for(worker)
+    tiles.save_section_default("mitarbeiter", ["wichtig"])                # bewusst abgewählt bleibt abgewählt
+    db.session.commit()
+    assert tiles.section_default("mitarbeiter") == ["wichtig"]

@@ -65,7 +65,7 @@ SKIP_COLUMNS = {
 }
 MASKED = {"password_hash", "sign_farm", "sign_customer", "signature"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
 BIG = {"boundary"}                             # Umriss: nur „geändert“, nicht die Koordinaten
-SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_", "biogas_")
+SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_", "biogas_", "home_known_")
 MAX_TEXT = 300
 
 

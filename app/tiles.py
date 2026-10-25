@@ -127,15 +127,25 @@ def allowed_sections(user):
             if user.has_role(sec["role"]) and (sec["show"] is None or sec["show"](user))]
 
 
+# Bereiche, die es schon gab, bevor `home_known_<rolle>` mitgespeichert wurde
+SECTIONS_BEFORE_KNOWN = ["strompreis", "wichtig", "plan", "uebergabe", "aufgaben", "bhkw", "woche", "wetter", "bestand"]
+
+
 def section_default(role):
+    """Voreinstellung der Rolle. Bereiche, die nach dem Speichern dazugekommen sind, folgen der eingebauten
+    Voreinstellung – sonst bliebe ein neuer Bereich (z. B. Hühner) für alle unsichtbar."""
     setting = db.session.get(Setting, f"home_{role}")
-    if setting is not None and setting.value is not None:
-        return _split_sections(setting.value)
-    return list(SECTION_DEFAULTS[role])
+    if setting is None or setting.value is None:
+        return list(SECTION_DEFAULTS[role])
+    known = db.session.get(Setting, f"home_known_{role}")
+    known = _split_sections(known.value) if known is not None and known.value else SECTIONS_BEFORE_KNOWN
+    saved = _split_sections(setting.value)
+    return saved + [k for k in SECTION_DEFAULTS[role] if k not in known and k not in saved]
 
 
 def save_section_default(role, keys):
     Setting.put(f"home_{role}", ",".join(k for k in SECTIONS if k in keys) or ",")
+    Setting.put(f"home_known_{role}", ",".join(SECTIONS))
 
 
 def section_order(user):
