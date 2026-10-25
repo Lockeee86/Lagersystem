@@ -208,6 +208,11 @@ def dashboard():
                            irrigation.alerts() if current_user.is_admin else (),
                            rounds.overview() if current_user.can_edit and rounds.has_stations() else None)
     plan_today = team.plan_for(today)
+    show = set(tiles.sections_for(current_user))
+    strip = None
+    if "strompreis" in show:
+        cached = biogas.live(cached_only=True)       # nie auf die API warten – der Zeitplan hält ihn frisch
+        strip = biogas.price_strip(cached.get("price_series")) if cached and not cached.get("error") else None
     response = make_response(render_template(
         "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
         weather=weather.get_weather(), show_blight=weather.blight_in_season(), today=today,
@@ -215,7 +220,8 @@ def dashboard():
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(), my_plan=plan_today.get(current_user.id, []), plan_today=bool(plan_today),
-        bhkw=biogas.dashboard(today),
+        bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show, strip=strip,
+        price_configured=biogas.configured(),
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
     if choice:
@@ -375,15 +381,21 @@ def tile_settings():
     if request.method == "POST":
         if request.form.get("reset"):
             tiles.reset_user(current_user)
-            flash(_("Kacheln auf die Voreinstellung zurückgesetzt."), "success")
+            tiles.reset_user_sections(current_user)
+            flash(_("Startseite auf die Voreinstellung zurückgesetzt."), "success")
         else:
             tiles.save_user(current_user, request.form.getlist("tile"))
-            flash(_("Kacheln gespeichert."), "success")
+            tiles.save_user_sections(current_user, request.form.getlist("section"))
+            flash(_("Startseite gespeichert."), "success")
         db.session.commit()
         return redirect(url_for("main.dashboard"))
     return render_template("tiles.html", catalog=tiles.CATALOG, allowed=tiles.allowed(current_user),
                            chosen=tiles.for_user(current_user), defaults=tiles.role_default(current_user.role),
-                           customized=bool(current_user.tiles_add or current_user.tiles_hide))
+                           sections=tiles.SECTIONS, allowed_sections=tiles.allowed_sections(current_user),
+                           chosen_sections=tiles.sections_for(current_user),
+                           section_defaults=tiles.section_default(current_user.role),
+                           customized=bool(current_user.tiles_add or current_user.tiles_hide
+                                           or current_user.home_add or current_user.home_hide))
 
 
 # --- Wetter -----------------------------------------------------------------

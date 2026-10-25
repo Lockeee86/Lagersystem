@@ -34,6 +34,11 @@
 <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Die aktuellen SKVE-Daten konnten nicht geladen werden: {message}", message=live.error) }}</div>
 {% endif %}
 
+{% if configured and not live.error %}
+{% from "partials/price_strip.html" import price_strip with context %}
+{{ price_strip(strip) }}
+{% endif %}
+
 {% if configured and not live.error and live.motors %}
 {% set kw_total = live.motors|map(attribute="kw_now")|reject("none")|sum %}
 <div class="row g-3 mb-4">

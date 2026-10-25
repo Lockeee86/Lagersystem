@@ -156,6 +156,8 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed, fake_api):
 
 
 def test_dashboard_card(app, as_viewer, db, seed, fake_api):
+    # Betrachter haben die BHKW-Karte von sich aus nicht – selbst einschalten
+    seed["viewer"].home_add = "bhkw"
     motor = make_bhkw(db, seed, 11, "BHKW Test 1")
     machines.set_counter(motor, 9000, seed["admin"])
     oil = next(t for t in motor.tasks if t.name == "Ölwechsel")

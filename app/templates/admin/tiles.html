@@ -5,12 +5,35 @@
 <div class="page-head">
     <div>
         <h1>{{ _("Startseite") }}</h1>
-        <p class="text-body-secondary mb-0">{{ _("Welcher Schnellzugriff steht für jede Rolle am Handy auf der Übersicht? Die ersten vier erscheinen dort. Jeder kann danach selbst Kacheln dazunehmen oder ausblenden.") }}</p>
+        <p class="text-body-secondary mb-0">{{ _("Was steht für jede Rolle auf der Startseite? Jeder kann danach selbst Bereiche und Kacheln dazunehmen oder ausblenden.") }}</p>
     </div>
 </div>
 <form method="post" style="max-width: 44rem">
     {{ csrf() }}
     <div class="card shadow-sm mb-3">
+        <div class="card-header">{{ _("Bereiche der Startseite") }}</div>
+        <div class="table-responsive">
+            <table class="table mb-0 align-middle">
+                <thead><tr><th>{{ _("Bereich") }}</th>{% for role in roles %}<th class="text-center">{{ _(role_labels[role]) }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                    {% for key, sec in sections.items() %}
+                    <tr>
+                        <td><i class="bi {{ sec.icon }} me-2 text-primary"></i>{{ _(sec.label) }}{% if sec.hint %}<div class="small text-body-secondary">{{ _(sec.hint) }}</div>{% endif %}</td>
+                        {% for role in roles %}
+                        <td class="text-center">
+                            {% if can_see_section(role, key) %}
+                            <input class="form-check-input" type="checkbox" name="home_{{ role }}" value="{{ key }}" {% if key in section_defaults[role] %}checked{% endif %} aria-label="{{ _(sec.label) }} – {{ _(role_labels[role]) }}">
+                            {% else %}<span class="text-body-tertiary">–</span>{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">{{ _("Schnellzugriff am Handy (die ersten vier)") }}</div>
         <div class="table-responsive">
             <table class="table mb-0 align-middle">
                 <thead><tr><th>{{ _("Kachel") }}</th>{% for role in roles %}<th class="text-center">{{ _(role_labels[role]) }}</th>{% endfor %}</tr></thead>

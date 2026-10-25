@@ -120,12 +120,15 @@ def tile_defaults():
     if request.method == "POST":
         for role in tiles.ROLE_ORDER:
             tiles.save_role_default(role, request.form.getlist(f"tiles_{role}"))
+            tiles.save_section_default(role, request.form.getlist(f"home_{role}"))
         db.session.commit()
         flash(_("Voreinstellung gespeichert."), "success")
         return redirect(url_for("admin.tile_defaults"))
     from .models import ROLE_LEVEL
     return render_template("admin/tiles.html", catalog=tiles.CATALOG, roles=tiles.ROLE_ORDER, role_labels=ROLES,
                            defaults={r: tiles.role_default(r) for r in tiles.ROLE_ORDER},
+                           sections=tiles.SECTIONS, section_defaults={r: tiles.section_default(r) for r in tiles.ROLE_ORDER},
+                           can_see_section=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.SECTIONS[key]["role"]],
                            can_see=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.CATALOG[key]["role"]])
 
 

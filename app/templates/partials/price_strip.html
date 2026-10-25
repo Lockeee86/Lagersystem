@@ -1,0 +1,33 @@
+{# Strompreis-Ampel: Day-Ahead je Viertelstunde, Farbe nach Rang (günstig grün → teuer rot), Strich = jetzt.
+   `strip` aus biogas.price_strip(); None = (noch) keine Preise im Zwischenspeicher #}
+{% macro price_strip(strip, link=none) %}
+<section class="mb-4 price-ampel" id="strompreis">
+    <div class="d-flex justify-content-between align-items-baseline gap-2">
+        <h2 class="hub-heading mt-0">{{ _("Strompreis") }}</h2>
+        {% if strip and strip.now_price is not none %}
+        <span class="small text-nowrap">
+            <span class="fw-semibold">{{ strip.now_price|num(0) }} €/MWh</span>
+            <span class="badge price-level price-{{ strip.level }}">{{ _("günstig") if strip.level == "low" else _("teuer") if strip.level == "high" else _("mittel") }}</span>
+        </span>
+        {% elif link %}<a class="small" href="{{ link }}">{{ _("Biogas") }}</a>{% endif %}
+    </div>
+    {% if strip %}
+    <div class="hub-list"><div class="hub-row d-block">
+        <div class="price-bar" role="img" aria-label="{{ _('Strompreis heute und morgen, von {min} bis {max} €/MWh', min=strip.min|num(0), max=strip.max|num(0)) }}">
+            {% for seg in strip.segments %}<span style="width: {{ seg.width|round(3) }}%; background: {{ seg.color }}" title="{{ seg.start.strftime('%d.%m. %H:%M') }}: {{ seg.price|num(0) }} €/MWh"></span>{% endfor %}
+            {% if strip.now_pct is not none %}<i class="price-now" style="left: {{ strip.now_pct|round(2) }}%"></i>{% endif %}
+            {% for d in strip.days[1:] %}<i class="price-day" style="left: {{ d.pct|round(2) }}%"></i>{% endfor %}
+        </div>
+        <div class="price-scale small text-body-tertiary">
+            {% for d in strip.days %}<span style="left: {{ d.pct|round(2) }}%">{{ _("heute") if loop.first else _("morgen") if loop.index == 2 else d.date|weekday }}</span>{% endfor %}
+        </div>
+        <div class="d-flex flex-wrap justify-content-between gap-2 small text-body-secondary mt-1">
+            <span>{{ _("{min}–{max} €/MWh", min=strip.min|num(0), max=strip.max|num(0)) }}</span>
+            {% if strip.cheapest %}<span>{{ _("Günstigste Stunde: {day} {hour} Uhr ({price} €/MWh)", day=(_("heute") if strip.cheapest[0].date() == today else _("morgen")), hour=strip.cheapest[0].strftime("%H"), price=strip.cheapest[1]|num(0)) }}</span>{% endif %}
+        </div>
+    </div></div>
+    {% else %}
+    <div class="hub-list"><div class="hub-row small text-body-secondary">{{ _("Die Preise werden gerade abgerufen – gleich sind sie da.") }}</div></div>
+    {% endif %}
+</section>
+{% endmacro %}

@@ -87,3 +87,66 @@ def reset_user(user):
 
 
 ROLE_ORDER = [r for r in (ROLE_ADMIN, ROLE_MITARBEITER, ROLE_BETRACHTER) if r in ROLES]
+
+
+# --- Bereiche der Startseite -------------------------------------------------------
+# Gleiches Prinzip wie die Kacheln: Voreinstellung je Rolle (`settings` `home_<rolle>`), eigene Abweichung
+# `User.home_add` / `User.home_hide`. Bereiche ohne Daten (z. B. BHKW ohne Motoren) blendet die Startseite selbst aus.
+
+def section(label, icon, role=ROLE_BETRACHTER, hint=None):
+    return {"label": label, "icon": icon, "role": role, "hint": hint}
+
+
+SECTIONS = {
+    "strompreis": section(N_("Strompreis-Ampel"), "bi-lightning", hint=N_("Day-Ahead-Preise heute und morgen (SKVE)")),
+    "wichtig": section(N_("Jetzt wichtig"), "bi-exclamation-circle"),
+    "plan": section(N_("Mein Tagesplan"), "bi-people", ROLE_MITARBEITER),
+    "uebergabe": section(N_("Übergabe"), "bi-chat-square-text"),
+    "aufgaben": section(N_("Aufgaben"), "bi-list-check"),
+    "bhkw": section(N_("BHKW"), "bi-lightning-charge", hint=N_("Motoren, Leistung, nächste Wartung")),
+    "woche": section(N_("Diese Woche"), "bi-calendar-week", hint=N_("Termine der nächsten 7 Tage")),
+    "wetter": section(N_("Wetter"), "bi-cloud-sun"),
+    "bestand": section(N_("Lager und Bestand"), "bi-grid-3x3-gap", hint=N_("Belegung, Bestand je Sorte, letzte Bewegungen")),
+}
+
+SECTION_DEFAULTS = {
+    ROLE_ADMIN: list(SECTIONS),
+    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "aufgaben", "woche", "wetter", "bestand"],
+    ROLE_BETRACHTER: ["wichtig", "uebergabe", "woche", "wetter", "bestand"],
+}
+
+
+def _split_sections(text):
+    return [k for k in (text or "").split(",") if k in SECTIONS]
+
+
+def allowed_sections(user):
+    return [key for key, sec in SECTIONS.items() if user.has_role(sec["role"])]
+
+
+def section_default(role):
+    setting = db.session.get(Setting, f"home_{role}")
+    if setting is not None and setting.value is not None:
+        return _split_sections(setting.value)
+    return list(SECTION_DEFAULTS[role])
+
+
+def save_section_default(role, keys):
+    Setting.put(f"home_{role}", ",".join(k for k in SECTIONS if k in keys) or ",")
+
+
+def sections_for(user):
+    base = set(section_default(user.role)) | set(_split_sections(user.home_add))
+    base -= set(_split_sections(user.home_hide))
+    return [key for key in allowed_sections(user) if key in base]
+
+
+def save_user_sections(user, keys):
+    chosen = {k for k in keys if k in allowed_sections(user)}
+    default = set(section_default(user.role))
+    user.home_add = ",".join(k for k in SECTIONS if k in chosen - default)
+    user.home_hide = ",".join(k for k in SECTIONS if k in default - chosen)
+
+
+def reset_user_sections(user):
+    user.home_add = user.home_hide = ""

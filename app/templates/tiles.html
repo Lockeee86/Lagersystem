@@ -1,15 +1,29 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
-{% block title %}{{ _("Kacheln anpassen") }}{% endblock %}
+{% block title %}{{ _("Startseite anpassen") }}{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>{{ _("Kacheln anpassen") }}</h1>
-        <p class="text-body-secondary mb-0">{{ _("Was möchtest du am Handy im Schnellzugriff der Übersicht haben? Die ersten vier gewählten erscheinen dort. Vorausgewählt ist die Voreinstellung für deine Rolle.") }}</p>
+        <h1>{{ _("Startseite anpassen") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Was soll auf deiner Startseite stehen? Vorausgewählt ist die Voreinstellung für deine Rolle.") }}</p>
     </div>
 </div>
 <form method="post" style="max-width: 48rem">
     {{ csrf() }}
+    <h2 class="h6 mt-2">{{ _("Bereiche") }}</h2>
+    <div class="tile-pick tile-pick-wide mb-2">
+        {% for key in allowed_sections %}
+        {% set sec = sections[key] %}
+        <div>
+            <input class="btn-check" type="checkbox" name="section" value="{{ key }}" id="sec_{{ key }}" {% if key in chosen_sections %}checked{% endif %}>
+            <label for="sec_{{ key }}"><i class="bi {{ sec.icon }}"></i><span>{{ _(sec.label) }}{% if sec.hint %}<span class="d-block small text-body-secondary fw-normal">{{ _(sec.hint) }}</span>{% endif %}</span>
+                {% if key in section_defaults %}<i class="bi bi-star-fill ms-auto small text-body-tertiary" style="font-size: .7rem" title="{{ _('Voreinstellung') }}"></i>{% endif %}</label>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="small text-body-secondary mb-4">{{ _("Bereiche ohne Inhalt (z. B. BHKW, wenn es keine Motoren gibt) erscheinen nicht.") }}</p>
+    <h2 class="h6">{{ _("Schnellzugriff am Handy") }}</h2>
+    <p class="small text-body-secondary">{{ _("Die ersten vier gewählten Kacheln erscheinen oben auf der Startseite.") }}</p>
     <div class="tile-pick mb-3">
         {% for key in allowed %}
         {% set t = catalog[key] %}

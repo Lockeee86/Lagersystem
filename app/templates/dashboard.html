@@ -8,9 +8,12 @@
         <h1><span class="d-lg-none">{{ _("Hallo {name}!", name=current_user.name) }}</span><span class="d-none d-lg-inline">{{ _("Übersicht") }}</span></h1>
         <p class="text-body-secondary mb-0 d-none d-lg-block">{{ _("Hallo {name}!", name=current_user.name) }}</p>
     </div>
-    {% if current_user.can_edit %}
-    <a class="btn btn-primary d-none d-lg-inline-flex" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>{{ _("Kiste scannen") }}</a>
-    {% endif %}
+    <div class="d-none d-lg-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.tile_settings') }}" title="{{ _('Startseite anpassen') }}"><i class="bi bi-sliders"></i></a>
+        {% if current_user.can_edit %}
+        <a class="btn btn-primary" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan me-2"></i>{{ _("Kiste scannen") }}</a>
+        {% endif %}
+    </div>
 </div>
 
 {% if current_user.is_admin and (not has_varieties or not has_plots or stats.total == 0) %}
@@ -46,11 +49,16 @@
     <a class="quick-item" href="{{ url_for('main.tile_settings') }}"><span class="quick-icon quick-edit"><i class="bi bi-plus-lg"></i></span><span>{{ _("Anpassen") }}</span></a>
 </div>
 
+{% if "strompreis" in show and price_configured %}
+{% from "partials/price_strip.html" import price_strip with context %}
+{{ price_strip(strip, link=url_for('biogas.overview')) }}
+{% endif %}
+
 {# Handy: untereinander; PC: links „Jetzt wichtig“ und Aufgaben, rechts Termine und Wetter #}
 <div class="row g-lg-4">
 <div class="col-lg-7">
 {% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
-{% if my_plan or (plan_today and current_user.can_edit) %}
+{% if "plan" in show and (my_plan or (plan_today and current_user.can_edit)) %}
 <section class="mb-4" id="meinplan">
     <div class="d-flex justify-content-between align-items-baseline">
         <h2 class="hub-heading mt-0">{{ _("Dein Plan für heute") }}</h2>
@@ -61,7 +69,7 @@
     </div></div>
 </section>
 {% endif %}
-{% if handovers or current_user.can_edit %}
+{% if "uebergabe" in show and (handovers or current_user.can_edit) %}
 <section class="mb-4" id="uebergabe">
     <div class="d-flex justify-content-between align-items-baseline">
         <h2 class="hub-heading mt-0">{{ _("Übergabe") }}{% if handovers %} <span class="badge rounded-pill text-bg-secondary">{{ handovers|length }}</span>{% endif %}</h2>
@@ -78,6 +86,7 @@
     {% endif %}
 </section>
 {% endif %}
+{% if "wichtig" in show %}
 <section class="mb-4">
     <h2 class="hub-heading mt-0">{{ _("Jetzt wichtig") }}</h2>
     {% if important %}
@@ -100,8 +109,10 @@
     <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Alles erledigt – nichts Dringendes.") }}</div></div>
     {% endif %}
 </section>
+{% endif %}
 
 {% from "tasks/_macros.html" import task_item with context %}
+{% if "aufgaben" in show %}
 <section class="mb-4">
     <div class="d-flex justify-content-between align-items-baseline">
         <h2 class="hub-heading mt-0">{{ _("Aufgaben") }}{% if due_tasks_now %} <span class="badge rounded-pill text-bg-secondary">{{ due_tasks_now|length }}</span>{% endif %}</h2>
@@ -128,6 +139,7 @@
     <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Für heute keine Aufgaben offen.") }}</div></div>
     {% endif %}
 </section>
+{% endif %}
 </div>
 <div class="col-lg-5">
 {% if bhkw %}
@@ -161,6 +173,7 @@
 {% endif %}
 {% from "agenda/_macros.html" import when %}
 {% set week_has = week|selectattr("events")|list %}
+{% if "woche" in show %}
 <div class="card shadow-sm mb-4">
     <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
         <span class="text-nowrap"><i class="bi bi-calendar-week me-1"></i>{{ _("Diese Woche") }}</span>
@@ -197,7 +210,8 @@
     <div class="card-body small text-body-secondary">{{ _("In den nächsten 7 Tagen hast du keine Termine.") if week_mine else _("In den nächsten 7 Tagen steht nichts im Kalender.") }}</div>
     {% endif %}
 </div>
-{% if weather and not weather.error %}
+{% endif %}
+{% if "wetter" in show and weather and not weather.error %}
 {% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
 <div class="d-none d-lg-block">{{ frost_alert(weather.frost) }}</div>
 <a class="card shadow-sm mb-4 text-reset text-decoration-none weather-card" href="{{ url_for('main.weather_page') }}">
@@ -229,15 +243,17 @@
         {% endif %}
     </div>
 </a>
-{% elif weather is none and current_user.is_admin %}
+{% elif "wetter" in show and weather is none and current_user.is_admin %}
 <div class="alert alert-light small"><i class="bi bi-cloud-sun me-1"></i>{{ _("Für das Wetter fehlt noch der Standort des Hofs.") }} <a href="{{ url_for('admin.settings') }}">{{ _("Jetzt unter Verwaltung → Hof eintragen") }}</a></div>
 {% endif %}
 </div>
 </div>
 
 {# Am Handy stehen die Lagerzahlen auf der Lager-Bereichsseite #}
+{% if "bestand" in show %}
 <div class="d-none d-lg-block">
 {% include "partials/stock_overview.html" %}
 </div>
+{% endif %}
 {% endblock %}
 {% block scripts %}<script>App.autoRefresh();</script>{% endblock %}

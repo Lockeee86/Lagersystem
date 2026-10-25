@@ -56,7 +56,7 @@ SKIP_TABLES = {"audit_log", "movements", "push_subscriptions"}
 # Spalten, deren Änderung nicht zählt (Zeitstempel, persönliche Einstellungen, Zähler …)
 SKIP_COLUMNS = {
     "*": {"updated_at", "created_at"},
-    "users": {"last_login", "map_view", "tiles_add", "tiles_hide", "push_off", "push_on", "session_token",
+    "users": {"last_login", "map_view", "tiles_add", "tiles_hide", "home_add", "home_hide", "push_off", "push_on", "session_token",
               "calendar_token", "language"},
     # Platz und Inhalt der Kisten stehen im Verlauf (Movement) – hier nur andere Felder und das Löschen
     "machines": {"counter", "counter_at", "skve_base_counter", "skve_base_day"},   # Zähler stehen im Logbuch

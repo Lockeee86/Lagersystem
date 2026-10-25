@@ -810,3 +810,17 @@ body:not(.has-tabbar) {
 .btn-check:checked + .check-item .check-ok { display: none; }
 .btn-check:checked + .check-item .check-bad { display: inline; }
 .btn-check:focus-visible + .check-item { outline: 2px solid var(--bs-primary); outline-offset: -2px; }
+
+/* Strompreis-Ampel */
+.price-bar { position: relative; display: flex; height: 2.1rem; border-radius: .4rem; overflow: hidden; }
+.price-bar span { display: block; height: 100%; }
+.price-bar .price-now { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1px; background: var(--bs-body-color);
+    box-shadow: 0 0 0 1px var(--bs-body-bg); border-radius: 2px; }
+.price-bar .price-day { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed rgba(255, 255, 255, .7); }
+.price-scale { position: relative; height: 1.1rem; }
+.price-scale span { position: absolute; top: .1rem; white-space: nowrap; }
+.price-level { font-weight: 600; }
+.price-low { background: #2e9e5b; color: #fff; }
+.price-mid { background: #e8b13a; color: #222; }
+.price-high { background: #c9403a; color: #fff; }
+.tile-pick-wide { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }

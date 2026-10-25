@@ -328,11 +328,14 @@ def live(now=None, cached_only=False):
         if real_now and cached and clock.monotonic() - cached[0] < LIVE_TTL:
             return cached[1]
     today = now.astimezone(local_tz()).date()
-    start, end = _midnight(today), now + timedelta(hours=26)
+    start = _midnight(today)
+    end = max(now + timedelta(hours=26), _midnight(today + timedelta(days=2)))     # morgen ganz, sobald bekannt
     next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-    result = {"configured": True, "error": None, "motors": [], "gas": None, "price_now": None, "at": now}
+    result = {"configured": True, "error": None, "motors": [], "gas": None, "price_now": None, "at": now,
+              "price_series": []}
     try:
         price_map = prices(start, end)
+        result["price_series"] = [(ts, p) for ts, p in sorted(price_map.items()) if p is not None]
         result["price_now"] = _current(sorted(price_map.items()), now)
         result["prices"] = _hourly(sorted(price_map.items()), next_hour, 24)
         for machine in linked_machines():
@@ -361,7 +364,7 @@ def refresh_live(app):
     """Zeitplan: den Zwischenspeicher der Übersicht frisch halten, damit die Startseite sofort Werte hat."""
     inside = has_app_context() and current_app._get_current_object() is app
     with nullcontext() if inside else app.app_context():
-        if configured() and linked_machines():
+        if configured():
             live()
 
 
@@ -642,3 +645,63 @@ class _Joined(Msg):
 
     def render(self):
         return " · ".join(p.render() for p in self.parts)
+
+
+# --- Strompreis-Ampel ---------------------------------------------------------------
+
+AMPEL = ((0.0, (46, 158, 91)), (0.5, (232, 177, 58)), (1.0, (201, 64, 58)))   # günstig → mittel → teuer
+
+
+def _color(rank):
+    for (r0, c0), (r1, c1) in zip(AMPEL, AMPEL[1:]):
+        if rank <= r1:
+            t = (rank - r0) / (r1 - r0) if r1 > r0 else 0
+            return "#%02x%02x%02x" % tuple(round(a + (b - a) * t) for a, b in zip(c0, c1))
+    return "#%02x%02x%02x" % AMPEL[-1][1]
+
+
+def price_strip(series, now=None):
+    """Ampel aus Viertelstunden-Preisen (heute ab 0 Uhr, morgen sobald bekannt): Farbe nach Rang innerhalb des
+    angezeigten Zeitraums (günstigste grün, teuerste rot). None ohne Preise.
+    {"segments": [{start, end, price, color, width}], "now_pct", "now_price", "level", "cheapest", "days"}"""
+    if not series:
+        return None
+    now = now or datetime.now(timezone.utc)
+    tz = local_tz()
+    points = [(ts, price) for ts, price in series if price is not None]
+    if not points:
+        return None
+    first, last = points[0][0], points[-1][0] + timedelta(minutes=15)
+    total = (last - first).total_seconds()
+    ordered = sorted(p for _ts, p in points)
+
+    def rank(price):
+        below = sum(1 for p in ordered if p < price)
+        return below / max(len(ordered) - 1, 1)
+
+    segments = []
+    for i, (ts, price) in enumerate(points):
+        end = points[i + 1][0] if i + 1 < len(points) else ts + timedelta(minutes=15)
+        segments.append({"start": ts.astimezone(tz), "end": end.astimezone(tz), "price": price,
+                         "color": _color(rank(price)), "width": (end - ts).total_seconds() / total * 100})
+    now_price = _current(points, now)
+    level = None
+    if now_price is not None:
+        r = rank(now_price)
+        level = "low" if r < 1 / 3 else "high" if r > 2 / 3 else "mid"
+    # günstigste volle Stunde ab jetzt (heute und morgen, soweit bekannt)
+    hours = {}
+    for ts, price in points:
+        if ts + timedelta(minutes=15) > now:
+            hours.setdefault(ts.replace(minute=0, second=0, microsecond=0), []).append(price)
+    cheapest = min(((h, sum(v) / len(v)) for h, v in hours.items() if len(v) >= 1), key=lambda x: x[1], default=None)
+    days = []
+    day = first.astimezone(tz).date()
+    while _midnight(day) < last:
+        begin = max(_midnight(day), first)
+        days.append({"date": day, "pct": (begin - first).total_seconds() / total * 100})
+        day += timedelta(days=1)
+    return {"segments": segments, "now_pct": max(0, min(100, (now - first).total_seconds() / total * 100))
+            if first <= now <= last else None, "now_price": now_price, "level": level,
+            "cheapest": (cheapest[0].astimezone(tz), cheapest[1]) if cheapest else None,
+            "min": ordered[0], "max": ordered[-1], "days": days}

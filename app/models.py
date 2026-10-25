@@ -102,6 +102,9 @@ class User(UserMixin, db.Model):
     push_off = db.Column(db.String(300), nullable=False, default="", server_default="")
     # … und eingeschaltete Themen, die für diesen Benutzer standardmäßig aus sind (PUSH_TOPICS "default")
     push_on = db.Column(db.String(300), nullable=False, default="", server_default="")
+    # Bereiche der Startseite: Abweichung von der Voreinstellung der Rolle (tiles.SECTIONS)
+    home_add = db.Column(db.String(300), nullable=False, default="", server_default="")
+    home_hide = db.Column(db.String(300), nullable=False, default="", server_default="")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))

@@ -301,6 +301,16 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    von Nennleistung, Stunden gestern und die nächste Wartung nach Laufzeit (`biogas.dashboard()`). Die Startseite
    liest nur den Zwischenspeicher (`live(cached_only=True)`), den der Zeitplan alle 10 Minuten auffrischt
    (`refresh_live`) – sie wartet nie auf die API.
+   **Strompreis-Ampel** (0.40.0): Balken mit den Day-Ahead-Preisen je Viertelstunde von heute 0 Uhr bis morgen
+   24 Uhr (sobald veröffentlicht), Farbe nach Rang im angezeigten Zeitraum (günstig grün → teuer rot), Strich =
+   jetzt, gestrichelt = Tageswechsel; dazu Preis jetzt mit „günstig/mittel/teuer“ (unteres/oberes Drittel) und die
+   günstigste Stunde ab jetzt (`biogas.price_strip`, Vorlage `partials/price_strip.html`). Auf der Startseite und
+   der Biogas-Seite; die Startseite liest nur den Zwischenspeicher, den der Zeitplan auch ohne BHKW frisch hält.
+   **Startseite einstellbar** (0.40.0): Bereiche (Strompreis, Jetzt wichtig, Tagesplan, Übergabe, Aufgaben, BHKW,
+   Diese Woche, Wetter, Lager und Bestand) wie die Kacheln: Voreinstellung je Rolle unter Verwaltung → Startseite
+   (`settings` `home_<rolle>`; von sich aus: Admin alles, Mitarbeiter ohne Strompreis/BHKW, Betrachter nur Wichtiges,
+   Übergabe, Woche, Wetter, Bestand), jeder passt unter „Startseite anpassen“ an (`User.home_add/home_hide`,
+   `tiles.sections_for`).
    **Rundgang** (0.39.0, Biogas → Rundgang, `rounds.py`): Stationen mit QR-Code `R-01` (Etiketten-PDF wie bei den
    Kisten), Prüfpunkte je Zeile und Intervall in Tagen; Vorschläge für die Biogasanlage (Fermenter, Nachgärer,
    BHKW-Raum, Pumpenhaus, Feststoffeintrag, Gasfackel). Scannen öffnet die Checkliste: antippen, was nicht in Ordnung

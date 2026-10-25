@@ -92,7 +92,7 @@ ADMIN_HINTS = {
     "team.instructions": N_("Pflicht-Unterweisungen mit Unterschrift"),
     "admin.data": N_("Excel-Vorlage, Import, Jahres-Export"),
     "admin.backups": N_("Nächtliche Sicherung, Stände herunterladen"),
-    "admin.tile_defaults": N_("Kacheln am Handy je Rolle"),
+    "admin.tile_defaults": N_("Bereiche und Kacheln je Rolle"),
 }
 
 
