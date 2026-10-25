@@ -88,7 +88,7 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 ## Was die App damit macht
 
 - Hühner-Übersicht und Startseiten-Karte: Klappe offen/zu seit …, Temperatur, Feuchte, Akku, Kurve der letzten
-  48 Stunden, Klappen-Zeiten.
+  48 Stunden, Zeiten der Klappe.
 - Nach Sonnenuntergang: Klappe laut Sensor zu → keine Erinnerung; offen → Push „Hühnerklappe ist noch offen!“.
 - Push bei Frost (≤ 0,5 °C) oder Hitze (≥ 30 °C) im Stall und wenn der Sensor sich 2 Stunden nicht meldet.
 

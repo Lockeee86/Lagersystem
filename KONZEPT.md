@@ -347,7 +347,7 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    über das Detection-Sensor-Modul) → LoRa → Gateway im Haus → MQTT (Mosquitto im Stack, Profil `huehner`) →
    `coop-bridge` → `POST /api/huehner/sensor` (Schlüssel per Admin erzeugt, nur Hash in `settings`).
    Gespeichert: `CoopReading` (°C, %, Akku, Spannung, RSSI/SNR), `CoopDoorEvent` (nur Änderungen). Anzeige auf
-   Hühner-Übersicht (Kurve 48 h, Klappen-Zeiten) und Startseiten-Karte. Klappen-Push nach Sonnenuntergang nur
+   Hühner-Übersicht (Kurve 48 h, Zeiten der Klappe) und Startseiten-Karte. Push zur Klappe nach Sonnenuntergang nur
    noch, wenn der Sensor „offen“ meldet (dann dringend, Thema `coop_open`); Push bei Frost/Hitze/Sensor stumm
    (`coop_sensor`). Einrichtung in `bridge/README.md`.
    Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
