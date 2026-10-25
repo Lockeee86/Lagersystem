@@ -329,6 +329,17 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    mit MWh, Betriebsstunden, Ø Preis, Stillstandstagen je Motor, nächster Wartung und Rundgang-Mängeln der Vorwoche
    (`biogas.week_report` / `week_push`); dieselben Zahlen als Karte „Letzte Woche“ auf der Biogas-Seite.
    Zurückgestellt: Fütterung/Silo (läuft über die BGA-Software) und Erntemengen (Waagensoftware).
+   **Hühner** (0.42.0, eigene Rubrik „Hühner“, `chickens.py` / `chickens_views.py`, ~30 Hennen): nur sichtbar für
+   Benutzer mit „Rubrik Hühner“ in der Benutzerverwaltung (`User.chickens`; eintragen `keeps_chickens` = zusätzlich
+   Mitarbeiter, Admin darf immer). Eier-Buch (`EggEntry`: Anzahl, davon kaputt, mehrere Einträge am Tag),
+   Verteilung an Haushalte (`Household` anlegbar/deaktivierbar, `EggShare`; Vorrat = gute Eier − verteilt; kein
+   Verkauf), Herde (`FlockEvent` Zu-/Abgang mit Grund, Rasse, Schlupf → Bestand, Gruppen mit Alter; Legeleistung =
+   Eier ÷ Hühnertage), Futter (`FeedEntry` kg/€ → g je Huhn und Tag, Kosten je Ei je Monat), Stallbuch
+   (`FlockTreatment` mit Wartezeit → „Eier gesperrt bis …“). Stallkontrolle über den Rundgang (`CheckStation.area`
+   = huehner, Vorschlag „Hühnerstall“, Mängel per Push an die Hühner-Leute), Aufgaben mit `Task.area` (Vorschläge:
+   ausmisten wöchentlich, Milben monatlich, Wurmkur alle 3, Impfung alle 6 Monate). Startseite: Bereich „Hühner“
+   mit Schnelleingabe. Push: 18 Uhr „noch keine Eier eingetragen“, nach Sonnenuntergang (NOAA-Formel, Hof-Standort)
+   „Hühnerklappe zu?“ (von sich aus aus).
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen
    fällig werden (Prognose aus der Laufzeit) oder schon „bald fällig“/überfällig sind, sucht `biogas.best_windows` die
    drei günstigsten Zeitfenster – Länge = Stillstand der Wartung (`MaintenanceTask.downtime_hours`, Vorlagen z. B.

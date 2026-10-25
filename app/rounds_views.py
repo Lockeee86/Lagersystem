@@ -13,6 +13,13 @@ from .utils import admin_required, editor_required, flash_error, form_int
 bp = Blueprint("rounds", __name__)
 
 
+def _home(station=None):
+    """Übersicht, zu der eine Station gehört (Rundgang Biogas oder Hühnerstall)."""
+    if station is not None and station.area == "huehner":
+        return url_for("chickens.overview")
+    return url_for("rounds.overview")
+
+
 def _station(code):
     station = CheckStation.query.filter_by(code=rounds.normalize_code(code) or "").first()
     if station is None:
@@ -26,7 +33,7 @@ def overview():
     existing = {s.name.casefold() for s in CheckStation.query}
     suggestions = [(i, _(name)) for i, (name, _items, _days) in enumerate(rounds.SUGGESTIONS)
                    if _(name).casefold() not in existing]
-    inactive = CheckStation.query.filter_by(active=False).order_by(CheckStation.code).all()
+    inactive = CheckStation.query.filter_by(active=False, area="biogas").order_by(CheckStation.code).all()
     return render_template("rounds/overview.html", data=rounds.overview(), suggestions=suggestions,
                            inactive=inactive, label_formats=LABEL_FORMATS)
 
@@ -34,19 +41,24 @@ def overview():
 @bp.route("/rundgang/neu", methods=["POST"])
 @admin_required
 def station_create():
+    area = "huehner" if request.form.get("area") == "huehner" else "biogas"
     try:
         index = form_int("vorschlag")
-        if index is not None and 0 <= index < len(rounds.SUGGESTIONS):
+        if area == "huehner" and request.form.get("vorschlag") == "stall":
+            from .chickens import STATION_SUGGESTION
+            name, items, days = STATION_SUGGESTION
+            station = rounds.save_station(None, _(name), "\n".join(_(i) for i in items), days, area=area)
+        elif index is not None and 0 <= index < len(rounds.SUGGESTIONS):
             name, items, days = rounds.SUGGESTIONS[index]
             station = rounds.save_station(None, _(name), "\n".join(_(i) for i in items), days)
         else:
             station = rounds.save_station(None, request.form.get("name"), request.form.get("items"),
-                                          form_int("interval_days", 1))
+                                          form_int("interval_days", 1), area=area)
         db.session.commit()
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("rounds.overview"))
+        return redirect(url_for("chickens.overview") if area == "huehner" else url_for("rounds.overview"))
     flash(_("Station {code} „{name}“ angelegt – jetzt das QR-Etikett drucken.", code=station.code, name=station.name),
           "success")
     return redirect(url_for("rounds.station", code=station.code))
@@ -80,7 +92,7 @@ def station_check(code):
     else:
         flash(_("{name}: Mangel gemeldet.", name=station.name), "warning")
         rounds.issue_reported(check)
-    return redirect(url_for("rounds.overview") if check.ok else url_for("rounds.station", code=station.code))
+    return redirect(_home(station) if check.ok else url_for("rounds.station", code=station.code))
 
 
 @bp.route("/kontrolle/<int:check_id>/behoben", methods=["POST"])
@@ -122,7 +134,7 @@ def station_delete(code):
     db.session.delete(station)
     db.session.commit()
     flash(_("{name} gelöscht.", name=station.name), "success")
-    return redirect(url_for("rounds.overview"))
+    return redirect(_home(station))
 
 
 @bp.route("/rundgang/etiketten.pdf", methods=["POST"])

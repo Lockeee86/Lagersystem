@@ -4,7 +4,7 @@ Alle Zeitstempel werden in UTC gespeichert und erst bei der Anzeige
 in die lokale Zeitzone umgerechnet.
 """
 import secrets
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -94,6 +94,7 @@ class User(UserMixin, db.Model):
     # Besteller: bearbeitet Bestellwünsche (Admins dürfen das immer)
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     can_plan = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    chickens = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # Rubrik Hühner
     # Geheimer Schlüssel für den Kalender-Abo-Link (leer = noch nie abonniert)
     calendar_token = db.Column(db.String(64), unique=True)
     # Kacheln auf der Übersicht: Abweichungen von der Voreinstellung der Rolle (kommagetrennt, siehe tiles.py)
@@ -157,6 +158,16 @@ class User(UserMixin, db.Model):
         """Darf den Tagesplan pflegen (einteilen, löschen, übernehmen, verschicken)."""
         return self.is_admin or (self.can_plan and self.can_edit)
 
+    @property
+    def sees_chickens(self):
+        """Rubrik Hühner in Navigation und Startseite (in der Benutzerverwaltung freigeschaltet)."""
+        return bool(self.chickens)
+
+    @property
+    def keeps_chickens(self):
+        """Darf im Hühnerstall eintragen."""
+        return self.chickens and self.can_edit
+
     def push_topics(self):
         """Push-Themen, die für diesen Benutzer in Frage kommen (je nach Rolle)."""
         return [key for key, topic in PUSH_TOPICS.items() if topic["who"](self)]
@@ -206,6 +217,12 @@ PUSH_TOPICS = {
     "day_plan": {"label": N_("Mein Tagesplan, wenn er verschickt wird"), "group": N_("Team"), "who": lambda u: u.can_edit},
     "handover": {"label": N_("Neue Übergabe-Notiz"), "group": N_("Team"), "who": lambda u: u.can_edit,
                  "default": lambda u: False},
+    "eggs_missing": {"label": N_("Abends: noch keine Eier eingetragen"), "group": N_("Hühner"),
+                     "who": lambda u: u.keeps_chickens},
+    "coop_close": {"label": N_("Zum Sonnenuntergang: Hühnerklappe zu?"), "group": N_("Hühner"),
+                   "who": lambda u: u.keeps_chickens, "default": lambda u: False},
+    "coop_issue": {"label": N_("Stallkontrolle: Mangel gemeldet"), "group": N_("Hühner"),
+                   "who": lambda u: u.keeps_chickens},
 }
 
 
@@ -1122,6 +1139,8 @@ RECURRENCES = {
     "woechentlich": N_("wöchentlich"),
     "zweiwoechentlich": N_("alle 2 Wochen"),
     "monatlich": N_("monatlich"),
+    "vierteljaehrlich": N_("alle 3 Monate"),
+    "halbjaehrlich": N_("alle 6 Monate"),
 }
 
 task_assignees = db.Table(
@@ -1153,6 +1172,7 @@ class Task(db.Model):
     delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id", ondelete="SET NULL"))
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"))
     row = db.Column(db.Integer)
+    area = db.Column(db.String(20), index=True)      # Rubrik, aus der die Aufgabe stammt (huehner)
     # Aus einer Störung bzw. fälligen Wartung entstanden: Abhaken erledigt beides
     machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"), index=True)
     maintenance_task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"), index=True)
@@ -1672,6 +1692,7 @@ class CheckStation(db.Model):
     items = db.Column(db.Text)                     # Prüfpunkte, einer je Zeile
     interval_days = db.Column(db.Integer, nullable=False, default=1)   # spätestens alle n Tage kontrollieren
     position = db.Column(db.Integer, nullable=False, default=0)
+    area = db.Column(db.String(20), nullable=False, default="biogas", server_default="biogas")   # biogas | huehner
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
@@ -1706,3 +1727,143 @@ class StationCheck(db.Model):
     @property
     def failed(self):
         return [item for item, ok in (self.results or []) if not ok]
+
+
+# --- Hühner ---------------------------------------------------------------------------
+
+FLOCK_REASONS = {                                   # Zugang (+) bzw. Abgang (−) in der Herde
+    "gekauft": (1, N_("gekauft")),
+    "geschluepft": (1, N_("geschlüpft")),
+    "zugang": (1, N_("sonstiger Zugang")),
+    "verendet": (-1, N_("verendet")),
+    "geschlachtet": (-1, N_("geschlachtet")),
+    "raubtier": (-1, N_("Raubtier (Fuchs, Habicht …)")),
+    "abgegeben": (-1, N_("abgegeben")),
+    "abgang": (-1, N_("sonstiger Abgang")),
+}
+
+
+class Household(db.Model):
+    """Haushalt, an den Eier verteilt werden."""
+    __tablename__ = "households"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    note = db.Column(db.String(200))
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    @property
+    def label(self):                             # fürs Änderungsprotokoll
+        return self.name
+
+
+class EggEntry(db.Model):
+    """Eier eingesammelt (mehrere Einträge am Tag möglich), davon kaputt/schmutzig."""
+    __tablename__ = "egg_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    eggs = db.Column(db.Integer, nullable=False)
+    cracked = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User")
+
+    @property
+    def label(self):
+        return f"{self.day.strftime('%d.%m.%Y')}: {self.eggs}"
+
+
+class EggShare(db.Model):
+    """Eier an einen Haushalt gegeben."""
+    __tablename__ = "egg_shares"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="RESTRICT"), nullable=False,
+                             index=True)
+    eggs = db.Column(db.Integer, nullable=False)
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    household = db.relationship("Household")
+    user = db.relationship("User")
+
+    @property
+    def label(self):
+        return f"{self.day.strftime('%d.%m.%Y')}: {self.eggs} → {self.household.name if self.household else ''}"
+
+
+class FlockEvent(db.Model):
+    """Zu- oder Abgang in der Herde (`change` mit Vorzeichen)."""
+    __tablename__ = "flock_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    change = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(20), nullable=False)
+    breed = db.Column(db.String(80))
+    hatched_on = db.Column(db.Date)              # Schlupf (Alter der Gruppe)
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User")
+
+    @property
+    def reason_label(self):
+        return _(FLOCK_REASONS[self.reason][1]) if self.reason in FLOCK_REASONS else self.reason
+
+    @property
+    def label(self):
+        return f"{self.day.strftime('%d.%m.%Y')}: {self.change:+d}"
+
+
+class FeedEntry(db.Model):
+    """Futter gekauft bzw. geholt (kg, Kosten wahlweise)."""
+    __tablename__ = "feed_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    kg = db.Column(db.Numeric(8, 1), nullable=False)
+    cost = db.Column(db.Numeric(10, 2))
+    product = db.Column(db.String(100))
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User")
+
+    @property
+    def label(self):
+        return f"{self.day.strftime('%d.%m.%Y')}: {self.kg} kg"
+
+
+class FlockTreatment(db.Model):
+    """Stallbuch: Behandlung (Wurmkur, Impfung, Medikament) mit Wartezeit für die Eier."""
+    __tablename__ = "flock_treatments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    product = db.Column(db.String(120), nullable=False)
+    reason = db.Column(db.String(200))
+    withdrawal_days = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    note = db.Column(db.String(300))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User")
+
+    @property
+    def blocked_until(self):
+        """Letzter Tag, an dem die Eier nicht gegessen/abgegeben werden dürfen (None = keine Wartezeit)."""
+        return self.day + timedelta(days=self.withdrawal_days) if self.withdrawal_days else None
+
+    @property
+    def label(self):
+        return f"{self.day.strftime('%d.%m.%Y')}: {self.product}"

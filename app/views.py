@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, biogas, bulk, fuel, irrigation, machines, navigation, purchases, rounds, sales, search,
-               sites, storage, tasks, team, tiles, uploads, weather)
+from . import (agenda, backup, biogas, bulk, chickens, fuel, irrigation, machines, navigation, purchases, rounds, sales,
+               search, sites, storage, tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
@@ -221,7 +221,8 @@ def dashboard():
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(), my_plan=plan_today.get(current_user.id, []), plan_today=bool(plan_today),
-        bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show, show_order=show_order, strip=strip,
+        bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show,
+        hens=chickens.summary(today) if "huehner" in show else None, show_order=show_order, strip=strip,
         price_configured=biogas.configured(),
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
@@ -277,6 +278,20 @@ def _status(endpoint):
         if soon:
             return ngettext("{n} BHKW-Wartung fällig", "{n} BHKW-Wartungen fällig", soon), True
         return (_("gestern {mwh} MWh", mwh=fmt_num(float(kwh) / 1000, 1)) if kwh else _("BHKW, Laufzeit und Wartung")), False
+    if endpoint == "chickens.overview":
+        from . import chickens
+        info = chickens.summary()
+        if info["issues"]:
+            return ngettext("{n} offener Mangel im Stall", "{n} offene Mängel im Stall", info["issues"]), True
+        return _("heute {n} Eier · {hens} Hühner", n=info["today"]["eggs"], hens=info["flock"]), False
+    if endpoint == "chickens.eggs":
+        from . import chickens
+        return ngettext("{n} Ei im Vorrat", "{n} Eier im Vorrat", chickens.stock()), False
+    if endpoint == "chickens.log":
+        from . import chickens
+        treatment = chickens.blocked()
+        return ((_("Eier gesperrt bis {date}", date=treatment.blocked_until.strftime("%d.%m.")), True) if treatment
+                else (_("Behandlungen und Wartezeiten"), False))
     if endpoint == "team.day_plan":
         plan = team.plan_for(date.today())
         mine = len(plan.get(current_user.id, []))

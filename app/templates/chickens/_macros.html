@@ -1,0 +1,49 @@
+{# Gemeinsame Bausteine der Rubrik Hühner (Übersicht, Startseite) #}
+
+{% macro blocked_alert(treatment) %}
+{% if treatment %}
+<div class="alert alert-danger d-flex gap-2 align-items-start">
+    <i class="bi bi-slash-circle"></i>
+    <div>
+        <strong>{{ _("Eier gesperrt bis einschließlich {date}", date=treatment.blocked_until|date) }}</strong>
+        <div class="small">{{ _("Wartezeit nach {product} ({date}) – nicht essen und nicht verteilen.", product=treatment.product, date=treatment.day|date) }}</div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro egg_form(today, back_url, compact=false) %}
+<form method="post" action="{{ url_for('chickens.egg_add') }}" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="back" value="{{ back_url }}">
+    <div class="{{ 'col-5' if compact else 'col-6 col-md-2' }}">
+        <label class="form-label {{ 'small mb-1' if compact }}" for="egg_n{{ '_c' if compact }}">{{ _("Eier") }}</label>
+        <input class="form-control" id="egg_n{{ '_c' if compact }}" name="eggs" type="number" inputmode="numeric" min="1" max="500" required>
+    </div>
+    <div class="{{ 'col-4' if compact else 'col-6 col-md-2' }}">
+        <label class="form-label {{ 'small mb-1' if compact }}" for="egg_c{{ '_c' if compact }}">{{ _("davon kaputt") }}</label>
+        <input class="form-control" id="egg_c{{ '_c' if compact }}" name="cracked" type="number" inputmode="numeric" min="0" max="500" placeholder="0">
+    </div>
+    {% if not compact %}
+    <div class="col-6 col-md-3"><label class="form-label" for="egg_d">{{ _("Datum") }}</label>
+        <input class="form-control" id="egg_d" name="day" type="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+    <div class="col-6 col-md-3"><label class="form-label" for="egg_note">{{ _("Notiz") }}</label>
+        <input class="form-control" id="egg_note" name="note" maxlength="200" placeholder="{{ _('z. B. Nest 3 leer') }}"></div>
+    {% endif %}
+    <div class="{{ 'col-3' if compact else 'col-12 col-md-2' }}"><button class="btn btn-primary w-100" aria-label="{{ _('Eintragen') }}">{% if compact %}<i class="bi bi-plus-lg"></i>{% else %}{{ _("Eintragen") }}{% endif %}</button></div>
+</form>
+{% endmacro %}
+
+{% macro egg_chart(days, today) %}
+{% set top = [days|map(attribute=1)|max, 1]|max %}
+<div class="egg-chart" role="img" aria-label="{{ _('Eier der letzten 30 Tage') }}">
+    {% for day, n in days %}
+    <div class="egg-bar {{ 'is-today' if day == today }}" title="{{ day|date }}: {{ n }}">
+        <span style="height: {{ (100 * n / top)|round|int }}%"></span>
+    </div>
+    {% endfor %}
+</div>
+<div class="d-flex justify-content-between small text-body-secondary mt-1">
+    <span>{{ days[0][0]|date }}</span><span>{{ _("max. {n} am Tag", n=top) }}</span><span>{{ _("Heute") }}</span>
+</div>
+{% endmacro %}

@@ -53,6 +53,14 @@ AREAS = [
         item("biogas.overview", N_("Übersicht"), "bi-lightning-charge", endpoints=("biogas.sync_now", "biogas.window_settings")),
         item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",)),
     ]},
+    # nur für Benutzer, die in der Benutzerverwaltung für die Hühner freigeschaltet sind
+    {"key": "huehner", "label": N_("Hühner"), "icon": "bi-egg", "show": lambda u: u.sees_chickens, "items": [
+        item("chickens.overview", N_("Übersicht"), "bi-egg"),
+        item("chickens.eggs", N_("Eier & Haushalte"), "bi-basket2"),
+        item("chickens.flock", N_("Herde"), "bi-egg-fried"),
+        item("chickens.feed", N_("Futter"), "bi-bag"),
+        item("chickens.log", N_("Stallbuch"), "bi-journal-medical"),
+    ]},
     {"key": "verkauf", "label": N_("Verkauf"), "icon": "bi-truck", "items": [
         item("sales.deliveries", N_("Lieferscheine"), "bi-truck",
              endpoints=("sales.delivery_detail", "sales.delivery_load")),
@@ -104,6 +112,21 @@ def _visible(items, user):
     return [it for it in items if user.has_role(it["role"])]
 
 
+def _area_shown(area, user):
+    return area.get("show") is None or area["show"](user)
+
+
+def resolve(endpoint, view_args=None):
+    """Station des Hühnerstalls gehört zur Rubrik Hühner (sonst zum Rundgang der Biogasanlage)."""
+    if endpoint == "rounds.station" and (view_args or {}).get("code"):
+        from .models import CheckStation
+        from .rounds import normalize_code
+        station = CheckStation.query.filter_by(code=normalize_code(view_args["code"]) or "").first()
+        if station is not None and station.area == "huehner":
+            return "chickens.overview"
+    return endpoint
+
+
 def current(endpoint, user):
     """{"areas": [...], "area": aktueller Bereich, "items": seine sichtbaren Unterpunkte, "active": Endpunkt}"""
     endpoint = endpoint or ""
@@ -114,7 +137,7 @@ def current(endpoint, user):
         area = next((a for a in AREAS if any(_active(it, endpoint) for it in a["items"])), None)
     items = _visible(area["items"], user) if area else []
     active = next((it["endpoint"] for it in items if _active(it, endpoint)), None)
-    areas = [{**a, "href": url_for(_visible(a["items"], user)[0]["endpoint"])} for a in AREAS]
+    areas = [{**a, "href": url_for(_visible(a["items"], user)[0]["endpoint"])} for a in AREAS if _area_shown(a, user)]
     return {"areas": areas, "area": area, "items": items, "active": active}
 
 
@@ -154,6 +177,8 @@ def hub(key, user):
         {"label": None, "items": start},
         {"label": by_key["verkauf"]["label"], "items": _visible(by_key["verkauf"]["items"], user)},
         {"label": by_key["biogas"]["label"], "items": _visible(by_key["biogas"]["items"], user)},
+        {"label": by_key["huehner"]["label"],
+         "items": _visible(by_key["huehner"]["items"], user) if _area_shown(by_key["huehner"], user) else []},
         {"label": None, "items": _visible(MORE_EXTRA, user)},
     ) if g["items"]]
 

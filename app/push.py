@@ -376,4 +376,6 @@ def daily(app, now=None):
         if now.hour >= EVENING_HOUR and not _job_done("harvest", today):
             _mark_job("harvest", today)
             _harvest_report(today, tz)
+        from . import chickens
+        chickens.evening_check(now, _job_done, _mark_job)     # Eier eintragen? Hühnerklappe zu?
 

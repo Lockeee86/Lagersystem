@@ -708,6 +708,7 @@ def users():
         user.active = active
         user.can_order = bool(request.form.get("can_order"))
         user.can_plan = bool(request.form.get("can_plan"))
+        user.chickens = bool(request.form.get("chickens"))
         language = form_str("language", 5)
         if language in LANGUAGES:
             user.language = language

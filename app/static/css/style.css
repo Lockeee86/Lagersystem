@@ -849,3 +849,9 @@ body:not(.has-tabbar) {
 .plan-check { display: inline-flex; }
 .plan-check .btn { line-height: 1; font-size: 1.1rem; color: inherit; }
 .plan-line.is-done .plan-text { text-decoration: line-through; color: var(--bs-secondary-color); }
+
+/* Hühner: Eier der letzten Tage als Säulen */
+.egg-chart { display: flex; align-items: flex-end; gap: 2px; height: 6rem; }
+.egg-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.egg-bar span { display: block; width: 100%; min-height: 2px; background: var(--brand); border-radius: 2px 2px 0 0; opacity: .75; }
+.egg-bar.is-today span { opacity: 1; }

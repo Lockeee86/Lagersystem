@@ -49,6 +49,10 @@ def _advance(day, recurrence):
         return day + timedelta(days=14)
     if recurrence == "monatlich":
         return add_months(day, 1)
+    if recurrence == "vierteljaehrlich":
+        return add_months(day, 3)
+    if recurrence == "halbjaehrlich":
+        return add_months(day, 6)
     raise ValueError(recurrence)
 
 
@@ -112,7 +116,7 @@ def complete_task(task, user, note=None, photo_names=None):
             title=task.title, description=task.description, important=task.important,
             recurrence=task.recurrence, due_on=next_due(task.due_on, task.recurrence),
             assignees=list(task.assignees), machine_id=task.machine_id, delivery_id=task.delivery_id,
-            warehouse_id=task.warehouse_id, row=task.row, plots=list(task.plots), previous_id=task.id,
+            warehouse_id=task.warehouse_id, row=task.row, plots=list(task.plots), area=task.area, previous_id=task.id,
             created_by_id=task.created_by_id,
         )
         db.session.add(follow_up)

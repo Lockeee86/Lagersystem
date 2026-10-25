@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "tasks/_macros.html" import task_item with context %}
+{% from "chickens/_macros.html" import blocked_alert, egg_form, egg_chart %}
+{% block title %}{{ _("Hühner") }}{% endblock %}
+{% block content %}
+{% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Hühner") }}</h1>
+        <p class="text-body-secondary mb-0">
+            {{ ngettext("{n} Huhn", "{n} Hühner", info.flock) }}
+            {% if sunset %} · <i class="bi bi-sunset"></i> {{ _("Sonnenuntergang {time} Uhr", time=sunset|time) }}{% endif %}
+        </p>
+    </div>
+    {% if can_keep %}<a class="btn btn-outline-primary" href="{{ url_for('chickens.eggs') }}#verteilen"><i class="bi bi-house-heart me-1"></i>{{ _("Eier verteilen") }}</a>{% endif %}
+</div>
+
+{{ blocked_alert(info.blocked) }}
+
+{% if can_keep %}
+<div class="card shadow-sm mb-4" id="eier">
+    <div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-basket2 me-1"></i>{{ _("Eier eintragen") }}</h2>
+        {{ egg_form(today, url_for('chickens.overview')) }}
+        {% if entries %}
+        <div class="small text-body-secondary mt-3">
+            {% for e in entries %}
+            <div class="d-flex align-items-center gap-2 py-1 {{ 'border-top' if not loop.first }}">
+                <span class="flex-grow-1">{{ _("Heute") if e.day == today else e.day|date }} · <strong>{{ ngettext("{n} Ei", "{n} Eier", e.eggs) }}</strong>{% if e.cracked %} ({{ _("{n} kaputt", n=e.cracked) }}){% endif %}{% if e.user %} · {{ e.user.name }}{% endif %}{% if e.note %} · {{ e.note }}{% endif %}</span>
+                <form method="post" action="{{ url_for('chickens.egg_delete', entry_id=e.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ url_for('chickens.overview') }}"><button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-x-lg"></i></button></form>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-egg"></i>{{ _("Heute") }}</div><div class="stat-value">{{ info.today.eggs }}</div><div class="stat-sub">{% if info.today.cracked %}{{ _("{n} kaputt", n=info.today.cracked) }}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-calendar-week"></i>{{ _("Letzte 7 Tage") }}</div><div class="stat-value">{{ info.week_eggs }}</div><div class="stat-sub">{% if info.week_rate is not none %}{{ _("Legeleistung {n} %", n=info.week_rate) }}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>
+    <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.eggs') }}"><div class="stat-label"><i class="bi bi-box2"></i>{{ _("Vorrat") }}</div><div class="stat-value">{{ info.stock }}</div><div class="stat-sub">{{ _("Eier noch nicht verteilt") }}</div></a></div>
+    <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.flock') }}"><div class="stat-label"><i class="bi bi-egg-fried"></i>{{ _("Herde") }}</div><div class="stat-value">{{ info.flock }}</div><div class="stat-sub">{{ _("Hühner") }}</div></a></div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header">{{ _("Eier der letzten 30 Tage") }}</div>
+    <div class="card-body">{{ egg_chart(days, today) }}</div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-baseline">
+            <h2 class="hub-heading mt-0">{{ _("Stallkontrolle") }}</h2>
+            {% if current_user.can_edit %}<a class="small" href="{{ url_for('main.scan') }}"><i class="bi bi-qr-code-scan"></i> {{ _("Station scannen") }}</a>{% endif %}
+        </div>
+        <div class="hub-list mb-3">
+            {% for r in info.checks %}
+            {% set s = r.station %}
+            <a class="hub-row" href="{{ url_for('rounds.station', code=s.code) }}">
+                <span class="hub-icon {{ 'warn' if r.overdue or r.open }}"><i class="bi {{ 'bi-exclamation-triangle' if r.open else 'bi-check2-circle' if not r.overdue else 'bi-clock-history' }}"></i></span>
+                <span class="hub-text">
+                    <span class="hub-title">{{ s.name }} <span class="small text-body-secondary fw-normal">{{ s.code }}</span></span>
+                    <span class="hub-status {{ 'warn' if r.overdue }}">
+                        {% if r.last %}{{ _("zuletzt {date}", date=r.last.created_at|datetime) }}{% if r.last.user %} · {{ r.last.user.name }}{% endif %}{% else %}{{ _("noch nie kontrolliert") }}{% endif %}
+                        {% if r.open %} · {{ ngettext("{n} offener Mangel", "{n} offene Mängel", r.open|length) }}{% endif %}
+                    </span>
+                </span>
+                <i class="bi bi-chevron-right hub-chevron"></i>
+            </a>
+            {% else %}
+            <div class="hub-row d-block">
+                <span class="text-body-secondary small">{{ _("Noch keine Station am Hühnerstall. Mit QR-Etikett am Stall wird die Checkliste beim Scannen geöffnet.") }}</span>
+                {% if current_user.is_admin %}
+                <form method="post" action="{{ url_for('rounds.station_create') }}" class="mt-2">{{ csrf() }}<input type="hidden" name="area" value="huehner"><input type="hidden" name="vorschlag" value="stall"><button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus me-1"></i>{{ _("Station „Hühnerstall“ anlegen") }}</button></form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-baseline">
+            <h2 class="hub-heading mt-0">{{ _("Aufgaben") }}</h2>
+            {% if can_keep %}<a class="small" href="{{ url_for('tasks.task_list', neu=1, bereich='huehner') }}"><i class="bi bi-plus-lg"></i> {{ _("Aufgabe") }}</a>{% endif %}
+        </div>
+        <div class="card shadow-sm mb-2">
+            <ul class="list-group list-group-flush">
+                {% for task in open_tasks %}{{ task_item(task, today, request.path) }}{% else %}<li class="list-group-item small text-body-secondary">{{ _("Keine offenen Aufgaben.") }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% if can_keep and suggestions %}
+        <div class="small text-body-secondary mb-1">{{ _("Wiederkehrende Aufgaben mit einem Tipp anlegen:") }}</div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for index, title, rec in suggestions %}
+            <form method="post" action="{{ url_for('chickens.task_suggestion') }}">{{ csrf() }}<input type="hidden" name="vorschlag" value="{{ index }}"><input type="hidden" name="back" value="{{ url_for('chickens.overview') }}"><button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus me-1"></i>{{ title }} <span class="text-body-secondary">({{ _(rec) }})</span></button></form>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

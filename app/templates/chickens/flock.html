@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Herde") }}{% endblock %}
+{% block content %}
+{% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Herde") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Huhn im Bestand", "{n} Hühner im Bestand", size) }}</p>
+    </div>
+</div>
+
+{% if can_keep %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-plus-slash-minus me-1"></i>{{ _("Zugang oder Abgang") }}</h2>
+        <form method="post" action="{{ url_for('chickens.flock_add') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-12 col-md-4"><label class="form-label" for="f_reason">{{ _("Grund") }}</label>
+                <select class="form-select" id="f_reason" name="reason" required>
+                    <optgroup label="{{ _('Zugang') }}">{% for key, (sign, label) in reasons.items() if sign > 0 %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}</optgroup>
+                    <optgroup label="{{ _('Abgang') }}">{% for key, (sign, label) in reasons.items() if sign < 0 %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}</optgroup>
+                </select></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="f_count">{{ _("Anzahl") }}</label>
+                <input class="form-control" id="f_count" name="count" type="number" inputmode="numeric" min="1" max="1000" required></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="f_day">{{ _("Datum") }}</label>
+                <input class="form-control" id="f_day" name="day" type="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="f_breed">{{ _("Rasse (bei Zugang)") }}</label>
+                <input class="form-control" id="f_breed" name="breed" maxlength="80" placeholder="{{ _('z. B. Lohmann Braun') }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="f_hatched">{{ _("Geschlüpft am (bei Zugang)") }}</label>
+                <input class="form-control" id="f_hatched" name="hatched_on" type="date" max="{{ today.isoformat() }}"></div>
+            <div class="col-12 col-md-6"><label class="form-label" for="f_note">{{ _("Notiz") }}</label>
+                <input class="form-control" id="f_note" name="note" maxlength="200"></div>
+            <div class="col-12 col-md-3"><button class="btn btn-primary w-100">{{ _("Eintragen") }}</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Gruppen (Zugänge)") }}</div>
+            <ul class="list-group list-group-flush">
+                {% for g in groups %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between gap-2">
+                        <span class="fw-semibold">{{ g.breed or _("ohne Rasse") }}</span>
+                        <span>{{ ngettext("{n} Huhn", "{n} Hühner", g.change) }}</span>
+                    </div>
+                    <div class="small text-body-secondary">
+                        {{ g.reason_label }} {{ g.day|date }}
+                        {% if g.hatched_on %} · {% set weeks = ((today - g.hatched_on).days // 7) %}{{ ngettext("{n} Woche alt", "{n} Wochen alt", weeks) if weeks < 104 else _("{n} Jahre alt", n=(weeks // 52)) }}{% endif %}
+                    </div>
+                </li>
+                {% else %}
+                <li class="list-group-item small text-body-secondary">{{ _("Noch keine Hühner eingetragen – oben mit „gekauft“ anfangen.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Verlauf") }}</div>
+            <ul class="list-group list-group-flush small">
+                {% for e in events %}
+                <li class="list-group-item d-flex gap-2 align-items-center">
+                    <span class="text-nowrap text-body-secondary">{{ e.day|date }}</span>
+                    <span class="fw-semibold {{ 'text-success' if e.change > 0 else 'text-danger' }}">{{ "%+d"|format(e.change) }}</span>
+                    <span class="flex-grow-1">{{ e.reason_label }}{% if e.breed %} · {{ e.breed }}{% endif %}{% if e.note %} · {{ e.note }}{% endif %}{% if e.user %}<span class="text-body-secondary"> · {{ e.user.name }}</span>{% endif %}</span>
+                    {% if can_keep %}<form method="post" action="{{ url_for('chickens.flock_delete', event_id=e.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ url_for('chickens.flock') }}"><button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-x-lg"></i></button></form>{% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-body-secondary">{{ _("Noch keine Einträge.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

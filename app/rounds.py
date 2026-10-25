@@ -49,14 +49,14 @@ def _items(text):
     return "\n".join(line for line in lines if line)[:3000] or None
 
 
-def save_station(station, name, items, interval_days, active=True):
+def save_station(station, name, items, interval_days, active=True, area=None):
     name = re.sub(r"\s+", " ", name or "").strip()[:100]
     if not name:
         raise StorageError(_("Bitte einen Namen für die Station angeben."))
     if not interval_days or not 1 <= interval_days <= 365:
         raise StorageError(_("Kontrolle bitte alle 1 bis 365 Tage."))
     if station is None:
-        station = CheckStation(code=next_code(),
+        station = CheckStation(code=next_code(), area=area or "biogas",
                                position=(db.session.query(db.func.max(CheckStation.position)).scalar() or 0) + 1)
         db.session.add(station)
     station.name, station.items, station.interval_days, station.active = name, _items(items), interval_days, active
@@ -103,19 +103,23 @@ def status(station, now=None):
     return {"last": last, "due_at": due_at, "overdue": last is None or due_at <= now, "open": open_issues}
 
 
-def overview(now=None):
-    stations = CheckStation.query.filter_by(active=True).order_by(CheckStation.position, CheckStation.code).all()
+def overview(now=None, area="biogas"):
+    stations = (CheckStation.query.filter_by(active=True, area=area)
+                .order_by(CheckStation.position, CheckStation.code).all())
     rows = [{"station": s, **status(s, now)} for s in stations]
     return {"rows": rows, "overdue": sum(1 for r in rows if r["overdue"]),
             "issues": sum(len(r["open"]) for r in rows)}
 
 
-def has_stations():
-    return db.session.query(CheckStation.id).filter_by(active=True).first() is not None
+def has_stations(area="biogas"):
+    return db.session.query(CheckStation.id).filter_by(active=True, area=area).first() is not None
 
 
 def issue_reported(check):
-    """Push bei einem Mangel (Thema „Rundgang: Mangel“, von sich aus an Admins)."""
+    """Push bei einem Mangel (Thema „Rundgang: Mangel“, von sich aus an Admins; Hühnerstall → Hühner-Leute)."""
+    if check.station.area == "huehner":
+        from . import chickens
+        return chickens.issue_reported(check)
     items = ", ".join(check.failed)[:150]
     return push.notify(push.editors(), "round_issue", Msg("Rundgang: {station}", station=check.station.name),
                        items or (check.note or "")[:150], url_for("rounds.station", code=check.station.code),

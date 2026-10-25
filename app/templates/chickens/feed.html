@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Futter") }}{% endblock %}
+{% block content %}
+{% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Futter") }}</h1>
+        <p class="text-body-secondary mb-0">{% if per_hen %}{{ _("Ø {g} g je Huhn und Tag (letzte 90 Tage)", g=per_hen) }}{% else %}{{ _("Futter eintragen, dann rechnet die App Verbrauch und Kosten je Ei.") }}{% endif %}</p>
+    </div>
+</div>
+
+{% if can_keep %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-bag-plus me-1"></i>{{ _("Futter gekauft") }}</h2>
+        <form method="post" action="{{ url_for('chickens.feed_add') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-6 col-md-2"><label class="form-label" for="fd_kg">{{ _("Menge (kg)") }}</label>
+                <input class="form-control" id="fd_kg" name="kg" inputmode="decimal" maxlength="20" required></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="fd_cost">{{ _("Preis gesamt (€)") }}</label>
+                <input class="form-control" id="fd_cost" name="cost" inputmode="decimal" maxlength="20"></div>
+            <div class="col-12 col-md-3"><label class="form-label" for="fd_product">{{ _("Futter") }}</label>
+                <input class="form-control" id="fd_product" name="product" maxlength="100" list="feedProducts" autocomplete="off" placeholder="{{ _('z. B. Legemehl') }}">
+                <datalist id="feedProducts">{% for p in products %}<option value="{{ p }}">{% endfor %}</datalist></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="fd_day">{{ _("Datum") }}</label>
+                <input class="form-control" id="fd_day" name="day" type="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+            <div class="col-6 col-md-2"><button class="btn btn-primary w-100">{{ _("Eintragen") }}</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Kosten je Monat") }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 small">
+                    <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Futter") }}</th><th class="text-end">{{ _("Kosten") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end">{{ _("je Ei") }}</th></tr></thead>
+                    <tbody>
+                    {% for m in months %}
+                    <tr><td class="text-nowrap">{{ m.month.strftime("%m/%Y") }}</td>
+                        <td class="text-end">{{ (m.feed_kg|num(0) ~ " kg") if m.feed_kg else "" }}</td>
+                        <td class="text-end">{{ (m.feed_cost|num(2) ~ " €") if m.feed_cost else "" }}</td>
+                        <td class="text-end">{{ m.eggs or "" }}</td>
+                        <td class="text-end">{{ ((m.per_egg * 100)|num(1) ~ " ct") if m.per_egg else "" }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer small text-body-secondary">{{ _("Kosten je Ei = Futter, das im Monat gekauft wurde, geteilt durch die Eier des Monats – über mehrere Monate gesehen aussagekräftig.") }}</div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Einkäufe") }}</div>
+            <ul class="list-group list-group-flush small">
+                {% for e in entries %}
+                <li class="list-group-item d-flex gap-2 align-items-center">
+                    <span class="text-nowrap text-body-secondary">{{ e.day|date }}</span>
+                    <span class="flex-grow-1"><strong>{{ e.kg|num(1) }} kg</strong>{% if e.product %} {{ e.product }}{% endif %}{% if e.cost %} · {{ e.cost|num(2) }} €{% endif %}{% if e.user %}<span class="text-body-secondary"> · {{ e.user.name }}</span>{% endif %}</span>
+                    {% if can_keep %}<form method="post" action="{{ url_for('chickens.feed_delete', entry_id=e.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ url_for('chickens.feed') }}"><button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-x-lg"></i></button></form>{% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-body-secondary">{{ _("Noch keine Einträge.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

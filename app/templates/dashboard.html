@@ -221,6 +221,31 @@
 </div>
 {% endif %}
 {% endset %}
+{% set sec_huehner %}
+{% if "huehner" in show and hens %}
+{% from "chickens/_macros.html" import egg_form %}
+<div class="card shadow-sm mb-4" id="huehner">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-egg me-1"></i>{{ _("Hühner") }} <span class="small text-body-secondary">· {{ ngettext("{n} Huhn", "{n} Hühner", hens.flock) }}</span></span>
+        <a class="small" href="{{ url_for('chickens.overview') }}">{{ _("Übersicht") }}</a>
+    </div>
+    <div class="card-body">
+        {% if hens.blocked %}<div class="alert alert-danger small py-2"><i class="bi bi-slash-circle me-1"></i>{{ _("Eier gesperrt bis einschließlich {date}", date=hens.blocked.blocked_until|date) }}</div>{% endif %}
+        <div class="d-flex flex-wrap gap-4 mb-3">
+            <div><div class="small text-body-secondary">{{ _("Heute") }}</div><div class="fs-4 fw-bold">{{ ngettext("{n} Ei", "{n} Eier", hens.today.eggs) }}</div></div>
+            <div><div class="small text-body-secondary">{{ _("Vorrat") }}</div><div class="fs-4 fw-bold">{{ hens.stock }}</div></div>
+            {% if hens.week_rate is not none %}<div><div class="small text-body-secondary">{{ _("Legeleistung (7 Tage)") }}</div><div class="fs-4 fw-bold">{{ hens.week_rate }} %</div></div>{% endif %}
+        </div>
+        {% if current_user.keeps_chickens or current_user.is_admin %}{{ egg_form(today, url_for('main.dashboard') ~ '#huehner', compact=true) }}{% endif %}
+        {% if hens.issues or hens.overdue %}
+        <div class="small mt-2 text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>
+            {% if hens.issues %}{{ ngettext("{n} offener Mangel im Stall", "{n} offene Mängel im Stall", hens.issues) }}{% else %}{{ _("Stallkontrolle heute noch offen") }}{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endset %}
 {% set sec_wetter %}
 {% if "wetter" in show and weather and not weather.error %}
 {% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
@@ -265,7 +290,7 @@
 </div>
 {% endif %}
 {% endset %}
-{% set blocks = {"strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
+{% set blocks = {"strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
 {# Handy: untereinander in der eingestellten Reihenfolge. PC: Strompreis und Bestand über die volle Breite, die
    Bereiche dazwischen in derselben Reihenfolge auf zwei Spalten verteilt (ein einzelner nutzt die volle Breite). #}
 {% set wide = ["strompreis", "bestand"] %}

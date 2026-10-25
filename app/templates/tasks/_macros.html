@@ -41,6 +41,7 @@
 <form method="post" action="{{ action }}" class="row g-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="back" value="{{ back }}">
+    {% if not task and prefill.get('area') %}<input type="hidden" name="area" value="{{ prefill.get('area') }}">{% endif %}
     {% if not task and (prefill.get('machine_event_id') or prefill.get('maintenance_task_id')) %}
     <input type="hidden" name="machine_event_id" value="{{ prefill.get('machine_event_id') or '' }}">
     <input type="hidden" name="maintenance_task_id" value="{{ prefill.get('maintenance_task_id') or '' }}">

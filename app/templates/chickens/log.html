@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "chickens/_macros.html" import blocked_alert %}
+{% block title %}{{ _("Stallbuch") }}{% endblock %}
+{% block content %}
+{% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Stallbuch") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Behandlungen, Impfungen, Wurmkuren – mit Wartezeit für die Eier") }}</p>
+    </div>
+</div>
+
+{{ blocked_alert(blocked) }}
+
+{% if can_keep %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-journal-plus me-1"></i>{{ _("Behandlung eintragen") }}</h2>
+        <form method="post" action="{{ url_for('chickens.log_add') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-12 col-md-4"><label class="form-label" for="t_product">{{ _("Mittel") }}</label>
+                <input class="form-control" id="t_product" name="product" maxlength="120" required list="logProducts" autocomplete="off" placeholder="{{ _('z. B. Wurmkur, Impfstoff') }}">
+                <datalist id="logProducts">{% for p in products %}<option value="{{ p }}">{% endfor %}</datalist></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="t_reason">{{ _("Grund") }}</label>
+                <input class="form-control" id="t_reason" name="reason" maxlength="200" placeholder="{{ _('z. B. Milben, Vorbeugung') }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="t_wait">{{ _("Wartezeit Eier (Tage)") }}</label>
+                <input class="form-control" id="t_wait" name="withdrawal_days" type="number" inputmode="numeric" min="0" max="365" value="0"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="t_day">{{ _("Datum") }}</label>
+                <input class="form-control" id="t_day" name="day" type="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+            <div class="col-12 col-md-9"><label class="form-label" for="t_note">{{ _("Notiz") }}</label>
+                <input class="form-control" id="t_note" name="note" maxlength="300" placeholder="{{ _('Dosierung, Tierarzt, Charge …') }}"></div>
+            <div class="col-12 col-md-3"><button class="btn btn-primary w-100">{{ _("Eintragen") }}</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+    <ul class="list-group list-group-flush">
+        {% for t in entries %}
+        <li class="list-group-item d-flex gap-2 align-items-start">
+            <span class="text-nowrap text-body-secondary small pt-1">{{ t.day|date }}</span>
+            <span class="flex-grow-1">
+                <span class="fw-semibold">{{ t.product }}</span>{% if t.reason %} · {{ t.reason }}{% endif %}
+                <span class="d-block small text-body-secondary">
+                    {% if t.blocked_until %}<span class="{{ 'text-danger fw-semibold' if t.blocked_until >= today }}">{{ _("Wartezeit {n} Tage – Eier gesperrt bis {date}", n=t.withdrawal_days, date=t.blocked_until|date) }}</span>{% else %}{{ _("keine Wartezeit") }}{% endif %}
+                    {% if t.note %} · {{ t.note }}{% endif %}{% if t.user %} · {{ t.user.name }}{% endif %}
+                </span>
+            </span>
+            {% if can_keep %}<form method="post" action="{{ url_for('chickens.log_delete', entry_id=t.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ url_for('chickens.log') }}"><button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-x-lg"></i></button></form>{% endif %}
+        </li>
+        {% else %}
+        <li class="list-group-item small text-body-secondary">{{ _("Noch keine Einträge.") }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

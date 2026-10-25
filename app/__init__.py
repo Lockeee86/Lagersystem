@@ -97,6 +97,7 @@ def create_app(config=None):
     from .team_views import bp as team_bp
     from .biogas_views import bp as biogas_bp
     from .rounds_views import bp as rounds_bp
+    from .chickens_views import bp as chickens_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -114,6 +115,7 @@ def create_app(config=None):
     app.register_blueprint(team_bp)
     app.register_blueprint(biogas_bp)
     app.register_blueprint(rounds_bp)
+    app.register_blueprint(chickens_bp)
 
     from . import cli
     cli.register(app)
@@ -166,13 +168,15 @@ def create_app(config=None):
             from . import purchases
             c = purchases.counts(current_user) if current_user.is_authenticated and current_user.is_buyer else None
             g.purchase_count = sum(c.values()) if c else 0
+        endpoint = navigation.resolve(request.endpoint, request.view_args) if current_user.is_authenticated \
+            else request.endpoint
         return {
             "farm": g.farm,
             "my_task_count": g.my_tasks,
             "purchase_count": g.purchase_count,
-            "nav": navigation.current(request.endpoint, current_user) if current_user.is_authenticated else None,
-            "mobile_tab": navigation.tab_for(request.endpoint, request.view_args),
-            "mobile_crumb": navigation.crumb(request.endpoint, request.view_args)
+            "nav": navigation.current(endpoint, current_user) if current_user.is_authenticated else None,
+            "mobile_tab": navigation.tab_for(endpoint, request.view_args),
+            "mobile_crumb": navigation.crumb(endpoint, request.view_args)
             if current_user.is_authenticated else None,
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,

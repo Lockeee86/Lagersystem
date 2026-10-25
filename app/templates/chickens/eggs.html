@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "chickens/_macros.html" import blocked_alert %}
+{% block title %}{{ _("Eier & Haushalte") }}{% endblock %}
+{% block content %}
+{% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Eier & Haushalte") }}</h1>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Ei im Vorrat", "{n} Eier im Vorrat", stock) }}</p>
+    </div>
+</div>
+
+{{ blocked_alert(blocked) }}
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        {% if can_keep %}
+        <div class="card shadow-sm mb-4" id="verteilen">
+            <div class="card-body">
+                <h2 class="h6 mb-3"><i class="bi bi-house-heart me-1"></i>{{ _("Eier verteilen") }}</h2>
+                {% if active_households %}
+                <form method="post" action="{{ url_for('chickens.share_add') }}" class="row g-2 align-items-end">
+                    {{ csrf() }}
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap gap-2" role="group" aria-label="{{ _('Haushalt') }}">
+                            {% for h in active_households %}
+                            <input type="radio" class="btn-check" name="household_id" value="{{ h.id }}" id="hh{{ h.id }}" required>
+                            <label class="btn btn-outline-primary" for="hh{{ h.id }}">{{ h.name }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-4"><label class="form-label" for="s_eggs">{{ _("Eier") }}</label>
+                        <input class="form-control" id="s_eggs" name="eggs" type="number" inputmode="numeric" min="1" max="500" required></div>
+                    <div class="col-5"><label class="form-label" for="s_day">{{ _("Datum") }}</label>
+                        <input class="form-control" id="s_day" name="day" type="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+                    <div class="col-3"><button class="btn btn-primary w-100" aria-label="{{ _('Verteilen') }}"><i class="bi bi-check-lg"></i></button></div>
+                    <div class="col-12"><input class="form-control form-control-sm" name="note" maxlength="200" placeholder="{{ _('Notiz (optional)') }}" aria-label="{{ _('Notiz') }}"></div>
+                </form>
+                {% else %}
+                <p class="small text-body-secondary mb-0">{{ _("Zuerst unten die Haushalte anlegen, an die Eier gehen.") }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between">
+                <span>{{ _("Verteilt") }}</span>
+                <span class="small text-body-secondary">{{ _("Monat") }} · {{ _("Jahr") }}</span>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for h, n in year_shares %}
+                <li class="list-group-item d-flex justify-content-between"><span>{{ h.name }}</span><span><strong>{{ month_shares.get(h.id, 0) }}</strong> · {{ n }}</span></li>
+                {% else %}
+                <li class="list-group-item small text-body-secondary">{{ _("In diesem Jahr noch nichts verteilt.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Haushalte") }}</div>
+            <ul class="list-group list-group-flush">
+                {% for h in households %}
+                <li class="list-group-item">
+                    {% if can_keep %}
+                    <form method="post" action="{{ url_for('chickens.household_save') }}" class="d-flex flex-wrap gap-2 align-items-center">
+                        {{ csrf() }}<input type="hidden" name="id" value="{{ h.id }}">
+                        <input class="form-control form-control-sm" style="max-width: 12rem" name="name" maxlength="100" required value="{{ h.name }}" aria-label="{{ _('Name') }}">
+                        <input class="form-control form-control-sm flex-grow-1" style="min-width: 8rem; width: auto" name="note" maxlength="200" value="{{ h.note or '' }}" placeholder="{{ _('Notiz') }}" aria-label="{{ _('Notiz') }}">
+                        <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" role="switch" name="active" value="1" id="hha{{ h.id }}" {% if h.active %}checked{% endif %}><label class="form-check-label small" for="hha{{ h.id }}">{{ _("aktiv") }}</label></div>
+                        <button class="btn btn-sm btn-outline-primary" aria-label="{{ _('Speichern') }}"><i class="bi bi-check-lg"></i></button>
+                    </form>
+                    {% else %}
+                    {{ h.name }}{% if h.note %} <span class="small text-body-secondary">· {{ h.note }}</span>{% endif %}{% if not h.active %} <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}
+                    {% endif %}
+                </li>
+                {% endfor %}
+                {% if can_keep %}
+                <li class="list-group-item">
+                    <form method="post" action="{{ url_for('chickens.household_save') }}" class="d-flex gap-2">
+                        {{ csrf() }}
+                        <input class="form-control form-control-sm" name="name" maxlength="100" required placeholder="{{ _('Neuer Haushalt, z. B. Familie Muster') }}" aria-label="{{ _('Neuer Haushalt') }}">
+                        <button class="btn btn-sm btn-primary text-nowrap"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
+                    </form>
+                </li>
+                {% elif not households %}
+                <li class="list-group-item small text-body-secondary">{{ _("Noch keine Haushalte.") }}</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Monate") }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 small">
+                    <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Ø am Tag") }}</th><th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end d-none d-md-table-cell">{{ _("kaputt") }}</th><th class="text-end">{{ _("verteilt") }}</th></tr></thead>
+                    <tbody>
+                    {% for m in months %}
+                    <tr><td class="text-nowrap">{{ m.month.strftime("%m/%Y") }}</td><td class="text-end">{{ m.eggs }}</td><td class="text-end d-none d-md-table-cell">{{ m.per_day|num(1) }}</td>
+                        <td class="text-end">{{ (m.rate ~ " %") if m.rate is not none else "–" }}</td><td class="text-end d-none d-md-table-cell">{{ m.cracked or "" }}</td><td class="text-end">{{ m.given or "" }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">{{ _("Zuletzt") }}</div>
+            <ul class="list-group list-group-flush small">
+                {% set ns = namespace(rows=[]) %}
+                {% for e in entries %}{% set ns.rows = ns.rows + [(e.day, e.id, "egg", e)] %}{% endfor %}
+                {% for s in shares %}{% set ns.rows = ns.rows + [(s.day, s.id, "share", s)] %}{% endfor %}
+                {% for day, id, kind, obj in (ns.rows|sort(attribute="0,1", reverse=true))[:40] %}
+                <li class="list-group-item d-flex gap-2 align-items-center">
+                    <span class="text-nowrap text-body-secondary">{{ day|date }}</span>
+                    <span class="flex-grow-1">
+                        {% if kind == "egg" %}<i class="bi bi-basket2 me-1"></i>{{ ngettext("{n} Ei eingesammelt", "{n} Eier eingesammelt", obj.eggs) }}{% if obj.cracked %} ({{ _("{n} kaputt", n=obj.cracked) }}){% endif %}
+                        {% else %}<i class="bi bi-house-heart me-1"></i>{{ ngettext("{n} Ei an {name}", "{n} Eier an {name}", obj.eggs, name=obj.household.name) }}{% endif %}
+                        {% if obj.user %}<span class="text-body-secondary"> · {{ obj.user.name }}</span>{% endif %}{% if obj.note %}<span class="text-body-secondary"> · {{ obj.note }}</span>{% endif %}
+                    </span>
+                    {% if can_keep %}
+                    <form method="post" action="{{ url_for('chickens.egg_delete' if kind == 'egg' else 'chickens.share_delete', **({'entry_id': obj.id} if kind == 'egg' else {'share_id': obj.id})) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ url_for('chickens.eggs') }}"><button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('Eintrag löschen?') }}"><i class="bi bi-x-lg"></i></button></form>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-body-secondary">{{ _("Noch keine Einträge.") }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

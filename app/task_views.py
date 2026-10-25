@@ -83,6 +83,7 @@ def task_list():
         "machine_id": request.args.get("maschine", type=int),
         "delivery_id": request.args.get("lieferschein", type=int),
         "plot_ids": request.args.getlist("schlag", type=int),
+        "area": "huehner" if request.args.get("bereich") == "huehner" else None,
     }
     # Aus einer Störung oder fälligen Wartung heraus: Titel, Maschine und Verknüpfung vorbelegen
     event = db.session.get(MachineEvent, request.args.get("stoerung", type=int) or 0)
@@ -118,6 +119,8 @@ def task_create():
             fields["assignees"] = tasks.allowed_assignees(current_user, fields["assignees"])
             fields["recurrence"] = None
         task = tasks.create_task(current_user, **fields)
+        if request.form.get("area") == "huehner":
+            task.area = "huehner"
         db.session.commit()
         push.task_assigned(task, current_user)
         flash(_("Aufgabe „{title}“ angelegt.", title=task.title), "success")

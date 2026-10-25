@@ -93,8 +93,8 @@ ROLE_ORDER = [r for r in (ROLE_ADMIN, ROLE_MITARBEITER, ROLE_BETRACHTER) if r in
 # Gleiches Prinzip wie die Kacheln: Voreinstellung je Rolle (`settings` `home_<rolle>`), eigene Abweichung
 # `User.home_add` / `User.home_hide`. Bereiche ohne Daten (z. B. BHKW ohne Motoren) blendet die Startseite selbst aus.
 
-def section(label, icon, role=ROLE_BETRACHTER, hint=None):
-    return {"label": label, "icon": icon, "role": role, "hint": hint}
+def section(label, icon, role=ROLE_BETRACHTER, hint=None, show=None):
+    return {"label": label, "icon": icon, "role": role, "hint": hint, "show": show}
 
 
 SECTIONS = {
@@ -104,6 +104,8 @@ SECTIONS = {
     "uebergabe": section(N_("Übergabe"), "bi-chat-square-text"),
     "aufgaben": section(N_("Aufgaben"), "bi-list-check"),
     "bhkw": section(N_("BHKW"), "bi-lightning-charge", hint=N_("Motoren, Leistung, nächste Wartung")),
+    "huehner": section(N_("Hühner"), "bi-egg", hint=N_("Eier heute, Vorrat, Stallkontrolle"),
+                       show=lambda u: u.sees_chickens),
     "woche": section(N_("Diese Woche"), "bi-calendar-week", hint=N_("Termine der nächsten 7 Tage")),
     "wetter": section(N_("Wetter"), "bi-cloud-sun"),
     "bestand": section(N_("Lager und Bestand"), "bi-grid-3x3-gap", hint=N_("Belegung, Bestand je Sorte, letzte Bewegungen")),
@@ -111,8 +113,8 @@ SECTIONS = {
 
 SECTION_DEFAULTS = {
     ROLE_ADMIN: list(SECTIONS),
-    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "aufgaben", "woche", "wetter", "bestand"],
-    ROLE_BETRACHTER: ["wichtig", "uebergabe", "woche", "wetter", "bestand"],
+    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "aufgaben", "huehner", "woche", "wetter", "bestand"],
+    ROLE_BETRACHTER: ["wichtig", "uebergabe", "huehner", "woche", "wetter", "bestand"],
 }
 
 
@@ -121,7 +123,8 @@ def _split_sections(text):
 
 
 def allowed_sections(user):
-    return [key for key, sec in SECTIONS.items() if user.has_role(sec["role"])]
+    return [key for key, sec in SECTIONS.items()
+            if user.has_role(sec["role"]) and (sec["show"] is None or sec["show"](user))]
 
 
 def section_default(role):
