@@ -106,15 +106,16 @@
             <div class="card-header">{{ _("Monate") }}</div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0 small">
-                    <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Ø am Tag") }}</th><th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end">{{ _("Ø Alter") }}</th><th class="text-end d-none d-md-table-cell">{{ _("kaputt") }}</th><th class="text-end">{{ _("verteilt") }}</th></tr></thead>
+                    <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Ø am Tag") }}</th><th class="text-end">{{ _("Legeleistung") }}</th>{% if months|selectattr("expected")|list %}<th class="text-end" title="{{ _('Richtwert der Zuchtunternehmen für Legehybriden in diesem Alter') }}">{{ _("erwartet") }}</th>{% endif %}<th class="text-end">{{ _("Ø Alter") }}</th><th class="text-end d-none d-md-table-cell">{{ _("kaputt") }}</th><th class="text-end">{{ _("verteilt") }}</th></tr></thead>
                     <tbody>
                     {% for m in months %}
                     <tr><td class="text-nowrap">{{ m.month.strftime("%m/%Y") }}</td><td class="text-end">{{ m.eggs }}</td><td class="text-end d-none d-md-table-cell">{{ m.per_day|num(1) }}</td>
-                        <td class="text-end">{{ (m.rate ~ " %") if m.rate is not none else "–" }}</td><td class="text-end text-nowrap">{{ (m.age|num(0) ~ " " ~ _("Mon.")) if m.age is not none else "–" }}</td><td class="text-end d-none d-md-table-cell">{{ m.cracked or "" }}</td><td class="text-end">{{ m.given or "" }}</td></tr>
+                        <td class="text-end {{ 'text-warning-emphasis' if m.rate is not none and m.expected and m.rate < m.expected - 15 }}">{{ (m.rate ~ " %") if m.rate is not none else "–" }}</td>{% if months|selectattr("expected")|list %}<td class="text-end text-body-secondary">{{ (m.expected ~ " %") if m.expected is not none else "–" }}</td>{% endif %}<td class="text-end text-nowrap">{{ (m.age|num(0) ~ " " ~ _("Mon.")) if m.age is not none else "–" }}</td><td class="text-end d-none d-md-table-cell">{{ m.cracked or "" }}</td><td class="text-end">{{ m.given or "" }}</td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% if months|selectattr("expected")|list %}<div class="card-footer small text-body-secondary">{{ _("„erwartet“: Richtwert der Zuchtunternehmen für braune Legehybriden in diesem Alter (unter Idealbedingungen). Im Winter ohne Zusatzlicht und in der Mauser liegt die Leistung meist deutlich darunter.") }}</div>{% endif %}
         </div>
 
         <div class="card shadow-sm mb-4">

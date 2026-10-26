@@ -2469,4 +2469,9 @@ MESSAGES = {
     'noch {n} von {total}': 'jeszcze {n} z {total}',
     'Ø Alter': 'śr. wiek',
     'Mon.': 'mies.',
+    'erwartet {n} %': 'oczekiwane {n} %',
+    'Richtwert Legeleistung jetzt: {n} %': 'Wartość wzorcowa nieśności teraz: {n} %',
+    'Richtwert der Zuchtunternehmen für Legehybriden in diesem Alter': 'Wartość wzorcowa hodowców dla hybryd nieśnych w tym wieku',
+    'erwartet': 'oczekiwane',
+    '„erwartet“: Richtwert der Zuchtunternehmen für braune Legehybriden in diesem Alter (unter Idealbedingungen). Im Winter ohne Zusatzlicht und in der Mauser liegt die Leistung meist deutlich darunter.': '„oczekiwane”: wartość wzorcowa hodowców dla brązowych hybryd nieśnych w tym wieku (w idealnych warunkach). Zimą bez dodatkowego światła i w czasie pierzenia nieśność jest zwykle wyraźnie niższa.',
 }

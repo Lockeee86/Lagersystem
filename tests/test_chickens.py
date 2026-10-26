@@ -221,3 +221,19 @@ def test_flock_age(as_worker, db, seed, keeper):
     r = as_worker.post("/huehner/herde", data={"reason": "gekauft", "count": "3", "age_months": "5"})
     assert r.status_code == 302
     assert "Ø Alter" in as_worker.get("/huehner/eier-haushalte").get_data(as_text=True)
+
+
+def test_expected_laying(as_worker, db, seed, keeper):
+    """Richtwert der Legeleistung für Legehybriden nach Alter, gewichtet nach Hühnern."""
+    assert chickens.expected_rate(17 * 7) == 0 and chickens.expected_rate(30 * 7) == 95
+    assert 88 < chickens.expected_rate(52 * 7) < 89
+    assert chickens.is_hybrid("Lohmann Braun") and not chickens.is_hybrid("Sussex")
+    day = date(2026, 3, 1)
+    chickens.add_flock_event(day, "gekauft", 20, keeper, breed="Lohmann Braun", age_months=5)
+    db.session.commit()
+    later = date(2026, 6, 1)                                    # gut 8 Monate ≈ 35 Wochen
+    assert chickens.expected_laying(later, later) == 94
+    chickens.add_flock_event(day, "gekauft", 10, keeper, breed="Sussex", age_months=5)   # 1/3 Rassehühner
+    db.session.commit()
+    assert chickens.expected_laying(later, later) is None
+    assert any(c["expected"] for c in chickens.cohorts(later))

@@ -23,6 +23,15 @@ from .storage import StorageError
 
 AREA = "huehner"
 EGGS_MAX = 500                                   # Plausibilität je Eintrag
+# Erwartete Legeleistung (% je Huhn und Tag) nach Alter in Wochen – gerundete Richtwerte nach den veröffentlichten
+# Leistungsdaten der Zuchtunternehmen für braune Legehybriden in Boden-/Freilandhaltung (z. B. Lohmann Brown-Classic:
+# 50 % mit gut 20 Wochen, Spitze 94–96 %). Unter Idealbedingungen – Winter ohne Licht, Mauser, Hobbyhaltung liegen
+# meist darunter. Rassehühner legen deutlich weniger und bekommen keine Kurve.
+LAYING_CURVE = [(18, 0), (19, 9), (20, 37), (21, 53), (22, 73), (23, 81), (24, 87), (25, 90), (26, 93), (28, 95),
+                (32, 95), (36, 94), (40, 92.5), (45, 91), (50, 89), (55, 87), (60, 85), (65, 83), (70, 80.5),
+                (75, 78), (80, 75.5), (85, 73), (90, 70.5), (100, 66), (110, 62)]
+HYBRID_WORDS = ("lohmann", "isa", "dekalb", "hy-line", "hyline", "bovans", "novogen", "tetra", "h&n", "shaver",
+                "hisex", "babcock", "hybrid")
 EGG_REMINDER_HOUR = 18                           # abends erinnern, wenn noch keine Eier eingetragen sind
 COOP_DELAY = timedelta(minutes=15)               # „Klappe zu?“ kurz nach Sonnenuntergang
 FEED_DAYS = 90                                   # Futterverbrauch über diesen Zeitraum rechnen
@@ -212,8 +221,40 @@ def cohorts(day=None):
             if not missing:
                 break
     return [{"event": g, "left": left[g.id], "age": age_months(g.hatched_on, day) if g.hatched_on else None,
-             "start_age": age_months(g.hatched_on, g.day) if g.hatched_on else None}
+             "start_age": age_months(g.hatched_on, g.day) if g.hatched_on else None,
+             "expected": round(expected_rate((day - g.hatched_on).days))
+             if g.hatched_on and is_hybrid(g.breed) else None}
             for g in reversed(groups_)]
+
+
+def is_hybrid(breed):
+    """Legehybride (bekannte Zuchtlinien) – nur für sie gibt es die erwartete Legeleistung."""
+    lower = (breed or "").lower()
+    return any(word in lower for word in HYBRID_WORDS)
+
+
+def expected_rate(age_days):
+    """Richtwert Legeleistung in % für ein Alter in Tagen (zwischen den Stützpunkten linear)."""
+    weeks = age_days / 7
+    if weeks <= LAYING_CURVE[0][0]:
+        return 0.0
+    for (w0, r0), (w1, r1) in zip(LAYING_CURVE, LAYING_CURVE[1:]):
+        if weeks <= w1:
+            return r0 + (r1 - r0) * (weeks - w0) / (w1 - w0)
+    return float(LAYING_CURVE[-1][1])
+
+
+def expected_laying(start, end):
+    """Erwartete Legeleistung der Herde im Zeitraum (Mitte), gewichtet nach Hühnern – nur wenn mindestens 80 % der
+    Hühner Legehybriden mit bekanntem Alter sind, sonst None."""
+    mid = start + (end - start) / 2
+    present = [c for c in cohorts(mid) if c["left"] > 0]
+    total = sum(c["left"] for c in present)
+    known = [c for c in present if c["event"].hatched_on and is_hybrid(c["event"].breed)]
+    hens = sum(c["left"] for c in known)
+    if not total or hens < 0.8 * total:
+        return None
+    return round(sum(c["left"] * expected_rate((mid - c["event"].hatched_on).days) for c in known) / hens)
 
 
 def flock_age(day=None):
@@ -327,6 +368,7 @@ def months(today=None, count=12):
         kg, cost = feed.get(key, (None, None))
         rows.append({"month": start, "eggs": n, "cracked": cracked.get(key, 0), "given": given.get(key, 0),
                      "per_day": n / days, "rate": laying_rate(n, _hen_days(start, end)), "age": flock_age(end),
+                     "expected": expected_laying(start, end),
                      "feed_kg": kg, "feed_cost": cost,
                      "per_egg": (Decimal(cost) / n) if cost and n else None})
         start = _month_end(start) + timedelta(days=1)
@@ -368,6 +410,7 @@ def summary(today=None):
     return {"today": eggs_on(today), "flock": size, "age": flock_age(today), "stock": stock(), "blocked": blocked(today),
             "next": order[0] if order else None, "sensor": coop.status(),
             "week_eggs": int(week_eggs), "week_rate": laying_rate(int(week_eggs), _hen_days(week_start, today)),
+            "week_expected": expected_laying(week_start, today),
             "checks": checks, "overdue": sum(1 for c in checks if c["overdue"]),
             "issues": sum(len(c["open"]) for c in checks)}
 
