@@ -260,9 +260,47 @@ class Sender:
         return True
 
 
+def handle(topic, payload, sender, seen, warned, key=None, coop_topic=False):
+    """Eine MQTT-Nachricht verarbeiten und an die App schicken (aus `main` – eigene Funktion, damit testbar)."""
+    if "/e/" in topic or "/c/" in topic:               # Protobuf (ohne JSON-Schalter am Gateway)
+        try:
+            message = envelope_to_message(payload, key)
+        except (ValueError, IndexError, struct.error):
+            return
+        if not message:
+            return
+        if message.get("encrypted"):
+            if message["from"] not in warned:
+                warned.add(message["from"])
+                log("Verschlüsseltes Paket von", node_id(message["from"]), "– am Gateway unter MQTT die",
+                    "Verschlüsselung ausschalten oder COOP_CHANNEL_PSK (Kanal-Schlüssel, Base64) eintragen.")
+            return
+    else:
+        try:
+            message = json.loads(payload.decode())
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return
+        if not isinstance(message, dict):
+            return
+        if coop_topic:
+            sender.send(message)
+            return
+        if "/json/" not in topic:
+            return
+    seen_key = (message.get("from"), message.get("id"))
+    if seen_key[1] and seen_key in seen:               # dieselbe Nachricht über mehrere Gateways nur einmal
+        return
+    seen.append(seen_key)
+    if DEBUG:
+        log("MQTT", topic, message)
+    data = packet(message)
+    if data:
+        sender.send(data, MESH_URL)
+
+
 def main():
     if not TOKEN:
-        log("COOP_API_TOKEN fehlt – in der App unter Hühner → Stall-Sensor einen Schlüssel erzeugen.")
+        log("COOP_API_TOKEN fehlt – in der App unter Sensoren → Einrichtung einen Schlüssel erzeugen.")
         sys.exit(1)
     import paho.mqtt.client as mqtt
 
@@ -279,40 +317,8 @@ def main():
     warned = set()
 
     def on_message(client, userdata, msg):
-        if "/e/" in msg.topic or "/c/" in msg.topic:   # Protobuf (ohne JSON-Schalter am Gateway)
-            try:
-                message = envelope_to_message(msg.payload, key)
-            except (ValueError, IndexError, struct.error):
-                return
-            if not message:
-                return
-            if message.get("encrypted"):
-                if message["from"] not in warned:
-                    warned.add(message["from"])
-                    log("Verschlüsseltes Paket von", node_id(message["from"]), "– am Gateway unter MQTT die",
-                        "Verschlüsselung ausschalten oder COOP_CHANNEL_PSK (Kanal-Schlüssel, Base64) eintragen.")
-                return
-        else:
-            try:
-                message = json.loads(msg.payload.decode())
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                return
-            if not isinstance(message, dict):
-                return
-            if COOP_TOPIC and mqtt.topic_matches_sub(COOP_TOPIC, msg.topic):
-                sender.send(message)
-                return
-            if "/json/" not in msg.topic:
-                return
-        packet = (message.get("from"), message.get("id"))
-        if packet[1] and packet in seen:               # dieselbe Nachricht über mehrere Gateways nur einmal
-            return
-        seen.append(packet)
-        if DEBUG:
-            log("MQTT", msg.topic, message)
-        data = packet(message)
-        if data:
-            sender.send(data, MESH_URL)
+        handle(msg.topic, msg.payload, sender, seen, warned, key,
+               coop_topic=bool(COOP_TOPIC) and mqtt.topic_matches_sub(COOP_TOPIC, msg.topic))
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="lagersystem-huehnerstall")
     if MQTT_USER:

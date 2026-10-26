@@ -275,3 +275,31 @@ def test_bridge_air_values():
     bme280 = {"from": 5, "type": "telemetry", "payload": {"temperature": 9.0, "barometric_pressure": 0, "iaq": 0}}
     assert bridge.packet(bme280, "klappe", {})["values"] == {"temperature": 9.0}
 
+
+
+def test_bridge_handle():
+    """Ganzer Weg einer MQTT-Nachricht durch die Brücke (wie `on_message`), mit Doppelten und eigenem JSON."""
+    from collections import deque
+    bridge = load_bridge()
+
+    class FakeSender:
+        def __init__(self):
+            self.sent = []
+
+        def send(self, data, url=None):
+            self.sent.append((url, data))
+
+    sender, seen = FakeSender(), deque(maxlen=10)
+    raw = _envelope(0xA1B2C3D4, 77, 67, _field(3, 2, _field(1, 5, 7.5)))
+    bridge.handle("msh/EU_868/2/e/LongFast/!gw", raw, sender, seen, set())
+    bridge.handle("msh/EU_868/2/e/LongFast/!gw2", raw, sender, seen, set())    # über ein zweites Gateway
+    assert len(sender.sent) == 1
+    url, data = sender.sent[0]
+    assert url == bridge.MESH_URL and data["node"] == "!a1b2c3d4" and data["values"] == {"temperature": 7.5}
+    text = b'{"from": 5, "id": 9, "type": "text", "payload": {"text": "Klappe state: 1"}}'
+    bridge.handle("msh/EU_868/2/json/LongFast/!gw", text, sender, seen, set())
+    assert sender.sent[-1][1]["text"] == "Klappe state: 1"
+    bridge.handle("huehnerstall/esp", b'{"temperature": 4}', sender, seen, set(), coop_topic=True)
+    assert sender.sent[-1] == (None, {"temperature": 4})
+    bridge.handle("msh/EU_868/2/json/LongFast/!gw", b"kein json", sender, seen, set())
+    assert len(sender.sent) == 3
