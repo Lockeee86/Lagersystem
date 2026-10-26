@@ -108,7 +108,8 @@ weder ganz unten noch ganz oben ist.
 - Hühner-Übersicht und Startseiten-Karte: Klappe offen/zu (mit oberem Knoten auch „hängt“) seit …, Temperatur,
   Feuchte, Akku, Kurve der letzten 48 Stunden, Fahrzeiten der letzten 7 Tage (auf, ganz oben, zu).
 - Nach Sonnenuntergang: Klappe laut Sensor zu → keine Erinnerung; offen → Push „Hühnerklappe ist noch offen!“.
-- Eine Stunde nach Sonnenaufgang noch zu → Push „Hühnerklappe heute noch nicht aufgegangen“ (Batterie, Lichtsensor
+- Morgens um 10 Uhr noch zu (Uhrzeit unter Sensoren → Einrichtung einstellbar; im Winter frühestens eine Stunde nach
+  Sonnenaufgang) → Push „Hühnerklappe heute noch nicht aufgegangen“ (Batterie, Lichtsensor
   oder Motor der Klappe prüfen).
 - Push bei Frost (≤ 0,5 °C) oder Hitze (≥ 30 °C) im Stall und wenn der Sensor sich 2 Stunden nicht meldet.
 

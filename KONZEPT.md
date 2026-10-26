@@ -379,7 +379,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    (`coop_sensor`). Einrichtung in `bridge/README.md`.
    **Klappe oben, morgens, Fahrzeiten** (0.43.1): wahlweise zweiter Knoten mit Kontakt oben (`COOP_TOP_NODE`,
    `CoopDoorEvent.position` = oben) → Zustand zu/offen/halb (`coop.combined`), Push „hängt“ nach 5 min;
-   1 h nach Sonnenaufgang (`chickens.sunrise`) noch zu → Push; Tabelle auf/oben/zu der letzten 7 Tage
+   1 h nach Sonnenaufgang (`chickens.sunrise`) noch zu → Push (seit 0.47.1: zur eingestellten Uhrzeit, Standard
+   10:00, `coop.open_by()` / `morning_deadline()`, im Winter frühestens 1 h nach Sonnenaufgang); Tabelle auf/oben/zu der letzten 7 Tage
    (`coop.day_times`). Alles über Thema `coop_open` (`coop.door_watch`).
    **Ohne JSON-Schalter** (0.43.2): die Brücke liest auch das normale Protobuf-Format (`msh/…/e/…`, eigener
    kleiner Decoder) und entschlüsselt mit `COOP_CHANNEL_PSK`, falls die MQTT-Verschlüsselung am Gateway an ist.

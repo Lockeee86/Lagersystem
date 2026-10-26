@@ -2357,7 +2357,6 @@ MESSAGES = {
     'Hühnerklappe hängt!': 'Klapa kurnika się zacięła!',
     'Weder ganz zu noch ganz offen – seit {time} Uhr.': 'Ani całkiem zamknięta, ani całkiem otwarta – od {time}.',
     'Hühnerklappe heute noch nicht aufgegangen': 'Klapa kurnika dziś jeszcze się nie otworzyła',
-    'Sonnenaufgang war um {time} Uhr – Klappe oder Batterie prüfen.': 'Wschód słońca był o {time} – sprawdź klapę lub baterię.',
     'Klappe laut Sensor: abends offen, hängt oder morgens nicht aufgegangen': 'Klapa wg czujnika: wieczorem otwarta, zacięta lub rano nieotwarta',
     'auf': 'otwarta',
     'ganz oben': 'całkiem w górze',
@@ -2476,4 +2475,8 @@ MESSAGES = {
     '„erwartet“: Richtwert der Zuchtunternehmen für braune Legehybriden in diesem Alter (unter Idealbedingungen). Im Winter ohne Zusatzlicht und in der Mauser liegt die Leistung meist deutlich darunter.': '„oczekiwane”: wartość wzorcowa hodowców dla brązowych hybryd nieśnych w tym wieku (w idealnych warunkach). Zimą bez dodatkowego światła i w czasie pierzenia nieśność jest zwykle wyraźnie niższa.',
     'nur Hühner': 'tylko kury',
     'Nur Hühner: sieht ausschließlich die Hühner mit ihren Aufgaben und der Stallkontrolle – kein Lager, Feld, Biogas usw. (nicht für Admins)': 'Tylko kury: widzi wyłącznie kury z ich zadaniami i kontrolą kurnika – bez magazynu, pola, biogazu itd. (nie dla adminów)',
+    'Bitte eine Uhrzeit angeben, z. B. 10:00.': 'Podaj godzinę, np. 10:00.',
+    'Die Uhrzeit bitte zwischen 5 und 13 Uhr wählen.': 'Wybierz godzinę między 5 a 13.',
+    'Um {time} Uhr noch zu – Klappe, Lichtsensor oder Batterie prüfen.': 'O {time} nadal zamknięta – sprawdź klapę, czujnik światła lub baterię.',
+    'Push, wenn die Klappe morgens um diese Uhrzeit noch zu ist': 'Powiadomienie, gdy klapa rano o tej godzinie jest jeszcze zamknięta',
 }

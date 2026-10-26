@@ -7,7 +7,7 @@ Wie die übrigen Logik-Module ändern die Funktionen nur die Session; `alerts()`
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 from flask import url_for
 
@@ -19,7 +19,8 @@ from .push import Msg
 
 TOKEN_KEY = "coop_api_token"                     # sha256 des Schlüssels
 HANG_AFTER = timedelta(minutes=5)               # weder unten noch oben → „Klappe hängt“
-MORNING_AFTER = timedelta(hours=1)               # so lange nach Sonnenaufgang muss sie offen sein
+MORNING_AFTER = timedelta(hours=1)               # frühestens so lange nach Sonnenaufgang …
+OPEN_BY_KEY, OPEN_BY_DEFAULT = "coop_open_by", "10:00"   # … und spätestens um diese Uhrzeit muss sie offen sein
 OFFLINE_AFTER = timedelta(hours=2)               # so lange ohne Nachricht = Sensor meldet sich nicht
 FROST_C = 0.5                                    # Stall: Wasser friert, Kämme leiden
 HEAT_C = 30.0                                    # Stall: Hitzestress
@@ -262,6 +263,36 @@ def cleanup(now=None):
 
 # --- Warnungen ----------------------------------------------------------------------------
 
+def open_by():
+    """Uhrzeit, zu der die Klappe morgens offen sein muss (Einstellung unter Sensoren, Standard 10:00)."""
+    raw = (db.session.get(Setting, OPEN_BY_KEY) or Setting()).value or OPEN_BY_DEFAULT
+    try:
+        hour, minute = (int(part) for part in raw.split(":"))
+        return time(hour, minute)
+    except ValueError:
+        return time(10, 0)
+
+
+def save_open_by(raw):
+    try:
+        hour, minute = (int(part) for part in (raw or "").strip().split(":"))
+        value = time(hour, minute)
+    except ValueError:
+        raise SensorError(N_("Bitte eine Uhrzeit angeben, z. B. 10:00."))
+    if not time(5, 0) <= value <= time(13, 0):
+        raise SensorError(N_("Die Uhrzeit bitte zwischen 5 und 13 Uhr wählen."))
+    Setting.put(OPEN_BY_KEY, value.strftime("%H:%M"))
+
+
+def morning_deadline(now, sunrise=None):
+    """Bis wann die Klappe heute offen sein muss: die eingestellte Uhrzeit – im Winter frühestens 1 h nach
+    Sonnenaufgang."""
+    deadline = datetime.combine(now.date(), open_by(), tzinfo=now.tzinfo)
+    if sunrise and sunrise + MORNING_AFTER > deadline:
+        deadline = sunrise + MORNING_AFTER
+    return deadline
+
+
 def door_watch(now, done, mark, recipients, sunrise=None):
     """Aus dem Zeitplan: Klappe hängt (mit oberem Kontakt) und morgens nicht aufgegangen."""
     info = status()
@@ -279,12 +310,13 @@ def door_watch(now, done, mark, recipients, sunrise=None):
                             time=info["state_since"].astimezone(now.tzinfo).strftime("%H:%M")),
                         url, tag=f"coop-hang-{marker}")
     today = now.date()
-    if sunrise and now >= sunrise + MORNING_AFTER and now.hour < 14 and not done("coop_morning", today):
+    deadline = morning_deadline(now, sunrise)
+    if now >= deadline and now.hour < 14 and not done("coop_morning", today):
         mark("coop_morning", today)
         if info["state"] == "zu":
             push.notify(recipients, "coop_open", Msg("Hühnerklappe heute noch nicht aufgegangen"),
-                        Msg("Sonnenaufgang war um {time} Uhr – Klappe oder Batterie prüfen.",
-                            time=sunrise.astimezone(now.tzinfo).strftime("%H:%M")),
+                        Msg("Um {time} Uhr noch zu – Klappe, Lichtsensor oder Batterie prüfen.",
+                            time=deadline.astimezone(now.tzinfo).strftime("%H:%M")),
                         url, tag=f"coop-morning-{today.isoformat()}")
 
 

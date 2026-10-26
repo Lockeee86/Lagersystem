@@ -93,3 +93,11 @@ def test_hint_and_manual(as_admin, client, db, seed, token):
     mesh = MeshNode.query.filter_by(node="!a1b2c3d4").one()
     as_admin.post(f"/sensoren/{mesh.id}/loeschen")
     assert MeshNode.query.filter_by(node="!a1b2c3d4").first() is None and ClimateSensor.query.count() == 0
+
+
+def test_open_by_setting(as_admin, db, seed):
+    r = as_admin.post("/sensoren/klappe", data={"open_by": "09:30"}, follow_redirects=True)
+    assert "Gespeichert" in r.get_data(as_text=True) and coop.open_by().strftime("%H:%M") == "09:30"
+    r = as_admin.post("/sensoren/klappe", data={"open_by": "quatsch"}, follow_redirects=True)
+    assert "Uhrzeit" in r.get_data(as_text=True) and coop.open_by().strftime("%H:%M") == "09:30"
+    assert 'value="09:30"' in as_admin.get("/sensoren").get_data(as_text=True)

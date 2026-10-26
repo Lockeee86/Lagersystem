@@ -27,7 +27,8 @@ def overview_page():
         data["coop"] = []
     return render_template("sensors/overview.html", data=data, purposes=sensors.PURPOSES,
                            warehouses=climate.warehouses(), coop_status=coop.status() if data["coop"] else None,
-                           has_token=coop.has_token(), doors=sensors.door_settings())
+                           has_token=coop.has_token(), doors=sensors.door_settings(),
+                           open_by=coop.open_by())
 
 
 @bp.route("/sensoren/neu", methods=["POST"])
@@ -73,9 +74,14 @@ def node_delete(node_id):
 @bp.route("/sensoren/klappe", methods=["POST"])
 @admin_required
 def door_save():
-    sensors.save_door_settings("door_inverted" in request.form, "top_inverted" in request.form)
-    db.session.commit()
-    flash(_("Gespeichert."), "success")
+    try:
+        coop.save_open_by(form_str("open_by", 5))
+        sensors.save_door_settings("door_inverted" in request.form, "top_inverted" in request.form)
+        db.session.commit()
+        flash(_("Gespeichert."), "success")
+    except coop.SensorError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
     return redirect(url_for("sensors.overview_page") + "#einrichtung")
 
 

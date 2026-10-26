@@ -162,7 +162,7 @@ def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
     rows = coop.day_times(BERLIN, now=now + timedelta(minutes=1))
     assert rows[0]["top"] is not None or rows[-1]["top"] is not None
 
-    # Morgen: noch zu eine Stunde nach Sonnenaufgang → Push (feste Zeit, damit es nicht von der Uhrzeit abhängt)
+    # Morgen: um 10 Uhr noch zu → Push (feste Zeit, damit es nicht von der Uhrzeit abhängt)
     push.outbox.clear()
     morning = datetime(2026, 10, 27, 9, 30, tzinfo=BERLIN)
     coop.record({"door": "closed"}, now=morning.astimezone(timezone.utc) - timedelta(minutes=1))
@@ -170,8 +170,19 @@ def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
     monkeypatch.setattr(chickens, "farm_sunrise", lambda day: morning - timedelta(hours=2))
     monkeypatch.setattr(coop, "utcnow", lambda: morning.astimezone(timezone.utc))
     push.daily(app, morning)
-    assert [m["title"] for m in push.outbox if m["tag"].startswith("coop-morning")] == \
-        ["Hühnerklappe heute noch nicht aufgegangen"]
+    assert not [m for m in push.outbox if m["tag"].startswith("coop-morning")]     # erst um 10 Uhr
+    ten = datetime(2026, 10, 27, 10, 2, tzinfo=BERLIN)
+    monkeypatch.setattr(coop, "utcnow", lambda: ten.astimezone(timezone.utc))
+    push.daily(app, ten)
+    msgs = [m for m in push.outbox if m["tag"].startswith("coop-morning")]
+    assert [m["title"] for m in msgs] == ["Hühnerklappe heute noch nicht aufgegangen"] and "10:00" in msgs[0]["body"]
+    # Uhrzeit einstellbar; im Winter frühestens 1 h nach Sonnenaufgang
+    coop.save_open_by("8:30")
+    assert coop.open_by().strftime("%H:%M") == "08:30"
+    late_sun = datetime(2026, 12, 20, 8, 15, tzinfo=BERLIN)
+    assert coop.morning_deadline(late_sun, late_sun).strftime("%H:%M") == "09:15"
+    with pytest.raises(coop.SensorError):
+        coop.save_open_by("23:00")
 
 
 def test_sunrise():
