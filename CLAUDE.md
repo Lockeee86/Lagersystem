@@ -121,7 +121,8 @@ docker compose up --build -d
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Rubriken mit
   `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer
 - `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` aus `api.coop_sensor` (`/api/huehner/sensor`, Schlüssel
-  `new_token()`/`check_token()`), `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;
+  `new_token()`/`check_token()`), Knoten-IDs `nodes()`/`save_nodes()` (die Brücke holt sie mit Lager-Knoten über
+  `/api/meshtastic/knoten`), `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;
   Brücke MQTT → App in `bridge/` (eigener Container, Compose-Profil `huehner`, Anleitung `bridge/README.md`)
 - `app/climate.py`: Lagerklima (Meshtastic-Knoten mit SCD41) – `ClimateSensor` (Knoten → Lager/Reihe), `ClimateReading`,
   `record()` aus `api.climate_sensor` (`/api/lager/klima`), `status()` mit Grenzwerten `limits()` (`Warehouse.climate_*`),

@@ -2437,4 +2437,11 @@ MESSAGES = {
     'Sensor hinzufügen': 'Dodaj czujnik',
     'Knoten-ID': 'ID węzła',
     'Die Knoten-ID steht in der Meshtastic-App beim Knoten (beginnt mit !). Sensoren, die schon Werte schicken, erscheinen auch von selbst zum Zuordnen.': 'ID węzła jest w aplikacji Meshtastic przy węźle (zaczyna się od !). Czujniki, które już wysyłają wartości, pojawiają się też same do przypisania.',
+    'Der obere Kontakt braucht einen eigenen Knoten.': 'Górny kontakt potrzebuje własnego węzła.',
+    'Knoten gespeichert – die Brücke übernimmt das innerhalb einer Minute.': 'Węzły zapisane – mostek przejmie to w ciągu minuty.',
+    'Meshtastic-Knoten': 'Węzły Meshtastic',
+    'Knoten am Stall (Kontakt unten, Messwerte)': 'Węzeł w kurniku (kontakt na dole, pomiary)',
+    'Knoten oben (wahlweise)': 'Węzeł na górze (opcjonalnie)',
+    'Die ID steht in der Meshtastic-App in der Knotenliste. Ist der Stall-Knoten eingetragen, landen alle anderen Knoten mit Messwerten unter Lager → Lagerklima.': 'ID znajduje się w aplikacji Meshtastic na liście węzłów. Gdy węzeł kurnika jest wpisany, wszystkie inne węzły z pomiarami trafiają do Magazyn → Klimat w magazynie.',
+    'Damit neue Knoten hier landen und nicht beim Hühnerstall: unter Hühner → Stall-Sensor den Stall-Knoten eintragen – oder den Lager-Sensor oben mit „Sensor hinzufügen“ anlegen.': 'Aby nowe węzły trafiały tutaj, a nie do kurnika: w Kury → Czujnik kurnika wpisz węzeł kurnika – albo dodaj czujnik magazynu powyżej przez „Dodaj czujnik”.',
 }

@@ -94,12 +94,16 @@ Portainer-Stack (docker-compose)
 - **Umgesetzt in 0.44.0** – anders als geplant über **Meshtastic** (wie der Hühnerstall) mit **SCD41** (CO₂ + °C + %),
   erst ein, später drei Messpunkte: `climate.py`, `climate_views.py` (Lager → Klima, `/lager/klima`), Modelle
   `ClimateSensor` (Knoten → Lager/Reihe; unbekannte Knoten erscheinen zum Zuordnen) und `ClimateReading`,
-  `POST /api/lager/klima` (Schlüssel wie der Stall-Sensor). Brücke: Knoten außer dem Stall (`COOP_NODE`) bzw. die
-  in `CLIMATE_NODES` gehen ans Lagerklima; CO₂ aus AirQualityMetrics. Grenzwerte je Lager (`Warehouse.climate_*`,
+  `POST /api/lager/klima` (Schlüssel wie der Stall-Sensor). Brücke: Knoten außer dem Stall bzw. die
+  bekannten Lager-Sensoren gehen ans Lagerklima; CO₂ aus AirQualityMetrics. Grenzwerte je Lager (`Warehouse.climate_*`,
   Voreinstellung wie oben, CO₂ ≤ 5000 ppm). Kurven 24 h (roh) / 7 Tage (stündlich) / 30 Tage (4 h) / Saison ab
   1. August (täglich), Zielbereich 4–8 °C hinterlegt. Lagerkarte: Klima-Zeile oben, Abzeichen an der Reihe.
   Sensor auch von Hand anlegen (0.44.1, „Sensor hinzufügen“ mit Knoten-ID, `climate.add_sensor`).
   Lagerklima auch auf der Lager-Seite am Handy (0.44.2).
+  Knoten-IDs nur noch in der App (0.45.0): Stall-Knoten/oben unter Hühner → Stall-Sensor (`coop.nodes()` /
+  `save_nodes()`, `settings` `coop_node`/`coop_top_node`), Lager-Knoten = `ClimateSensor`. Die Brücke holt
+  `/api/meshtastic/knoten` jede Minute (`Nodes`); `COOP_NODE`/`COOP_TOP_NODE`/`CLIMATE_NODES` im Stack nur noch als
+  Rückfall (ein App-Eintrag geht vor; `CLIMATE_NODES` gesetzt = nur diese Lager-Knoten).
   **Abweichung zur Planung:** außer „Jetzt wichtig“ jetzt auch Push (Thema „Lagerklima“, von sich aus für Admins,
   je Sensor und Problem einmal am Tag), wie bei Hühnern und BHKW.
 

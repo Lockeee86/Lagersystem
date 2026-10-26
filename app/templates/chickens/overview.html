@@ -76,6 +76,25 @@
         <p class="small text-body-secondary mb-2">{{ _("Noch keine Werte. Temperatur, Luftfeuchte und Klappe kommen per Meshtastic vom Stall – Einrichtung siehe bridge/README.md im Projekt.") }}</p>
         {% endif %}
         {% if current_user.is_admin %}
+        <details class="mt-3" {% if not sensor_nodes.coop %}open{% endif %}>
+            <summary class="small">{{ _("Meshtastic-Knoten") }}{% if sensor_nodes.coop %}: {{ sensor_nodes.coop }}{% if sensor_nodes.top %} · {{ _("oben") }} {{ sensor_nodes.top }}{% endif %}{% endif %}</summary>
+            <form method="post" action="{{ url_for('chickens.sensor_nodes') }}" class="row g-2 mt-1">
+                {{ csrf() }}
+                <div class="col-sm-6">
+                    <label class="form-label small mb-1" for="coopNode">{{ _("Knoten am Stall (Kontakt unten, Messwerte)") }}</label>
+                    <input class="form-control form-control-sm" id="coopNode" name="node" list="coopSeen" placeholder="!a1b2c3d4" value="{{ sensor_nodes.coop or '' }}">
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label small mb-1" for="coopTop">{{ _("Knoten oben (wahlweise)") }}</label>
+                    <input class="form-control form-control-sm" id="coopTop" name="top_node" list="coopSeen" placeholder="!a1b2c3d5" value="{{ sensor_nodes.top or '' }}">
+                </div>
+                <datalist id="coopSeen">{% for n in seen_nodes %}<option value="{{ n }}">{% endfor %}</datalist>
+                <div class="col-12">
+                    <div class="form-text mb-2">{{ _("Die ID steht in der Meshtastic-App in der Knotenliste. Ist der Stall-Knoten eingetragen, landen alle anderen Knoten mit Messwerten unter Lager → Lagerklima.") }}</div>
+                    <button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button>
+                </div>
+            </form>
+        </details>
         <form method="post" action="{{ url_for('chickens.sensor_token') }}" class="mt-3">
             {{ csrf() }}
             <button class="btn btn-sm btn-outline-secondary" {% if sensor_token %}data-confirm="{{ _('Neuen Schlüssel erzeugen? Der alte gilt dann nicht mehr – die Brücke braucht den neuen.') }}"{% endif %}><i class="bi bi-key me-1"></i>{{ _("Neuen Schlüssel erzeugen") if sensor_token else _("Schlüssel für die Brücke erzeugen") }}</button>

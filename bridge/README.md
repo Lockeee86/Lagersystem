@@ -56,7 +56,7 @@ Am besten mit der Meshtastic-App (Handy) oder `meshtastic --set …` per USB.
 | Kanal (der private) → **Uplink** | **an** |
 
 Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knotenliste auftaucht. Seine ID
-(z. B. `!a1b2c3d4`) steht dort – die braucht ihr für `COOP_NODE`.
+(z. B. `!a1b2c3d4`) steht dort – die tragt ihr später in der App ein (Schritt 3).
 
 ## 3. Stack in Portainer ergänzen
 
@@ -68,17 +68,18 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 |----------|------|
 | `COMPOSE_PROFILES` | `huehner` (startet Mosquitto und die Brücke mit) |
 | `COOP_API_TOKEN` | der Schlüssel aus Schritt 1 |
-| `COOP_NODE` | ID des Stall-Knotens, z. B. `!a1b2c3d4` (leer = alle Knoten) |
 | `MQTT_PORT` | wahlweise, Standard 1883 |
 | `COOP_DOOR_ACTIVE` | `open` (Standard: „aktiv“ = Klappe offen) – zeigt die App es verkehrt herum, `closed` |
-| `COOP_TOP_NODE` | wahlweise: ID des zweiten Knotens mit dem Kontakt oben (siehe unten) |
 | `COOP_TOP_ACTIVE` | `away` (Standard: „aktiv“ = nicht oben) – verkehrt herum: `top` |
 | `COOP_CHANNEL_PSK` | nur wenn die MQTT-Verschlüsselung am Gateway an bleibt: Kanal-Schlüssel (Base64) |
 | `COOP_DEBUG` | `1`, um alle MQTT-Nachrichten im Log der Brücke zu sehen |
 
 3. Stack neu bereitstellen (mit „Re-pull/Re-build“). Danach laufen zusätzlich `lagersystem-mqtt` und
    `lagersystem-coop-bridge`.
-4. Port 1883 nur im Hof-Netz erreichbar lassen (nicht im Router freigeben) – Mosquitto ist ohne Passwort.
+4. In der App: **Hühner → Stall-Sensor → „Meshtastic-Knoten“** die ID des Stall-Knotens eintragen (und wahlweise
+   den Knoten oben). Die Brücke holt sich das jede Minute aus der App – dafür muss der Stack nicht neu bereitgestellt
+   werden. (Ältere Stacks mit `COOP_NODE`/`COOP_TOP_NODE` laufen weiter; ein Eintrag in der App geht vor.)
+5. Port 1883 nur im Hof-Netz erreichbar lassen (nicht im Router freigeben) – Mosquitto ist ohne Passwort.
 
 ## Wahlweise: zweiter Knoten für „ganz offen“
 
@@ -89,7 +90,7 @@ angekommen ist (Motor hängt, Klappe klemmt), kommt ein zweiter Meshtastic-Knote
   blockieren. Er ist geschlossen, wenn die Klappe ganz oben ist.
 - Detection Sensor am zweiten Knoten wie unten: Pin, Pull-up an, beide Flanken aktiv HIGH, Name z. B.
   **Klappe oben**, Status alle 900 s. Telemetrie braucht er nicht.
-- Im Stack `COOP_TOP_NODE` auf seine ID setzen.
+- In der App unter Hühner → Stall-Sensor → „Meshtastic-Knoten“ als „Knoten oben“ eintragen.
 
 Die App zeigt dann **zu / offen / hängt** und schickt „Hühnerklappe hängt!“, wenn die Klappe länger als 5 Minuten
 weder ganz unten noch ganz oben ist.
@@ -121,10 +122,12 @@ Dieselbe Brücke bringt auch Temperatur, Luftfeuchte und **CO₂** aus den Lager
    (3,3 V, GND, SDA, SCL). Meshtastic erkennt ihn beim Start.
 2. **Meshtastic (Lager-Knoten):** Modul-Konfiguration → Telemetrie → **Luftqualität** (Air quality) **an** und
    **Umweltwerte** an, Intervall z. B. 600 s. Gleicher Kanal wie Gateway und Stall, Uplink am Gateway an.
-3. **Stack:** `COOP_NODE` muss gesetzt sein – dann gehen alle anderen Knoten ans Lagerklima. Wer genauer
-   steuern will, trägt die Lager-Knoten in `CLIMATE_NODES` ein (Komma-getrennt, z. B. `!a1b2c3d4,!a1b2c3d5`).
-4. **In der App:** Der neue Sensor erscheint unter **Lager → Klima → „Neue Sensoren“**. Dort Lager und wahlweise
-   Reihe zuordnen. Grenzwerte je Lager darunter (leer = 3–10 °C, 85–97 %, CO₂ bis 5000 ppm).
+3. **Im Stack ist nichts zu tun.** Voraussetzung ist nur, dass der Stall-Knoten in der App eingetragen ist
+   (siehe oben) – dann landen alle anderen Knoten mit Messwerten beim Lagerklima.
+4. **In der App:** Der neue Sensor erscheint nach seinen ersten Werten unter **Lager → Lagerklima → „Neue
+   Sensoren“**. Dort Lager und wahlweise Reihe zuordnen. Oder vorher über „Sensor hinzufügen“ mit der Knoten-ID
+   anlegen. Grenzwerte je Lager darunter (leer = 3–10 °C, 85–97 %, CO₂ bis 5000 ppm).
+   Taucht ein fremder Knoten auf (z. B. vom Nachbarn auf dem öffentlichen Kanal), ihn dort einfach abschalten.
 
 Hinweise:
 - Strom: Der SCD41 misst laufend und braucht mehr Strom als ein BME280 – im Lager am besten ein USB-Netzteil.

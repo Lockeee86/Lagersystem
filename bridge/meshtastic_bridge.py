@@ -22,6 +22,8 @@ from collections import deque
 
 APP_URL = os.environ.get("APP_URL", "http://web:5000/api/huehner/sensor")
 CLIMATE_URL = os.environ.get("CLIMATE_URL", "http://web:5000/api/lager/klima")
+NODES_URL = os.environ.get("NODES_URL", "http://web:5000/api/meshtastic/knoten")   # Zuordnung aus der App
+NODES_EVERY = 60                                                                   # Sekunden
 TOKEN = os.environ.get("COOP_API_TOKEN", "")
 MQTT_HOST = os.environ.get("MQTT_HOST", "mqtt")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
@@ -29,6 +31,8 @@ MQTT_USER = os.environ.get("MQTT_USER") or None
 MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD") or None
 MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "msh/#")
 COOP_TOPIC = os.environ.get("COOP_TOPIC", "huehnerstall/#")
+# Knoten-IDs stehen in der App (Hühner → Stall-Sensor, Lager → Lagerklima). Diese Variablen gelten nur, solange dort
+# nichts eingetragen ist (ältere Stacks).
 COOP_NODE = (os.environ.get("COOP_NODE") or "").strip().lower()        # z. B. !a1b2c3d4 – leer: alle Knoten
 DOOR_NAME = (os.environ.get("DOOR_NAME") or "Klappe").strip().lower()   # Name im Detection-Sensor-Modul
 DOOR_ACTIVE = (os.environ.get("DOOR_ACTIVE") or "open").strip().lower()  # „aktiv“ (detected / state: 1) heißt …
@@ -119,16 +123,18 @@ def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active
     return None
 
 
-def route(message, coop_node=COOP_NODE, top_node=COOP_TOP_NODE, climate_nodes=CLIMATE_NODES):
-    """Wohin gehört die Nachricht? „coop“ (Hühnerstall), „climate“ (Lager) oder None."""
+def route(message, coop_node=COOP_NODE, top_node=COOP_TOP_NODE, climate_nodes=CLIMATE_NODES, strict=False):
+    """Wohin gehört die Nachricht? „coop“ (Hühnerstall), „climate“ (Lager) oder None.
+
+    strict: nur bekannte Lager-Knoten (CLIMATE_NODES im Stack gesetzt) – sonst erscheinen neue Knoten in der App."""
     node = node_id(message.get("from"))
     if node in climate_nodes:
         return "climate"
     if (coop_node and node == coop_node) or (top_node and node == top_node):
         return "coop"
     if not coop_node:
-        return "coop"                                  # ohne COOP_NODE wie bisher: alles für den Stall
-    return "climate" if not climate_nodes else None
+        return "coop"                                  # ohne Stall-Knoten wie bisher: alles für den Stall
+    return None if strict else "climate"               # neuer Knoten: erscheint im Lagerklima unter „Neue Sensoren“
 
 
 def parse_climate(message):
@@ -278,6 +284,47 @@ def envelope_to_message(raw, key=None):
     return None
 
 
+class Nodes:
+    """Knoten-Zuordnung aus der App, jede Minute neu geholt; ohne App-Eintrag gelten die Umgebungsvariablen."""
+
+    def __init__(self, url=NODES_URL, token=TOKEN, coop=COOP_NODE, top=COOP_TOP_NODE, climate=CLIMATE_NODES):
+        self.url, self.token = url, token
+        self.env = {"coop": coop, "top": top, "climate": set(climate)}
+        self.app = {"coop": "", "top": "", "climate": set()}
+        self.fetched = 0
+        self.last_log = None
+
+    def _get(self):
+        request = urllib.request.Request(self.url, headers={"Authorization": f"Bearer {self.token}"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.loads(response.read().decode())
+
+    def update(self, data):
+        self.app = {"coop": (data.get("coop") or "").lower(), "top": (data.get("top") or "").lower(),
+                    "climate": {str(n).lower() for n in data.get("climate") or ()}}
+
+    def refresh(self, now=None):
+        now = now or time.time()
+        if now - self.fetched < NODES_EVERY:
+            return
+        self.fetched = now
+        try:
+            self.update(self._get())
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            log("Knoten aus der App nicht abrufbar:", e, "– nehme die letzte bekannte Zuordnung")
+            return
+        current = self.current()
+        text = (current["coop"], current["top"], sorted(current["climate"]))
+        if text != self.last_log:
+            self.last_log = text
+            log("Knoten: Stall", current["coop"] or "(alle)", "· oben", current["top"] or "–",
+                "· Lager", ", ".join(text[2]) or "(alle anderen)" if current["coop"] else "–")
+
+    def current(self):
+        return {"coop": self.app["coop"] or self.env["coop"], "top": self.app["top"] or self.env["top"],
+                "climate": self.app["climate"] | self.env["climate"]}
+
+
 class Sender:
     """Schickt an die App; bei Fehlern kurz zwischenspeichern und später nachreichen."""
 
@@ -320,6 +367,7 @@ def main():
     import paho.mqtt.client as mqtt
 
     sender = Sender()
+    known = Nodes()
     seen = deque(maxlen=500)
 
     def on_connect(client, userdata, flags, reason_code, properties=None):
@@ -363,13 +411,15 @@ def main():
         seen.append(packet)
         if DEBUG:
             log("MQTT", msg.topic, message)
-        target = route(message)
+        known.refresh()
+        nodes = known.current()
+        target = route(message, nodes["coop"], nodes["top"], nodes["climate"], strict=bool(CLIMATE_NODES))
         if target == "climate":
             data = parse_climate(message)
             if data:
                 sender.send(data, CLIMATE_URL)
             return
-        data = parse_meshtastic(message) if target == "coop" else None
+        data = parse_meshtastic(message, nodes["coop"], top_node=nodes["top"]) if target == "coop" else None
         if data:
             sender.send(data)
 

@@ -32,7 +32,7 @@ def overview_page():
     warehouses = climate.warehouses()
     return render_template("climate/overview.html", data=data, charts=charts, range_key=key, ranges=climate.RANGES,
                            warehouses=warehouses, limits={w.id: climate.limits(w) for w in warehouses},
-                           defaults=climate.DEFAULTS, target=climate.TARGET, has_token=coop.has_token(),
+                           defaults=climate.DEFAULTS, target=climate.TARGET, has_token=coop.has_token(), coop_node=coop.nodes()["coop"],
                            inactive=ClimateSensor.query.filter_by(active=False).all())
 
 

@@ -120,7 +120,8 @@ def test_bridge_routing():
     assert bridge.route({"from": 0xAA}, coop_node="!000000aa", top_node="", climate_nodes=set()) == "coop"
     assert bridge.route(msg, coop_node="", top_node="", climate_nodes=set()) == "coop"            # wie bisher
     assert bridge.route(msg, coop_node="", top_node="", climate_nodes={"!000000bb"}) == "climate"
-    assert bridge.route(msg, coop_node="!000000aa", top_node="", climate_nodes={"!000000cc"}) is None
+    assert bridge.route(msg, coop_node="!000000aa", top_node="", climate_nodes={"!000000cc"}, strict=True) is None
+    assert bridge.route(msg, coop_node="!000000aa", top_node="", climate_nodes={"!000000cc"}) == "climate"  # neu
     assert bridge.parse_climate(msg) == {"node": "!000000bb", "temperature": 5.2, "humidity": 91.0, "co2": 1500}
     air = _field(13, 0, 1720) + _field(14, 5, 4.75) + _field(15, 5, 92.5)
     message = bridge.envelope_to_message(_envelope(0xBB, 91, 67, _field(4, 2, air)))

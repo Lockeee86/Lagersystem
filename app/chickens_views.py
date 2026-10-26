@@ -88,6 +88,8 @@ def overview():
         sensor=coop.status(), sensor_history=coop.history(48), door_times=coop.day_times(local_tz()),
         air_kind=air_kind, air_points=air_points,
         sensor_token=coop.has_token() if current_user.is_admin else None,
+        sensor_nodes=coop.nodes() if current_user.is_admin else None,
+        seen_nodes=coop.seen_nodes() if current_user.is_admin else (),
         entries=EggEntry.query.filter(EggEntry.day >= today - timedelta(days=1))
         .order_by(EggEntry.day.desc(), EggEntry.id.desc()).all(),
     )
@@ -115,6 +117,19 @@ def sensor_token():
     db.session.commit()
     flash(_("Neuer Schlüssel: {token} – als COOP_API_TOKEN im Stack eintragen (wird nur jetzt angezeigt).",
             token=token), "warning")
+    return redirect(url_for("chickens.overview") + "#sensor")
+
+
+@bp.route("/huehner/sensor/knoten", methods=["POST"])
+@admin_required
+def sensor_nodes():
+    try:
+        coop.save_nodes(form_str("node", 20), form_str("top_node", 20))
+        db.session.commit()
+        flash(_("Knoten gespeichert – die Brücke übernimmt das innerhalb einer Minute."), "success")
+    except coop.SensorError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
     return redirect(url_for("chickens.overview") + "#sensor")
 
 

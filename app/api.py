@@ -25,14 +25,29 @@ def version():
     return jsonify(movement=latest)
 
 
-@bp.route("/huehner/sensor", methods=["POST"])
-@csrf.exempt
-def coop_sensor():
-    """Messwerte vom Hühnerstall (Meshtastic-Brücke). Schlüssel als `Authorization: Bearer …` oder `X-Api-Key`."""
+def _bridge_token_ok():
+    """Schlüssel der Meshtastic-Brücke als `Authorization: Bearer …` oder `X-Api-Key`."""
     from . import coop
     auth = request.headers.get("Authorization", "")
     token = auth[7:].strip() if auth.lower().startswith("bearer ") else request.headers.get("X-Api-Key", "").strip()
-    if not coop.check_token(token):
+    return coop.check_token(token)
+
+
+@bp.route("/meshtastic/knoten")
+def bridge_nodes():
+    """Für die Brücke: welcher Knoten ist der Stall (unten/oben), welche gehören ins Lagerklima."""
+    from . import climate, coop
+    if not _bridge_token_ok():
+        return jsonify(ok=False, error="unauthorized"), 401
+    return jsonify(ok=True, **coop.nodes(), climate=climate.nodes())
+
+
+@bp.route("/huehner/sensor", methods=["POST"])
+@csrf.exempt
+def coop_sensor():
+    """Messwerte vom Hühnerstall (Meshtastic-Brücke)."""
+    from . import coop
+    if not _bridge_token_ok():
         return jsonify(ok=False, error="unauthorized"), 401
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -50,10 +65,8 @@ def coop_sensor():
 @csrf.exempt
 def climate_sensor():
     """Messwerte aus dem Lager (Meshtastic-Brücke), gleicher Schlüssel wie der Stall-Sensor."""
-    from . import climate, coop
-    auth = request.headers.get("Authorization", "")
-    token = auth[7:].strip() if auth.lower().startswith("bearer ") else request.headers.get("X-Api-Key", "").strip()
-    if not coop.check_token(token):
+    from . import climate
+    if not _bridge_token_ok():
         return jsonify(ok=False, error="unauthorized"), 401
     data = request.get_json(silent=True)
     if not isinstance(data, dict):

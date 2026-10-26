@@ -105,6 +105,11 @@ def normalize_node(raw):
     return f"!{m.group(1)}" if m else None
 
 
+def nodes():
+    """Knoten-IDs aller Lager-Sensoren (auch abgeschaltete – die Brücke schickt sie her, `record` übergeht sie)."""
+    return sorted(node for (node,) in db.session.query(ClimateSensor.node))
+
+
 def add_sensor(node, name, warehouse, row):
     """Sensor von Hand anlegen (bevor er Werte schickt)."""
     node = normalize_node(node)

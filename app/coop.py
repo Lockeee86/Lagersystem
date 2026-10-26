@@ -59,6 +59,41 @@ def check_token(token):
     return bool(token and setting and setting.value and hmac.compare_digest(setting.value, _hash(token)))
 
 
+# --- Knoten (Meshtastic) --------------------------------------------------------------------
+# Welcher Knoten der Stall ist, steht in der App – die Brücke holt sich das über `/api/meshtastic/knoten`.
+
+NODE_KEY, TOP_NODE_KEY = "coop_node", "coop_top_node"
+
+
+def nodes():
+    """{"coop": "!a1b2c3d4" | None, "top": … | None}."""
+    return {"coop": (db.session.get(Setting, NODE_KEY) or Setting()).value,
+            "top": (db.session.get(Setting, TOP_NODE_KEY) or Setting()).value}
+
+
+def save_nodes(node, top):
+    """Knoten-IDs des Stalls (unten) und wahlweise des oberen Kontakts speichern; leer = nicht festgelegt."""
+    from .climate import normalize_node
+    values = {}
+    for key, raw in ((NODE_KEY, node), (TOP_NODE_KEY, top)):
+        value = normalize_node(raw) if (raw or "").strip() else None
+        if (raw or "").strip() and value is None:
+            raise SensorError(N_("Bitte die Knoten-ID aus der Meshtastic-App angeben, z. B. !a1b2c3d4."))
+        values[key] = value
+    if values[NODE_KEY] and values[NODE_KEY] == values[TOP_NODE_KEY]:
+        raise SensorError(N_("Der obere Kontakt braucht einen eigenen Knoten."))
+    for key, value in values.items():
+        Setting.put(key, value)
+    return values
+
+
+def seen_nodes(limit=10):
+    """Knoten, von denen schon Stall-Werte kamen (neueste zuerst) – als Vorschlag im Formular."""
+    rows = (db.session.query(CoopReading.node, db.func.max(CoopReading.at)).filter(CoopReading.node.isnot(None))
+            .group_by(CoopReading.node).order_by(db.func.max(CoopReading.at).desc()).limit(limit).all())
+    return [node for node, _at in rows]
+
+
 # --- Werte annehmen -----------------------------------------------------------------------
 
 def _number(data, key, low, high):

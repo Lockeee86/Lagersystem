@@ -276,3 +276,29 @@ def test_bridge_air_values():
     assert data["pressure"] == 1009.5 and data["gas"] == 0.085 and data["iaq"] == 64
     bme280 = {"from": 5, "type": "telemetry", "payload": {"temperature": 9.0, "barometric_pressure": 0, "iaq": 0}}
     assert bridge.parse_meshtastic(bme280, "", "klappe", "open") == {"node": "!00000005", "temperature": 9.0}
+
+
+def test_nodes_from_app(as_admin, client, db, seed, token):
+    """Knoten-IDs pflegt der Admin in der App; die Brücke holt sie über /api/meshtastic/knoten."""
+    from app import climate
+    seed["admin"].chickens = True
+    db.session.commit()
+    assert client.get("/api/meshtastic/knoten").status_code == 401
+    r = as_admin.post("/huehner/sensor/knoten", data={"node": "A1B2C3D4", "top_node": "!a1b2c3d4"},
+                      follow_redirects=True)
+    assert "eigenen Knoten" in r.get_data(as_text=True) and coop.nodes()["coop"] is None
+    as_admin.post("/huehner/sensor/knoten", data={"node": "A1B2C3D4", "top_node": ""})
+    climate.add_sensor("!0000beef", "Halle", seed["wh"], None)
+    db.session.commit()
+    data = client.get("/api/meshtastic/knoten", headers={"Authorization": f"Bearer {token}"}).get_json()
+    assert data == {"ok": True, "coop": "!a1b2c3d4", "top": None, "climate": ["!0000beef"]}
+    assert "!a1b2c3d4" in as_admin.get("/huehner").get_data(as_text=True)
+
+    bridge = load_bridge()
+    nodes = bridge.Nodes(token="x", coop="!00000001", top="", climate={"!00000009"})
+    assert nodes.current()["coop"] == "!00000001"                     # Stack, solange die App nichts kennt
+    nodes.update(data)
+    assert nodes.current() == {"coop": "!a1b2c3d4", "top": "", "climate": {"!0000beef", "!00000009"}}
+    nodes._get = lambda: (_ for _ in ()).throw(OSError("weg"))
+    nodes.refresh(now=10**9)
+    assert nodes.current()["coop"] == "!a1b2c3d4"                     # App nicht erreichbar → letzte Zuordnung
