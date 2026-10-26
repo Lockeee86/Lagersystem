@@ -5,6 +5,7 @@ Die Brücke (`bridge/`) schickt die Telemetrie aller Knoten außer dem Hühnerst
 Klima-Seite zum Zuordnen (Lager, wahlweise Reihe). Grenzwerte je Lager (`Warehouse.climate_*`, sonst `DEFAULTS`).
 Wie die übrigen Logik-Module ändern die Funktionen nur die Session; `check()` läuft aus `push.daily`.
 """
+import re
 from datetime import date, datetime, time, timedelta, timezone
 
 from flask import url_for
@@ -94,6 +95,27 @@ def record(data, now=None):
 
 
 # --- Stammdaten ---------------------------------------------------------------------------
+
+NODE_RE = re.compile(r"^!?([0-9a-f]{8})$")
+
+
+def normalize_node(raw):
+    """„!A1B2C3D4“, „a1b2c3d4“ → „!a1b2c3d4“; sonst None (Knoten-ID steht in der Meshtastic-App)."""
+    m = NODE_RE.match((raw or "").strip().lower())
+    return f"!{m.group(1)}" if m else None
+
+
+def add_sensor(node, name, warehouse, row):
+    """Sensor von Hand anlegen (bevor er Werte schickt)."""
+    node = normalize_node(node)
+    if node is None:
+        raise StorageError(_("Bitte die Knoten-ID aus der Meshtastic-App angeben, z. B. !a1b2c3d4."))
+    if ClimateSensor.query.filter_by(node=node).first():
+        raise StorageError(_("Den Sensor {node} gibt es schon.", node=node))
+    sensor = ClimateSensor(node=node)
+    db.session.add(sensor)
+    return save_sensor(sensor, name, warehouse, row)
+
 
 def save_sensor(sensor, name, warehouse, row, active=True):
     if warehouse is not None and row is not None and not 1 <= row <= warehouse.rows:

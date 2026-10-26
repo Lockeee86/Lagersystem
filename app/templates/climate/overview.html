@@ -15,6 +15,30 @@
     </nav>
 </div>
 
+{% if current_user.is_admin %}
+<details class="card shadow-sm mb-4" id="neu" {% if not data.warehouses and not data.unassigned %}open{% endif %}>
+    <summary class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Sensor hinzufügen") }}</summary>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('climate.sensor_add') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-6 col-md-3"><label class="form-label small mb-1" for="add_node">{{ _("Knoten-ID") }}</label>
+                <input class="form-control form-control-sm" id="add_node" name="node" maxlength="20" required placeholder="!a1b2c3d4"></div>
+            <div class="col-6 col-md-3"><label class="form-label small mb-1" for="add_name">{{ _("Name (wahlweise)") }}</label>
+                <input class="form-control form-control-sm" id="add_name" name="name" maxlength="100" placeholder="{{ _('z. B. Halle 1 Mitte') }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label small mb-1" for="add_wh">{{ _("Lager") }}</label>
+                <select class="form-select form-select-sm" id="add_wh" name="warehouse_id" required>
+                    <option value="">–</option>
+                    {% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-1" for="add_row">{{ _("Reihe (Nummer, wahlweise)") }}</label>
+                <input class="form-control form-control-sm" id="add_row" name="row" type="number" min="1" max="99"></div>
+            <div class="col-12 col-md-1"><button class="btn btn-sm btn-primary w-100">{{ _("Anlegen") }}</button></div>
+        </form>
+        <p class="small text-body-secondary mt-2 mb-0">{{ _("Die Knoten-ID steht in der Meshtastic-App beim Knoten (beginnt mit !). Sensoren, die schon Werte schicken, erscheinen auch von selbst zum Zuordnen.") }}</p>
+    </div>
+</details>
+{% endif %}
+
 {% if current_user.is_admin and data.unassigned %}
 <div class="card shadow-sm mb-4 border-warning">
     <div class="card-header"><i class="bi bi-plus-circle me-1"></i>{{ _("Neue Sensoren – bitte einem Lager zuordnen") }}</div>

@@ -2431,4 +2431,10 @@ MESSAGES = {
     'Temperatur und Luftfeuchte': 'Temperatura i wilgotność',
     'CO₂ {lo}–{hi} ppm (gestrichelt: Grenzwert)': 'CO₂ {lo}–{hi} ppm (przerywana: wartość graniczna)',
     'CO₂': 'CO₂',
+    'Bitte die Knoten-ID aus der Meshtastic-App angeben, z. B. !a1b2c3d4.': 'Podaj ID węzła z aplikacji Meshtastic, np. !a1b2c3d4.',
+    'Den Sensor {node} gibt es schon.': 'Czujnik {node} już istnieje.',
+    'Sensor {node} angelegt – sobald er Werte schickt, erscheinen sie hier.': 'Utworzono czujnik {node} – gdy wyśle wartości, pojawią się tutaj.',
+    'Sensor hinzufügen': 'Dodaj czujnik',
+    'Knoten-ID': 'ID węzła',
+    'Die Knoten-ID steht in der Meshtastic-App beim Knoten (beginnt mit !). Sensoren, die schon Werte schicken, erscheinen auch von selbst zum Zuordnen.': 'ID węzła jest w aplikacji Meshtastic przy węźle (zaczyna się od !). Czujniki, które już wysyłają wartości, pojawiają się też same do przypisania.',
 }

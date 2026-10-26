@@ -125,3 +125,22 @@ def test_bridge_routing():
     air = _field(13, 0, 1720) + _field(14, 5, 4.75) + _field(15, 5, 92.5)
     message = bridge.envelope_to_message(_envelope(0xBB, 91, 67, _field(4, 2, air)))
     assert bridge.parse_climate(message)["co2"] == 1720 and bridge.parse_climate(message)["temperature"] == 4.75
+
+
+def test_add_sensor_manually(as_admin, as_worker, db, seed):
+    assert "Sensor hinzufügen" in as_admin.get("/lager/klima").get_data(as_text=True)
+    assert "Sensor hinzufügen" not in as_worker.get("/lager/klima").get_data(as_text=True)
+    r = as_admin.post("/lager/klima/sensor/neu", data={"node": "xyz", "warehouse_id": seed["wh"].id},
+                      follow_redirects=True)
+    assert "Knoten-ID" in r.get_data(as_text=True) and ClimateSensor.query.count() == 0
+    as_admin.post("/lager/klima/sensor/neu", data={"node": "!A1B2C3D4", "warehouse_id": seed["wh"].id, "row": "2",
+                                                  "name": "Halle Mitte"})
+    sensor = ClimateSensor.query.one()
+    assert sensor.node == "!a1b2c3d4" and sensor.row == 2 and sensor.name == "Halle Mitte"
+    r = as_admin.post("/lager/klima/sensor/neu", data={"node": "a1b2c3d4", "warehouse_id": seed["wh"].id},
+                      follow_redirects=True)
+    assert "gibt es schon" in r.get_data(as_text=True)
+    assert as_worker.post("/lager/klima/sensor/neu", data={"node": "!a1b2c3d5"}).status_code == 403
+    climate.record({"node": "!a1b2c3d4", "temperature": 5.0})                # Werte landen beim angelegten Sensor
+    db.session.commit()
+    assert climate.status(sensor)["temperature"] == 5.0

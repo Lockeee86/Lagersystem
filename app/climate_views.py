@@ -36,6 +36,21 @@ def overview_page():
                            inactive=ClimateSensor.query.filter_by(active=False).all())
 
 
+@bp.route("/lager/klima/sensor/neu", methods=["POST"])
+@admin_required
+def sensor_add():
+    warehouse = db.session.get(Warehouse, form_int("warehouse_id", 0)) if form_int("warehouse_id") else None
+    try:
+        sensor = climate.add_sensor(form_str("node", 20), form_str("name", 100), warehouse, form_int("row"))
+        db.session.commit()
+        flash(_("Sensor {node} angelegt – sobald er Werte schickt, erscheinen sie hier.", node=sensor.node),
+              "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("climate.overview_page"))
+
+
 @bp.route("/lager/klima/sensor/<int:sensor_id>", methods=["POST"])
 @admin_required
 def sensor_save(sensor_id):
