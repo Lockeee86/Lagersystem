@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
 {% from "tasks/_macros.html" import task_item with context %}
-{% from "chickens/_macros.html" import blocked_alert, egg_form, egg_chart, sensor_line, sensor_chart %}
+{% from "chickens/_macros.html" import blocked_alert, egg_form, egg_chart, sensor_line, sensor_chart, air_chart %}
 {% block title %}{{ _("Hühner") }}{% endblock %}
 {% block content %}
 {% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
@@ -53,8 +53,10 @@
     <div class="card-body">
         {% if sensor %}
         {{ sensor_line(sensor) }}
-        {% if sensor.min24 is not none %}<div class="small text-body-secondary mb-2">{{ _("Letzte 24 h: {lo} bis {hi} °C", lo=sensor.min24|num(1), hi=sensor.max24|num(1)) }}</div>{% endif %}
+        {% if sensor.min24 is not none %}<div class="small text-body-secondary mb-2">{{ _("Letzte 24 h: {lo} bis {hi} °C", lo=sensor.min24|num(1), hi=sensor.max24|num(1)) }}{% if sensor.pressure is not none %} · {{ sensor.pressure|num(0) }} hPa{% endif %}</div>{% endif %}
+        {% if sensor.air and sensor.air.bad %}<div class="alert alert-warning small py-2"><i class="bi bi-wind me-1"></i>{{ _("Die Luft im Stall ist deutlich schlechter als sonst – lüften oder ausmisten.") }}</div>{% endif %}
         {{ sensor_chart(sensor_history) }}
+        {{ air_chart(air_kind, air_points) }}
         {% if door_times %}
         <div class="table-responsive mt-3">
             <table class="table table-sm small mb-0">

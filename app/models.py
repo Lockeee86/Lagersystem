@@ -1884,6 +1884,9 @@ class CoopReading(db.Model):
     humidity = db.Column(db.Float)                     # % relative Luftfeuchte
     battery = db.Column(db.Float)                      # % Akku des Knotens
     voltage = db.Column(db.Float)                      # V
+    pressure = db.Column(db.Float)                     # hPa (BME280/BME680)
+    gas = db.Column(db.Float)                          # Gas-Widerstand in MOhm (BME680): sinkt bei „dicker Luft“
+    iaq = db.Column(db.Integer)                        # Luftqualität 0–500 (BME680, wenn die Firmware sie rechnet)
     rssi = db.Column(db.Float)
     snr = db.Column(db.Float)
 

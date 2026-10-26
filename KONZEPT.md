@@ -356,6 +356,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    (`coop.day_times`). Alles über Thema `coop_open` (`coop.door_watch`).
    **Ohne JSON-Schalter** (0.43.2): die Brücke liest auch das normale Protobuf-Format (`msh/…/e/…`, eigener
    kleiner Decoder) und entschlüsselt mit `COOP_CHANNEL_PSK`, falls die MQTT-Verschlüsselung am Gateway an ist.
+   **Luftdruck und Luftqualität** (0.43.3, BME680): `CoopReading.pressure/gas/iaq`; `coop.air_quality()` – mit IAQ
+   dessen Bosch-Stufe (> 200 = schlecht), sonst Gas-Widerstand 24 h im Vergleich zur Vorwoche (< 60 % = schlecht);
+   Anzeige auf der Hühner-Seite (Kurve) und Startseiten-Karte, Push „schlechte Luft“ einmal am Tag (`coop_sensor`).
    Neue Bereiche nach gespeicherter Voreinstellung (0.42.1): `settings` `home_known_<rolle>` merkt sich, welche
    Bereiche es beim Speichern gab; später dazugekommene (Hühner) folgen der eingebauten Voreinstellung.
    **Wartungsfenster nach Strompreis** (0.38.2, Biogas-Seite): für BHKW-Wartungen, die in den nächsten 7 Tagen

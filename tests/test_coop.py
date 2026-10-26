@@ -116,7 +116,7 @@ def test_bridge_parse():
                  "payload": {"temperature": 6.25, "relative_humidity": 83.1, "barometric_pressure": 1010}}
     data = bridge.parse_meshtastic(telemetry, wanted_node="!a1b2c3d4", door_name="klappe", active="open")
     assert data == {"node": "!a1b2c3d4", "at": 1761400000, "rssi": -101, "snr": 4.5,
-                    "temperature": 6.25, "humidity": 83.1}
+                    "temperature": 6.25, "humidity": 83.1, "pressure": 1010}
     assert bridge.parse_meshtastic(telemetry, wanted_node="!00000001", door_name="klappe", active="open") is None
     device = {"from": 1, "type": "telemetry", "payload": {"battery_level": 101, "voltage": 4.2}}
     assert bridge.parse_meshtastic(device, "", "klappe", "open") == {"node": "!00000001", "voltage": 4.2}
@@ -235,3 +235,44 @@ def test_bridge_protobuf():
     assert bridge.envelope_to_message(raw)["encrypted"]
     assert bridge.parse_meshtastic(bridge.envelope_to_message(raw, key), "", "klappe", "open")["door"] == "open"
     assert bridge.envelope_to_message(_envelope(5, 81, 3, b"\x01")) is None        # andere Ports (Position …)
+
+
+def test_air_quality(app, as_worker, db, seed, monkeypatch):
+    """BME680: Luftdruck, Gas-Widerstand/IAQ – Trend gegenüber der Vorwoche, Hinweis und Push."""
+    seed["worker"].chickens = True
+    db.session.add(PushSubscription(user_id=seed["worker"].id, endpoint="https://push.example/w", p256dh="k", auth="a"))
+    db.session.commit()
+    now = datetime.now(timezone.utc)
+    for h in range(8 * 24, 24, -6):                                    # Woche davor: sauber (hoher Widerstand)
+        coop.record({"temperature": 10, "gas": 0.120, "pressure": 1013.2}, now=now - timedelta(hours=h))
+    coop.record({"temperature": 10, "gas": 0.110}, now=now - timedelta(hours=20))
+    db.session.commit()
+    air = coop.status(now)["air"]
+    assert air["iaq"] is None and not air["bad"] and 0.9 < air["gas_ratio"] < 1
+    assert coop.status(now)["pressure"] == 1013.2
+    for h in (10, 6, 0.1):                                               # jetzt: Widerstand fällt deutlich
+        coop.record({"temperature": 10, "gas": 0.050}, now=now - timedelta(hours=h))
+    db.session.commit()
+    assert coop.air_quality(now)["bad"]
+    html = as_worker.get("/huehner").get_data(as_text=True)
+    assert "deutlich schlechter als sonst" in html and "coop-air" in html and "1013 hPa" in html
+    monkeypatch.setattr(chickens, "farm_sunset", lambda day: None)
+    monkeypatch.setattr(chickens, "farm_sunrise", lambda day: None)
+    push.daily(app, now.astimezone(BERLIN))
+    assert "Hühnerstall: schlechte Luft" in [m["title"] for m in push.outbox]
+    # mit IAQ zählt dessen Stufe
+    coop.record({"iaq": 260}, now=now)
+    db.session.commit()
+    air = coop.air_quality(now)
+    assert air["iaq"] is not None and coop.iaq_label(42) == "ausgezeichnet" and coop.iaq_label(260) == "sehr stark belastet"
+    assert coop.air_history(48)[0] == "iaq"
+
+
+def test_bridge_air_values():
+    bridge = load_bridge()
+    env = _field(1, 5, 18.0) + _field(2, 5, 70.0) + _field(3, 5, 1009.5) + _field(4, 5, 0.085) + _field(7, 0, 64)
+    message = bridge.envelope_to_message(_envelope(5, 90, 67, _field(3, 2, env)))
+    data = bridge.parse_meshtastic(message, "", "klappe", "open")
+    assert data["pressure"] == 1009.5 and data["gas"] == 0.085 and data["iaq"] == 64
+    bme280 = {"from": 5, "type": "telemetry", "payload": {"temperature": 9.0, "barometric_pressure": 0, "iaq": 0}}
+    assert bridge.parse_meshtastic(bme280, "", "klappe", "open") == {"node": "!00000005", "temperature": 9.0}

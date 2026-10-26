@@ -57,6 +57,9 @@
     {% endif %}
     {% if sensor.temperature is not none %}<span><i class="bi bi-thermometer-half me-1"></i>{{ sensor.temperature|num(1) }} °C</span>{% endif %}
     {% if sensor.humidity is not none %}<span><i class="bi bi-droplet me-1"></i>{{ sensor.humidity|num(0) }} %</span>{% endif %}
+    {% if sensor.air %}{% set air = sensor.air %}
+    <span class="{{ 'text-danger fw-semibold' if air.bad }}" title="{{ _('Luftqualität im Stall') }}"><i class="bi bi-wind me-1"></i>{% if air.iaq is not none %}{{ _("Luft {level} (IAQ {n})", level=_(air.level), n=air.iaq) }}{% elif air.gas_ratio is not none %}{{ _("Luft schlechter als sonst") if air.bad else _("Luft wie sonst") }}{% else %}{{ _("Luft: Sensor lernt noch") }}{% endif %}</span>
+    {% endif %}
     {% if sensor.offline %}<span class="text-danger"><i class="bi bi-wifi-off me-1"></i>{{ _("Sensor stumm seit {date}", date=sensor.seen|datetime) }}</span>{% endif %}
 </div>
 {% endif %}
@@ -84,5 +87,25 @@
     <span><span class="coop-key coop-key-temp"></span>{{ _("Temperatur") }} {{ (temps|min)|num(1) }}–{{ (temps|max)|num(1) }} °C · <span class="coop-key coop-key-hum"></span>{{ _("Feuchte") }}</span>
     <span>{{ _("jetzt") }}</span>
 </div>
+{% endif %}
+{% endmacro %}
+
+{# Luftqualität (BME680): IAQ (höher = schlechter) oder Gas-Widerstand (niedriger = schlechter) #}
+{% macro air_chart(kind, points) %}
+{% if points|length > 1 %}
+{% set values = points|map(attribute=1)|list %}
+{% set lo, hi = values|min, values|max %}
+{% set hi = hi if hi > lo else lo + 1 %}
+{% set t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp() %}
+{% set span = [t1 - t0, 1]|max %}
+{% set ns = namespace(line="") %}
+{% for at, v in points %}
+{% set y = (200 * (v - lo) / (hi - lo)) if kind == "gas" else (200 - 200 * (v - lo) / (hi - lo)) %}
+{% set ns.line = ns.line ~ (1000 * (at.timestamp() - t0) / span)|round(1) ~ "," ~ y|round(1) ~ " " %}
+{% endfor %}
+<div class="small text-body-secondary mt-3 mb-1"><i class="bi bi-wind me-1"></i>{{ _("Luftqualität (höher = schlechter)") }}{% if kind == "gas" %} · {{ _("aus dem Gas-Widerstand") }}{% endif %}</div>
+<svg class="coop-chart coop-chart-sm" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('Luftqualität der letzten 48 Stunden') }}">
+    <polyline points="{{ ns.line }}" class="coop-air"/>
+</svg>
 {% endif %}
 {% endmacro %}

@@ -865,3 +865,5 @@ body:not(.has-tabbar) {
 .coop-key { display: inline-block; width: .8rem; height: .2rem; vertical-align: middle; margin-right: .25rem; border-radius: 1px; }
 .coop-key-temp { background: var(--brand); }
 .coop-key-hum { background: var(--bs-info); opacity: .6; }
+.coop-chart-sm { height: 4rem; }
+.coop-air { stroke: var(--bs-warning); }

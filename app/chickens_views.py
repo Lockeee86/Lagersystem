@@ -81,10 +81,12 @@ def overview():
     existing = {t.title for t in chickens.open_tasks()}
     suggestions = [(i, _(title), RECURRENCES[rec]) for i, (title, rec) in enumerate(chickens.TASK_SUGGESTIONS)
                    if _(title) not in existing]
+    air_kind, air_points = coop.air_history(48)
     return render_template(
         "chickens/overview.html", info=chickens.summary(today), today=today, days=chickens.recent_days(today),
         open_tasks=chickens.open_tasks(), suggestions=suggestions, sunset=chickens.farm_sunset(today),
         sensor=coop.status(), sensor_history=coop.history(48), door_times=coop.day_times(local_tz()),
+        air_kind=air_kind, air_points=air_points,
         sensor_token=coop.has_token() if current_user.is_admin else None,
         entries=EggEntry.query.filter(EggEntry.day >= today - timedelta(days=1))
         .order_by(EggEntry.day.desc(), EggEntry.id.desc()).all(),

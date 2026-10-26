@@ -13,6 +13,7 @@ from flask import url_for
 
 from . import push
 from .extensions import db
+from .i18n import N_
 from .models import CoopDoorEvent, CoopReading, Setting, utcnow
 from .push import Msg
 
@@ -23,6 +24,12 @@ OFFLINE_AFTER = timedelta(hours=2)               # so lange ohne Nachricht = Sen
 FROST_C = 0.5                                    # Stall: Wasser friert, Kämme leiden
 HEAT_C = 30.0                                    # Stall: Hitzestress
 KEEP_DAYS = 400                                  # Messwerte so lange aufbewahren
+IAQ_BAD = 200                                    # ab hier „stark belastet“ (Bosch-Skala 0–500)
+GAS_DROP = 0.6                                   # Gas-Widerstand unter 60 % der Vorwoche = Luft deutlich schlechter
+# Bosch-IAQ-Stufen (obere Grenze, Text)
+IAQ_LEVELS = [(50, N_("ausgezeichnet")), (100, N_("gut")), (150, N_("leicht belastet")),
+              (200, N_("mäßig belastet")), (250, N_("stark belastet")), (350, N_("sehr stark belastet")),
+              (500, N_("extrem belastet"))]
 
 
 class SensorError(ValueError):
@@ -98,9 +105,13 @@ def record(data, now=None):
     node = str(data.get("node") or "")[:20] or None
     values = {"temperature": _number(data, "temperature", -40, 70), "humidity": _number(data, "humidity", 0, 100),
               "battery": _number(data, "battery", 0, 101), "voltage": _number(data, "voltage", 0, 30),
+              "pressure": _number(data, "pressure", 300, 1100), "gas": _number(data, "gas", 0, 1000),
+              "iaq": _number(data, "iaq", 0, 500),
               "rssi": _number(data, "rssi", -200, 50), "snr": _number(data, "snr", -50, 50)}
     doors = {"unten": _door(data.get("door")), "oben": _door(data.get("door_top"))}
     result = {"reading": None, "door": None}
+    if values["iaq"] is not None:
+        values["iaq"] = int(round(values["iaq"]))
     if any(v is not None for v in values.values()):
         result["reading"] = CoopReading(at=at, node=node, **values)
         db.session.add(result["reading"])
@@ -152,7 +163,7 @@ def status(now=None):
     if seen is None:
         return None
     latest = {}
-    for key in ("temperature", "humidity", "battery", "voltage", "rssi", "snr"):
+    for key in ("temperature", "humidity", "battery", "voltage", "rssi", "snr", "pressure", "gas", "iaq"):
         row = (CoopReading.query.filter(getattr(CoopReading, key).isnot(None))
                .order_by(CoopReading.at.desc()).first())
         latest[key] = (getattr(row, key), _aware(row.at)) if row else (None, None)
@@ -167,7 +178,49 @@ def status(now=None):
             "snr": latest["snr"][0], "measured": latest["temperature"][1] or latest["humidity"][1],
             "door": door.is_open if door else None, "door_since": _aware(door.at) if door else None,
             "seen": seen, "offline": now - seen > OFFLINE_AFTER,
-            "min24": min(temps) if temps else None, "max24": max(temps) if temps else None}
+            "min24": min(temps) if temps else None, "max24": max(temps) if temps else None,
+            "pressure": latest["pressure"][0], "air": air_quality(now)}
+
+
+def iaq_label(value):
+    return next((label for top, label in IAQ_LEVELS if value <= top), IAQ_LEVELS[-1][1])
+
+
+def _median(values):
+    values = sorted(values)
+    return values[len(values) // 2] if values else None
+
+
+def air_quality(now=None):
+    """Luft im Stall (BME680): None ohne Werte, sonst {iaq, level, gas, gas_ratio, bad}.
+    Mit IAQ zählt dessen Stufe; ohne IAQ der Gas-Widerstand der letzten 24 h im Vergleich zur Woche davor
+    (der absolute Wert ist von Sensor zu Sensor verschieden, der Trend nicht)."""
+    now = now or utcnow()
+    day = (CoopReading.query.filter(CoopReading.at >= now - timedelta(hours=24))
+           .filter((CoopReading.iaq.isnot(None)) | (CoopReading.gas.isnot(None))).all())
+    if not day:
+        return None
+    iaqs = [r.iaq for r in day if r.iaq is not None]
+    gas_day = _median([r.gas for r in day if r.gas is not None])
+    week = [r.gas for r in CoopReading.query.filter(CoopReading.at >= now - timedelta(days=8),
+                                                    CoopReading.at < now - timedelta(hours=24),
+                                                    CoopReading.gas.isnot(None))]
+    gas_week = _median(week) if len(week) >= 12 else None          # erst mit genug Vergleichswerten
+    ratio = gas_day / gas_week if gas_day and gas_week else None
+    iaq = round(sum(iaqs) / len(iaqs)) if iaqs else None
+    return {"iaq": iaq, "level": iaq_label(iaq) if iaq is not None else None, "gas": gas_day,
+            "gas_ratio": ratio,
+            "bad": (iaq is not None and iaq > IAQ_BAD) or (iaq is None and ratio is not None and ratio < GAS_DROP)}
+
+
+def air_history(hours=48, now=None):
+    """Luftqualität für die Kurve: [(Zeit, Wert)] – IAQ, sonst Gas-Widerstand; dazu, welcher es ist."""
+    now = now or utcnow()
+    rows = (CoopReading.query.filter(CoopReading.at >= now - timedelta(hours=hours))
+            .filter((CoopReading.iaq.isnot(None)) | (CoopReading.gas.isnot(None))).order_by(CoopReading.at).all())
+    if any(r.iaq is not None for r in rows):
+        return "iaq", [(_aware(r.at), r.iaq) for r in rows if r.iaq is not None]
+    return "gas", [(_aware(r.at), r.gas) for r in rows if r.gas is not None]
 
 
 def history(hours=48, now=None):
@@ -249,6 +302,12 @@ def alerts(now, done, mark, recipients):
                         time=info["seen"].astimezone(now.tzinfo).strftime("%d.%m. %H:%M")),
                     url, tag=f"coop-offline-{today.isoformat()}")
         return
+    air = info["air"]
+    if air and air["bad"] and not done("coop_air", today):
+        mark("coop_air", today)
+        push.notify(recipients, "coop_sensor", Msg("Hühnerstall: schlechte Luft"),
+                    Msg("Lüften oder ausmisten – die Luftqualität im Stall ist deutlich schlechter."), url,
+                    tag=f"coop-air-{today.isoformat()}")
     temp = info["temperature"]
     if temp is None or info["offline"]:
         return

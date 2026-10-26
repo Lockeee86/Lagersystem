@@ -89,10 +89,14 @@ def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active
         if is_top:                                     # Messwerte nur vom Stall-Knoten, nicht vom oberen
             return None
         mapping = {"temperature": "temperature", "relative_humidity": "humidity",
-                   "battery_level": "battery", "voltage": "voltage"}
+                   "battery_level": "battery", "voltage": "voltage", "barometric_pressure": "pressure",
+                   "gas_resistance": "gas", "iaq": "iaq"}
         values = {target: payload[source] for source, target in mapping.items() if payload.get(source) is not None}
         if values.get("battery", 0) > 100:            # 101 = am Netz
             values.pop("battery")
+        for key, low in (("pressure", 300), ("gas", 0), ("iaq", 0)):   # 0 = vom Sensor nicht geliefert
+            if key in values and not values[key] > low:
+                values.pop(key)
         if not values:
             return None
         data.update(values)
@@ -219,10 +223,13 @@ def envelope_to_message(raw, key=None):
             device = _fields(telemetry[2][0])
             values["battery_level"] = _first(device, 1)
             values["voltage"] = _round(_f32(_first(device, 2)))
-        if 3 in telemetry:                              # EnvironmentMetrics: 1 temperature, 2 relative_humidity
+        if 3 in telemetry:                              # EnvironmentMetrics: 1 °C, 2 %, 3 hPa, 4 MOhm, 7 IAQ
             env = _fields(telemetry[3][0])
             values["temperature"] = _round(_f32(_first(env, 1)))
             values["relative_humidity"] = _round(_f32(_first(env, 2)), 1)
+            values["barometric_pressure"] = _round(_f32(_first(env, 3)), 1)
+            values["gas_resistance"] = _round(_f32(_first(env, 4)), 4)
+            values["iaq"] = _first(env, 7)
         message.update(type="telemetry", payload={k: v for k, v in values.items() if v is not None})
         return message
     return None

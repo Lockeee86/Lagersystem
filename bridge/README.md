@@ -14,7 +14,7 @@ Server: Mosquitto ──► coop-bridge ──► Lagersystem  POST /api/huehner
 
 | Teil | Anschluss |
 |------|-----------|
-| Temperatur/Feuchte: **SHT31, SHT4x oder BME280** (I²C) | VCC → 3,3 V, GND → GND, SDA/SCL → I²C-Pins des Boards (siehe Pinout; Meshtastic erkennt den Sensor beim Start selbst) |
+| Temperatur/Feuchte: **SHT31, SHT4x, BME280 oder BME680** (I²C; BME680 zusätzlich Luftqualität) | VCC → 3,3 V, GND → GND, SDA/SCL → I²C-Pins des Boards (siehe Pinout; Meshtastic erkennt den Sensor beim Start selbst) |
 | **Reedkontakt** (Schließer, Magnet an der Klappe) | ein Draht → freier GPIO, der andere → GND |
 
 - Den Reedkontakt so anbringen, dass er **bei geschlossener Klappe geschlossen** ist (Magnet davor).
