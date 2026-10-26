@@ -116,9 +116,9 @@
 {% if current_user.is_authenticated %}
 <nav class="tabbar d-lg-none" aria-label="{{ _('Hauptmenü') }}">
     <a href="{{ url_for('main.dashboard') }}" class="{% if mobile_tab == 'heute' %}active{% endif %}"><i class="bi bi-house"></i><span>{{ _("Heute") }}</span>{% if my_task_count %}<span class="tab-badge">{{ my_task_count }}</span>{% endif %}</a>
-    <a href="{{ url_for('main.storage_home') }}" class="{% if mobile_tab == 'lager' %}active{% endif %}"><i class="bi bi-grid-3x3-gap"></i><span>{{ _("Lager") }}</span></a>
+    {% if tabbar[0] is defined %}{% set t = tabbar[0] %}<a href="{{ t.url }}" class="{% if mobile_tab == t.key %}active{% endif %}"><i class="bi {{ t.icon }}"></i><span>{{ _(t.label) }}</span></a>{% endif %}
     <a href="{{ url_for('main.scan') }}" class="tabbar-scan {% if mobile_tab == 'scan' %}active{% endif %}" aria-label="{{ _('Scannen') }}"><i class="bi bi-qr-code-scan"></i></a>
-    <a href="{{ url_for('main.area', key='feld') }}" class="{% if mobile_tab == 'feld' %}active{% endif %}"><i class="bi bi-map"></i><span>{{ _("Feld & Hof") }}</span></a>
+    {% if tabbar[1] is defined %}{% set t = tabbar[1] %}<a href="{{ t.url }}" class="{% if mobile_tab == t.key %}active{% endif %}"><i class="bi {{ t.icon }}"></i><span>{{ _(t.label) }}</span></a>{% endif %}
     <a href="{{ url_for('main.area', key='mehr') }}" class="{% if mobile_tab == 'mehr' %}active{% endif %}"><i class="bi bi-list"></i><span>{{ _("Mehr") }}</span>{% if purchase_count %}<span class="tab-badge">{{ purchase_count }}</span>{% endif %}</a>
 </nav>
 {% endif %}

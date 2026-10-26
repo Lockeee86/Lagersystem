@@ -289,6 +289,17 @@ def _status(endpoint):
         if sensors and sensors[0]["temperature"] is not None:
             return " · ".join(f"{fmt_num(s['temperature'], 1)} °C" for s in sensors[:3]), False
         return _("Temperatur, Feuchte und CO₂ im Lager"), False
+    if endpoint == "sensors.overview_page":
+        from . import sensors as mesh
+        new = mesh.new_count() if current_user.is_admin else 0
+        if new:
+            return ngettext("{n} neuer Knoten zum Zuordnen", "{n} neue Knoten zum Zuordnen", new), True
+        data = mesh.overview()
+        silent = sum(1 for e in data["coop"] + [e for e, _s in data["climate"]] if e["offline"])
+        if silent:
+            return ngettext("{n} Sensor meldet sich nicht", "{n} Sensoren melden sich nicht", silent), True
+        return ngettext("{n} Knoten in Betrieb", "{n} Knoten in Betrieb", len(data["coop"]) + len(data["climate"])), \
+            False
     if endpoint == "chickens.overview":
         from . import chickens
         info = chickens.summary()
@@ -389,16 +400,19 @@ def area(key):
     """Bereichsseite fürs Handy (untere Leiste): Unterpunkte als große Zeilen mit Stand."""
     if key == "lager":
         return redirect(url_for("main.storage_home"))
-    if key not in navigation.HUBS:
+    title = navigation.hub_title(key)
+    if title is None:
         abort(404)
     groups = []
     for group in navigation.hub(key, current_user):
         rows = []
         for it in group["items"]:
             text, warn = _status(it["endpoint"])
-            rows.append({**it, "url": url_for(it["endpoint"]), "status": text, "warn": warn})
+            rows.append({**it, "url": url_for(it["endpoint"], **it.get("args", {})), "status": text, "warn": warn})
         groups.append({"label": group["label"], "rows": rows})
-    return render_template("area.html", key=key, title=navigation.HUBS[key], groups=groups,
+    if not groups:
+        abort(404)
+    return render_template("area.html", key=key, title=title, groups=groups,
                            tank=fuel.status() if key == "feld" and current_user.can_edit else None)
 
 

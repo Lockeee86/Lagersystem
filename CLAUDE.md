@@ -120,9 +120,12 @@ docker compose up --build -d
   Rundgang mit `CheckStation.area == "huehner"`, Aufgaben `Task.area`; Push `evening_check()` aus `push.daily`
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Rubriken mit
   `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer
-- `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` aus `api.coop_sensor` (`/api/huehner/sensor`, Schlüssel
-  `new_token()`/`check_token()`), Knoten-IDs `nodes()`/`save_nodes()` (die Brücke holt sie mit Lager-Knoten über
-  `/api/meshtastic/knoten`), `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;
+- `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
+  leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
+  `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, committet nicht;
+  `app/sensors_views.py` (Blueprint `sensors`, `/sensoren`, auch Schlüssel für die Brücke)
+- `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` (auch direkt `/api/huehner/sensor` für eigenes JSON), Schlüssel
+  `new_token()`/`check_token()`, `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;
   Brücke MQTT → App in `bridge/` (eigener Container, Compose-Profil `huehner`, Anleitung `bridge/README.md`)
 - `app/climate.py`: Lagerklima (Meshtastic-Knoten mit SCD41) – `ClimateSensor` (Knoten → Lager/Reihe), `ClimateReading`,
   `record()` aus `api.climate_sensor` (`/api/lager/klima`), `status()` mit Grenzwerten `limits()` (`Warehouse.climate_*`),
@@ -141,7 +144,8 @@ docker compose up --build -d
   neue Seiten dort eintragen, dann erscheinen sie in Leiste, Unterleiste (PC) und auf den Bereichsseiten (Handy,
   `HUBS`, `hub()`, Route `main.area` = `/bereich/<key>`; Stand je Unterpunkt in `views._status`; „Lager“ ist die
   eigene Übersicht `main.storage_home` mit Kartoffellager und Schüttlager). `app/search.py`: Suche
-- Handy: untere Leiste in `base.html` (`mobile_tab`, Zurück-Link `mobile_crumb`), Startseite mit „Jetzt wichtig“
+- Handy: untere Leiste in `base.html` (`mobile_tab`, Zurück-Link `mobile_crumb`; die zwei freien Plätze aus
+  `app/tabbar.py`: `CHOICES`, Rolle `settings` `tabbar_<rolle>`, eigene Wahl `User.tabbar`), Startseite mit „Jetzt wichtig“
   (`views._important`, ohne Aufgaben – die haben einen eigenen Block) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
   `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).
   Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)

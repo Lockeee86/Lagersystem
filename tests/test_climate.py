@@ -42,12 +42,10 @@ def test_api_and_assignment(client, as_admin, as_worker, db, seed, token):
     assert r.get_json()["stored"]
     sensor = ClimateSensor.query.one()
     assert sensor.node == "!aa11" and sensor.warehouse is None
-    assert "Neue Sensoren" in as_admin.get("/lager/klima").get_data(as_text=True)
-    assert as_worker.post(f"/lager/klima/sensor/{sensor.id}", data={"warehouse_id": seed["wh"].id}).status_code == 403
-    r = as_admin.post(f"/lager/klima/sensor/{sensor.id}", data={"warehouse_id": seed["wh"].id, "row": "99"},
-                      follow_redirects=True)
-    assert "gibt es in" in r.get_data(as_text=True)
-    as_admin.post(f"/lager/klima/sensor/{sensor.id}", data={"warehouse_id": seed["wh"].id, "row": "3", "name": ""})
+    with pytest.raises(StorageError):
+        climate.save_sensor(sensor, "", seed["wh"], 99, True)
+    climate.save_sensor(sensor, "", seed["wh"], 3, True)
+    db.session.commit()
     assert sensor.warehouse == seed["wh"] and sensor.row == 3 and sensor.label == "Kartoffellager · C"
     info = climate.status(sensor)
     assert info["co2"] == 1850 and info["in_target"] and not info["issues"] and info["level"] == "ok"
@@ -56,7 +54,8 @@ def test_api_and_assignment(client, as_admin, as_worker, db, seed, token):
     page = as_worker.get(f"/lager/{seed['wh'].id}").get_data(as_text=True)
     assert "climate-badge" in page and "Lagerklima" in page
     # deaktivieren: neue Werte werden ignoriert
-    as_admin.post(f"/lager/klima/sensor/{sensor.id}", data={"warehouse_id": seed["wh"].id, "row": "3", "active": "0"})
+    climate.save_sensor(sensor, "", seed["wh"], 3, False)
+    db.session.commit()
     assert not sensor.active and post(client, {"node": "!aa11", "temperature": 6}, token).get_json()["stored"] is False
 
 
@@ -111,37 +110,15 @@ def test_offline_and_series(db, seed):
         climate.save_limits(seed["wh"], {"hum_min": 120})
 
 
-def test_bridge_routing():
+def test_bridge_co2():
     from tests.test_coop import _envelope, _field, load_bridge
     bridge = load_bridge()
     msg = {"from": 0xBB, "type": "telemetry", "payload": {"co2": 1500, "co2_temperature": 5.2, "co2_humidity": 91.0,
                                                           "battery_level": 101}}
-    assert bridge.route(msg, coop_node="!000000aa", top_node="", climate_nodes=set()) == "climate"
-    assert bridge.route({"from": 0xAA}, coop_node="!000000aa", top_node="", climate_nodes=set()) == "coop"
-    assert bridge.route(msg, coop_node="", top_node="", climate_nodes=set()) == "coop"            # wie bisher
-    assert bridge.route(msg, coop_node="", top_node="", climate_nodes={"!000000bb"}) == "climate"
-    assert bridge.route(msg, coop_node="!000000aa", top_node="", climate_nodes={"!000000cc"}, strict=True) is None
-    assert bridge.route(msg, coop_node="!000000aa", top_node="", climate_nodes={"!000000cc"}) == "climate"  # neu
-    assert bridge.parse_climate(msg) == {"node": "!000000bb", "temperature": 5.2, "humidity": 91.0, "co2": 1500}
+    assert bridge.packet(msg, "klappe", {})["values"] == {"temperature": 5.2, "humidity": 91.0, "co2": 1500}
     air = _field(13, 0, 1720) + _field(14, 5, 4.75) + _field(15, 5, 92.5)
     message = bridge.envelope_to_message(_envelope(0xBB, 91, 67, _field(4, 2, air)))
-    assert bridge.parse_climate(message)["co2"] == 1720 and bridge.parse_climate(message)["temperature"] == 4.75
+    values = bridge.packet(message, "klappe", {})["values"]
+    assert values["co2"] == 1720 and values["temperature"] == 4.75
 
 
-def test_add_sensor_manually(as_admin, as_worker, db, seed):
-    assert "Sensor hinzufügen" in as_admin.get("/lager/klima").get_data(as_text=True)
-    assert "Sensor hinzufügen" not in as_worker.get("/lager/klima").get_data(as_text=True)
-    r = as_admin.post("/lager/klima/sensor/neu", data={"node": "xyz", "warehouse_id": seed["wh"].id},
-                      follow_redirects=True)
-    assert "Knoten-ID" in r.get_data(as_text=True) and ClimateSensor.query.count() == 0
-    as_admin.post("/lager/klima/sensor/neu", data={"node": "!A1B2C3D4", "warehouse_id": seed["wh"].id, "row": "2",
-                                                  "name": "Halle Mitte"})
-    sensor = ClimateSensor.query.one()
-    assert sensor.node == "!a1b2c3d4" and sensor.row == 2 and sensor.name == "Halle Mitte"
-    r = as_admin.post("/lager/klima/sensor/neu", data={"node": "a1b2c3d4", "warehouse_id": seed["wh"].id},
-                      follow_redirects=True)
-    assert "gibt es schon" in r.get_data(as_text=True)
-    assert as_worker.post("/lager/klima/sensor/neu", data={"node": "!a1b2c3d5"}).status_code == 403
-    climate.record({"node": "!a1b2c3d4", "temperature": 5.0})                # Werte landen beim angelegten Sensor
-    db.session.commit()
-    assert climate.status(sensor)["temperature"] == 5.0

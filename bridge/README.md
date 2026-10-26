@@ -60,7 +60,7 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 
 ## 3. Stack in Portainer ergänzen
 
-1. In der App: **Hühner → Stall-Sensor → „Schlüssel für die Brücke erzeugen“** (nur Admin). Der Schlüssel wird
+1. In der App: **Sensoren → Einrichtung → „Schlüssel für die Brücke erzeugen“** (nur Admin). Der Schlüssel wird
    genau einmal angezeigt.
 2. Im Portainer-Stack bei den Umgebungsvariablen ergänzen:
 
@@ -69,16 +69,14 @@ Den Stall-Knoten in die Nähe des Gateways halten und prüfen, ob er in der Knot
 | `COMPOSE_PROFILES` | `huehner` (startet Mosquitto und die Brücke mit) |
 | `COOP_API_TOKEN` | der Schlüssel aus Schritt 1 |
 | `MQTT_PORT` | wahlweise, Standard 1883 |
-| `COOP_DOOR_ACTIVE` | `open` (Standard: „aktiv“ = Klappe offen) – zeigt die App es verkehrt herum, `closed` |
-| `COOP_TOP_ACTIVE` | `away` (Standard: „aktiv“ = nicht oben) – verkehrt herum: `top` |
 | `COOP_CHANNEL_PSK` | nur wenn die MQTT-Verschlüsselung am Gateway an bleibt: Kanal-Schlüssel (Base64) |
 | `COOP_DEBUG` | `1`, um alle MQTT-Nachrichten im Log der Brücke zu sehen |
 
 3. Stack neu bereitstellen (mit „Re-pull/Re-build“). Danach laufen zusätzlich `lagersystem-mqtt` und
    `lagersystem-coop-bridge`.
-4. In der App: **Hühner → Stall-Sensor → „Meshtastic-Knoten“** die ID des Stall-Knotens eintragen (und wahlweise
-   den Knoten oben). Die Brücke holt sich das jede Minute aus der App – dafür muss der Stack nicht neu bereitgestellt
-   werden. (Ältere Stacks mit `COOP_NODE`/`COOP_TOP_NODE` laufen weiter; ein Eintrag in der App geht vor.)
+4. In der App unter **Sensoren** erscheint jeder Knoten, sobald er etwas schickt. Beim Stall-Knoten
+   „Zuordnen“ → **Hühnerstall – Klappe unten und Messwerte** wählen (den Knoten oben als **Kontakt oben**).
+   Mehr gehört nicht in den Stack – Knoten, Zuordnung und „Klappe verkehrt herum“ stellt ihr in der App ein.
 5. Port 1883 nur im Hof-Netz erreichbar lassen (nicht im Router freigeben) – Mosquitto ist ohne Passwort.
 
 ## Wahlweise: zweiter Knoten für „ganz offen“
@@ -90,7 +88,7 @@ angekommen ist (Motor hängt, Klappe klemmt), kommt ein zweiter Meshtastic-Knote
   blockieren. Er ist geschlossen, wenn die Klappe ganz oben ist.
 - Detection Sensor am zweiten Knoten wie unten: Pin, Pull-up an, beide Flanken aktiv HIGH, Name z. B.
   **Klappe oben**, Status alle 900 s. Telemetrie braucht er nicht.
-- In der App unter Hühner → Stall-Sensor → „Meshtastic-Knoten“ als „Knoten oben“ eintragen.
+- In der App unter Sensoren als **Hühnerstall – Kontakt oben** zuordnen.
 
 Die App zeigt dann **zu / offen / hängt** und schickt „Hühnerklappe hängt!“, wenn die Klappe länger als 5 Minuten
 weder ganz unten noch ganz oben ist.
@@ -116,18 +114,18 @@ weder ganz unten noch ganz oben ist.
 
 ## Lagerklima (Kartoffellager) mit SCD41
 
-Dieselbe Brücke bringt auch Temperatur, Luftfeuchte und **CO₂** aus den Lagern in die App (Lager → Klima).
+Dieselbe Brücke bringt auch Temperatur, Luftfeuchte und **CO₂** aus den Lagern in die App (Lager → Lagerklima).
 
 1. **Sensor:** SCD41 (z. B. als Grove-Modul) an den I²C- bzw. Grove-Anschluss eines Meshtastic-Knotens
    (3,3 V, GND, SDA, SCL). Meshtastic erkennt ihn beim Start.
 2. **Meshtastic (Lager-Knoten):** Modul-Konfiguration → Telemetrie → **Luftqualität** (Air quality) **an** und
    **Umweltwerte** an, Intervall z. B. 600 s. Gleicher Kanal wie Gateway und Stall, Uplink am Gateway an.
-3. **Im Stack ist nichts zu tun.** Voraussetzung ist nur, dass der Stall-Knoten in der App eingetragen ist
-   (siehe oben) – dann landen alle anderen Knoten mit Messwerten beim Lagerklima.
-4. **In der App:** Der neue Sensor erscheint nach seinen ersten Werten unter **Lager → Lagerklima → „Neue
-   Sensoren“**. Dort Lager und wahlweise Reihe zuordnen. Oder vorher über „Sensor hinzufügen“ mit der Knoten-ID
-   anlegen. Grenzwerte je Lager darunter (leer = 3–10 °C, 85–97 %, CO₂ bis 5000 ppm).
-   Taucht ein fremder Knoten auf (z. B. vom Nachbarn auf dem öffentlichen Kanal), ihn dort einfach abschalten.
+3. **Im Stack ist nichts zu tun.**
+4. **In der App:** Der Knoten erscheint nach seinen ersten Werten unter **Sensoren → „Neue Knoten“**. Dort
+   „Lagerklima“, das Lager und wahlweise die Reihe wählen. Oder vorher über „Knoten von Hand anlegen“ mit der
+   Knoten-ID. Die Werte stehen dann unter Lager → Lagerklima, Grenzwerte je Lager ebenda (leer = 3–10 °C,
+   85–97 %, CO₂ bis 5000 ppm). Taucht ein fremder Knoten auf (z. B. vom Nachbarn auf dem öffentlichen Kanal),
+   ihn auf „Nicht verwenden“ stellen.
 
 Hinweise:
 - Strom: Der SCD41 misst laufend und braucht mehr Strom als ein BME280 – im Lager am besten ein USB-Netzteil.

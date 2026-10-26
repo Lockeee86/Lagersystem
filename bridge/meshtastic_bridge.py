@@ -1,10 +1,10 @@
-"""Brücke Hühnerstall: Meshtastic (MQTT, Protobuf oder JSON) → Lagersystem (`POST /api/huehner/sensor`).
+"""Brücke Meshtastic (MQTT, Protobuf oder JSON) → Lagersystem (`POST /api/meshtastic`).
 
 Der Meshtastic-Knoten im Haus (mit WLAN) schickt alle Pakete an den MQTT-Server (Mosquitto im selben Stack).
-Diese Brücke liest sie, nimmt vom Stall-Knoten
-  - Telemetrie: temperature, relative_humidity, battery_level, voltage (+ rssi/snr)
-  - Klappe vom Modul „Detection Sensor“: Text „<Name> detected“ bzw. „<Name> state: 0/1“
-und trägt sie per HTTP in die App ein. Eigene ESP32-Sensoren können unter `COOP_TOPIC` direkt fertiges JSON
+Diese Brücke liest sie und reicht von jedem Knoten
+  - Telemetrie: Temperatur, Feuchte, Luftdruck, Gas/IAQ, CO₂, Akku, Spannung (+ rssi/snr)
+  - Texte vom Modul „Detection Sensor“ („<Name> detected“ bzw. „<Name> state: 0/1“)
+an die App weiter. Wofür ein Knoten da ist (Hühnerstall, Lager …), legt der Admin in der App fest (Rubrik Sensoren). Eigene ESP32-Sensoren können unter `COOP_TOPIC` direkt fertiges JSON
 ({"temperature": …, "humidity": …, "door": "open"|"closed"}) veröffentlichen.
 
 Einstellungen über Umgebungsvariablen (siehe README.md in diesem Ordner).
@@ -12,7 +12,6 @@ Einstellungen über Umgebungsvariablen (siehe README.md in diesem Ordner).
 import base64
 import json
 import os
-import re
 import struct
 import sys
 import time
@@ -20,10 +19,8 @@ import urllib.error
 import urllib.request
 from collections import deque
 
-APP_URL = os.environ.get("APP_URL", "http://web:5000/api/huehner/sensor")
-CLIMATE_URL = os.environ.get("CLIMATE_URL", "http://web:5000/api/lager/klima")
-NODES_URL = os.environ.get("NODES_URL", "http://web:5000/api/meshtastic/knoten")   # Zuordnung aus der App
-NODES_EVERY = 60                                                                   # Sekunden
+MESH_URL = os.environ.get("MESH_URL", "http://web:5000/api/meshtastic")       # alle Meshtastic-Pakete
+APP_URL = os.environ.get("APP_URL", "http://web:5000/api/huehner/sensor")      # fertiges JSON unter COOP_TOPIC
 TOKEN = os.environ.get("COOP_API_TOKEN", "")
 MQTT_HOST = os.environ.get("MQTT_HOST", "mqtt")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
@@ -31,23 +28,18 @@ MQTT_USER = os.environ.get("MQTT_USER") or None
 MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD") or None
 MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "msh/#")
 COOP_TOPIC = os.environ.get("COOP_TOPIC", "huehnerstall/#")
-# Knoten-IDs stehen in der App (Hühner → Stall-Sensor, Lager → Lagerklima). Diese Variablen gelten nur, solange dort
-# nichts eingetragen ist (ältere Stacks).
-COOP_NODE = (os.environ.get("COOP_NODE") or "").strip().lower()        # z. B. !a1b2c3d4 – leer: alle Knoten
+# Wofür ein Knoten da ist, steht in der App (Rubrik Sensoren). COOP_NODE/COOP_TOP_NODE aus älteren Stacks ordnen
+# einen neuen Knoten nur einmal vor.
+COOP_NODE = (os.environ.get("COOP_NODE") or "").strip().lower()        # z. B. !a1b2c3d4
 DOOR_NAME = (os.environ.get("DOOR_NAME") or "Klappe").strip().lower()   # Name im Detection-Sensor-Modul
 DOOR_ACTIVE = (os.environ.get("DOOR_ACTIVE") or "open").strip().lower()  # „aktiv“ (detected / state: 1) heißt …
 # Wahlweise zweiter Knoten mit Reedkontakt oben (Klappe ganz offen); „aktiv“ heißt dort „nicht oben“
 # (Kontakt bei offener Klappe geschlossen = LOW, wie unten bei geschlossener Klappe).
 COOP_TOP_NODE = (os.environ.get("COOP_TOP_NODE") or "").strip().lower()
 TOP_ACTIVE = (os.environ.get("TOP_ACTIVE") or "away").strip().lower()   # away | top
-# Lagerklima: diese Knoten gehen an CLIMATE_URL. Leer: alle Knoten außer dem Hühnerstall (wenn COOP_NODE gesetzt ist)
-CLIMATE_NODES = {n.strip().lower() for n in (os.environ.get("CLIMATE_NODES") or "").split(",") if n.strip()}
+HINTS = {node: hint for node, hint in ((COOP_NODE, "coop"), (COOP_TOP_NODE, "coop_top")) if node}
 CHANNEL_PSK = (os.environ.get("CHANNEL_PSK") or "").strip()            # Base64 aus den Kanal-Einstellungen
 DEBUG = os.environ.get("DEBUG", "") not in ("", "0", "false")
-
-STATE_RE = re.compile(r"state:\s*([01])\b", re.I)
-DETECTED_RE = re.compile(r"\bdetected\b", re.I)
-
 
 def log(*args):
     print(time.strftime("%Y-%m-%d %H:%M:%S"), *args, flush=True)
@@ -60,30 +52,29 @@ def node_id(value):
     return str(value or "").lower() or None
 
 
-def _door_from_text(text, door_name=DOOR_NAME, active=DOOR_ACTIVE):
-    """Text des Detection-Sensor-Moduls → True (offen) / False (zu) / None (nicht die Klappe)."""
-    lower = (text or "").lower()
-    if door_name and door_name not in lower:
-        return None
-    match = STATE_RE.search(lower)
-    if match:
-        is_active = match.group(1) == "1"
-    elif DETECTED_RE.search(lower):
-        is_active = True
-    else:
-        return None
-    return is_active if active == "open" else not is_active
+def telemetry_values(payload):
+    """Telemetrie (Meshtastic-Namen) → Werte für die App; 0 = vom Sensor nicht geliefert, Akku 101 = am Netz."""
+    values = {
+        "temperature": payload.get("temperature", payload.get("co2_temperature")),
+        "humidity": payload.get("relative_humidity", payload.get("co2_humidity")),
+        "battery": payload.get("battery_level"), "voltage": payload.get("voltage"),
+        "pressure": payload.get("barometric_pressure"), "gas": payload.get("gas_resistance"),
+        "iaq": payload.get("iaq"), "co2": payload.get("co2"),
+    }
+    if values["battery"] is not None and values["battery"] > 100:
+        values["battery"] = None
+    for key, low in (("pressure", 300), ("gas", 0), ("iaq", 0), ("co2", 0)):
+        if values[key] is not None and not values[key] > low:
+            values[key] = None
+    return {k: v for k, v in values.items() if v is not None}
 
 
-def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active=DOOR_ACTIVE,
-                     top_node=COOP_TOP_NODE, top_active=TOP_ACTIVE):
-    """Eine Meshtastic-JSON-Nachricht (MQTT „…/json/…“) → Daten für die App oder None."""
+def packet(message, door_name=DOOR_NAME, hints=None):
+    """Eine Meshtastic-Nachricht (JSON-Form) → Daten für `POST /api/meshtastic` oder None.
+    Wohin die Werte gehören (Stall, Lager …), entscheidet die App anhand des Knotens."""
     node = node_id(message.get("from"))
-    is_top = bool(top_node) and node == top_node
-    if wanted_node and node != wanted_node and not is_top:
-        return None
     payload = message.get("payload")
-    if not isinstance(payload, dict):
+    if not node or not isinstance(payload, dict):
         return None
     data = {"node": node}
     if message.get("timestamp"):
@@ -91,72 +82,22 @@ def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active
     for key in ("rssi", "snr"):
         if message.get(key) not in (None, 0):
             data[key] = message[key]
-    kind = message.get("type")
-    if kind == "telemetry":
-        if is_top:                                     # Messwerte nur vom Stall-Knoten, nicht vom oberen
-            return None
-        mapping = {"temperature": "temperature", "relative_humidity": "humidity",
-                   "battery_level": "battery", "voltage": "voltage", "barometric_pressure": "pressure",
-                   "gas_resistance": "gas", "iaq": "iaq"}
-        values = {target: payload[source] for source, target in mapping.items() if payload.get(source) is not None}
-        if values.get("battery", 0) > 100:            # 101 = am Netz
-            values.pop("battery")
-        for key, low in (("pressure", 300), ("gas", 0), ("iaq", 0)):   # 0 = vom Sensor nicht geliefert
-            if key in values and not values[key] > low:
-                values.pop(key)
+    if message.get("type") == "telemetry":
+        values = telemetry_values(payload)
         if not values:
             return None
-        data.update(values)
-        return data
-    if "text" in payload:                              # Textnachricht bzw. Detection-Sensor-Modul
-        if is_top:                                     # oberer Kontakt: „open“ = Klappe ganz oben
-            at_top = _door_from_text(payload.get("text"), door_name, "closed" if top_active == "away" else "open")
-            if at_top is None:
-                return None
-            data["door_top"] = "open" if at_top else "closed"
-            return data
-        door = _door_from_text(payload.get("text"), door_name, active)
-        if door is None:
-            return None
-        data["door"] = "open" if door else "closed"
-        return data
-    return None
-
-
-def route(message, coop_node=COOP_NODE, top_node=COOP_TOP_NODE, climate_nodes=CLIMATE_NODES, strict=False):
-    """Wohin gehört die Nachricht? „coop“ (Hühnerstall), „climate“ (Lager) oder None.
-
-    strict: nur bekannte Lager-Knoten (CLIMATE_NODES im Stack gesetzt) – sonst erscheinen neue Knoten in der App."""
-    node = node_id(message.get("from"))
-    if node in climate_nodes:
-        return "climate"
-    if (coop_node and node == coop_node) or (top_node and node == top_node):
-        return "coop"
-    if not coop_node:
-        return "coop"                                  # ohne Stall-Knoten wie bisher: alles für den Stall
-    return None if strict else "climate"               # neuer Knoten: erscheint im Lagerklima unter „Neue Sensoren“
-
-
-def parse_climate(message):
-    """Telemetrie eines Lager-Knotens (SCD41: CO₂, Temperatur, Feuchte; dazu Akku) → Daten für die App oder None."""
-    payload = message.get("payload")
-    if message.get("type") != "telemetry" or not isinstance(payload, dict):
+        data["values"] = values
+    elif "text" in payload:                            # Detection-Sensor-Modul („Klappe state: 1“)
+        text = str(payload.get("text") or "")
+        if door_name and door_name not in text.lower():
+            return None                                # andere Textnachrichten gehen niemanden etwas an
+        data["text"] = text[:200]
+    else:
         return None
-    data = {"node": node_id(message.get("from"))}
-    if message.get("timestamp"):
-        data["at"] = message["timestamp"]
-    temperature = payload.get("temperature", payload.get("co2_temperature"))
-    humidity = payload.get("relative_humidity", payload.get("co2_humidity"))
-    values = {"temperature": temperature, "humidity": humidity, "co2": payload.get("co2"),
-              "battery": payload.get("battery_level"), "voltage": payload.get("voltage")}
-    if values["battery"] is not None and values["battery"] > 100:     # 101 = am Netz
-        values["battery"] = None
-    if not values["co2"]:                              # 0 = nicht geliefert (SCD41 braucht kurz nach dem Start)
-        values["co2"] = None
-    values = {k: v for k, v in values.items() if v is not None}
-    if not values:
-        return None
-    data.update(values)
+    hint = (HINTS if hints is None else hints).get(node)
+    if hint:
+        data["hint"] = hint                            # Zuordnung aus dem Stack – nur für neue Knoten
+    data["door_active"], data["top_active"] = DOOR_ACTIVE, TOP_ACTIVE
     return data
 
 
@@ -284,47 +225,6 @@ def envelope_to_message(raw, key=None):
     return None
 
 
-class Nodes:
-    """Knoten-Zuordnung aus der App, jede Minute neu geholt; ohne App-Eintrag gelten die Umgebungsvariablen."""
-
-    def __init__(self, url=NODES_URL, token=TOKEN, coop=COOP_NODE, top=COOP_TOP_NODE, climate=CLIMATE_NODES):
-        self.url, self.token = url, token
-        self.env = {"coop": coop, "top": top, "climate": set(climate)}
-        self.app = {"coop": "", "top": "", "climate": set()}
-        self.fetched = 0
-        self.last_log = None
-
-    def _get(self):
-        request = urllib.request.Request(self.url, headers={"Authorization": f"Bearer {self.token}"})
-        with urllib.request.urlopen(request, timeout=10) as response:
-            return json.loads(response.read().decode())
-
-    def update(self, data):
-        self.app = {"coop": (data.get("coop") or "").lower(), "top": (data.get("top") or "").lower(),
-                    "climate": {str(n).lower() for n in data.get("climate") or ()}}
-
-    def refresh(self, now=None):
-        now = now or time.time()
-        if now - self.fetched < NODES_EVERY:
-            return
-        self.fetched = now
-        try:
-            self.update(self._get())
-        except (urllib.error.URLError, OSError, ValueError) as e:
-            log("Knoten aus der App nicht abrufbar:", e, "– nehme die letzte bekannte Zuordnung")
-            return
-        current = self.current()
-        text = (current["coop"], current["top"], sorted(current["climate"]))
-        if text != self.last_log:
-            self.last_log = text
-            log("Knoten: Stall", current["coop"] or "(alle)", "· oben", current["top"] or "–",
-                "· Lager", ", ".join(text[2]) or "(alle anderen)" if current["coop"] else "–")
-
-    def current(self):
-        return {"coop": self.app["coop"] or self.env["coop"], "top": self.app["top"] or self.env["top"],
-                "climate": self.app["climate"] | self.env["climate"]}
-
-
 class Sender:
     """Schickt an die App; bei Fehlern kurz zwischenspeichern und später nachreichen."""
 
@@ -367,7 +267,6 @@ def main():
     import paho.mqtt.client as mqtt
 
     sender = Sender()
-    known = Nodes()
     seen = deque(maxlen=500)
 
     def on_connect(client, userdata, flags, reason_code, properties=None):
@@ -411,17 +310,9 @@ def main():
         seen.append(packet)
         if DEBUG:
             log("MQTT", msg.topic, message)
-        known.refresh()
-        nodes = known.current()
-        target = route(message, nodes["coop"], nodes["top"], nodes["climate"], strict=bool(CLIMATE_NODES))
-        if target == "climate":
-            data = parse_climate(message)
-            if data:
-                sender.send(data, CLIMATE_URL)
-            return
-        data = parse_meshtastic(message, nodes["coop"], top_node=nodes["top"]) if target == "coop" else None
+        data = packet(message)
         if data:
-            sender.send(data)
+            sender.send(data, MESH_URL)
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="lagersystem-huehnerstall")
     if MQTT_USER:

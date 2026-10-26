@@ -10,8 +10,8 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, sites, storage, tiles, transfer,
-               weather)
+from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, sites, storage, tabbar,
+               tiles, transfer, weather)
 from .auth import validate_password
 from .extensions import db
 from .i18n import LANGUAGES, gettext as _, ngettext
@@ -121,6 +121,8 @@ def tile_defaults():
         for role in tiles.ROLE_ORDER:
             tiles.save_role_default(role, request.form.getlist(f"tiles_{role}"))
             tiles.save_section_default(role, request.form.getlist(f"home_{role}"))
+            if len(set(request.form.getlist(f"tab_{role}"))) == tabbar.SLOTS:
+                tabbar.save_role_default(role, request.form.getlist(f"tab_{role}"))
         if request.form.get("price_colors"):
             biogas.save_price_view(request.form["price_colors"])
         db.session.commit()
@@ -131,6 +133,8 @@ def tile_defaults():
                            defaults={r: tiles.role_default(r) for r in tiles.ROLE_ORDER},
                            sections=tiles.SECTIONS, section_defaults={r: tiles.section_default(r) for r in tiles.ROLE_ORDER},
                            price_view=biogas.price_view(),
+                           tab_choices=tabbar.CHOICES, tab_labels=tabbar.labels(),
+                           tab_defaults={r: tabbar.role_default(r) for r in tiles.ROLE_ORDER},
                            can_see_section=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.SECTIONS[key]["role"]],
                            can_see=lambda role, key: ROLE_LEVEL[role] >= ROLE_LEVEL[tiles.CATALOG[key]["role"]])
 

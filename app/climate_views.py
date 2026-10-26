@@ -1,13 +1,14 @@
-"""Seite Lager → Klima: Werte je Lager und Sensor, Kurven, Sensoren zuordnen, Grenzwerte (Logik in climate.py)."""
+"""Seite Lager → Klima: Werte je Lager und Sensor, Kurven, Grenzwerte (Logik in climate.py; Sensoren zuordnen in
+sensors_views.py)."""
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 
-from . import climate, coop
+from . import climate
 from .extensions import db
 from .i18n import gettext as _
-from .models import ClimateSensor, Warehouse
+from .models import Warehouse
 from .storage import StorageError
-from .utils import admin_required, flash_error, form_int, form_str
+from .utils import admin_required, flash_error, form_str
 
 bp = Blueprint("climate", __name__)
 
@@ -32,49 +33,7 @@ def overview_page():
     warehouses = climate.warehouses()
     return render_template("climate/overview.html", data=data, charts=charts, range_key=key, ranges=climate.RANGES,
                            warehouses=warehouses, limits={w.id: climate.limits(w) for w in warehouses},
-                           defaults=climate.DEFAULTS, target=climate.TARGET, has_token=coop.has_token(), coop_node=coop.nodes()["coop"],
-                           inactive=ClimateSensor.query.filter_by(active=False).all())
-
-
-@bp.route("/lager/klima/sensor/neu", methods=["POST"])
-@admin_required
-def sensor_add():
-    warehouse = db.session.get(Warehouse, form_int("warehouse_id", 0)) if form_int("warehouse_id") else None
-    try:
-        sensor = climate.add_sensor(form_str("node", 20), form_str("name", 100), warehouse, form_int("row"))
-        db.session.commit()
-        flash(_("Sensor {node} angelegt – sobald er Werte schickt, erscheinen sie hier.", node=sensor.node),
-              "success")
-    except StorageError as e:
-        db.session.rollback()
-        flash_error(str(e))
-    return redirect(url_for("climate.overview_page"))
-
-
-@bp.route("/lager/klima/sensor/<int:sensor_id>", methods=["POST"])
-@admin_required
-def sensor_save(sensor_id):
-    sensor = db.session.get(ClimateSensor, sensor_id) or abort(404)
-    warehouse = db.session.get(Warehouse, form_int("warehouse_id", 0)) if form_int("warehouse_id") else None
-    try:
-        climate.save_sensor(sensor, form_str("name", 100), warehouse, form_int("row"),
-                            active="1" in request.form.getlist("active") if "active" in request.form else True)
-        db.session.commit()
-        flash(_("{name} gespeichert.", name=sensor.label), "success")
-    except StorageError as e:
-        db.session.rollback()
-        flash_error(str(e))
-    return redirect(url_for("climate.overview_page") + f"#s{sensor.id}")
-
-
-@bp.route("/lager/klima/sensor/<int:sensor_id>/loeschen", methods=["POST"])
-@admin_required
-def sensor_delete(sensor_id):
-    sensor = db.session.get(ClimateSensor, sensor_id) or abort(404)
-    db.session.delete(sensor)
-    db.session.commit()
-    flash(_("Sensor und seine Messwerte gelöscht."), "success")
-    return redirect(url_for("climate.overview_page"))
+                           defaults=climate.DEFAULTS, target=climate.TARGET)
 
 
 @bp.route("/lager/klima/grenzwerte/<int:warehouse_id>", methods=["POST"])

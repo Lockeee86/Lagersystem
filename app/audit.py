@@ -57,7 +57,9 @@ SKIP_TABLES = {"audit_log", "movements", "push_subscriptions"}
 SKIP_COLUMNS = {
     "*": {"updated_at", "created_at"},
     "users": {"last_login", "map_view", "tiles_add", "tiles_hide", "home_add", "home_hide", "home_order", "push_off", "push_on", "session_token",
-              "calendar_token", "language"},
+              "calendar_token", "language", "tabbar"},
+    # Meshtastic-Knoten: letzte Werte ändern sich mit jedem Paket – protokolliert wird nur die Zuordnung
+    "mesh_nodes": {"last_seen", "temperature", "humidity", "co2", "battery", "voltage", "rssi", "snr"},
     # Platz und Inhalt der Kisten stehen im Verlauf (Movement) – hier nur andere Felder und das Löschen
     "machines": {"counter", "counter_at", "skve_base_counter", "skve_base_day"},   # Zähler stehen im Logbuch
     "boxes": {"warehouse_id", "row", "slot", "level", "fill", "variety_id", "plot_id", "harvest_date", "usage",
@@ -65,7 +67,7 @@ SKIP_COLUMNS = {
 }
 MASKED = {"password_hash", "sign_farm", "sign_customer", "signature"}   # nur „geändert“, kein Wert (Hash, Unterschrift)
 BIG = {"boundary"}                             # Umriss: nur „geändert“, nicht die Koordinaten
-SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "aerial_cache", "backup_", "audit_", "biogas_", "home_known_",
+SKIP_SETTINGS_PREFIX = ("push_", "vapid", "tiles_", "tabbar_", "aerial_cache", "backup_", "audit_", "biogas_", "home_known_",
                         "coop_")
 MAX_TEXT = 300
 

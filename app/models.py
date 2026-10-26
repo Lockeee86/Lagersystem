@@ -108,6 +108,8 @@ class User(UserMixin, db.Model):
     home_add = db.Column(db.String(300), nullable=False, default="", server_default="")
     home_hide = db.Column(db.String(300), nullable=False, default="", server_default="")
     home_order = db.Column(db.String(300), nullable=False, default="", server_default="")   # eigene Reihenfolge
+    # Untere Leiste am Handy: die zwei freien Plätze („lager,feld“), leer = Voreinstellung der Rolle (tabbar.py)
+    tabbar = db.Column(db.String(60), nullable=False, default="", server_default="")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -1909,6 +1911,31 @@ class CoopDoorEvent(db.Model):
     is_open = db.Column(db.Boolean, nullable=False)
     position = db.Column(db.String(10), nullable=False, default="unten", server_default="unten")
     node = db.Column(db.String(20))
+
+
+class MeshNode(db.Model):
+    """Meshtastic-Knoten, von dem die Brücke etwas geschickt hat (oder vom Admin vorab angelegt).
+    `purpose` sagt, wohin seine Werte gehen: coop (Hühnerstall, Kontakt unten + Messwerte), coop_top (Kontakt oben),
+    climate (Lagerklima → `ClimateSensor` mit gleichem `node`), ignore; leer = neu, noch nicht zugeordnet."""
+    __tablename__ = "mesh_nodes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    node = db.Column(db.String(20), nullable=False, unique=True)     # !a1b2c3d4
+    name = db.Column(db.String(100))
+    purpose = db.Column(db.String(20))
+    last_seen = db.Column(db.DateTime(timezone=True))
+    temperature = db.Column(db.Float)                  # letzte Werte (zum Erkennen neuer Knoten)
+    humidity = db.Column(db.Float)
+    co2 = db.Column(db.Integer)
+    battery = db.Column(db.Float)
+    voltage = db.Column(db.Float)
+    rssi = db.Column(db.Float)
+    snr = db.Column(db.Float)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    @property
+    def label(self):
+        return self.name or self.node
 
 
 class ClimateSensor(db.Model):

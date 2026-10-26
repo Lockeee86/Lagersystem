@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Sensoren") }}{% endblock %}
+
+{% macro values(m) %}
+<span class="d-flex flex-wrap gap-3 small">
+    {% if m.temperature is not none %}<span><i class="bi bi-thermometer-half"></i> {{ m.temperature|num(1) }} °C</span>{% endif %}
+    {% if m.humidity is not none %}<span><i class="bi bi-droplet"></i> {{ m.humidity|num(0) }} %</span>{% endif %}
+    {% if m.co2 is not none %}<span><i class="bi bi-cloud-haze2"></i> {{ m.co2 }} ppm</span>{% endif %}
+    {% if m.battery is not none %}<span><i class="bi bi-battery-half"></i> {{ m.battery|num(0) }} %</span>{% elif m.voltage is not none %}<span><i class="bi bi-plug"></i> {{ m.voltage|num(2) }} V</span>{% endif %}
+    {% if m.rssi is not none %}<span class="text-body-secondary" title="{{ _('Funkempfang') }}"><i class="bi bi-reception-3"></i> {{ m.rssi|num(0) }} dBm</span>{% endif %}
+</span>
+{% endmacro %}
+
+{% macro seen(e) %}
+<span class="small {{ 'text-danger' if e.offline and e.seen else 'text-body-secondary' }}">{% if e.seen %}{% if e.offline %}<i class="bi bi-wifi-off"></i> {% endif %}{{ _("zuletzt {date}", date=e.seen|datetime) }}{% else %}{{ _("hat noch nichts geschickt") }}{% endif %}</span>
+{% endmacro %}
+
+{% macro node_form(m, sensor=none, open=false) %}
+<details class="mt-2 small" {% if open %}open{% endif %}>
+    <summary class="text-body-secondary">{{ _("Zuordnen") if open else _("Bearbeiten") }}</summary>
+    <form method="post" action="{{ url_for('sensors.node_save', node_id=m.id) }}" class="row g-2 align-items-end mt-1 sensor-form">
+        {{ csrf() }}
+        <div class="col-12 col-md-4"><label class="form-label small mb-1" for="p{{ m.id }}">{{ _("Verwendung") }}</label>
+            <select class="form-select form-select-sm" id="p{{ m.id }}" name="purpose" data-purpose>
+                <option value="">{{ _("– noch offen –") }}</option>
+                {% for key, label in purposes.items() %}<option value="{{ key }}" {% if m.purpose == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+            </select></div>
+        <div class="col-12 col-md-3"><label class="form-label small mb-1" for="nm{{ m.id }}">{{ _("Name (wahlweise)") }}</label>
+            <input class="form-control form-control-sm" id="nm{{ m.id }}" name="name" maxlength="100" value="{{ m.name or '' }}" placeholder="{{ _('z. B. Halle 1 Mitte') }}"></div>
+        <div class="col-7 col-md-2" data-climate><label class="form-label small mb-1" for="w{{ m.id }}">{{ _("Lager") }}</label>
+            <select class="form-select form-select-sm" id="w{{ m.id }}" name="warehouse_id">
+                <option value="">–</option>
+                {% for w in warehouses %}<option value="{{ w.id }}" {% if sensor and sensor.warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+            </select></div>
+        <div class="col-5 col-md-1" data-climate><label class="form-label small mb-1" for="r{{ m.id }}">{{ _("Reihe") }}</label>
+            <input class="form-control form-control-sm" id="r{{ m.id }}" name="row" type="number" min="1" max="99" value="{{ sensor.row if sensor and sensor.row else '' }}"></div>
+        <div class="col-12 col-md-2 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1">{{ _("Speichern") }}</button></div>
+    </form>
+    <form method="post" action="{{ url_for('sensors.node_delete', node_id=m.id) }}" class="mt-2">{{ csrf() }}
+        <button class="btn btn-link btn-sm p-0 text-danger" data-confirm="{{ _('Knoten {node} entfernen? Seine Messwerte im Lagerklima werden mit gelöscht.', node=m.node) }}">{{ _("Knoten entfernen") }}</button></form>
+</details>
+{% endmacro %}
+
+{% macro node_row(e, sensor=none, link=none, extra=none, open=false) %}
+{% set m = e.mesh %}
+<li class="list-group-item" id="n{{ m.id }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-1">
+        <span class="fw-semibold">{% if link %}<a href="{{ link }}" class="text-reset">{{ m.label }}</a>{% else %}{{ m.label }}{% endif %}
+            {% if m.name %}<span class="small text-body-secondary fw-normal">{{ m.node }}</span>{% endif %}</span>
+        {{ seen(e) }}
+    </div>
+    {% if extra %}<div class="small text-body-secondary">{{ extra }}</div>{% endif %}
+    {{ values(m) }}
+    {% if current_user.is_admin %}{{ node_form(m, sensor, open) }}{% endif %}
+</li>
+{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Sensoren") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Meshtastic-Knoten auf dem Hof – hier wird festgelegt, wofür jeder da ist.") }}</p>
+    </div>
+</div>
+
+{% if current_user.is_admin and data.new %}
+<div class="card shadow-sm mb-4 border-warning">
+    <div class="card-header"><i class="bi bi-plus-circle me-1"></i>{{ _("Neue Knoten – bitte zuordnen") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for e in data.new %}{{ node_row(e, open=true) }}{% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if data.coop %}
+<h2 class="hub-heading mt-0">{{ _("Hühnerstall") }}</h2>
+<ul class="list-group shadow-sm mb-4">
+    {% for e in data.coop %}
+    {% set state = none %}
+    {% if e.mesh.purpose == "coop" and coop_status and coop_status.state %}{% set state = _("Klappe zu") if coop_status.state == "zu" else _("Klappe hängt") if coop_status.state == "halb" else _("Klappe offen") %}{% endif %}
+    {{ node_row(e, link=url_for('chickens.overview') ~ '#sensor', extra=(_(e.purpose_label) ~ (' · ' ~ state if state else ''))) }}
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if data.climate %}
+<h2 class="hub-heading mt-0">{{ _("Lager") }}</h2>
+<ul class="list-group shadow-sm mb-4">
+    {% for e, sensor in data.climate %}
+    {{ node_row(e, sensor, link=url_for('climate.overview_page') ~ ('#s' ~ sensor.id if sensor else ''),
+                extra=(sensor.warehouse.name ~ (' · ' ~ _("Reihe {row}", row=sensor.warehouse.row_label(sensor.row)) if sensor.row else '')) if sensor and sensor.warehouse else none) }}
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if not data.coop and not data.climate and not data.new %}
+<div class="card shadow-sm mb-4"><div class="card-body small text-body-secondary">
+    {{ _("Noch keine Knoten. Sobald die Brücke läuft, erscheint hier jeder Meshtastic-Knoten, der Messwerte schickt – dann nur noch zuordnen.") }}
+</div></div>
+{% endif %}
+
+{% if current_user.is_admin %}
+<details class="card shadow-sm mb-3">
+    <summary class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Knoten von Hand anlegen") }}</summary>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('sensors.node_add') }}" class="row g-2 align-items-end sensor-form">
+            {{ csrf() }}
+            <div class="col-6 col-md-2"><label class="form-label small mb-1" for="add_node">{{ _("Knoten-ID") }}</label>
+                <input class="form-control form-control-sm" id="add_node" name="node" maxlength="20" required placeholder="!a1b2c3d4"></div>
+            <div class="col-6 col-md-3"><label class="form-label small mb-1" for="add_purpose">{{ _("Verwendung") }}</label>
+                <select class="form-select form-select-sm" id="add_purpose" name="purpose" data-purpose>
+                    <option value="">{{ _("– noch offen –") }}</option>
+                    {% for key, label in purposes.items() %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}
+                </select></div>
+            <div class="col-12 col-md-3"><label class="form-label small mb-1" for="add_name">{{ _("Name (wahlweise)") }}</label>
+                <input class="form-control form-control-sm" id="add_name" name="name" maxlength="100"></div>
+            <div class="col-7 col-md-2" data-climate><label class="form-label small mb-1" for="add_wh">{{ _("Lager") }}</label>
+                <select class="form-select form-select-sm" id="add_wh" name="warehouse_id">
+                    <option value="">–</option>
+                    {% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-5 col-md-1" data-climate><label class="form-label small mb-1" for="add_row">{{ _("Reihe") }}</label>
+                <input class="form-control form-control-sm" id="add_row" name="row" type="number" min="1" max="99"></div>
+            <div class="col-12 col-md-1"><button class="btn btn-sm btn-primary w-100">{{ _("Anlegen") }}</button></div>
+        </form>
+        <p class="small text-body-secondary mt-2 mb-0">{{ _("Die Knoten-ID steht in der Meshtastic-App in der Knotenliste (beginnt mit !). Knoten, die schon Werte schicken, erscheinen auch von selbst.") }}</p>
+    </div>
+</details>
+
+{% if data.ignored %}
+<details class="card shadow-sm mb-3">
+    <summary class="card-header"><i class="bi bi-eye-slash me-1"></i>{{ ngettext("{n} Knoten nicht verwendet", "{n} Knoten nicht verwendet", data.ignored|length) }}</summary>
+    <ul class="list-group list-group-flush">
+        {% for e in data.ignored %}{{ node_row(e) }}{% endfor %}
+    </ul>
+</details>
+{% endif %}
+
+<details class="card shadow-sm mb-4" id="einrichtung" {% if not has_token %}open{% endif %}>
+    <summary class="card-header"><i class="bi bi-gear me-1"></i>{{ _("Einrichtung") }}</summary>
+    <div class="card-body">
+        <p class="small mb-2">{{ _("Die Brücke (Container im Stack) liest die Meshtastic-Pakete vom Gateway und schickt sie hierher. Sie braucht dafür nur diesen Schlüssel als COOP_API_TOKEN – alles andere wird hier eingestellt.") }}</p>
+        <form method="post" action="{{ url_for('sensors.token') }}" class="mb-3">
+            {{ csrf() }}
+            <button class="btn btn-sm btn-outline-secondary" {% if has_token %}data-confirm="{{ _('Neuen Schlüssel erzeugen? Der alte gilt dann nicht mehr – die Brücke braucht den neuen.') }}"{% endif %}><i class="bi bi-key me-1"></i>{{ _("Neuen Schlüssel erzeugen") if has_token else _("Schlüssel für die Brücke erzeugen") }}</button>
+        </form>
+        <form method="post" action="{{ url_for('sensors.door_save') }}">
+            {{ csrf() }}
+            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" name="door_inverted" id="doorInv" {% if doors.door == "closed" %}checked{% endif %}><label class="form-check-label small" for="doorInv">{{ _("Hühnerklappe wird verkehrt herum angezeigt (offen ↔ zu)") }}</label></div>
+            <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" name="top_inverted" id="topInv" {% if doors.top == "top" %}checked{% endif %}><label class="form-check-label small" for="topInv">{{ _("Kontakt oben verkehrt herum") }}</label></div>
+            <button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button>
+        </form>
+        <p class="small text-body-secondary mt-3 mb-0">{{ _("Anleitung zum Aufbau: bridge/README.md im Projekt.") }}</p>
+    </div>
+</details>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll(".sensor-form").forEach(function (form) {
+    var select = form.querySelector("[data-purpose]");
+    function update() {
+        form.querySelectorAll("[data-climate]").forEach(function (el) { el.hidden = select.value !== "climate"; });
+    }
+    select.addEventListener("change", update);
+    update();
+});
+</script>
+{% endblock %}

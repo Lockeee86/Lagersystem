@@ -84,3 +84,35 @@ def test_search(as_worker, db, seed):
     db.session.commit()
     assert "Keilriemen Roder" in as_worker.get("/suche?q=8pk1500").get_data(as_text=True)
     assert as_worker.get("/suche").status_code == 200
+
+
+def test_tabbar_choice(as_worker, as_admin, db, seed):
+    """Die zwei freien Plätze der unteren Leiste: Voreinstellung je Rolle, eigene Wahl unter Mein Konto."""
+    from app import tabbar
+    worker = seed["worker"]
+    assert tabbar.keys_for(worker) == ["lager", "feld"]
+    r = as_worker.post("/konto/leiste", data={"tab": ["biogas", "biogas"]}, follow_redirects=True)
+    assert "zwei verschiedene" in r.get_data(as_text=True)
+    as_worker.post("/konto/leiste", data={"tab": ["biogas", "verkauf"]})
+    assert worker.tabbar == "biogas,verkauf"
+    html = as_worker.get("/").get_data(as_text=True)
+    tabs = html[html.index('class="tabbar'):html.index("</nav>", html.index('class="tabbar'))]
+    assert 'href="/bereich/biogas"' in tabs and 'href="/lager/uebersicht"' not in tabs
+    more = as_worker.get("/bereich/mehr").get_data(as_text=True)
+    assert 'href="/lager/uebersicht"' in more and 'href="/bereich/feld"' in more      # Lager/Feld jetzt unter Mehr
+    assert "Biogas</h2>" not in more                                                  # steht schon in der Leiste
+    assert 'class="mobile-crumb' not in as_worker.get("/bereich/biogas").get_data(as_text=True)
+    assert 'href="/bereich/mehr"' in as_worker.get("/lager/uebersicht").get_data(as_text=True)   # zurück zu Mehr
+
+    # Hühner sieht er nicht → wird aufgefüllt
+    worker.tabbar = "huehner,verkauf"
+    assert tabbar.keys_for(worker) == ["verkauf", "lager"]
+    worker.chickens = True
+    assert tabbar.keys_for(worker) == ["huehner", "verkauf"]
+    as_worker.post("/konto/leiste", data={"reset": "1"})
+    assert worker.tabbar == ""
+
+    # Voreinstellung der Rolle (Verwaltung → Startseite)
+    as_admin.post("/admin/startseite", data={"tab_mitarbeiter": ["feld", "huehner"]})
+    assert tabbar.role_default("mitarbeiter") == ["feld", "huehner"] and tabbar.keys_for(worker) == ["feld", "huehner"]
+    assert "Untere Leiste am Handy" in as_worker.get("/konto").get_data(as_text=True)

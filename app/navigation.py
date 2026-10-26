@@ -15,6 +15,11 @@ def item(endpoint, label, icon, role=ROLE_BETRACHTER, endpoints=(), prefixes=(),
             "endpoints": {endpoint, *endpoints}, "prefixes": prefixes, "badge": badge}
 
 
+def _sensors_shown(user):
+    from .sensors import any_in_use
+    return user.is_admin or any_in_use()
+
+
 AREAS = [
     {"key": "start", "label": N_("Übersicht"), "icon": "bi-speedometer2", "items": [
         item("main.dashboard", N_("Heute"), "bi-sun"),
@@ -61,6 +66,10 @@ AREAS = [
         item("chickens.flock", N_("Herde"), "bi-egg-fried"),
         item("chickens.feed", N_("Futter"), "bi-bag"),
         item("chickens.log", N_("Stallbuch"), "bi-journal-medical"),
+    ]},
+    # Meshtastic-Knoten (Stall, Lagerklima): für Admins immer, sonst sobald ein Sensor in Betrieb ist
+    {"key": "sensoren", "label": N_("Sensoren"), "icon": "bi-broadcast", "show": _sensors_shown, "items": [
+        item("sensors.overview_page", N_("Sensoren"), "bi-broadcast", prefixes=("sensors.",)),
     ]},
     {"key": "verkauf", "label": N_("Verkauf"), "icon": "bi-truck", "items": [
         item("sales.deliveries", N_("Lieferscheine"), "bi-truck",
@@ -143,8 +152,9 @@ def current(endpoint, user):
 
 
 # --- Handy: untere Leiste und Bereichsseiten ----------------------------------------------
-# Unten: Heute · Lager · Scannen · Feld & Hof · Mehr. „Lager“, „Feld & Hof“ und „Mehr“ öffnen eine Bereichsseite
-# (`main.area`) mit großen Zeilen; die Reiterleiste oben gibt es nur am PC.
+# Unten: Heute · [frei] · Scannen · [frei] · Mehr – die zwei freien Plätze wählt jeder selbst (tabbar.py).
+# Rubriken öffnen eine Bereichsseite (`main.area`) mit großen Zeilen, „Lager“ die eigene Lager-Übersicht;
+# die Reiterleiste oben gibt es nur am PC.
 HUBS = {"lager": N_("Lager"), "feld": N_("Feld & Hof"), "mehr": N_("Mehr")}
 MORE_EXTRA = [
     item("admin.index", N_("Verwaltung"), "bi-sliders", role=ROLE_ADMIN),
@@ -152,52 +162,89 @@ MORE_EXTRA = [
 ]
 
 
-def tab_for(endpoint, view_args=None):
-    """Welcher Punkt der unteren Leiste zum Endpunkt gehört: heute | lager | scan | feld | mehr."""
+def area_of(endpoint):
+    """Schlüssel der Rubrik, zu der ein Endpunkt gehört (oder None)."""
+    area = next((a for a in AREAS if any(_active(it, endpoint) for it in a["items"])), None)
+    return area["key"] if area else None
+
+
+def hub_title(key):
+    if key in HUBS:
+        return HUBS[key]
+    area = next((a for a in AREAS if a["key"] == key and key != "start"), None)
+    return area["label"] if area else None
+
+
+def _tabs(user):
+    from .tabbar import keys_for
+    return keys_for(user) if user is not None and user.is_authenticated else ["lager", "feld"]
+
+
+def tab_for(endpoint, view_args=None, user=None):
+    """Welcher Punkt der unteren Leiste zum Endpunkt gehört: heute | scan | mehr | eine Rubrik der Leiste."""
     endpoint = endpoint or ""
-    if endpoint == "main.area":
-        return (view_args or {}).get("key")
+    tabs = _tabs(user)
     if endpoint == "main.dashboard":
         return "heute"
     if endpoint == "main.scan":
         return "scan"
-    area = next((a for a in AREAS if any(_active(it, endpoint) for it in a["items"])), None)
-    if area and area["key"] in ("lager", "feld"):
-        return area["key"]
-    return "mehr"
+    key = (view_args or {}).get("key") if endpoint == "main.area" else area_of(endpoint)
+    return key if key in tabs else "mehr"
 
 
 def hub(key, user):
     """Gruppen der Bereichsseite: [{"label", "items": [...]}] – nur, was die Rolle darf."""
     by_key = {a["key"]: a for a in AREAS}
-    if key in ("lager", "feld"):
-        items = [it for it in _visible(by_key[key]["items"], user) if it["endpoint"] != "main.scan"]
+    if key != "mehr":
+        area = by_key[key]
+        if not _area_shown(area, user):
+            return []
+        items = [it for it in _visible(area["items"], user) if it["endpoint"] != "main.scan"]
         return [{"label": None, "items": items}]
+    tabs = _tabs(user)
     start = [it for it in _visible(by_key["start"]["items"], user) if it["endpoint"] != "main.dashboard"]
-    return [g for g in (
-        {"label": None, "items": start},
-        {"label": by_key["verkauf"]["label"], "items": _visible(by_key["verkauf"]["items"], user)},
-        {"label": by_key["biogas"]["label"], "items": _visible(by_key["biogas"]["items"], user)},
-        {"label": by_key["huehner"]["label"],
-         "items": _visible(by_key["huehner"]["items"], user) if _area_shown(by_key["huehner"], user) else []},
-        {"label": None, "items": _visible(MORE_EXTRA, user)},
-    ) if g["items"]]
+    groups = [{"label": None, "items": start}]
+    # Lager und Feld & Hof haben viele Seiten – unter „Mehr“ je eine Zeile zur Bereichsseite
+    overview = [{**item("main.storage_home" if k == "lager" else "main.area", by_key[k]["label"], by_key[k]["icon"]),
+                 "args": {} if k == "lager" else {"key": k}}
+                for k in ("lager", "feld") if k not in tabs and _visible(by_key[k]["items"], user)]
+    groups.append({"label": None, "items": overview})
+    for k in ("verkauf", "biogas", "huehner", "sensoren"):
+        if k in tabs or not _area_shown(by_key[k], user):
+            continue
+        items = _visible(by_key[k]["items"], user)
+        if len(items) == 1:                            # Rubrik mit einer Seite: keine eigene Überschrift
+            overview.append(items[0])
+        else:
+            groups.append({"label": by_key[k]["label"], "items": items})
+    groups.append({"label": None, "items": _visible(MORE_EXTRA, user)})
+    return [g for g in groups if g["items"]]
 
 
-def crumb(endpoint, view_args=None):
+def crumb(endpoint, view_args=None, user=None):
     """Zurück-Link am Handy über dem Seiteninhalt (statt der Reiterleiste): (Ziel-URL, Text) oder None."""
     endpoint = endpoint or ""
-    if endpoint in ("main.dashboard", "main.area", "main.scan", "main.storage_home") or not endpoint:
+    if endpoint in ("main.dashboard", "main.scan") or not endpoint:
         return None
     if (endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"])) \
             and endpoint != "admin.index":
         return url_for("admin.index"), ADMIN["label"]
-    key = tab_for(endpoint, view_args)
+    tabs = _tabs(user)
+    more = (url_for("main.area", key="mehr"), HUBS["mehr"])
+    if endpoint == "main.area":
+        key = (view_args or {}).get("key")
+        return None if key == "mehr" or key in tabs else more
+    if endpoint == "main.storage_home":
+        return None if "lager" in tabs else more
+    key = area_of(endpoint)
+    if key is None or key == "start":
+        return more
     if key == "lager":
-        return url_for("main.storage_home"), HUBS[key]
-    if key in HUBS:
-        return url_for("main.area", key=key), HUBS[key]
-    return None
+        return url_for("main.storage_home"), HUBS["lager"]
+    area = next(a for a in AREAS if a["key"] == key)
+    if user is not None and len([it for it in _visible(area["items"], user) if it["endpoint"] != "main.scan"]) > 1:
+        return url_for("main.area", key=key), area["label"]
+    return None if key in tabs else more
 
 
 def admin_tiles():

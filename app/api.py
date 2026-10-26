@@ -33,13 +33,23 @@ def _bridge_token_ok():
     return coop.check_token(token)
 
 
-@bp.route("/meshtastic/knoten")
-def bridge_nodes():
-    """Für die Brücke: welcher Knoten ist der Stall (unten/oben), welche gehören ins Lagerklima."""
-    from . import climate, coop
+@bp.route("/meshtastic", methods=["POST"])
+@csrf.exempt
+def meshtastic():
+    """Jedes Paket der Meshtastic-Brücke; wohin es gehört, entscheidet die App (Rubrik Sensoren)."""
+    from . import sensors
     if not _bridge_token_ok():
         return jsonify(ok=False, error="unauthorized"), 401
-    return jsonify(ok=True, **coop.nodes(), climate=climate.nodes())
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(ok=False, error="JSON-Objekt erwartet"), 400
+    try:
+        purpose = sensors.record(data)
+        db.session.commit()
+    except sensors.SensorError as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 400
+    return jsonify(ok=True, purpose=purpose)
 
 
 @bp.route("/huehner/sensor", methods=["POST"])

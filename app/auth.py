@@ -121,7 +121,25 @@ def account():
                 login_user(current_user._get_current_object(), remember=True)
                 flash(_("Passwort geändert. Andere Geräte wurden abgemeldet."), "success")
                 return redirect(url_for("auth.account"))
-    return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS)
+    from . import tabbar
+    return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS,
+                           tab_choices=tabbar.available(current_user), tab_keys=tabbar.keys_for(current_user),
+                           tab_labels=tabbar.labels())
+
+
+@bp.route("/konto/leiste", methods=["POST"])
+@login_required
+def tabbar_save():
+    """Eigene Wahl für die zwei freien Plätze der unteren Leiste."""
+    from . import tabbar
+    keys = [] if request.form.get("reset") else request.form.getlist("tab")
+    if len(set(keys)) < len(keys):
+        flash_error(_("Bitte zwei verschiedene Rubriken wählen."))
+    else:
+        tabbar.save_user(current_user, keys)
+        db.session.commit()
+        flash(_("Leiste gespeichert."), "success")
+    return redirect(url_for("auth.account") + "#leiste")
 
 
 @bp.route("/sprache", methods=["POST"])

@@ -66,10 +66,10 @@ def test_pages(as_admin, as_worker, client, db, seed, token):
     db.session.commit()
     html = as_worker.get("/huehner").get_data(as_text=True)
     assert 'id="sensor"' not in html                                                # ohne Werte nur für den Admin
-    assert "Schlüssel für die Brücke erzeugen" not in as_admin.get("/huehner").get_data(as_text=True)
-    r = as_admin.post("/huehner/sensor/schluessel", follow_redirects=True)
+    assert "Sensoren einrichten" in as_admin.get("/huehner").get_data(as_text=True)
+    r = as_admin.post("/sensoren/schluessel", follow_redirects=True)
     assert "COOP_API_TOKEN" in r.get_data(as_text=True)
-    assert as_worker.post("/huehner/sensor/schluessel").status_code == 403
+    assert as_worker.post("/sensoren/schluessel").status_code == 403
     token = coop.new_token()
     db.session.commit()
     now = datetime.now(timezone.utc)
@@ -110,31 +110,28 @@ def test_evening_with_sensor(app, db, seed, monkeypatch):
     assert [m["title"] for m in push.outbox] == ["Hühnerstall: Frost (-2,0 °C)"]
 
 
-def test_bridge_parse():
+def test_bridge_packet():
+    """Die Brücke reicht jedes Paket weiter – wohin es gehört, entscheidet die App."""
     bridge = load_bridge()
     telemetry = {"from": 0xA1B2C3D4, "id": 1, "type": "telemetry", "timestamp": 1761400000, "rssi": -101, "snr": 4.5,
                  "payload": {"temperature": 6.25, "relative_humidity": 83.1, "barometric_pressure": 1010}}
-    data = bridge.parse_meshtastic(telemetry, wanted_node="!a1b2c3d4", door_name="klappe", active="open")
+    data = bridge.packet(telemetry, "klappe", hints={})
     assert data == {"node": "!a1b2c3d4", "at": 1761400000, "rssi": -101, "snr": 4.5,
-                    "temperature": 6.25, "humidity": 83.1, "pressure": 1010}
-    assert bridge.parse_meshtastic(telemetry, wanted_node="!00000001", door_name="klappe", active="open") is None
+                    "values": {"temperature": 6.25, "humidity": 83.1, "pressure": 1010},
+                    "door_active": "open", "top_active": "away"}
     device = {"from": 1, "type": "telemetry", "payload": {"battery_level": 101, "voltage": 4.2}}
-    assert bridge.parse_meshtastic(device, "", "klappe", "open") == {"node": "!00000001", "voltage": 4.2}
+    assert bridge.packet(device, "klappe", hints={"!00000001": "coop"})["values"] == {"voltage": 4.2}
+    assert bridge.packet(device, "klappe", hints={"!00000001": "coop"})["hint"] == "coop"
+    text = {"from": 1, "type": "text", "payload": {"text": "Klappe state: 1"}}
+    assert bridge.packet(text, "klappe", hints={})["text"] == "Klappe state: 1"
+    assert bridge.packet({"from": 1, "type": "text", "payload": {"text": "Hallo zusammen"}}, "klappe", {}) is None
 
-    def door(text, active="open"):
-        result = bridge.parse_meshtastic({"from": 1, "type": "text", "payload": {"text": text}}, "", "klappe", active)
-        return result and result["door"]
-    assert door("Klappe detected") == "open"
-    assert door("Klappe state: 0") == "closed" and door("Klappe state: 1") == "open"
-    assert door("Klappe state: 1", active="closed") == "closed"
-    assert door("Hallo zusammen") is None                                          # andere Textnachricht
-    # oberer Knoten: Kontakt geschlossen (state: 0) = ganz oben
-    top = {"from": 2, "type": "text", "payload": {"text": "Klappe oben state: 0"}}
-    assert bridge.parse_meshtastic(top, "!00000001", "klappe", "open", "!00000002", "away")["door_top"] == "open"
-    top["payload"]["text"] = "Klappe oben detected"
-    assert bridge.parse_meshtastic(top, "!00000001", "klappe", "open", "!00000002", "away")["door_top"] == "closed"
-    top_telemetry = {"from": 2, "type": "telemetry", "payload": {"voltage": 3.9}}
-    assert bridge.parse_meshtastic(top_telemetry, "!00000001", "klappe", "open", "!00000002", "away") is None
+
+def test_door_from_text(db, seed):
+    from app import sensors
+    assert sensors.detection("Klappe detected") is True
+    assert sensors.detection("Klappe state: 0") is False and sensors.detection("Klappe state: 1") is True
+    assert sensors.detection("Hallo") is None
 
 
 def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
@@ -221,19 +218,20 @@ def test_bridge_protobuf():
     telemetry = _field(1, 5, 1761400000) + _field(3, 2, env)
     message = bridge.envelope_to_message(_envelope(0xA1B2C3D4, 77, 67, telemetry))
     assert message["type"] == "telemetry" and message["rssi"] == -95 and message["snr"] == 6.5
-    data = bridge.parse_meshtastic(message, "!a1b2c3d4", "klappe", "open")
-    assert data["temperature"] == 23.5 and data["humidity"] == 64.2 and data["node"] == "!a1b2c3d4"
+    data = bridge.packet(message, "klappe", {})
+    assert data["values"]["temperature"] == 23.5 and data["values"]["humidity"] == 64.2
+    assert data["node"] == "!a1b2c3d4"
     device = _field(2, 2, _field(1, 0, 87) + _field(2, 5, 3.95))
-    data = bridge.parse_meshtastic(bridge.envelope_to_message(_envelope(5, 78, 67, device)), "", "klappe", "open")
-    assert data["battery"] == 87 and data["voltage"] == 3.95
+    data = bridge.packet(bridge.envelope_to_message(_envelope(5, 78, 67, device)), "klappe", {})
+    assert data["values"] == {"battery": 87, "voltage": 3.95}
     text = bridge.envelope_to_message(_envelope(5, 79, 10, b"Klappe state: 0"))
-    assert bridge.parse_meshtastic(text, "", "klappe", "open")["door"] == "closed"
+    assert bridge.packet(text, "klappe", {})["text"] == "Klappe state: 0"
     # verschlüsselt: ohne Schlüssel nur Hinweis, mit Standardschlüssel („AQ==“) lesbar
     key = bridge.channel_key("AQ==")
     assert key == bridge.DEFAULT_KEY and len(bridge.channel_key("Ag==")) == 16
     raw = _envelope(5, 80, 1, b"Klappe detected", encrypt_key=key, bridge=bridge)
     assert bridge.envelope_to_message(raw)["encrypted"]
-    assert bridge.parse_meshtastic(bridge.envelope_to_message(raw, key), "", "klappe", "open")["door"] == "open"
+    assert bridge.packet(bridge.envelope_to_message(raw, key), "klappe", {})["text"] == "Klappe detected"
     assert bridge.envelope_to_message(_envelope(5, 81, 3, b"\x01")) is None        # andere Ports (Position …)
 
 
@@ -272,33 +270,8 @@ def test_bridge_air_values():
     bridge = load_bridge()
     env = _field(1, 5, 18.0) + _field(2, 5, 70.0) + _field(3, 5, 1009.5) + _field(4, 5, 0.085) + _field(7, 0, 64)
     message = bridge.envelope_to_message(_envelope(5, 90, 67, _field(3, 2, env)))
-    data = bridge.parse_meshtastic(message, "", "klappe", "open")
-    assert data["pressure"] == 1009.5 and data["gas"] == 0.085 and data["iaq"] == 64
+    values = bridge.packet(message, "klappe", {})["values"]
+    assert values["pressure"] == 1009.5 and values["gas"] == 0.085 and values["iaq"] == 64
     bme280 = {"from": 5, "type": "telemetry", "payload": {"temperature": 9.0, "barometric_pressure": 0, "iaq": 0}}
-    assert bridge.parse_meshtastic(bme280, "", "klappe", "open") == {"node": "!00000005", "temperature": 9.0}
+    assert bridge.packet(bme280, "klappe", {})["values"] == {"temperature": 9.0}
 
-
-def test_nodes_from_app(as_admin, client, db, seed, token):
-    """Knoten-IDs pflegt der Admin in der App; die Brücke holt sie über /api/meshtastic/knoten."""
-    from app import climate
-    seed["admin"].chickens = True
-    db.session.commit()
-    assert client.get("/api/meshtastic/knoten").status_code == 401
-    r = as_admin.post("/huehner/sensor/knoten", data={"node": "A1B2C3D4", "top_node": "!a1b2c3d4"},
-                      follow_redirects=True)
-    assert "eigenen Knoten" in r.get_data(as_text=True) and coop.nodes()["coop"] is None
-    as_admin.post("/huehner/sensor/knoten", data={"node": "A1B2C3D4", "top_node": ""})
-    climate.add_sensor("!0000beef", "Halle", seed["wh"], None)
-    db.session.commit()
-    data = client.get("/api/meshtastic/knoten", headers={"Authorization": f"Bearer {token}"}).get_json()
-    assert data == {"ok": True, "coop": "!a1b2c3d4", "top": None, "climate": ["!0000beef"]}
-    assert "!a1b2c3d4" in as_admin.get("/huehner").get_data(as_text=True)
-
-    bridge = load_bridge()
-    nodes = bridge.Nodes(token="x", coop="!00000001", top="", climate={"!00000009"})
-    assert nodes.current()["coop"] == "!00000001"                     # Stack, solange die App nichts kennt
-    nodes.update(data)
-    assert nodes.current() == {"coop": "!a1b2c3d4", "top": "", "climate": {"!0000beef", "!00000009"}}
-    nodes._get = lambda: (_ for _ in ()).throw(OSError("weg"))
-    nodes.refresh(now=10**9)
-    assert nodes.current()["coop"] == "!a1b2c3d4"                     # App nicht erreichbar → letzte Zuordnung

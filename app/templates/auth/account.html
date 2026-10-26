@@ -47,6 +47,28 @@
         </div>
     </div>
 
+    <div class="col-12" id="leiste">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('auth.tabbar_save') }}" class="row g-2 align-items-end" style="max-width: 40rem">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="col-12 small text-body-secondary">{{ _("Heute · [Platz 1] · Scannen · [Platz 2] · Mehr. Was nicht in der Leiste steht, findest du unter „Mehr“.") }}</div>
+                    {% for slot in range(2) %}
+                    <div class="col-6 col-md-4"><label class="form-label small mb-1" for="tab{{ slot }}">{{ _("Platz {n}", n=slot + 1) }}</label>
+                        <select class="form-select" id="tab{{ slot }}" name="tab">
+                            {% for key in tab_choices %}<option value="{{ key }}" {% if tab_keys[slot] == key %}selected{% endif %}>{{ _(tab_labels[key]) }}</option>{% endfor %}
+                        </select></div>
+                    {% endfor %}
+                    <div class="col-12 col-md-4 d-flex gap-2">
+                        <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                        {% if current_user.tabbar %}<button class="btn btn-outline-secondary" name="reset" value="1">{{ _("Voreinstellung") }}</button>{% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="col-12" id="push">
         <div class="card shadow-sm">
             <div class="card-header"><i class="bi bi-bell me-1"></i>{{ _("Benachrichtigungen aufs Handy") }}</div>

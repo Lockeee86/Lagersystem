@@ -50,7 +50,6 @@ services:
       - MQTT_TOPIC=${MESHTASTIC_TOPIC:-msh/#}
       - COOP_NODE=${COOP_NODE:-}
       - COOP_TOP_NODE=${COOP_TOP_NODE:-}
-      - CLIMATE_NODES=${CLIMATE_NODES:-}
       - TOP_ACTIVE=${COOP_TOP_ACTIVE:-away}
       - DOOR_NAME=${COOP_DOOR_NAME:-Klappe}
       - DOOR_ACTIVE=${COOP_DOOR_ACTIVE:-open}

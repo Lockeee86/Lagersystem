@@ -100,10 +100,15 @@ Portainer-Stack (docker-compose)
   1. August (täglich), Zielbereich 4–8 °C hinterlegt. Lagerkarte: Klima-Zeile oben, Abzeichen an der Reihe.
   Sensor auch von Hand anlegen (0.44.1, „Sensor hinzufügen“ mit Knoten-ID, `climate.add_sensor`).
   Lagerklima auch auf der Lager-Seite am Handy (0.44.2).
-  Knoten-IDs nur noch in der App (0.45.0): Stall-Knoten/oben unter Hühner → Stall-Sensor (`coop.nodes()` /
-  `save_nodes()`, `settings` `coop_node`/`coop_top_node`), Lager-Knoten = `ClimateSensor`. Die Brücke holt
-  `/api/meshtastic/knoten` jede Minute (`Nodes`); `COOP_NODE`/`COOP_TOP_NODE`/`CLIMATE_NODES` im Stack nur noch als
-  Rückfall (ein App-Eintrag geht vor; `CLIMATE_NODES` gesetzt = nur diese Lager-Knoten).
+  Knoten-IDs nur noch in der App (0.45.0), seit 0.46.0 in der eigenen **Rubrik Sensoren** (`sensors.py`,
+  `sensors_views.py`, `/sensoren`): `MeshNode` je Knoten mit `purpose` (coop, coop_top, climate, ignore, leer = neu).
+  Die Brücke ist dumm und schickt jedes Paket an `POST /api/meshtastic`; `sensors.record` reicht es an
+  `coop.record` bzw. `climate.record` weiter (Lager/Reihe weiter in `ClimateSensor`). Klappe verkehrt herum:
+  `settings` `coop_door_active`/`coop_top_active`. `COOP_NODE`/`COOP_TOP_NODE` aus alten Stacks ordnen einen neuen
+  Knoten nur vor (`hint`). Hühner- und Klima-Seite zeigen nur noch Werte, eingerichtet wird unter Sensoren.
+  **Untere Leiste wählbar** (0.46.0, `tabbar.py`): Heute · [frei] · Scannen · [frei] · Mehr; Voreinstellung je Rolle
+  (Verwaltung → Startseite, `settings` `tabbar_<rolle>`), eigene Wahl unter Mein Konto (`User.tabbar`). Jede Rubrik
+  hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
   **Abweichung zur Planung:** außer „Jetzt wichtig“ jetzt auch Push (Thema „Lagerklima“, von sich aus für Admins,
   je Sensor und Problem einmal am Tag), wie bei Hühnern und BHKW.
 
