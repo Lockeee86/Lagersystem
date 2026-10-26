@@ -356,7 +356,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Mitarbeiter, Admin darf immer). Eier-Buch (`EggEntry`: Anzahl, davon kaputt, mehrere Einträge am Tag),
    Verteilung an Haushalte (`Household` anlegbar/deaktivierbar, `EggShare`; Vorrat = gute Eier − verteilt; kein
    Verkauf), Herde (`FlockEvent` Zu-/Abgang mit Grund, Rasse, Schlupf → Bestand, Gruppen mit Alter; Legeleistung =
-   Eier ÷ Hühnertage), Futter (`FeedEntry` kg/€ → g je Huhn und Tag, Kosten je Ei je Monat), Stallbuch
+   Eier ÷ Hühnertage; seit 0.46.2 Alter beim Zugang in Monaten → `hatched_on`, geschlüpft = 0 Monate;
+   `cohorts()` zieht Abgänge grob den ältesten ab, `flock_age()` = Ø Alter für Herde und Monatstabelle), Futter (`FeedEntry` kg/€ → g je Huhn und Tag, Kosten je Ei je Monat), Stallbuch
    (`FlockTreatment` mit Wartezeit → „Eier gesperrt bis …“). Stallkontrolle über den Rundgang (`CheckStation.area`
    = huehner, Vorschlag „Hühnerstall“, Mängel per Push an die Hühner-Leute), Aufgaben mit `Task.area` (Vorschläge:
    ausmisten wöchentlich, Milben monatlich, Wurmkur alle 3, Impfung alle 6 Monate). Startseite: Bereich „Hühner“

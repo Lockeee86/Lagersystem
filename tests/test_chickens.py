@@ -196,3 +196,28 @@ def test_fair_order(as_worker, db, seed, keeper):
     html = as_worker.get("/huehner/eier-haushalte").get_data(as_text=True)
     assert f'value="{a.id}" id="hh{a.id}" required checked' in html and "als Nächstes dran" in html
     assert "vor 5 Tagen" in html
+
+
+def test_flock_age(as_worker, db, seed, keeper):
+    """Alter beim Kauf in Monaten; Durchschnittsalter für Herde und Monatsauswertung."""
+    day = date(2026, 3, 15)
+    old = chickens.add_flock_event(day, "gekauft", 10, keeper, breed="Sussex", age_months=12)
+    assert old.hatched_on == date(2025, 3, 15)
+    chickens.add_flock_event(day, "gekauft", 10, keeper, age_months=4)
+    chicks = chickens.add_flock_event(day, "geschluepft", 5, keeper)
+    assert chicks.hatched_on == day
+    with pytest.raises(StorageError):
+        chickens.add_flock_event(day, "gekauft", 1, keeper, age_months=200)
+    chickens.add_flock_event(day + timedelta(days=30), "geschlachtet", 4, keeper)    # vom ältesten abgezogen
+    db.session.commit()
+    later = date(2026, 6, 15)
+    groups = {c["event"].id: c for c in chickens.cohorts(later)}
+    assert groups[old.id]["left"] == 6 and groups[old.id]["age"] == 15 and groups[old.id]["start_age"] == 12
+    assert chickens.age_months(date(2026, 1, 31), date(2026, 2, 28)) == 0
+    # 6 × 15 + 10 × 7 + 5 × 3 Monate ≈ 8,2 (nach Tagen gerechnet)
+    assert 7.8 <= chickens.flock_age(later) <= 8.4
+    html = as_worker.get("/huehner/herde").get_data(as_text=True)
+    assert "noch 6 von 10" in html and "beim Kauf 12 Monate" in html and "im Schnitt" in html
+    r = as_worker.post("/huehner/herde", data={"reason": "gekauft", "count": "3", "age_months": "5"})
+    assert r.status_code == 302
+    assert "Ø Alter" in as_worker.get("/huehner/eier-haushalte").get_data(as_text=True)

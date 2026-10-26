@@ -18,6 +18,7 @@ from .i18n import N_, gettext as _
 from .models import (FLOCK_REASONS, CheckStation, EggEntry, EggShare, FeedEntry, FlockEvent, FlockTreatment,
                      Household, Setting, Task, User)
 from .push import Msg
+from .machines import add_months
 from .storage import StorageError
 
 AREA = "huehner"
@@ -151,11 +152,18 @@ def fair_order(today=None, days=30):
 
 # --- Herde --------------------------------------------------------------------------------
 
-def add_flock_event(day, reason, count, user, breed=None, hatched_on=None, note=None):
+def add_flock_event(day, reason, count, user, breed=None, hatched_on=None, note=None, age_months=None):
+    """Zu-/Abgang. Bei Zugängen das Alter: `age_months` (Alter am Tag des Zugangs) oder `hatched_on`;
+    selbst geschlüpfte Küken ohne Angabe sind 0 Monate alt."""
     if reason not in FLOCK_REASONS:
         raise StorageError(_("Bitte einen Grund wählen."))
     count = _count(count, 1, 1000)
     sign = FLOCK_REASONS[reason][0]
+    if age_months is not None:
+        age_months = _count(age_months, 0, 120, _("Alter bitte zwischen 0 und 120 Monaten."))
+        hatched_on = add_months(_day(day), -age_months)
+    elif hatched_on is None and reason == "geschluepft":
+        hatched_on = _day(day)
     if sign < 0 and count > flock_size(day):
         raise StorageError(_("So viele Hühner sind nicht im Bestand."))
     event = FlockEvent(day=_day(day), change=sign * count, reason=reason, breed=_note(breed, 80) if sign > 0 else None,
@@ -176,6 +184,45 @@ def flock_size(day=None):
 def groups():
     """Zugänge mit Rasse/Schlupf als „Gruppen“ (für Alter und Rasse), neueste zuerst."""
     return FlockEvent.query.filter(FlockEvent.change > 0).order_by(FlockEvent.day.desc()).all()
+
+
+def age_months(hatched_on, day):
+    """Alter in vollen Monaten."""
+    months = (day.year - hatched_on.year) * 12 + day.month - hatched_on.month
+    return max(months - (day.day < hatched_on.day), 0)
+
+
+def cohorts(day=None):
+    """Gruppen mit dem, was am Tag `day` noch da ist: [{"event", "left", "age", "start_age"}], neueste zuerst.
+    Abgänge hängen an keiner Gruppe – sie werden grob den ältesten Hühnern abgezogen (Gruppen ohne Alter zuerst)."""
+    day = day or date.today()
+    events = (FlockEvent.query.filter(FlockEvent.day <= day)
+              .order_by(FlockEvent.day, FlockEvent.id).all())
+    groups_, left = [], {}
+    for e in events:
+        if e.change > 0:
+            groups_.append(e)
+            left[e.id] = e.change
+            continue
+        missing = -e.change
+        for g in sorted(groups_, key=lambda g: (g.hatched_on is not None, g.hatched_on or g.day, g.id)):
+            take = min(left[g.id], missing)
+            left[g.id] -= take
+            missing -= take
+            if not missing:
+                break
+    return [{"event": g, "left": left[g.id], "age": age_months(g.hatched_on, day) if g.hatched_on else None,
+             "start_age": age_months(g.hatched_on, g.day) if g.hatched_on else None}
+            for g in reversed(groups_)]
+
+
+def flock_age(day=None):
+    """Durchschnittsalter der Herde in Monaten (nur Hühner mit bekanntem Alter) oder None."""
+    day = day or date.today()
+    known = [(c["left"], (day - c["event"].hatched_on).days) for c in cohorts(day)
+             if c["left"] > 0 and c["event"].hatched_on]
+    hens = sum(n for n, _d in known)
+    return round(sum(n * d for n, d in known) / hens / 30.44, 1) if hens else None
 
 
 def _hen_days(start, end):
@@ -279,7 +326,7 @@ def months(today=None, count=12):
         n, days = eggs.get(key, 0), (end - start).days + 1
         kg, cost = feed.get(key, (None, None))
         rows.append({"month": start, "eggs": n, "cracked": cracked.get(key, 0), "given": given.get(key, 0),
-                     "per_day": n / days, "rate": laying_rate(n, _hen_days(start, end)),
+                     "per_day": n / days, "rate": laying_rate(n, _hen_days(start, end)), "age": flock_age(end),
                      "feed_kg": kg, "feed_cost": cost,
                      "per_egg": (Decimal(cost) / n) if cost and n else None})
         start = _month_end(start) + timedelta(days=1)
@@ -318,7 +365,7 @@ def summary(today=None):
     checks = [{"station": s, **rounds.status(s)} for s in stations()]
     from . import coop
     order = fair_order(today)
-    return {"today": eggs_on(today), "flock": size, "stock": stock(), "blocked": blocked(today),
+    return {"today": eggs_on(today), "flock": size, "age": flock_age(today), "stock": stock(), "blocked": blocked(today),
             "next": order[0] if order else None, "sensor": coop.status(),
             "week_eggs": int(week_eggs), "week_rate": laying_rate(int(week_eggs), _hen_days(week_start, today)),
             "checks": checks, "overdue": sum(1 for c in checks if c["overdue"]),

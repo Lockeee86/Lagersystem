@@ -41,7 +41,7 @@
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-egg"></i>{{ _("Heute") }}</div><div class="stat-value">{{ info.today.eggs }}</div><div class="stat-sub">{% if info.today.cracked %}{{ _("{n} kaputt", n=info.today.cracked) }}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-calendar-week"></i>{{ _("Letzte 7 Tage") }}</div><div class="stat-value">{{ info.week_eggs }}</div><div class="stat-sub">{% if info.week_rate is not none %}{{ _("Legeleistung {n} %", n=info.week_rate) }}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>
     <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.eggs') }}"><div class="stat-label"><i class="bi bi-box2"></i>{{ _("Vorrat") }}</div><div class="stat-value">{{ info.stock }}</div><div class="stat-sub">{{ _("Eier noch nicht verteilt") }}</div></a></div>
-    <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.flock') }}"><div class="stat-label"><i class="bi bi-egg-fried"></i>{{ _("Herde") }}</div><div class="stat-value">{{ info.flock }}</div><div class="stat-sub">{{ _("Hühner") }}</div></a></div>
+    <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.flock') }}"><div class="stat-label"><i class="bi bi-egg-fried"></i>{{ _("Herde") }}</div><div class="stat-value">{{ info.flock }}</div><div class="stat-sub">{% if info.age is not none %}{{ _("Hühner, Ø {n} Monate", n=info.age|num(0)) }}{% else %}{{ _("Hühner") }}{% endif %}</div></a></div>
 </div>
 
 {% if sensor or current_user.is_admin %}

@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>{{ _("Herde") }}</h1>
-        <p class="text-body-secondary mb-0">{{ ngettext("{n} Huhn im Bestand", "{n} Hühner im Bestand", size) }}</p>
+        <p class="text-body-secondary mb-0">{{ ngettext("{n} Huhn im Bestand", "{n} Hühner im Bestand", size) }}{% if age is not none %} · {{ _("im Schnitt {n} Monate alt", n=age|num(0)) }}{% endif %}</p>
     </div>
 </div>
 
@@ -27,8 +27,8 @@
                 <input class="form-control" id="f_day" name="day" type="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
             <div class="col-6 col-md-3"><label class="form-label" for="f_breed">{{ _("Rasse (bei Zugang)") }}</label>
                 <input class="form-control" id="f_breed" name="breed" maxlength="80" placeholder="{{ _('z. B. Lohmann Braun') }}"></div>
-            <div class="col-6 col-md-3"><label class="form-label" for="f_hatched">{{ _("Geschlüpft am (bei Zugang)") }}</label>
-                <input class="form-control" id="f_hatched" name="hatched_on" type="date" max="{{ today.isoformat() }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="f_age">{{ _("Alter in Monaten (bei Zugang)") }}</label>
+                <input class="form-control" id="f_age" name="age_months" type="number" inputmode="numeric" min="0" max="120" placeholder="{{ _('z. B. 5') }}"></div>
             <div class="col-12 col-md-6"><label class="form-label" for="f_note">{{ _("Notiz") }}</label>
                 <input class="form-control" id="f_note" name="note" maxlength="200"></div>
             <div class="col-12 col-md-3"><button class="btn btn-primary w-100">{{ _("Eintragen") }}</button></div>
@@ -42,15 +42,16 @@
         <div class="card shadow-sm mb-4">
             <div class="card-header">{{ _("Gruppen (Zugänge)") }}</div>
             <ul class="list-group list-group-flush">
-                {% for g in groups %}
-                <li class="list-group-item">
+                {% for c in groups %}{% set g = c.event %}
+                <li class="list-group-item {{ 'text-body-secondary' if not c.left }}">
                     <div class="d-flex justify-content-between gap-2">
                         <span class="fw-semibold">{{ g.breed or _("ohne Rasse") }}</span>
-                        <span>{{ ngettext("{n} Huhn", "{n} Hühner", g.change) }}</span>
+                        <span>{% if c.left != g.change %}{{ _("noch {n} von {total}", n=c.left, total=g.change) }}{% else %}{{ ngettext("{n} Huhn", "{n} Hühner", g.change) }}{% endif %}</span>
                     </div>
                     <div class="small text-body-secondary">
                         {{ g.reason_label }} {{ g.day|date }}
-                        {% if g.hatched_on %} · {% set weeks = ((today - g.hatched_on).days // 7) %}{{ ngettext("{n} Woche alt", "{n} Wochen alt", weeks) if weeks < 104 else _("{n} Jahre alt", n=(weeks // 52)) }}{% endif %}
+                        {% if g.hatched_on %} · {% if c.age < 2 %}{% set weeks = ((today - g.hatched_on).days // 7) %}{{ ngettext("{n} Woche alt", "{n} Wochen alt", weeks) }}{% else %}{{ ngettext("{n} Monat alt", "{n} Monate alt", c.age) }}{% endif %}
+                        {% if g.reason == "gekauft" %}({{ ngettext("beim Kauf {n} Monat", "beim Kauf {n} Monate", c.start_age) }}){% endif %}{% endif %}
                     </div>
                 </li>
                 {% else %}

@@ -169,7 +169,8 @@ def household_save():
 def flock():
     today = date.today()
     return render_template(
-        "chickens/flock.html", today=today, size=chickens.flock_size(today), groups=chickens.groups(),
+        "chickens/flock.html", today=today, size=chickens.flock_size(today), groups=chickens.cohorts(today),
+        age=chickens.flock_age(today),
         events=FlockEvent.query.order_by(FlockEvent.day.desc(), FlockEvent.id.desc()).limit(60).all(),
         reasons=FLOCK_REASONS,
     )
@@ -180,7 +181,7 @@ def flock():
 def flock_add():
     return _save(lambda: chickens.add_flock_event(form_date("day") or date.today(), form_str("reason", 20),
                                                   form_int("count"), current_user, breed=form_str("breed", 80),
-                                                  hatched_on=form_date("hatched_on"), note=form_str("note", 200)),
+                                                  age_months=form_int("age_months"), note=form_str("note", 200)),
                  _("Herde aktualisiert."), "chickens.flock")
 
 
