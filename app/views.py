@@ -869,7 +869,7 @@ def scan():
         if code and Box.query.filter_by(code=code).first():
             return redirect(url_for("main.box_detail", code=code))
         flash_error(_("Keine Kiste mit dem Code „{code}“ gefunden.", code=raw[:40]))
-    if not current_user.can_edit:
+    if not current_user.can_edit or current_user.only_chickens:      # nur Hühner: Scanner nur für die Stationen
         return render_template("scan.html", harvest=None)
     values = _harvest_cookie()
     settings = _harvest_settings(values)

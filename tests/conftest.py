@@ -16,7 +16,6 @@ def app(tmp_path):
         "SECRET_KEY": "test",
     })
 
-    @app.before_request
     def _fresh_login():
         # Der Test hält einen App-Kontext offen → `g` würde sonst den Benutzer
         # der vorherigen Anfrage (evtl. eines anderen Test-Clients) wiederverwenden.
@@ -26,6 +25,8 @@ def app(tmp_path):
         g.pop("_lang", None)
         g.pop("purchase_count", None)
         g.pop("logo_version", None)
+
+    app.before_request_funcs.setdefault(None, []).insert(0, _fresh_login)   # vor allen Prüfungen der App
 
     with app.app_context():
         _db.create_all()

@@ -2474,4 +2474,6 @@ MESSAGES = {
     'Richtwert der Zuchtunternehmen für Legehybriden in diesem Alter': 'Wartość wzorcowa hodowców dla hybryd nieśnych w tym wieku',
     'erwartet': 'oczekiwane',
     '„erwartet“: Richtwert der Zuchtunternehmen für braune Legehybriden in diesem Alter (unter Idealbedingungen). Im Winter ohne Zusatzlicht und in der Mauser liegt die Leistung meist deutlich darunter.': '„oczekiwane”: wartość wzorcowa hodowców dla brązowych hybryd nieśnych w tym wieku (w idealnych warunkach). Zimą bez dodatkowego światła i w czasie pierzenia nieśność jest zwykle wyraźnie niższa.',
+    'nur Hühner': 'tylko kury',
+    'Nur Hühner: sieht ausschließlich die Hühner mit ihren Aufgaben und der Stallkontrolle – kein Lager, Feld, Biogas usw. (nicht für Admins)': 'Tylko kury: widzi wyłącznie kury z ich zadaniami i kontrolą kurnika – bez magazynu, pola, biogazu itd. (nie dla adminów)',
 }

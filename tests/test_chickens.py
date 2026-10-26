@@ -237,3 +237,36 @@ def test_expected_laying(as_worker, db, seed, keeper):
     db.session.commit()
     assert chickens.expected_laying(later, later) is None
     assert any(c["expected"] for c in chickens.cohorts(later))
+
+
+def test_chickens_only_user(as_admin, as_worker, db, seed):
+    """Benutzer „nur Hühner“: sieht ausschließlich Hühner, ihre Aufgaben und die Stallkontrolle."""
+    from app.models import Task
+    worker = seed["worker"]
+    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter",
+                                           "language": "de", "active": "1", "chickens_only": "1"})
+    assert worker.chickens_only and worker.chickens and worker.only_chickens
+    r = as_worker.get("/")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/huehner")
+    for url in ("/lager/uebersicht", "/schlaege", "/maschinen", "/biogas", "/sensoren", "/suche", "/kalender",
+                "/bereich/feld", "/lieferscheine"):
+        assert as_worker.get(url).status_code == 404, url
+    html = as_worker.get("/huehner").get_data(as_text=True)
+    tabs = html[html.index('class="tabbar'):html.index("</nav>", html.index('class="tabbar'))]
+    assert 'href="/huehner/eier-haushalte"' in tabs and 'href="/aufgaben"' in tabs and "Lager" not in tabs
+    assert 'action="/suche"' not in html
+    other = Task(title="Ölwechsel Schlepper")
+    hens = Task(title="Ausmisten", area="huehner")
+    db.session.add_all([other, hens])
+    db.session.commit()
+    page = as_worker.get("/aufgaben?wer=alle").get_data(as_text=True)
+    assert "Ausmisten" in page and "Ölwechsel" not in page and "– keine Maschine –" not in page
+    assert as_worker.get(f"/aufgabe/{other.id}").status_code == 404
+    assert as_worker.get(f"/aufgabe/{hens.id}").status_code == 200
+    as_worker.post("/aufgaben/neu", data={"title": "Wasser auffüllen"})
+    assert Task.query.filter_by(title="Wasser auffüllen").one().area == "huehner"
+    assert set(worker.push_topics()) <= {k for k, t in __import__("app.models", fromlist=["PUSH_TOPICS"])
+                                         .PUSH_TOPICS.items() if t["group"] == "Hühner"} | {"tasks_new", "tasks_due"}
+    # Admins sind nie „nur Hühner“
+    seed["admin"].chickens_only = True
+    assert not seed["admin"].only_chickens

@@ -47,6 +47,7 @@
         </div>
     </div>
 
+    {% if not current_user.only_chickens %}
     <div class="col-12" id="leiste">
         <div class="card shadow-sm">
             <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
@@ -68,6 +69,8 @@
             </div>
         </div>
     </div>
+
+    {% endif %}
 
     <div class="col-12" id="push">
         <div class="card shadow-sm">

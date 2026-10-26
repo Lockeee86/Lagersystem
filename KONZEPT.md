@@ -358,7 +358,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Verkauf), Herde (`FlockEvent` Zu-/Abgang mit Grund, Rasse, Schlupf → Bestand, Gruppen mit Alter; Legeleistung =
    Eier ÷ Hühnertage; seit 0.46.2 Alter beim Zugang in Monaten → `hatched_on`, geschlüpft = 0 Monate;
    `cohorts()` zieht Abgänge grob den ältesten ab, `flock_age()` = Ø Alter für Herde und Monatstabelle; 0.46.3 erwartete Legeleistung `LAYING_CURVE` für
-   Legehybriden (`is_hybrid` nach Rasse), `expected_laying()` nur bei ≥ 80 % Hybriden mit Alter), Futter (`FeedEntry` kg/€ → g je Huhn und Tag, Kosten je Ei je Monat), Stallbuch
+   Legehybriden (`is_hybrid` nach Rasse), `expected_laying()` nur bei ≥ 80 % Hybriden mit Alter). **Benutzer „nur Hühner“** (0.47.0, `User.chickens_only`,
+   `app/chickens_only.py`): sieht nur die Rubrik Hühner, Hühner-Aufgaben (`Task.area` oder ihm zugeteilt), Stallkontrolle
+   und sein Konto; alles andere 404 (`before_request`), Startseite = Hühner-Übersicht, eigene untere Leiste,
+   Push nur Hühner + eigene Aufgaben, Aufgaben ohne Bezug zu Maschine/Lager/Schlag, Futter (`FeedEntry` kg/€ → g je Huhn und Tag, Kosten je Ei je Monat), Stallbuch
    (`FlockTreatment` mit Wartezeit → „Eier gesperrt bis …“). Stallkontrolle über den Rundgang (`CheckStation.area`
    = huehner, Vorschlag „Hühnerstall“, Mängel per Push an die Hühner-Leute), Aufgaben mit `Task.area` (Vorschläge:
    ausmisten wöchentlich, Milben monatlich, Wurmkur alle 3, Impfung alle 6 Monate). Startseite: Bereich „Hühner“

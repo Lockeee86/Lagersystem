@@ -142,6 +142,9 @@ def visible_query(user=None):
         mine = db.session.query(task_assignees.c.task_id).filter(task_assignees.c.user_id == user.id)
         anyone = ~Task.id.in_(db.session.query(task_assignees.c.task_id))
         query = query.filter(or_(Task.id.in_(mine), anyone))
+        if user.only_chickens:
+            from .chickens_only import filter_tasks
+            query = filter_tasks(query, user)
     return query
 
 

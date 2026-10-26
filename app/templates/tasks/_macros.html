@@ -86,6 +86,7 @@
             {% endfor %}
         </div>
     </div>
+    {% if not current_user.only_chickens %}
     <div class="col-12"><div class="small text-body-secondary mt-1">{{ _("Bezug (optional)") }}</div></div>
     <div class="col-12 col-md-6 col-xl-3">
         {% set chosen = task.plots|map(attribute="id")|list if task else prefill.get('plot_ids') or [] %}
@@ -117,6 +118,7 @@
             {% endfor %}
         </select>
     </div>
+    {% endif %}
     <div class="col-12">
         <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") if task else _("Aufgabe anlegen") }}</button>
     </div>

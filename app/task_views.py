@@ -24,6 +24,9 @@ def _get_task(task_id):
 
 def _choices(task=None):
     """Auswahllisten für das Formular (aktive Maschinen, offene Lieferscheine + der bisherige Bezug)."""
+    if current_user.only_chickens:                     # kein Bezug zu Maschinen, Lieferscheinen, Schlägen, Lager
+        return dict(users=tasks.request_recipients(), recurrences=RECURRENCES, machines=[], deliveries=[],
+                    warehouses=[], plots=[])
     machines = Machine.query.filter((Machine.active.is_(True)) | (Machine.id == (task.machine_id if task else None)))
     deliveries = Delivery.query.filter((Delivery.status == DELIVERY_OPEN) |
                                        (Delivery.id == (task.delivery_id if task else None)))
@@ -72,6 +75,8 @@ def _back(default):
 def task_list():
     # Wessen Aufgaben? Mitarbeiter/Betrachter standardmäßig die eigenen, der Admin alle
     who = request.args.get("wer") or ("alle" if current_user.is_admin else "ich")
+    if current_user.only_chickens:
+        who = "ich"                                    # sieht nur die Hühner-Aufgaben (chickens_only.py)
     person = None
     if who == "ich":
         person = current_user
@@ -83,7 +88,7 @@ def task_list():
         "machine_id": request.args.get("maschine", type=int),
         "delivery_id": request.args.get("lieferschein", type=int),
         "plot_ids": request.args.getlist("schlag", type=int),
-        "area": "huehner" if request.args.get("bereich") == "huehner" else None,
+        "area": "huehner" if request.args.get("bereich") == "huehner" or current_user.only_chickens else None,
     }
     # Aus einer Störung oder fälligen Wartung heraus: Titel, Maschine und Verknüpfung vorbelegen
     event = db.session.get(MachineEvent, request.args.get("stoerung", type=int) or 0)
@@ -119,7 +124,7 @@ def task_create():
             fields["assignees"] = tasks.allowed_assignees(current_user, fields["assignees"])
             fields["recurrence"] = None
         task = tasks.create_task(current_user, **fields)
-        if request.form.get("area") == "huehner":
+        if request.form.get("area") == "huehner" or current_user.only_chickens:
             task.area = "huehner"
         db.session.commit()
         push.task_assigned(task, current_user)

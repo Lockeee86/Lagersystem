@@ -24,6 +24,7 @@
 </div>
 {% endif %}
 
+{% if not current_user.only_chickens %}
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="btn btn-sm {{ 'btn-primary' if who == 'ich' else 'btn-outline-secondary' }}" href="{{ url_for('tasks.task_list', wer='ich') }}"><i class="bi bi-person me-1"></i>{{ _("Meine") }}</a>
     <a class="btn btn-sm {{ 'btn-primary' if who == 'alle' else 'btn-outline-secondary' }}" href="{{ url_for('tasks.task_list', wer='alle') }}"><i class="bi bi-people me-1"></i>{{ _("Alle") }}</a>
@@ -33,6 +34,7 @@
     {% endfor %}
     {% endif %}
 </div>
+{% endif %}
 
 {% set sections = [("overdue", _("Überfällig"), "border-danger"), ("today", _("Heute"), "border-primary"), ("upcoming", _("Nächste 7 Tage"), ""), ("later", _("Später"), ""), ("undated", _("Ohne Termin"), "")] %}
 {% set ns = namespace(any=false) %}

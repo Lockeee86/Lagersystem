@@ -8,6 +8,7 @@ from flask import url_for
 
 from . import navigation
 from .extensions import db
+from .i18n import N_
 from .models import Setting
 
 CHOICES = ("lager", "feld", "biogas", "huehner", "sensoren", "verkauf")
@@ -76,6 +77,9 @@ def url(key, user):
 
 
 def entries(user):
+    if user.only_chickens:                         # eigene Leiste: Hühner · Eier · Scannen · Aufgaben · Mehr
+        return [{"key": "eier", "label": N_("Eier"), "icon": "bi-basket2", "url": url_for("chickens.eggs")},
+                {"key": "aufgaben", "label": N_("Aufgaben"), "icon": "bi-list-check", "url": url_for("tasks.task_list")}]
     return [{"key": k, "label": _area(k)["label"], "icon": _area(k)["icon"], "url": url(k, user)}
             for k in keys_for(user)]
 

@@ -119,7 +119,9 @@ docker compose up --build -d
   Stallbuch `FlockTreatment` (Wartezeit `blocked()`), Monate `months()`, `summary()` für Startseite; Stallkontrolle =
   Rundgang mit `CheckStation.area == "huehner"`, Aufgaben `Task.area`; Push `evening_check()` aus `push.daily`
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Rubriken mit
-  `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer
+  `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer.
+  Benutzer „nur Hühner“ (`User.chickens_only` → `only_chickens`): `app/chickens_only.py` (`allowed()` im
+  `before_request`, `filter_tasks()`); neue Seiten für sie dort freigeben
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
   leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
   `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, committet nicht;

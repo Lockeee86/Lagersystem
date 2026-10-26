@@ -25,12 +25,12 @@
                             <div class="small text-body-secondary">{{ u.username }}</div></div>
                     </div>
                 </td>
-                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
+                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
                 <td title="{{ languages.get(u.language, u.language) }}">{{ LANGUAGE_FLAGS.get(u.language, '') }} {{ u.language|upper }}</td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ u.last_login|datetime }}</td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal"
-                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active, "can_order": u.can_order, "can_plan": u.can_plan, "chickens": u.chickens}|tojson }}'><i class="bi bi-pencil"></i></button>
+                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active, "can_order": u.can_order, "can_plan": u.can_plan, "chickens": u.chickens, "chickens_only": u.chickens_only}|tojson }}'><i class="bi bi-pencil"></i></button>
                 </td>
             </tr>
             {% endfor %}
@@ -86,6 +86,10 @@
 <div class="form-check mb-2">
     <input class="form-check-input" type="checkbox" id="u_chickens" name="chickens" value="1">
     <label class="form-check-label" for="u_chickens">{{ _("Rubrik Hühner (Eier, Herde, Stall – nur für die, die mit den Hühnern zu tun haben)") }}</label>
+</div>
+<div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" id="u_chickens_only" name="chickens_only" value="1">
+    <label class="form-check-label" for="u_chickens_only">{{ _("Nur Hühner: sieht ausschließlich die Hühner mit ihren Aufgaben und der Stallkontrolle – kein Lager, Feld, Biogas usw. (nicht für Admins)") }}</label>
 </div>
 <div class="form-check mb-3 edit-only">
     <input class="form-check-input" type="checkbox" id="u_active" name="active" value="1">

@@ -1,7 +1,7 @@
 import os
 from datetime import timedelta
 
-from flask import Flask, g, redirect, request, url_for
+from flask import Flask, abort, g, redirect, request, url_for
 from flask_login import current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -203,6 +203,18 @@ def create_app(config=None):
             if db.session.query(User.id).first() is None:
                 return redirect(url_for("auth.setup"))
             app.config["_setup_done"] = True
+        return None
+
+    @app.before_request
+    def chickens_only_guard():
+        """Benutzer „nur Hühner“ sehen nur die Hühner (chickens_only.py) – Startseite = Hühner-Übersicht."""
+        if not current_user.is_authenticated or not current_user.only_chickens:
+            return None
+        from . import chickens_only
+        if request.endpoint == "main.dashboard":
+            return redirect(url_for("chickens.overview"))
+        if not chickens_only.current_allowed(current_user):
+            abort(404)
         return None
 
     @app.after_request

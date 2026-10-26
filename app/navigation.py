@@ -137,9 +137,24 @@ def resolve(endpoint, view_args=None):
     return endpoint
 
 
+# Benutzer „nur Hühner“: eine einzige Rubrik aus Hühnern und Aufgaben (chickens_only.py)
+CHICKEN_TASKS = item("tasks.task_list", N_("Aufgaben"), "bi-list-check", prefixes=("tasks.",), badge="tasks")
+
+
+def _chicken_area():
+    area = next(a for a in AREAS if a["key"] == "huehner")
+    return {**area, "items": area["items"] + [CHICKEN_TASKS]}
+
+
 def current(endpoint, user):
     """{"areas": [...], "area": aktueller Bereich, "items": seine sichtbaren Unterpunkte, "active": Endpunkt}"""
     endpoint = endpoint or ""
+    if user.only_chickens:
+        area = _chicken_area()
+        items = _visible(area["items"], user)
+        active = next((it["endpoint"] for it in items if _active(it, endpoint)), None)
+        return {"areas": [{**area, "href": url_for("chickens.overview")}], "area": area, "items": items,
+                "active": active}
     area = None
     if endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"]):
         area = ADMIN
@@ -183,6 +198,9 @@ def _tabs(user):
 def tab_for(endpoint, view_args=None, user=None):
     """Welcher Punkt der unteren Leiste zum Endpunkt gehört: heute | scan | mehr | eine Rubrik der Leiste."""
     endpoint = endpoint or ""
+    if user is not None and user.is_authenticated and user.only_chickens:
+        return {"chickens.overview": "heute", "chickens.eggs": "eier", "main.scan": "scan"}.get(
+            endpoint, "aufgaben" if endpoint.startswith("tasks.") else "mehr")
     tabs = _tabs(user)
     if endpoint == "main.dashboard":
         return "heute"
@@ -195,6 +213,11 @@ def tab_for(endpoint, view_args=None, user=None):
 def hub(key, user):
     """Gruppen der Bereichsseite: [{"label", "items": [...]}] – nur, was die Rolle darf."""
     by_key = {a["key"]: a for a in AREAS}
+    if user.only_chickens:
+        if key not in ("mehr", "huehner"):
+            return []
+        groups = [{"label": None, "items": _visible(_chicken_area()["items"], user)}]
+        return groups + ([{"label": None, "items": _visible(MORE_EXTRA, user)}] if key == "mehr" else [])
     if key != "mehr":
         area = by_key[key]
         if not _area_shown(area, user):
@@ -229,6 +252,12 @@ def crumb(endpoint, view_args=None, user=None):
     if (endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"])) \
             and endpoint != "admin.index":
         return url_for("admin.index"), ADMIN["label"]
+    if user is not None and user.only_chickens:
+        if endpoint in ("chickens.overview", "chickens.eggs", "tasks.task_list", "main.area"):
+            return None
+        if endpoint.startswith("tasks."):
+            return url_for("tasks.task_list"), CHICKEN_TASKS["label"]
+        return url_for("chickens.overview"), N_("Hühner")
     tabs = _tabs(user)
     more = (url_for("main.area", key="mehr"), HUBS["mehr"])
     if endpoint == "main.area":
