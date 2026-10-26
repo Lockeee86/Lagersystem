@@ -378,8 +378,9 @@ def storage_home():
     bulk_rows, bulk_wares = bulk.overview(site)
     old_count = sum(1 for r in storage.oldest_boxes(warehouse_id=None, limit=5000)
                     if r["level"] and (site is None or r["box"].warehouse.site_id == site.id))
+    climate_text, climate_warn = _status("climate.overview_page")
     return render_template("storage_home.html", **stock, bulk_rows=bulk_rows, bulk_total=sum(bulk_wares.values()),
-                           old_count=old_count)
+                           old_count=old_count, climate_text=climate_text, climate_warn=climate_warn)
 
 
 @bp.route("/bereich/<key>")

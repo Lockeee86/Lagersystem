@@ -99,6 +99,7 @@ Portainer-Stack (docker-compose)
   Voreinstellung wie oben, CO₂ ≤ 5000 ppm). Kurven 24 h (roh) / 7 Tage (stündlich) / 30 Tage (4 h) / Saison ab
   1. August (täglich), Zielbereich 4–8 °C hinterlegt. Lagerkarte: Klima-Zeile oben, Abzeichen an der Reihe.
   Sensor auch von Hand anlegen (0.44.1, „Sensor hinzufügen“ mit Knoten-ID, `climate.add_sensor`).
+  Lagerklima auch auf der Lager-Seite am Handy (0.44.2).
   **Abweichung zur Planung:** außer „Jetzt wichtig“ jetzt auch Push (Thema „Lagerklima“, von sich aus für Admins,
   je Sensor und Problem einmal am Tag), wie bei Hühnern und BHKW.
 

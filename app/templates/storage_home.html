@@ -68,6 +68,14 @@
                 </span>
                 <i class="bi bi-chevron-right text-body-tertiary"></i>
             </a>
+            <a class="hub-row" href="{{ url_for('climate.overview_page') }}">
+                <span class="hub-icon {% if climate_warn %}warn{% endif %}"><i class="bi bi-thermometer-half"></i></span>
+                <span class="hub-text">
+                    <span class="hub-title">{{ _("Lagerklima") }}</span>
+                    <span class="hub-status">{{ climate_text }}</span>
+                </span>
+                <i class="bi bi-chevron-right text-body-tertiary"></i>
+            </a>
             <a class="hub-row" href="{{ url_for('main.repairs') }}">
                 <span class="hub-icon {% if stats.defect %}warn{% endif %}"><i class="bi bi-wrench-adjustable"></i></span>
                 <span class="hub-text">
