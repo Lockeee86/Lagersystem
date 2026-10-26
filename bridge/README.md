@@ -113,6 +113,28 @@ weder ganz unten noch ganz oben ist.
   oder Motor der Klappe prüfen).
 - Push bei Frost (≤ 0,5 °C) oder Hitze (≥ 30 °C) im Stall und wenn der Sensor sich 2 Stunden nicht meldet.
 
+## Lagerklima (Kartoffellager) mit SCD41
+
+Dieselbe Brücke bringt auch Temperatur, Luftfeuchte und **CO₂** aus den Lagern in die App (Lager → Klima).
+
+1. **Sensor:** SCD41 (z. B. als Grove-Modul) an den I²C- bzw. Grove-Anschluss eines Meshtastic-Knotens
+   (3,3 V, GND, SDA, SCL). Meshtastic erkennt ihn beim Start.
+2. **Meshtastic (Lager-Knoten):** Modul-Konfiguration → Telemetrie → **Luftqualität** (Air quality) **an** und
+   **Umweltwerte** an, Intervall z. B. 600 s. Gleicher Kanal wie Gateway und Stall, Uplink am Gateway an.
+3. **Stack:** `COOP_NODE` muss gesetzt sein – dann gehen alle anderen Knoten ans Lagerklima. Wer genauer
+   steuern will, trägt die Lager-Knoten in `CLIMATE_NODES` ein (Komma-getrennt, z. B. `!a1b2c3d4,!a1b2c3d5`).
+4. **In der App:** Der neue Sensor erscheint unter **Lager → Klima → „Neue Sensoren“**. Dort Lager und wahlweise
+   Reihe zuordnen. Grenzwerte je Lager darunter (leer = 3–10 °C, 85–97 %, CO₂ bis 5000 ppm).
+
+Hinweise:
+- Strom: Der SCD41 misst laufend und braucht mehr Strom als ein BME280 – im Lager am besten ein USB-Netzteil.
+- Kondenswasser: Bei 90–95 % Feuchte nicht direkt in den kalten Luftstrom der Kühlung hängen, Gehäuse mit
+  Öffnungen nach unten.
+- **CO₂-Kalibrierung:** Der SCD41 gleicht sich von sich aus an die niedrigsten Werte der letzten Tage an
+  (er nimmt an, dass er ab und zu Frischluft mit ~420 ppm sieht). Im geschlossenen Lager mit dauerhaft hohem CO₂
+  kann er dadurch zu niedrig messen. Ab und zu draußen an der frischen Luft laufen lassen, bzw. die
+  Selbstkalibrierung abschalten, wenn die Firmware das anbietet.
+
 ## Eigene Sensoren ohne Meshtastic
 
 Ein ESP32 im WLAN kann auch direkt JSON an Mosquitto schicken, Topic `huehnerstall/<irgendwas>`:

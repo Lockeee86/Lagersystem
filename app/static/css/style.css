@@ -867,3 +867,10 @@ body:not(.has-tabbar) {
 .coop-key-hum { background: var(--bs-info); opacity: .6; }
 .coop-chart-sm { height: 4rem; }
 .coop-air { stroke: var(--bs-warning); }
+
+/* Lagerklima */
+.climate-band { fill: var(--bs-success); opacity: .08; }
+.climate-badge { display: inline-flex; align-items: center; gap: .15rem; font-size: .7rem; font-weight: 600; padding: 0 .3rem;
+                 border-radius: .5rem; background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); white-space: nowrap; }
+.climate-badge.climate-warning { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+.climate-badge.climate-danger { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }

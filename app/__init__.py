@@ -98,6 +98,7 @@ def create_app(config=None):
     from .biogas_views import bp as biogas_bp
     from .rounds_views import bp as rounds_bp
     from .chickens_views import bp as chickens_bp
+    from .climate_views import bp as climate_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -116,6 +117,7 @@ def create_app(config=None):
     app.register_blueprint(biogas_bp)
     app.register_blueprint(rounds_bp)
     app.register_blueprint(chickens_bp)
+    app.register_blueprint(climate_bp)
 
     from . import cli
     cli.register(app)
@@ -192,7 +194,7 @@ def create_app(config=None):
     @app.before_request
     def require_setup():
         """Solange kein Benutzer existiert, führt jeder Weg zur Ersteinrichtung."""
-        if request.endpoint in ("auth.setup", "static", "api.health", "api.coop_sensor", "branding.logo"):
+        if request.endpoint in ("auth.setup", "static", "api.health", "api.coop_sensor", "api.climate_sensor", "branding.logo"):
             return None
         if not app.config.get("_setup_done"):
             if db.session.query(User.id).first() is None:

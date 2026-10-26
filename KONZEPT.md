@@ -91,6 +91,15 @@ Portainer-Stack (docker-compose)
   Warnung < 85 % und > 97 %), Warnung bei Sensor-Ausfall
 - Warnungen **nur in der App** (rote Anzeige auf der Startseite und in der Navigation), kein Push/Mail
 - 3–6 Messpunkte, Sensoren noch nicht vorhanden → günstige WLAN-Sensoren mit MQTT vorschlagen (WLAN im Lager ist gut)
+- **Umgesetzt in 0.44.0** – anders als geplant über **Meshtastic** (wie der Hühnerstall) mit **SCD41** (CO₂ + °C + %),
+  erst ein, später drei Messpunkte: `climate.py`, `climate_views.py` (Lager → Klima, `/lager/klima`), Modelle
+  `ClimateSensor` (Knoten → Lager/Reihe; unbekannte Knoten erscheinen zum Zuordnen) und `ClimateReading`,
+  `POST /api/lager/klima` (Schlüssel wie der Stall-Sensor). Brücke: Knoten außer dem Stall (`COOP_NODE`) bzw. die
+  in `CLIMATE_NODES` gehen ans Lagerklima; CO₂ aus AirQualityMetrics. Grenzwerte je Lager (`Warehouse.climate_*`,
+  Voreinstellung wie oben, CO₂ ≤ 5000 ppm). Kurven 24 h (roh) / 7 Tage (stündlich) / 30 Tage (4 h) / Saison ab
+  1. August (täglich), Zielbereich 4–8 °C hinterlegt. Lagerkarte: Klima-Zeile oben, Abzeichen an der Reihe.
+  **Abweichung zur Planung:** außer „Jetzt wichtig“ jetzt auch Push (Thema „Lagerklima“, von sich aus für Admins,
+  je Sensor und Problem einmal am Tag), wie bei Hühnern und BHKW.
 
 ### Bestand von der Lagertafel übernommen
 - Eine Partien-/Tafel-Arbeitsweise wurde ausprobiert und wieder verworfen: Es bleibt bei **Einzelkisten**.

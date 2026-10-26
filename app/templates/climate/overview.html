@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% from "climate/_macros.html" import climate_values, climate_chart %}
+{% block title %}{{ _("Lagerklima") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Lagerklima") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Ziel {t1}–{t2} °C und {h1}–{h2} % Luftfeuchte", t1=target.temp[0]|num(0), t2=target.temp[1]|num(0), h1=target.hum[0]|num(0), h2=target.hum[1]|num(0)) }}</p>
+    </div>
+    <nav class="view-switch" aria-label="{{ _('Zeitraum') }}">
+        {% for key, (span, step, label) in ranges.items() %}
+        <a href="{{ url_for('climate.overview_page', zeitraum=key) }}" class="{{ 'active' if key == range_key }}">{{ _(label) }}</a>
+        {% endfor %}
+    </nav>
+</div>
+
+{% if current_user.is_admin and data.unassigned %}
+<div class="card shadow-sm mb-4 border-warning">
+    <div class="card-header"><i class="bi bi-plus-circle me-1"></i>{{ _("Neue Sensoren – bitte einem Lager zuordnen") }}</div>
+    <ul class="list-group list-group-flush">
+        {% for sensor in data.unassigned %}
+        <li class="list-group-item" id="s{{ sensor.id }}">
+            <form method="post" action="{{ url_for('climate.sensor_save', sensor_id=sensor.id) }}" class="row g-2 align-items-end">
+                {{ csrf() }}
+                <div class="col-12 col-md-3"><span class="fw-semibold">{{ sensor.node }}</span><div class="small text-body-secondary">{{ _("gemeldet seit {date}", date=sensor.created_at|datetime) }}</div></div>
+                <div class="col-6 col-md-3"><label class="form-label small mb-1" for="n{{ sensor.id }}">{{ _("Name (wahlweise)") }}</label><input class="form-control form-control-sm" id="n{{ sensor.id }}" name="name" maxlength="100" placeholder="{{ _('z. B. Halle 1 Mitte') }}"></div>
+                <div class="col-6 col-md-3"><label class="form-label small mb-1" for="w{{ sensor.id }}">{{ _("Lager") }}</label>
+                    <select class="form-select form-select-sm" id="w{{ sensor.id }}" name="warehouse_id" required>
+                        <option value="">–</option>
+                        {% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+                    </select></div>
+                <div class="col-6 col-md-2"><label class="form-label small mb-1" for="r{{ sensor.id }}">{{ _("Reihe (Nummer, wahlweise)") }}</label><input class="form-control form-control-sm" id="r{{ sensor.id }}" name="row" type="number" min="1" max="99"></div>
+                <div class="col-6 col-md-1"><button class="btn btn-sm btn-primary w-100" aria-label="{{ _('Speichern') }}"><i class="bi bi-check-lg"></i></button></div>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% for warehouse, rows in data.warehouses %}
+<section class="mb-4" id="w{{ warehouse.id }}">
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ warehouse.name }}</h2>
+        <a class="small" href="{{ url_for('main.warehouse_map', warehouse_id=warehouse.id) }}"><i class="bi bi-grid-3x3-gap"></i> {{ _("Lagerkarte") }}</a>
+    </div>
+    <div class="row g-3">
+        {% for s in rows %}
+        <div class="col-lg-6" id="s{{ s.sensor.id }}">
+            <div class="card shadow-sm h-100 {{ 'border-danger' if s.level == 'danger' else 'border-warning' if s.level == 'warning' }}">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-1">
+                    <span class="fw-semibold text-nowrap"><i class="bi bi-thermometer-half me-1"></i>{{ s.sensor.name or s.sensor.node }}{% if s.sensor.row %} <span class="small text-body-secondary fw-normal">· {{ _("Reihe {row}", row=warehouse.row_label(s.sensor.row)) }}</span>{% endif %}</span>
+                    <span class="small text-body-secondary">{% if s.seen %}{{ _("zuletzt {date}", date=s.seen|datetime) }}{% endif %}{% if s.battery is not none %} · <i class="bi bi-battery-half"></i> {{ s.battery|num(0) }} %{% endif %}</span>
+                </div>
+                <div class="card-body">
+                    {{ climate_values(s) }}
+                    {% for key, text in s.issues %}<div class="small {{ 'text-danger' if key in ('temp_low', 'temp_high', 'co2_high', 'offline') else 'text-warning-emphasis' }}"><i class="bi bi-exclamation-triangle me-1"></i>{{ _(text) }}</div>{% endfor %}
+                    {{ climate_chart(charts.get(s.sensor.id, []), limits[warehouse.id], target) }}
+                    {% if current_user.is_admin %}
+                    <details class="mt-3 small">
+                        <summary class="text-body-secondary">{{ _("Sensor bearbeiten") }}</summary>
+                        <form method="post" action="{{ url_for('climate.sensor_save', sensor_id=s.sensor.id) }}" class="row g-2 align-items-end mt-1">
+                            {{ csrf() }}
+                            <div class="col-12 small text-body-secondary">{{ _("Knoten {node}", node=s.sensor.node) }}</div>
+                            <div class="col-6"><label class="form-label small mb-1" for="en{{ s.sensor.id }}">{{ _("Name") }}</label><input class="form-control form-control-sm" id="en{{ s.sensor.id }}" name="name" maxlength="100" value="{{ s.sensor.name or '' }}"></div>
+                            <div class="col-6"><label class="form-label small mb-1" for="ew{{ s.sensor.id }}">{{ _("Lager") }}</label>
+                                <select class="form-select form-select-sm" id="ew{{ s.sensor.id }}" name="warehouse_id">
+                                    <option value="">–</option>
+                                    {% for w in warehouses %}<option value="{{ w.id }}" {% if w.id == s.sensor.warehouse_id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+                                </select></div>
+                            <div class="col-4"><label class="form-label small mb-1" for="er{{ s.sensor.id }}">{{ _("Reihe") }}</label><input class="form-control form-control-sm" id="er{{ s.sensor.id }}" name="row" type="number" min="1" max="99" value="{{ s.sensor.row or '' }}"></div>
+                            <div class="col-4"><div class="form-check form-switch"><input type="hidden" name="active" value="0"><input class="form-check-input" type="checkbox" role="switch" name="active" value="1" id="ea{{ s.sensor.id }}" checked><label class="form-check-label" for="ea{{ s.sensor.id }}">{{ _("aktiv") }}</label></div></div>
+                            <div class="col-4"><button class="btn btn-sm btn-primary w-100">{{ _("Speichern") }}</button></div>
+                        </form>
+                    </details>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+{% if not data.unassigned %}
+<div class="card shadow-sm mb-4"><div class="card-body small text-body-secondary">
+    {{ _("Noch keine Sensoren. Ein Meshtastic-Knoten mit SCD41 im Lager meldet sich hier von selbst, sobald die Brücke läuft (Anleitung in bridge/README.md).") }}
+    {% if current_user.is_admin and not has_token %}<div class="mt-2">{{ _("Zuerst unter Hühner → Stall-Sensor den Schlüssel für die Brücke erzeugen – er gilt auch für das Lager.") }}</div>{% endif %}
+</div></div>
+{% endif %}
+{% endfor %}
+
+{% if current_user.is_admin %}
+<details class="card shadow-sm mb-4">
+    <summary class="card-header"><i class="bi bi-sliders me-1"></i>{{ _("Grenzwerte je Lager") }}</summary>
+    <ul class="list-group list-group-flush">
+        {% for w in warehouses %}{% set lim = limits[w.id] %}
+        <li class="list-group-item">
+            <form method="post" action="{{ url_for('climate.limits_save', warehouse_id=w.id) }}" class="row g-2 align-items-end">
+                {{ csrf() }}
+                <div class="col-12 fw-semibold">{{ w.name }}</div>
+                {% for key, label, unit in [("temp_min", _("Temperatur min"), "°C"), ("temp_max", _("Temperatur max"), "°C"), ("hum_min", _("Feuchte min"), "%"), ("hum_max", _("Feuchte max"), "%"), ("co2_max", _("CO₂ max"), "ppm")] %}
+                <div class="col-6 col-md-2"><label class="form-label small mb-1" for="{{ key }}{{ w.id }}">{{ label }} ({{ unit }})</label>
+                    <input class="form-control form-control-sm" id="{{ key }}{{ w.id }}" name="{{ key }}" inputmode="decimal" maxlength="10" value="{{ w['climate_' ~ key] if w['climate_' ~ key] is not none else '' }}" placeholder="{{ defaults[key] }}"></div>
+                {% endfor %}
+                <div class="col-6 col-md-2"><button class="btn btn-sm btn-primary w-100">{{ _("Speichern") }}</button></div>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="card-footer small text-body-secondary">{{ _("Leer = Voreinstellung. Außerhalb der Grenzen erscheint der Sensor rot unter „Jetzt wichtig“ und es kommt eine Push-Nachricht (Thema „Lagerklima“, von sich aus für Admins).") }}</div>
+</details>
+{% if inactive %}
+<div class="small text-body-secondary mb-4">
+    {{ _("Deaktiviert:") }}
+    {% for s in inactive %}
+    <form method="post" action="{{ url_for('climate.sensor_save', sensor_id=s.id) }}" class="d-inline">{{ csrf() }}<input type="hidden" name="warehouse_id" value="{{ s.warehouse_id or '' }}"><input type="hidden" name="row" value="{{ s.row or '' }}"><input type="hidden" name="name" value="{{ s.name or '' }}"><input type="hidden" name="active" value="1"><button class="btn btn-link btn-sm p-0">{{ s.label }} {{ _("wieder aktivieren") }}</button></form>
+    <form method="post" action="{{ url_for('climate.sensor_delete', sensor_id=s.id) }}" class="d-inline">{{ csrf() }}<button class="btn btn-link btn-sm p-0 text-danger" data-confirm="{{ _('Sensor {name} mit allen Messwerten löschen?', name=s.label) }}">{{ _("löschen") }}</button></form>
+    {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -44,3 +44,24 @@ def coop_sensor():
         db.session.rollback()
         return jsonify(ok=False, error=str(e)), 400
     return jsonify(ok=True, reading=result["reading"] is not None, door_changed=result["door"] is not None)
+
+
+@bp.route("/lager/klima", methods=["POST"])
+@csrf.exempt
+def climate_sensor():
+    """Messwerte aus dem Lager (Meshtastic-Brücke), gleicher Schlüssel wie der Stall-Sensor."""
+    from . import climate, coop
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:].strip() if auth.lower().startswith("bearer ") else request.headers.get("X-Api-Key", "").strip()
+    if not coop.check_token(token):
+        return jsonify(ok=False, error="unauthorized"), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(ok=False, error="JSON-Objekt erwartet"), 400
+    try:
+        reading = climate.record(data)
+        db.session.commit()
+    except climate.SensorError as e:
+        db.session.rollback()
+        return jsonify(ok=False, error=str(e)), 400
+    return jsonify(ok=True, stored=reading is not None)

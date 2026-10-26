@@ -21,6 +21,7 @@ import urllib.request
 from collections import deque
 
 APP_URL = os.environ.get("APP_URL", "http://web:5000/api/huehner/sensor")
+CLIMATE_URL = os.environ.get("CLIMATE_URL", "http://web:5000/api/lager/klima")
 TOKEN = os.environ.get("COOP_API_TOKEN", "")
 MQTT_HOST = os.environ.get("MQTT_HOST", "mqtt")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
@@ -35,6 +36,8 @@ DOOR_ACTIVE = (os.environ.get("DOOR_ACTIVE") or "open").strip().lower()  # „ak
 # (Kontakt bei offener Klappe geschlossen = LOW, wie unten bei geschlossener Klappe).
 COOP_TOP_NODE = (os.environ.get("COOP_TOP_NODE") or "").strip().lower()
 TOP_ACTIVE = (os.environ.get("TOP_ACTIVE") or "away").strip().lower()   # away | top
+# Lagerklima: diese Knoten gehen an CLIMATE_URL. Leer: alle Knoten außer dem Hühnerstall (wenn COOP_NODE gesetzt ist)
+CLIMATE_NODES = {n.strip().lower() for n in (os.environ.get("CLIMATE_NODES") or "").split(",") if n.strip()}
 CHANNEL_PSK = (os.environ.get("CHANNEL_PSK") or "").strip()            # Base64 aus den Kanal-Einstellungen
 DEBUG = os.environ.get("DEBUG", "") not in ("", "0", "false")
 
@@ -114,6 +117,41 @@ def parse_meshtastic(message, wanted_node=COOP_NODE, door_name=DOOR_NAME, active
         data["door"] = "open" if door else "closed"
         return data
     return None
+
+
+def route(message, coop_node=COOP_NODE, top_node=COOP_TOP_NODE, climate_nodes=CLIMATE_NODES):
+    """Wohin gehört die Nachricht? „coop“ (Hühnerstall), „climate“ (Lager) oder None."""
+    node = node_id(message.get("from"))
+    if node in climate_nodes:
+        return "climate"
+    if (coop_node and node == coop_node) or (top_node and node == top_node):
+        return "coop"
+    if not coop_node:
+        return "coop"                                  # ohne COOP_NODE wie bisher: alles für den Stall
+    return "climate" if not climate_nodes else None
+
+
+def parse_climate(message):
+    """Telemetrie eines Lager-Knotens (SCD41: CO₂, Temperatur, Feuchte; dazu Akku) → Daten für die App oder None."""
+    payload = message.get("payload")
+    if message.get("type") != "telemetry" or not isinstance(payload, dict):
+        return None
+    data = {"node": node_id(message.get("from"))}
+    if message.get("timestamp"):
+        data["at"] = message["timestamp"]
+    temperature = payload.get("temperature", payload.get("co2_temperature"))
+    humidity = payload.get("relative_humidity", payload.get("co2_humidity"))
+    values = {"temperature": temperature, "humidity": humidity, "co2": payload.get("co2"),
+              "battery": payload.get("battery_level"), "voltage": payload.get("voltage")}
+    if values["battery"] is not None and values["battery"] > 100:     # 101 = am Netz
+        values["battery"] = None
+    if not values["co2"]:                              # 0 = nicht geliefert (SCD41 braucht kurz nach dem Start)
+        values["co2"] = None
+    values = {k: v for k, v in values.items() if v is not None}
+    if not values:
+        return None
+    data.update(values)
+    return data
 
 
 # --- Meshtastic-Protobuf ohne JSON-Schalter -------------------------------------------------
@@ -230,6 +268,11 @@ def envelope_to_message(raw, key=None):
             values["barometric_pressure"] = _round(_f32(_first(env, 3)), 1)
             values["gas_resistance"] = _round(_f32(_first(env, 4)), 4)
             values["iaq"] = _first(env, 7)
+        if 4 in telemetry:                              # AirQualityMetrics: 13 co2 (ppm), 14 °C, 15 % (SCD4x)
+            air = _fields(telemetry[4][0])
+            values["co2"] = _first(air, 13)
+            values["co2_temperature"] = _round(_f32(_first(air, 14)))
+            values["co2_humidity"] = _round(_f32(_first(air, 15)), 1)
         message.update(type="telemetry", payload={k: v for k, v in values.items() if v is not None})
         return message
     return None
@@ -242,19 +285,19 @@ class Sender:
         self.url, self.token = url, token
         self.pending = deque(maxlen=200)
 
-    def _post(self, data):
-        request = urllib.request.Request(self.url, data=json.dumps(data).encode(), method="POST",
+    def _post(self, data, url=None):
+        request = urllib.request.Request(url or self.url, data=json.dumps(data).encode(), method="POST",
                                          headers={"Content-Type": "application/json",
                                                   "Authorization": f"Bearer {self.token}"})
         with urllib.request.urlopen(request, timeout=10) as response:
             return response.status
 
-    def send(self, data):
-        self.pending.append(data)
+    def send(self, data, url=None):
+        self.pending.append((url, data))
         while self.pending:
-            item = self.pending[0]
+            target, item = self.pending[0]
             try:
-                self._post(item)
+                self._post(item, target)
             except urllib.error.HTTPError as e:
                 body = e.read().decode(errors="replace")[:200]
                 log("App lehnt ab:", e.code, body, "–", item)
@@ -320,7 +363,13 @@ def main():
         seen.append(packet)
         if DEBUG:
             log("MQTT", msg.topic, message)
-        data = parse_meshtastic(message)
+        target = route(message)
+        if target == "climate":
+            data = parse_climate(message)
+            if data:
+                sender.send(data, CLIMATE_URL)
+            return
+        data = parse_meshtastic(message) if target == "coop" else None
         if data:
             sender.send(data)
 

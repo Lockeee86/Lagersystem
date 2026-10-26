@@ -1,0 +1,51 @@
+{# Lagerklima: Werte eines Sensors (climate.status) und Kurve (climate.series) #}
+
+{% macro climate_values(s, small=false) %}
+<div class="d-flex flex-wrap gap-3 align-items-baseline {{ 'small' if small }}">
+    {% if s.temperature is not none %}<span class="{{ 'fs-4 fw-bold' if not small }} {{ 'text-danger' if 'temp_low' in s.issues|map('first') or 'temp_high' in s.issues|map('first') else 'text-success' if s.in_target }}"><i class="bi bi-thermometer-half"></i> {{ s.temperature|num(1) }} °C</span>{% endif %}
+    {% if s.humidity is not none %}<span class="{{ 'fs-5' if not small }} {{ 'text-warning-emphasis' if 'hum_low' in s.issues|map('first') or 'hum_high' in s.issues|map('first') }}"><i class="bi bi-droplet"></i> {{ s.humidity|num(0) }} %</span>{% endif %}
+    {% if s.co2 is not none %}<span class="{{ 'fs-5' if not small }} {{ 'text-danger' if 'co2_high' in s.issues|map('first') }}"><i class="bi bi-cloud-haze2"></i> {{ s.co2 }} ppm</span>{% endif %}
+    {% if s.offline %}<span class="text-danger small"><i class="bi bi-wifi-off"></i> {{ _("stumm") }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro _line(points, index, lo, hi, cls) %}
+{% set ns = namespace(d="") %}
+{% set t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp() %}
+{% set span = [t1 - t0, 1]|max %}
+{% for p in points %}{% if p[index] is not none %}
+{% set ns.d = ns.d ~ (1000 * (p[0].timestamp() - t0) / span)|round(1) ~ "," ~ (200 - 200 * (p[index] - lo) / (hi - lo))|round(1) ~ " " %}
+{% endif %}{% endfor %}
+{% if ns.d %}<polyline points="{{ ns.d }}" class="{{ cls }}"/>{% endif %}
+{% endmacro %}
+
+{% macro climate_chart(points, lim, target) %}
+{% set temps = points|map(attribute=1)|reject("none")|list %}
+{% set co2s = points|map(attribute=3)|reject("none")|list %}
+{% if temps|length > 1 %}
+{% set lo, hi = [temps|min, target.temp[0]]|min - 0.5, [temps|max, target.temp[1]]|max + 0.5 %}
+<svg class="coop-chart mt-2" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('Temperatur und Luftfeuchte') }}">
+    <rect x="0" width="1000" y="{{ (200 - 200 * (target.temp[1] - lo) / (hi - lo))|round(1) }}" height="{{ (200 * (target.temp[1] - target.temp[0]) / (hi - lo))|round(1) }}" class="climate-band"/>
+    {{ _line(points, 2, 0, 100, "coop-hum") }}
+    {{ _line(points, 1, lo, hi, "coop-temp") }}
+</svg>
+<div class="d-flex justify-content-between small text-body-secondary mt-1">
+    <span>{{ points[0][0]|datetime }}</span>
+    <span><span class="coop-key coop-key-temp"></span>{{ (temps|min)|num(1) }}–{{ (temps|max)|num(1) }} °C · <span class="coop-key coop-key-hum"></span>{{ _("Feuchte") }}</span>
+    <span>{{ _("jetzt") }}</span>
+</div>
+{% endif %}
+{% if co2s|length > 1 %}
+{% set clo, chi = [co2s|min, 400]|min, [co2s|max, lim.co2_max]|max %}
+<div class="small text-body-secondary mt-3 mb-1"><i class="bi bi-cloud-haze2 me-1"></i>{{ _("CO₂ {lo}–{hi} ppm (gestrichelt: Grenzwert)", lo=co2s|min|int, hi=co2s|max|int) }}</div>
+<svg class="coop-chart coop-chart-sm" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('CO₂') }}">
+    <line x1="0" x2="1000" y1="{{ (200 - 200 * (lim.co2_max - clo) / (chi - clo))|round(1) }}" y2="{{ (200 - 200 * (lim.co2_max - clo) / (chi - clo))|round(1) }}" class="coop-zero"/>
+    {{ _line(points, 3, clo, chi, "coop-air") }}
+</svg>
+{% endif %}
+{% endmacro %}
+
+{# Kleines Symbol an der Reihe in der Lagerkarte #}
+{% macro row_badge(s) %}
+{% if s %}<span class="climate-badge climate-{{ s.level }}" title="{% if s.temperature is not none %}{{ s.temperature|num(1) }} °C{% endif %}{% if s.humidity is not none %} · {{ s.humidity|num(0) }} %{% endif %}{% if s.co2 is not none %} · {{ s.co2 }} ppm{% endif %}{% if s.offline %} · {{ _('stumm') }}{% endif %}"><i class="bi bi-thermometer-half"></i>{% if s.temperature is not none %}{{ s.temperature|num(1) }}°{% endif %}</span>{% endif %}
+{% endmacro %}

@@ -33,6 +33,7 @@ AREAS = [
         item("main.history", N_("Verlauf"), "bi-clock-history"),
         item("main.harvest", N_("Ernte"), "bi-basket", role=ROLE_MITARBEITER),
         item("main.oldest", N_("Älteste Ware"), "bi-hourglass-split"),
+        item("climate.overview_page", N_("Klima"), "bi-thermometer-half", prefixes=("climate.",)),
         item("main.repairs", N_("Kisten-Reparatur"), "bi-wrench-adjustable"),
         item("main.harvest_report_page", N_("Erntebericht"), "bi-clipboard-data"),
         item("main.labels", N_("Etiketten"), "bi-qr-code", role=ROLE_ADMIN),

@@ -223,6 +223,8 @@ PUSH_TOPICS = {
                    "who": lambda u: u.keeps_chickens, "default": lambda u: False},
     "coop_issue": {"label": N_("Stallkontrolle: Mangel gemeldet"), "group": N_("Hühner"),
                    "who": lambda u: u.keeps_chickens},
+    "climate": {"label": N_("Lagerklima außerhalb der Grenzwerte oder Sensor stumm"), "group": N_("Lager"),
+                "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
     "coop_open": {"label": N_("Klappe laut Sensor: abends offen, hängt oder morgens nicht aufgegangen"), "group": N_("Hühner"),
                   "who": lambda u: u.keeps_chickens},
     "coop_sensor": {"label": N_("Stall-Sensor: Frost, Hitze oder keine Verbindung"), "group": N_("Hühner"),
@@ -285,6 +287,12 @@ class Warehouse(db.Model):
     note = db.Column(db.Text)
     site_id = site_column()
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # Lagerklima: Grenzwerte für Warnungen (leer = Voreinstellung aus climate.DEFAULTS)
+    climate_temp_min = db.Column(db.Float)
+    climate_temp_max = db.Column(db.Float)
+    climate_hum_min = db.Column(db.Float)
+    climate_hum_max = db.Column(db.Float)
+    climate_co2_max = db.Column(db.Integer)
 
     boxes = db.relationship("Box", back_populates="warehouse", lazy="dynamic")
     site = db.relationship("Site")
@@ -1901,3 +1909,45 @@ class CoopDoorEvent(db.Model):
     is_open = db.Column(db.Boolean, nullable=False)
     position = db.Column(db.String(10), nullable=False, default="unten", server_default="unten")
     node = db.Column(db.String(20))
+
+
+class ClimateSensor(db.Model):
+    """Klimasensor im Lager (Meshtastic-Knoten mit SCD41 o. Ä.): einem Lager und wahlweise einer Reihe zugeordnet.
+    Unbekannte Knoten legt die Schnittstelle ohne Lager an – sie erscheinen dann zum Zuordnen."""
+    __tablename__ = "climate_sensors"
+
+    id = db.Column(db.Integer, primary_key=True)
+    node = db.Column(db.String(20), nullable=False, unique=True)     # !a1b2c3d4
+    name = db.Column(db.String(100))
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
+    row = db.Column(db.Integer)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    warehouse = db.relationship("Warehouse")
+
+    @property
+    def label(self):
+        if self.name:
+            return self.name
+        if self.warehouse and self.row:
+            return f"{self.warehouse.name} · {self.warehouse.row_label(self.row)}"
+        return self.warehouse.name if self.warehouse else self.node
+
+
+class ClimateReading(db.Model):
+    """Messwert eines Klimasensors."""
+    __tablename__ = "climate_readings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sensor_id = db.Column(db.Integer, db.ForeignKey("climate_sensors.id", ondelete="CASCADE"), nullable=False)
+    at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    temperature = db.Column(db.Float)
+    humidity = db.Column(db.Float)
+    co2 = db.Column(db.Integer)                          # ppm
+    battery = db.Column(db.Float)
+    voltage = db.Column(db.Float)
+
+    sensor = db.relationship("ClimateSensor")
+
+    __table_args__ = (db.Index("ix_climate_readings_sensor_at", "sensor_id", "at"),)

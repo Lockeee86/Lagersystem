@@ -8,8 +8,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, biogas, bulk, chickens, fuel, irrigation, machines, navigation, purchases, rounds, sales,
-               search, sites, storage, tasks, team, tiles, uploads, weather)
+from . import (agenda, backup, biogas, bulk, chickens, climate, fuel, irrigation, machines, navigation, purchases,
+               rounds, sales, search, sites, storage, tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
@@ -88,7 +88,7 @@ def _tile_info(key):
 
 
 def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_alert, today, unclaimed=(),
-               instructions_due=0, water_alerts=(), round_info=None):
+               instructions_due=0, water_alerts=(), round_info=None, climate_items=()):
     """„Jetzt wichtig“ auf der Startseite: eine Liste statt einzelner Karten, Dringendes zuerst.
     Je Eintrag {level: danger|warning|success, title, sub, url}. Aufgaben stehen in einem eigenen Block darunter;
     Störungen, zu denen es schon eine fällige Aufgabe gibt, erscheinen nur dort. `unclaimed`: Bestellwünsche, die
@@ -130,6 +130,7 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
         items.append({"level": "warning", "title": _("Unterweisungen"),
                       "sub": ngettext("{n} Person fällig", "{n} Personen fällig", instructions_due),
                       "url": url_for("team.instructions")})
+    items.extend(climate_items)
     for r in arrived:
         items.append({"level": "success", "title": _("{title} ist da", title=r.title), "sub": _("Bestellung"),
                       "url": url_for("purchases.purchase_detail", req_id=r.id)})
@@ -206,7 +207,8 @@ def dashboard():
                            arrived, backup_alert, today, unclaimed,
                            team.due_count(today) if current_user.is_admin else 0,
                            irrigation.alerts() if current_user.is_admin else (),
-                           rounds.overview() if current_user.can_edit and rounds.has_stations() else None)
+                           rounds.overview() if current_user.can_edit and rounds.has_stations() else None,
+                           climate.important())
     plan_today = team.plan_for(today)
     show_order = tiles.sections_for(current_user)
     show = set(show_order)
@@ -278,6 +280,15 @@ def _status(endpoint):
         if soon:
             return ngettext("{n} BHKW-Wartung fällig", "{n} BHKW-Wartungen fällig", soon), True
         return (_("gestern {mwh} MWh", mwh=fmt_num(float(kwh) / 1000, 1)) if kwh else _("BHKW, Laufzeit und Wartung")), False
+    if endpoint == "climate.overview_page":
+        data = climate.overview()
+        if data["issues"]:
+            return ngettext("{n} Sensor außerhalb der Grenzwerte", "{n} Sensoren außerhalb der Grenzwerte",
+                            data["issues"]), True
+        sensors = [s for _w, rows in data["warehouses"] for s in rows]
+        if sensors and sensors[0]["temperature"] is not None:
+            return " · ".join(f"{fmt_num(s['temperature'], 1)} °C" for s in sensors[:3]), False
+        return _("Temperatur, Feuchte und CO₂ im Lager"), False
     if endpoint == "chickens.overview":
         from . import chickens
         info = chickens.summary()
@@ -503,7 +514,9 @@ def warehouse_map(warehouse_id=None):
                        for (r, s), boxes in stacks.items()],
         }
 
+    climate_rows, climate_whole = climate.by_row(warehouse)
     return render_template("warehouse_map.html", warehouse=warehouse, warehouses=warehouses,
+                           climate_rows=climate_rows, climate_whole=climate_whole,
                            stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d,
                            shorts=shorts, varieties=[v for v in varieties if v.id in used], ages=ages,
                            age_limits=limits, any_old=any(ages.values()))

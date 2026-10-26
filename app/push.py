@@ -378,4 +378,6 @@ def daily(app, now=None):
             _harvest_report(today, tz)
         from . import chickens
         chickens.evening_check(now, _job_done, _mark_job)     # Eier eintragen? Hühnerklappe zu?
+        from . import climate
+        climate.check(now, _job_done, _mark_job)              # Lagerklima außerhalb der Grenzwerte
 

@@ -123,6 +123,10 @@ docker compose up --build -d
 - `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` aus `api.coop_sensor` (`/api/huehner/sensor`, Schlüssel
   `new_token()`/`check_token()`), `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;
   Brücke MQTT → App in `bridge/` (eigener Container, Compose-Profil `huehner`, Anleitung `bridge/README.md`)
+- `app/climate.py`: Lagerklima (Meshtastic-Knoten mit SCD41) – `ClimateSensor` (Knoten → Lager/Reihe), `ClimateReading`,
+  `record()` aus `api.climate_sensor` (`/api/lager/klima`), `status()` mit Grenzwerten `limits()` (`Warehouse.climate_*`),
+  `series()` (24h/7d/30d/Saison), `important()` für „Jetzt wichtig“, Push `check()` aus `push.daily`, committet nicht;
+  `app/climate_views.py` (Blueprint `climate`, Seite Lager → Klima), Makros `climate/_macros.html` (auch Lagerkarte)
 - `app/sites.py`: Betriebsstätten (`Site`; `site_id` an Schlag, Lager, Schüttlager, Maschine, Lieferschein, Tank in
   `settings` `tank_site`), Absender fürs PDF `sender()`, Filter „Betrieb“ in Listen `chosen()`/`apply()`/`keep()`
   (`?betrieb=`, gemerkt im Cookie). Makros `macros.site_filter()` / `site_select()` erscheinen nur, wenn es
