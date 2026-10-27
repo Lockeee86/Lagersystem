@@ -364,7 +364,11 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    ersten Tag wahlweise als Zugang. **Auswertung über alle Jahre** (0.51.0, `chickens.analysis()`, `/huehner/auswertung`):
    Jahresvergleich (Eier, Ø Hühner, Eier je Huhn und Jahr, Legeleistung/erwartet, kaputt, Verluste, Futter, € je Ei,
    verteilt), Jahreszeiten-Kurve je Jahr, Legeleistung gegen Richtwert, 7-Tage-Verlauf, Rekorde, Haushalte je Jahr,
-   alle Monate je Jahr. **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
+   alle Monate je Jahr. 0.52.0: **Durchgänge** (`chickens.batches()`: Stall vor jedem Zugang leer → vom Einstallen
+   bis Bestand 0; je Durchgang Eier, je Huhn, Legeleistung, bester Monat, Verluste ohne das Leeren), **Prognose** für den
+   nächsten Monat aus den letzten 4 Wochen des laufenden Durchgangs × Jahreszeit-Faktor der Vorjahre (`forecast()`),
+   **Warnung** `laying_drop()` (2 Wochen < 75 % der 4 Wochen davor, ≥ 10 Punkte, nicht in den ersten 10 Wochen) auf der
+   Übersicht und als Push „Legeleistung fällt deutlich ab“ (höchstens einmal je Woche). **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
    Rundgang der Anlage, kein BHKW/Strompreis auf der Startseite, keine Biogas-Pushs (Hühnerstall-Stationen bleiben); seit 0.48.1 auch keine BHKW-Motoren unter Maschinen,
    in Suche, Kalender, Startseite und Push (Störung/Wartung).
    **Biogas-Auswertungen** (0.49.0): Fahrplan-Güte `biogas.flex_quality()` = Erlös ÷ Erlös in den teuersten

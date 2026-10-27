@@ -347,3 +347,44 @@ def test_analysis_all_years(as_worker, db, seed, keeper):
     html = as_worker.get("/huehner/auswertung").get_data(as_text=True)
     assert "Jahresvergleich" in html and "2023" in html and "Jahreszeiten" in html and "Rekorde" in html
     assert "Alle Jahre und Auswertung" in as_worker.get("/huehner/eier-haushalte").get_data(as_text=True)
+
+
+def test_batches_forecast_drop(app, as_worker, db, seed, keeper, monkeypatch):
+    """Durchgänge (Stall vor jedem Zugang leer), Prognose aus dem laufenden Durchgang, Warnung bei Abfall."""
+    # Durchgang 1: 10 Hühner, legt mäßig, wird ganz abgegeben
+    chickens.add_flock_event(date(2024, 3, 1), "gekauft", 10, keeper, breed="Sussex", age_months=6)
+    for i in range(300):
+        chickens.add_eggs(date(2024, 3, 1) + timedelta(days=i), 5, 0, None, keeper)
+    chickens.add_flock_event(date(2024, 7, 1), "raubtier", 1, keeper)
+    chickens.add_flock_event(date(2025, 1, 31), "abgegeben", 9, keeper)
+    # Durchgang 2: 12 Hühner, legt besser – letzte zwei Wochen deutlich weniger
+    chickens.add_flock_event(date(2025, 3, 1), "gekauft", 12, keeper, breed="Lohmann Braun", age_months=5)
+    end = date(2025, 9, 30)
+    day = date(2025, 3, 1)
+    while day <= end:
+        chickens.add_eggs(day, 3 if day > end - timedelta(days=14) else 10, 0, None, keeper)
+        day += timedelta(days=1)
+    db.session.commit()
+    found = chickens.batches(end)
+    assert [b["start"] for b in found] == [date(2025, 3, 1), date(2024, 3, 1)]
+    old, new = found[1], found[0]
+    assert old["end"] == date(2025, 1, 31) and old["added"] == 10 and old["lost"] == 1 and old["rate"] < new["rate"]
+    assert new["end"] is None and new["breeds"] == ["Lohmann Braun"] and new["age_start"] == 5
+    drop = chickens.laying_drop(end)
+    assert drop and drop["recent"] == 25 and drop["before"] == 83
+    f = chickens.forecast(end)
+    assert f["month"] == date(2025, 10, 1) and f["hens"] == 12 and f["eggs"] > 0
+    html = as_worker.get("/huehner/auswertung").get_data(as_text=True)
+    assert "Durchgänge" in html and "Prognose" in html
+    # Push höchstens einmal je Woche
+    from app import push
+    from app.models import PushSubscription
+    db.session.add(PushSubscription(user_id=keeper.id, endpoint="https://push.example/x", p256dh="k", auth="a"))
+    db.session.commit()
+    push.outbox.clear()
+    sent = set()
+    with app.test_request_context():
+        evening = datetime(2025, 9, 30, 19, tzinfo=BERLIN)
+        chickens.evening_check(evening, lambda k, d: (k, d) in sent, lambda k, d: sent.add((k, d)))
+        chickens.evening_check(evening, lambda k, d: (k, d) in sent, lambda k, d: sent.add((k, d)))
+    assert [m["title"] for m in push.outbox].count("Hühner: Legeleistung fällt ab") == 1

@@ -443,6 +443,138 @@ def _rolling(daily, start, end, days=7):
     return values
 
 
+# --- Durchgänge, Prognose, Warnung --------------------------------------------------------
+# Der Stall wird vor jedem Zugang geleert: ein Durchgang reicht vom Einstallen (Bestand 0 → >0) bis der Bestand
+# wieder 0 ist. Durchgänge sind unterschiedlich gut – Prognose und Warnung beziehen sich deshalb auf den laufenden
+# Durchgang selbst, nicht aufs Vorjahr (andere Herde).
+
+DROP_DAYS = 14            # die letzten zwei Wochen …
+DROP_BEFORE = 28          # … gegen die vier Wochen davor
+DROP_FACTOR = 0.75        # weniger als 75 % davon …
+DROP_POINTS = 10          # … und mindestens 10 Prozentpunkte weniger
+DROP_SETTLE_DAYS = 70     # nicht in den ersten 10 Wochen eines Durchgangs (Legebeginn)
+
+
+def _eggs_between(start, end):
+    return int(db.session.query(func.coalesce(func.sum(EggEntry.eggs), 0))
+               .filter(EggEntry.day >= start, EggEntry.day <= end).scalar())
+
+
+def rate_between(start, end):
+    return laying_rate(_eggs_between(start, end), _hen_days(start, end))
+
+
+def batches(today=None):
+    """Durchgänge, neuester zuerst: {start, end (None = läuft), end_reason, added, breeds, age_start,
+    losses {Grund: n} (ohne das Leeren am Ende), lost, lost_pct, eggs, hen_days, rate, per_hen, per_hen_year,
+    best_month, days, expected}."""
+    today = today or date.today()
+    events = FlockEvent.query.order_by(FlockEvent.day, FlockEvent.id).all()
+    result, size, current = [], 0, None
+    for e in events:
+        if size <= 0 and e.change > 0:
+            current = {"start": e.day, "end": None, "end_reason": None, "added": 0, "breeds": [], "age_start": None,
+                       "losses": {}, "events": []}
+            result.append(current)
+        size += e.change
+        if current is None:
+            continue
+        current["events"].append(e)
+        if e.change > 0:
+            current["added"] += e.change
+            if e.breed and e.breed not in current["breeds"]:
+                current["breeds"].append(e.breed)
+            if current["age_start"] is None and e.hatched_on:
+                current["age_start"] = age_months(e.hatched_on, e.day)
+        elif size > 0:                         # Verluste während des Durchgangs (nicht das Leeren am Ende)
+            current["losses"][e.reason_label] = current["losses"].get(e.reason_label, 0) - e.change
+        if size <= 0:
+            current["end"], current["end_reason"] = e.day, e.reason_label
+            current = None
+            size = 0
+    for b in result:
+        end = b["end"] or today
+        b["days"] = (end - b["start"]).days + 1
+        b["eggs"] = _eggs_between(b["start"], end)
+        b["hen_days"] = _hen_days(b["start"], end)
+        b["rate"] = laying_rate(b["eggs"], b["hen_days"])
+        b["per_hen"] = round(b["eggs"] / b["added"]) if b["added"] else None
+        b["per_hen_year"] = round(b["eggs"] / (b["hen_days"] / 365)) if b["hen_days"] else None
+        b["lost"] = sum(b["losses"].values())
+        b["lost_pct"] = round(100 * b["lost"] / b["added"]) if b["added"] else None
+        b["expected"] = expected_laying(b["start"], end)
+        best, month = None, b["start"].replace(day=1)
+        while month <= end:
+            m_end = min(_month_end(month), end)
+            rate = rate_between(max(month, b["start"]), m_end)
+            if rate is not None and (best is None or rate > best[1]):
+                best = (month, rate)
+            month = m_end + timedelta(days=1)
+        b["best_month"] = best
+        b.pop("events")
+    return list(reversed(result))
+
+
+def current_batch(today=None):
+    today = today or date.today()
+    found = batches(today)
+    return found[0] if found and found[0]["end"] is None and flock_size(today) > 0 else None
+
+
+def forecast(today=None):
+    """Erwartete Eier für den nächsten Monat: Legeleistung der letzten 4 Wochen dieses Durchgangs × Hühner × Tage,
+    angepasst um den üblichen Unterschied zwischen diesem und dem nächsten Monat (aus den Vorjahren).
+    None ohne laufenden Durchgang oder zu wenig Daten."""
+    today = today or date.today()
+    batch = current_batch(today)
+    if batch is None:
+        return None
+    recent_start = max(batch["start"], today - timedelta(days=27))
+    if (today - recent_start).days < 13:
+        return None
+    base = rate_between(recent_start, today)
+    hens = flock_size(today)
+    if base is None or not hens:
+        return None
+    start = _month_end(today) + timedelta(days=1)
+    end = _month_end(start)
+    ratios = []
+    for back in range(1, 6):                       # Jahreszeit: wie ändert sich die Legeleistung meist von Monat zu Monat?
+        this = today.replace(year=today.year - back, day=1)
+        nxt = start.replace(year=start.year - back)
+        a = rate_between(this, _month_end(this))
+        b = rate_between(nxt, _month_end(nxt))
+        if a and b:
+            ratios.append(b / a)
+    season = sum(ratios) / len(ratios) if ratios else 1.0
+    season = min(max(season, 0.5), 1.5)
+    rate = min(base * season, 100)
+    days = (end - start).days + 1
+    eggs = round(hens * days * rate / 100)
+    return {"month": start, "eggs": eggs, "low": round(eggs * 0.85), "high": round(eggs * 1.15), "rate": round(rate),
+            "base": base, "season": round(season, 2), "years": len(ratios), "hens": hens}
+
+
+def laying_drop(today=None):
+    """Legeleistung der letzten zwei Wochen deutlich unter den vier Wochen davor (im laufenden Durchgang)?
+    {"recent", "before", "since"} oder None."""
+    today = today or date.today()
+    batch = current_batch(today)
+    if batch is None or (today - batch["start"]).days < DROP_SETTLE_DAYS:
+        return None
+    recent_start = today - timedelta(days=DROP_DAYS - 1)
+    before_end = recent_start - timedelta(days=1)
+    before_start = before_end - timedelta(days=DROP_BEFORE - 1)
+    if before_start < batch["start"]:
+        return None
+    recent, before = rate_between(recent_start, today), rate_between(before_start, before_end)
+    if recent is None or not before:
+        return None
+    if recent < before * DROP_FACTOR and before - recent >= DROP_POINTS:
+        return {"recent": recent, "before": before, "since": recent_start}
+    return None
+
+
 def analysis(today=None):
     """Alles für die Seite Auswertung: Jahre, Monate, Jahreszeiten-Kurven, Legeleistung, Rekorde, Verluste, Haushalte."""
     today = today or date.today()
@@ -505,6 +637,7 @@ def analysis(today=None):
     for rows in households.values():
         rows.sort(key=lambda r: -r[1])
     return {"years": year_rows, "months": month_rows, "season": season, "season_top": top * 1.1,
+            "batches": batches(today), "forecast": forecast(today), "drop": laying_drop(today),
             "rate_chart": rate_chart, "trend": trend, "records": _records(daily, start, today),
             "households": households, "start": start}
 
@@ -539,6 +672,7 @@ def summary(today=None):
     from . import coop
     order = fair_order(today)
     return {"today": eggs_on(today), "flock": size, "age": flock_age(today), "stock": stock(), "blocked": blocked(today),
+            "drop": laying_drop(today),
             "next": order[0] if order else None, "sensor": coop.status(),
             "week_eggs": int(week_eggs), "week_rate": laying_rate(int(week_eggs), _hen_days(week_start, today)),
             "week_expected": expected_laying(week_start, today),
@@ -592,6 +726,16 @@ def evening_check(now, done, mark):
     """Aus `push.daily`: abends an fehlende Eier erinnern, nach Sonnenuntergang an die Klappe.
     `done(key, day)` / `mark(key, day)` merken sich, was heute schon verschickt wurde."""
     today = now.date()
+    week = today - timedelta(days=today.weekday())
+    if now.hour >= EGG_REMINDER_HOUR and not done("laying_drop", week):
+        drop = laying_drop(today)
+        if drop:                                   # höchstens einmal je Woche
+            mark("laying_drop", week)
+            push.notify([u for u in User.query.filter_by(active=True) if u.sees_chickens], "laying_drop",
+                        Msg("Hühner: Legeleistung fällt ab"),
+                        Msg("Letzte 2 Wochen {recent} %, davor {before} % – Mauser, Licht, Milben oder Futter prüfen.",
+                            recent=drop["recent"], before=drop["before"]),
+                        url_for("chickens.analysis"), tag=f"laying-drop-{week.isoformat()}")
     if now.hour >= EGG_REMINDER_HOUR and not done("eggs", today):
         mark("eggs", today)
         if flock_size(today) > 0 and not EggEntry.query.filter_by(day=today).first():

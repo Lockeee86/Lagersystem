@@ -17,6 +17,7 @@
 </div>
 
 {{ blocked_alert(info.blocked) }}
+{% if info.drop %}<a class="alert alert-warning d-block small text-decoration-none" href="{{ url_for('chickens.analysis') }}"><i class="bi bi-graph-down-arrow me-1"></i>{{ _("Legeleistung fällt ab: letzte 2 Wochen {recent} %, davor {before} %. Mauser, Licht, Milben oder Futter prüfen.", recent=info.drop.recent, before=info.drop.before) }}</a>{% endif %}
 
 {% if can_keep %}
 <div class="card shadow-sm mb-4" id="eier">

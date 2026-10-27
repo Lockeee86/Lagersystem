@@ -22,6 +22,60 @@
 <div class="card shadow-sm"><div class="card-body text-body-secondary">{{ _("Noch keine Daten – Eier eintragen oder alte Legedaten importieren.") }}</div></div>
 {% else %}
 
+{% if data.drop %}
+<div class="alert alert-warning small"><i class="bi bi-graph-down-arrow me-1"></i>{{ _("Legeleistung fällt ab: letzte 2 Wochen {recent} %, davor {before} %. Mauser, Licht, Milben oder Futter prüfen.", recent=data.drop.recent, before=data.drop.before) }}</div>
+{% endif %}
+
+{% set f = data.forecast %}
+{% if f %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-binoculars me-1"></i>{{ _("Prognose {month}", month=_(month_names[f.month.month - 1]) ~ " " ~ f.month.year) }}</div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-4 align-items-baseline">
+            <div><div class="fs-3 fw-bold">{{ _("ca. {n} Eier", n=f.eggs) }}</div><div class="small text-body-secondary">{{ _("etwa {low}–{high}", low=f.low, high=f.high) }}</div></div>
+            <div><div class="small text-body-secondary">{{ _("Legeleistung") }}</div><div class="fw-semibold">{{ f.rate }} %</div></div>
+            <div><div class="small text-body-secondary">{{ _("Hühner") }}</div><div class="fw-semibold">{{ f.hens }}</div></div>
+        </div>
+        <div class="form-text">{% if f.years %}{{ ngettext("Grundlage: Legeleistung dieses Durchgangs in den letzten 4 Wochen ({base} %), angepasst um den üblichen Unterschied zum nächsten Monat aus {n} Vorjahr (× {season}).", "Grundlage: Legeleistung dieses Durchgangs in den letzten 4 Wochen ({base} %), angepasst um den üblichen Unterschied zum nächsten Monat aus {n} Vorjahren (× {season}).", f.years, base=f.base, season=f.season|num(2)) }}{% else %}{{ _("Grundlage: Legeleistung dieses Durchgangs in den letzten 4 Wochen ({base} %) – für die Jahreszeit fehlen noch Vorjahre.", base=f.base) }}{% endif %}</div>
+    </div>
+</div>
+{% endif %}
+
+{# --- Durchgänge --- #}
+{% if data.batches %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Durchgänge") }}</div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small text-nowrap chicken-table">
+            <thead><tr>
+                <th>{{ _("Zeitraum") }}</th><th>{{ _("Rasse") }}</th><th class="text-end">{{ _("Hühner") }}</th><th class="text-end">{{ _("Alter beim Einstallen") }}</th>
+                <th class="text-end">{{ _("Eier") }}</th><th class="text-end">{{ _("je Huhn") }}</th><th class="text-end">{{ _("je Huhn/Jahr") }}</th>
+                <th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end">{{ _("erwartet") }}</th><th class="text-end">{{ _("bester Monat") }}</th><th class="text-end">{{ _("Verluste") }}</th>
+            </tr></thead>
+            <tbody>
+            {% set best = data.batches|selectattr("rate")|max(attribute="rate") if data.batches|selectattr("rate")|list else none %}
+            {% for b in data.batches %}
+            <tr>
+                <td>{{ b.start|date }} – {% if b.end %}{{ b.end|date }}{% else %}<span class="badge text-bg-success">{{ _("läuft") }}</span>{% endif %}<div class="text-body-secondary">{{ ngettext("{n} Tag", "{n} Tage", b.days) }}</div></td>
+                <td>{{ b.breeds|join(", ") or "–" }}</td>
+                <td class="text-end">{{ b.added }}</td>
+                <td class="text-end">{{ ngettext("{n} Monat", "{n} Monate", b.age_start) if b.age_start is not none else "–" }}</td>
+                <td class="text-end">{{ b.eggs }}</td>
+                <td class="text-end">{{ b.per_hen if b.per_hen is not none else "–" }}</td>
+                <td class="text-end">{{ b.per_hen_year if b.per_hen_year is not none else "–" }}</td>
+                <td class="text-end {{ 'fw-bold text-success' if best and b is sameas best and data.batches|length > 1 }}">{{ (b.rate ~ " %") if b.rate is not none else "–" }}</td>
+                <td class="text-end text-body-secondary">{{ (b.expected ~ " %") if b.expected is not none else "–" }}</td>
+                <td class="text-end">{% if b.best_month %}{{ b.best_month[1] }} % <span class="text-body-secondary">({{ b.best_month[0].strftime("%m/%Y") }})</span>{% else %}–{% endif %}</td>
+                <td class="text-end" title="{% for reason, n in b.losses.items() %}{{ reason }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}">{% if b.lost %}{{ b.lost }} <span class="text-body-secondary">({{ b.lost_pct }} %)</span>{% else %}–{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Ein Durchgang reicht vom Einstallen bis der Stall wieder leer ist. „je Huhn“: Eier ÷ eingestallte Hühner. Verluste ohne das Leeren am Ende (tippen zeigt die Gründe).") }}</div>
+</div>
+{% endif %}
+
 {# --- Jahresvergleich --- #}
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-calendar3 me-1"></i>{{ _("Jahresvergleich") }}</div>

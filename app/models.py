@@ -239,6 +239,8 @@ PUSH_TOPICS = {
                  "default": lambda u: False},
     "eggs_missing": {"label": N_("Abends: noch keine Eier eingetragen"), "group": N_("Hühner"),
                      "who": lambda u: u.keeps_chickens},
+    "laying_drop": {"label": N_("Legeleistung fällt deutlich ab"), "group": N_("Hühner"),
+                    "who": lambda u: u.sees_chickens},
     "coop_close": {"label": N_("Zum Sonnenuntergang: Hühnerklappe zu?"), "group": N_("Hühner"),
                    "who": lambda u: u.keeps_chickens, "default": lambda u: False},
     "coop_issue": {"label": N_("Stallkontrolle: Mangel gemeldet"), "group": N_("Hühner"),
