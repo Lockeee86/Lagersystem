@@ -15,7 +15,7 @@ from sqlalchemy import func
 from . import push
 from .extensions import db
 from .i18n import N_, gettext as _
-from .models import (FLOCK_REASONS, CheckStation, EggEntry, EggShare, FeedEntry, FlockEvent, FlockTreatment,
+from .models import (FLOCK_REASONS, CheckStation, EggEntry, EggShare, FeedEntry, Feeding, FlockEvent, FlockTreatment,
                      Household, Setting, Task, User)
 from .push import Msg
 from .machines import add_months
@@ -267,20 +267,25 @@ def flock_age(day=None):
     return round(sum(n * d for n, d in known) / hens / 30.44, 1) if hens else None
 
 
-def _hen_days(start, end):
-    """Summe der Hühner je Tag im Zeitraum (für Legeleistung und Futter je Huhn)."""
+def _daily_sizes(start, end):
+    """{Tag: Hühner} für jeden Tag im Zeitraum."""
     events = FlockEvent.query.filter(FlockEvent.day <= end).order_by(FlockEvent.day).all()
     size = sum(e.change for e in events if e.day < start)
     by_day = {}
     for e in events:
         if e.day >= start:
             by_day[e.day] = by_day.get(e.day, 0) + e.change
-    total, day = 0, start
+    sizes, day = {}, start
     while day <= end:
         size += by_day.get(day, 0)
-        total += max(size, 0)
+        sizes[day] = max(size, 0)
         day += timedelta(days=1)
-    return total
+    return sizes
+
+
+def _hen_days(start, end):
+    """Summe der Hühner je Tag im Zeitraum (für Legeleistung und Futter je Huhn)."""
+    return sum(_daily_sizes(start, end).values())
 
 
 def laying_rate(eggs, hen_days):
@@ -309,6 +314,121 @@ def feed_per_hen(today=None, days=FEED_DAYS):
 
 
 # --- Stallbuch ----------------------------------------------------------------------------
+
+# --- Tägliche Fütterung (ohne Menge) -------------------------------------------------------
+# Ein Eintrag je Tag: Weizen und/oder Legemehl. Die Auswertung vergleicht die Legeleistung an den Tagen je
+# Fütterung mit dem Richtwert für das Alter (`expected_laying`) und eine Woche später (Futter wirkt verzögert).
+
+FEED_KINDS = {"wheat": N_("Weizen"), "mash": N_("Legemehl")}
+FEEDING_GROUPS = {"both": N_("Weizen + Legemehl"), "mash": N_("nur Legemehl"), "wheat": N_("nur Weizen")}
+FEEDING_LAG = 7               # Tage bis „eine Woche später“
+FEEDING_MIN_DAYS = 14         # darunter ist der Vergleich nur ein Hinweis
+FEEDING_CLEAR = 3             # „am besten“ erst ab 3 Prozentpunkten Vorsprung
+
+
+def feeding_on(day):
+    return Feeding.query.filter_by(day=day).first()
+
+
+def toggle_feeding(day, kind, user):
+    """Weizen bzw. Legemehl für einen Tag an/aus. Beides aus = Eintrag weg. Gibt den Eintrag (oder None) zurück."""
+    if kind not in FEED_KINDS:
+        raise StorageError(_("Unbekanntes Futter."))
+    day = _day(day)
+    entry = feeding_on(day)
+    if entry is None:
+        entry = Feeding(day=day, wheat=False, mash=False, user_id=user.id if user else None)
+        db.session.add(entry)
+    setattr(entry, kind, not getattr(entry, kind))
+    if not (entry.wheat or entry.mash):
+        db.session.delete(entry) if entry.id else db.session.expunge(entry)
+        return None
+    entry.user_id = user.id if user else entry.user_id
+    db.session.flush()
+    return entry
+
+
+def feeding_days(today=None, days=14):
+    """[(Tag, Feeding | None)] der letzten Tage, neuester zuerst."""
+    today = today or date.today()
+    start = today - timedelta(days=days - 1)
+    found = {f.day: f for f in Feeding.query.filter(Feeding.day >= start, Feeding.day <= today)}
+    return [(today - timedelta(days=i), found.get(today - timedelta(days=i))) for i in range(days)]
+
+
+def feeding_key(entry):
+    return "both" if entry.wheat and entry.mash else "wheat" if entry.wheat else "mash"
+
+
+def feeding_effect(today=None):
+    """Legeleistung je Fütterung: {"groups": [...], "phases": [...], "days"} oder None ohne Einträge.
+    Gezählt werden nur Tage mit Eier-Eintrag und Hühnern im Stall."""
+    today = today or date.today()
+    rows = Feeding.query.filter(Feeding.day <= today).order_by(Feeding.day).all()
+    if not rows:
+        return None
+    start = rows[0].day
+    sizes = _daily_sizes(start, today)
+    eggs = {d: int(n) for d, n in db.session.query(EggEntry.day, func.sum(EggEntry.eggs))
+            .filter(EggEntry.day >= start, EggEntry.day <= today).group_by(EggEntry.day)}
+    month_expected = {}
+
+    def expected(day):
+        key = _month_start(day)
+        if key not in month_expected:
+            month_expected[key] = expected_laying(key, min(_month_end(key), today))
+        return month_expected[key]
+
+    def blank():
+        return {"days": 0, "eggs": 0, "hen_days": 0, "exp": 0.0, "exp_hens": 0, "lag_eggs": 0, "lag_hens": 0}
+
+    def add(target, day):
+        hens = sizes.get(day, 0)
+        if hens <= 0 or day not in eggs:
+            return False
+        target["days"] += 1
+        target["eggs"] += eggs[day]
+        target["hen_days"] += hens
+        exp = expected(day)
+        if exp is not None:
+            target["exp"] += exp * hens
+            target["exp_hens"] += hens
+        later = day + timedelta(days=FEEDING_LAG)
+        if later in eggs and sizes.get(later, 0) > 0:
+            target["lag_eggs"] += eggs[later]
+            target["lag_hens"] += sizes[later]
+        return True
+
+    def finish(target):
+        target["rate"] = laying_rate(target["eggs"], target["hen_days"])
+        target["expected"] = round(target["exp"] / target["exp_hens"]) if target["exp_hens"] else None
+        target["diff"] = (target["rate"] - target["expected"]
+                          if target["rate"] is not None and target["expected"] is not None else None)
+        target["lag_rate"] = laying_rate(target["lag_eggs"], target["lag_hens"])
+        return target
+
+    groups = {key: dict(blank(), key=key, label=label) for key, label in FEEDING_GROUPS.items()}
+    phases, phase = [], None
+    for entry in rows:
+        key = feeding_key(entry)
+        add(groups[key], entry.day)
+        if phase and phase["key"] == key and entry.day == phase["end"] + timedelta(days=1):
+            phase["end"] = entry.day
+        else:
+            phase = dict(blank(), key=key, label=FEEDING_GROUPS[key], start=entry.day, end=entry.day, length=0)
+            phases.append(phase)
+        phase["length"] += 1
+        add(phase, entry.day)
+    result = [finish(g) for g in groups.values() if g["days"]]
+    for g in result:
+        g["enough"] = g["days"] >= FEEDING_MIN_DAYS
+    rated = sorted((g for g in result if g["enough"] and g["rate"] is not None),
+                   key=lambda g: g["diff"] if g["diff"] is not None else g["rate"], reverse=True)
+    score = [g["diff"] if g["diff"] is not None else g["rate"] for g in rated]
+    best = rated[0] if len(rated) > 1 and score[0] - score[1] >= FEEDING_CLEAR else None
+    return {"groups": result, "best": best["key"] if best else None, "days": len(rows),
+            "phases": [finish(p) for p in reversed(phases)][:12]}
+
 
 def add_treatment(day, product, reason, withdrawal_days, note, user):
     product = _note(product, 120)

@@ -52,7 +52,7 @@ FIELDS = {
     "wait_days": N_("Wartezeit"), "plate": N_("Kennzeichen"), "model": N_("Modell"), "manufacturer": N_("Hersteller"),
 }
 
-SKIP_TABLES = {"audit_log", "movements", "push_subscriptions"}
+SKIP_TABLES = {"audit_log", "movements", "push_subscriptions", "feedings"}   # Fütterung: tägliches Antippen
 # Spalten, deren Änderung nicht zählt (Zeitstempel, persönliche Einstellungen, Zähler …)
 SKIP_COLUMNS = {
     "*": {"updated_at", "created_at"},

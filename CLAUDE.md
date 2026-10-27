@@ -119,7 +119,7 @@ docker compose up --build -d
   Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint
   `rounds`). Wochenbericht `biogas.week_report()` / `week_push()` montags aus `push.daily`
 - `app/chickens.py`: Rubrik Hühner (nur `User.chickens`; eintragen `keeps_chickens`) – Eier `EggEntry`, Haushalte
-  `Household` + Verteilung `EggShare` (Reihenfolge `fair_order()`), Vorrat `stock()`, Herde `FlockEvent` (`flock_size()`), Futter `FeedEntry`,
+  `Household` + Verteilung `EggShare` (Reihenfolge `fair_order()`), Vorrat `stock()`, Herde `FlockEvent` (`flock_size()`), Futter `FeedEntry`, tägliche Fütterung `Feeding` (`toggle_feeding()`, Auswertung `feeding_effect()`),
   Stallbuch `FlockTreatment` (Wartezeit `blocked()`), Monate `months()`, Auswertung aller Jahre `analysis()`, `summary()` für Startseite; Stallkontrolle =
   Rundgang mit `CheckStation.area == "huehner"`, Aufgaben `Task.area`; Push `evening_check()` aus `push.daily`
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Alte Legedaten aus Excel:

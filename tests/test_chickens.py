@@ -400,3 +400,40 @@ def test_batch_losses_vs_removed(db, seed, keeper):
     b = chickens.batches(date(2025, 9, 1))[0]
     assert b["lost"] == 2 and b["removed_n"] == 5 and b["end_reason"] == "geschlachtet" and b["lost_pct"] == 6
     assert round(b["hens"]) == 28                                                    # 30, ab Juni 28
+
+
+def test_feeding(as_worker, as_viewer, db, seed, keeper):
+    """Tägliche Fütterung (Weizen/Legemehl) und ihr Vergleich mit der Legeleistung."""
+    start = date(2025, 1, 1)
+    chickens.add_flock_event(start, "gekauft", 10, keeper, breed="Lohmann Braun", age_months=6)
+    for i in range(80):
+        day = start + timedelta(days=i)
+        kinds = ["mash"] if i < 30 else ["wheat", "mash"] if i < 60 else ["wheat"]
+        for kind in kinds:
+            chickens.toggle_feeding(day, kind, keeper)
+        chickens.add_eggs(day, 8 if i < 30 else 9 if i < 60 else 5, 0, None, keeper)
+    db.session.commit()
+    effect = chickens.feeding_effect(date(2025, 4, 1))
+    groups = {g["key"]: g for g in effect["groups"]}
+    assert groups["mash"]["rate"] == 80 and groups["both"]["rate"] == 90 and groups["wheat"]["rate"] == 50
+    assert groups["wheat"]["days"] == 20 and all(g["enough"] for g in groups.values())
+    assert groups["mash"]["expected"] and groups["both"]["diff"] is not None
+    assert groups["mash"]["lag_rate"] == round(100 * (23 * 8 + 7 * 9) / 300)       # eine Woche später
+    assert effect["best"] == "both" and [p["key"] for p in effect["phases"]] == ["wheat", "both", "mash"]
+
+    # Antippen: an/aus, beides aus = kein Eintrag
+    day = date.today() - timedelta(days=1)
+    r = as_worker.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "wheat"})
+    assert r.status_code == 302 and chickens.feeding_on(day).wheat
+    as_worker.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "wheat"})
+    assert chickens.feeding_on(day) is None
+    as_worker.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "mash"})
+    assert as_viewer.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "mash"}).status_code == 403
+    tomorrow = date.today() + timedelta(days=1)
+    r = as_worker.post("/huehner/fuetterung", data={"day": tomorrow.isoformat(), "kind": "mash"}, follow_redirects=True)
+    assert "nicht in der Zukunft" in r.get_data(as_text=True)
+    html = as_worker.get("/huehner").get_data(as_text=True)
+    assert "Fütterung" in html and 'aria-pressed="true"' in html
+    assert "Fütterung – letzte 14 Tage" in as_worker.get("/huehner/futter").get_data(as_text=True)
+    html = as_worker.get("/huehner/auswertung").get_data(as_text=True)
+    assert "Fütterung und Legeleistung" in html and "nur Weizen" in html and "50 %" in html

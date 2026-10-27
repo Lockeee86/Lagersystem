@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
+{% from "chickens/_macros.html" import feeding_rows %}
 {% block title %}{{ _("Futter") }}{% endblock %}
 {% block content %}
 {% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
@@ -7,6 +8,14 @@
     <div>
         <h1>{{ _("Futter") }}</h1>
         <p class="text-body-secondary mb-0">{% if per_hen %}{{ _("Ø {g} g je Huhn und Tag (letzte 90 Tage)", g=per_hen) }}{% else %}{{ _("Futter eintragen, dann rechnet die App Verbrauch und Kosten je Ei.") }}{% endif %}</p>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4" id="fuetterung">
+    <div class="card-body">
+        <h2 class="h6 mb-1"><i class="bi bi-bucket me-1"></i>{{ _("Fütterung – letzte 14 Tage") }}</h2>
+        <p class="small text-body-secondary mb-2">{{ _("Was es am Tag gab, ohne Menge. Die Auswertung vergleicht damit die Legeleistung.") }} <a href="{{ url_for('chickens.analysis') }}#fuetterung">{{ _("Zur Auswertung") }}</a></p>
+        {{ feeding_rows(feeding, feed_kinds, today, url_for('chickens.feed') ~ '#fuetterung', can_keep) }}
     </div>
 </div>
 

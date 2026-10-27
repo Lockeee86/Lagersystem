@@ -89,7 +89,8 @@ def overview():
         "chickens/overview.html", info=chickens.summary(today), today=today, days=chickens.recent_days(today),
         open_tasks=chickens.open_tasks(), suggestions=suggestions, sunset=chickens.farm_sunset(today),
         sensor=coop.status(), sensor_history=coop.history(48), door_times=coop.day_times(local_tz()),
-        air_kind=air_kind, air_points=air_points, co2_points=coop.co2_history(48), co2_limit=coop.CO2_HIGH,
+        air_kind=air_kind, air_points=air_points, feeding=chickens.feeding_days(today, 2),
+        feed_kinds=chickens.FEED_KINDS, co2_points=coop.co2_history(48), co2_limit=coop.CO2_HIGH,
         entries=EggEntry.query.filter(EggEntry.day >= today - timedelta(days=1))
         .order_by(EggEntry.day.desc(), EggEntry.id.desc()).all(),
     )
@@ -144,6 +145,8 @@ def eggs():
 @viewer_required
 def analysis():
     return render_template("chickens/analysis.html", data=chickens.analysis(date.today()), today=date.today(),
+                           feeding=chickens.feeding_effect(date.today()), feeding_lag=chickens.FEEDING_LAG,
+                           feeding_min=chickens.FEEDING_MIN_DAYS,
                            month_names=chickens.MONTH_NAMES, w=chickens.CHART_W, h=chickens.CHART_H)
 
 
@@ -264,6 +267,7 @@ def feed():
     today = date.today()
     return render_template(
         "chickens/feed.html", today=today, per_hen=chickens.feed_per_hen(today), months=chickens.months(today),
+        feeding=chickens.feeding_days(today, 14), feed_kinds=chickens.FEED_KINDS,
         entries=FeedEntry.query.order_by(FeedEntry.day.desc(), FeedEntry.id.desc()).limit(40).all(),
         products=[p for (p,) in db.session.query(FeedEntry.product).filter(FeedEntry.product.isnot(None))
                   .distinct().limit(20)],
@@ -276,6 +280,13 @@ def feed_add():
     return _save(lambda: chickens.add_feed(form_date("day") or date.today(), _kg("kg"), form_money("cost"),
                                            form_str("product", 100), form_str("note", 200), current_user),
                  _("Futter eingetragen."), "chickens.feed")
+
+
+@bp.route("/huehner/fuetterung", methods=["POST"])
+@keeper_required
+def feeding_toggle():
+    return _save(lambda: chickens.toggle_feeding(form_date("day") or date.today(), form_str("kind", 10),
+                                                 current_user), None, "chickens.overview")
 
 
 @bp.route("/huehner/futter/<int:entry_id>/loeschen", methods=["POST"])

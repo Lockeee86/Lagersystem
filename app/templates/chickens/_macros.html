@@ -131,3 +131,21 @@
 </svg>
 {% endif %}
 {% endmacro %}
+
+{# Tägliche Fütterung: je Tag Schalter Weizen / Legemehl (chickens.feeding_days) #}
+{% macro feeding_rows(rows, kinds, today, back, can_keep) %}
+{% for day, f in rows %}
+<div class="d-flex flex-wrap align-items-center gap-2 py-1 {{ 'border-top' if not loop.first }}">
+    <span class="me-auto small">{{ _("Heute") if day == today else _("Gestern") if (today - day).days == 1 else day|date }}</span>
+    {% for kind, label in kinds.items() %}
+    {% set on = f and f[kind] %}
+    {% if can_keep %}
+    <form method="post" action="{{ url_for('chickens.feeding_toggle') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="day" value="{{ day.isoformat() }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="back" value="{{ back }}">
+        <button class="btn btn-sm feeding-btn {{ 'btn-success' if on else 'btn-outline-secondary' }}" aria-pressed="{{ 'true' if on else 'false' }}">{% if on %}<i class="bi bi-check-lg me-1"></i>{% endif %}{{ _(label) }}</button>
+    </form>
+    {% elif on %}<span class="badge text-bg-success">{{ _(label) }}</span>{% endif %}
+    {% endfor %}
+</div>
+{% endfor %}
+{% endmacro %}

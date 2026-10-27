@@ -1885,6 +1885,24 @@ class FeedEntry(db.Model):
         return f"{self.day.strftime('%d.%m.%Y')}: {self.kg} kg"
 
 
+class Feeding(db.Model):
+    """Tägliche Fütterung: was es gab (Weizen, Legemehl) – ohne Menge; ein Eintrag je Tag."""
+    __tablename__ = "feedings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, unique=True)
+    wheat = db.Column(db.Boolean, nullable=False, default=False)
+    mash = db.Column(db.Boolean, nullable=False, default=False)      # Legemehl
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User")
+
+    @property
+    def label(self):
+        return self.day.strftime("%d.%m.%Y")
+
+
 class FlockTreatment(db.Model):
     """Stallbuch: Behandlung (Wurmkur, Impfung, Medikament) mit Wartezeit für die Eier."""
     __tablename__ = "flock_treatments"

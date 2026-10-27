@@ -895,3 +895,4 @@ body:not(.has-tabbar) {
 
 /* Sensoren: Kanal-QR-Code für die Meshtastic-App */
 .channel-qr svg { width: 11rem; height: auto; display: block; border-radius: .25rem; }
+.feeding-btn { min-width: 6.5rem; }

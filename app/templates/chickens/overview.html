@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
 {% from "tasks/_macros.html" import task_item with context %}
-{% from "chickens/_macros.html" import blocked_alert, egg_form, egg_chart, sensor_line, sensor_chart, air_chart, co2_chart %}
+{% from "chickens/_macros.html" import blocked_alert, egg_form, egg_chart, sensor_line, sensor_chart, air_chart, co2_chart, feeding_rows %}
 {% block title %}{{ _("Hühner") }}{% endblock %}
 {% block content %}
 {% set can_keep = current_user.keeps_chickens or current_user.is_admin %}
@@ -37,6 +37,13 @@
     </div>
 </div>
 {% endif %}
+
+<div class="card shadow-sm mb-4" id="fuetterung">
+    <div class="card-body">
+        <h2 class="h6 mb-2"><i class="bi bi-bucket me-1"></i>{{ _("Fütterung") }} <a class="small fw-normal ms-1" href="{{ url_for('chickens.feed') }}#fuetterung">{{ _("ältere Tage") }}</a></h2>
+        {{ feeding_rows(feeding, feed_kinds, today, url_for('chickens.overview') ~ '#fuetterung', can_keep) }}
+    </div>
+</div>
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-egg"></i>{{ _("Heute") }}</div><div class="stat-value">{{ info.today.eggs }}</div><div class="stat-sub">{% if info.today.cracked %}{{ _("{n} kaputt", n=info.today.cracked) }}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>

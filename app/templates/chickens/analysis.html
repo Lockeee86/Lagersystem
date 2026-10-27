@@ -78,6 +78,49 @@
 </div>
 {% endif %}
 
+{# --- Fütterung --- #}
+<div class="card shadow-sm mb-4" id="fuetterung">
+    <div class="card-header"><i class="bi bi-bucket me-1"></i>{{ _("Fütterung und Legeleistung") }}</div>
+    {% if feeding and feeding.groups %}
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small text-nowrap chicken-table">
+            <thead><tr><th>{{ _("Fütterung") }}</th><th class="text-end">{{ _("Tage") }}</th><th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end">{{ _("erwartet") }}</th><th class="text-end">{{ _("Abweichung") }}</th><th class="text-end">{{ _("eine Woche später") }}</th></tr></thead>
+            <tbody>
+            {% for g in feeding.groups %}
+            <tr class="{{ 'text-body-secondary' if not g.enough }}">
+                <td class="{{ 'fw-bold text-success' if g.key == feeding.best }}">{{ _(g.label) }}</td>
+                <td class="text-end">{{ g.days }}</td>
+                <td class="text-end">{{ (g.rate ~ " %") if g.rate is not none else "–" }}</td>
+                <td class="text-end text-body-secondary">{{ (g.expected ~ " %") if g.expected is not none else "–" }}</td>
+                <td class="text-end {{ 'text-success' if g.diff is not none and g.diff >= 0 else 'text-danger' if g.diff is not none }}">{{ ("%+d"|format(g.diff) ~ " %-Pkt.") if g.diff is not none else "–" }}</td>
+                <td class="text-end">{{ (g.lag_rate ~ " %") if g.lag_rate is not none else "–" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if feeding.phases|length > 1 %}
+    <details class="border-top">
+        <summary class="px-3 py-2 small text-body-secondary">{{ _("Zeiträume mit gleicher Fütterung") }}</summary>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 small text-nowrap chicken-table">
+                <thead><tr><th>{{ _("Zeitraum") }}</th><th>{{ _("Fütterung") }}</th><th class="text-end">{{ _("Tage") }}</th><th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end">{{ _("erwartet") }}</th></tr></thead>
+                <tbody>
+                {% for p in feeding.phases %}
+                <tr><td>{{ p.start|date }}{% if p.end != p.start %} – {{ p.end|date }}{% endif %}</td><td>{{ _(p.label) }}</td><td class="text-end">{{ p.length }}</td>
+                    <td class="text-end">{{ (p.rate ~ " %") if p.rate is not none else "–" }}</td><td class="text-end text-body-secondary">{{ (p.expected ~ " %") if p.expected is not none else "–" }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+    <div class="card-footer small text-body-secondary">{{ _("Legeleistung an den Tagen mit dieser Fütterung (nur Tage mit Eier-Eintrag). „erwartet“ ist der Richtwert für das Alter der Hühner – die Abweichung davon gleicht Alter und Herde aus, die Jahreszeit (Licht, Mauser) aber nicht. Futter wirkt verzögert, daher auch die Legeleistung {n} Tage später. Grau: weniger als {min} Tage – noch keine sichere Aussage.", n=feeding_lag, min=feeding_min) }}</div>
+    {% else %}
+    <div class="card-body small text-body-secondary">{{ _("Noch keine Fütterung eingetragen. Auf der Hühner-Seite unter „Fütterung“ täglich Weizen und/oder Legemehl antippen – dann steht hier, wie sich das auf die Legeleistung auswirkt.") }}</div>
+    {% endif %}
+</div>
+
 {# --- Jahresvergleich --- #}
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-calendar3 me-1"></i>{{ _("Jahresvergleich") }}</div>
