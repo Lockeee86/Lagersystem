@@ -109,7 +109,9 @@ docker compose up --build -d
   Zähler = `skve_base_counter` + Stunden nach `skve_base_day`; `machines.set_counter` setzt die Basis neu),
   `live()` (Übersicht, Zwischenspeicher, nächster Start `start_label()`; `refresh_live` im Zeitplan, Startseite nur `cached_only`), `dashboard()`,
   `maintenance_forecast()`, Wartungsfenster `maintenance_windows()` / `best_windows()` (Stillstand
-  `MaintenanceTask.downtime_hours`). `app/biogas_views.py` (Blueprint `biogas`). Wartungen kopieren: `machines.copy_tasks`
+  `MaintenanceTask.downtime_hours`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar
+  (`User.biogas` → `sees_biogas`, Admins immer; Rundgang der Biogasanlage, BHKW/Strompreis auf der Startseite und
+  Push-Gruppe „Biogas“ hängen daran). Wartungen kopieren: `machines.copy_tasks`
 - `app/rounds.py`: Rundgang – `CheckStation` (Code `R-01`, `normalize_code`, `/scan` erkennt ihn) und `StationCheck`
   (Ergebnis je Prüfpunkt, Fotos über `Photo.check_id`), `record_check()` / `resolve()` / `status()` / `overview()`,
   Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint

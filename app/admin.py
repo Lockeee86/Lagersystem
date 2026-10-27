@@ -714,6 +714,7 @@ def users():
         user.can_plan = bool(request.form.get("can_plan"))
         user.chickens_only = bool(request.form.get("chickens_only")) and role != ROLE_ADMIN
         user.chickens = bool(request.form.get("chickens")) or user.chickens_only
+        user.biogas = bool(request.form.get("biogas"))
         language = form_str("language", 5)
         if language in LANGUAGES:
             user.language = language

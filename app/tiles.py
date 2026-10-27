@@ -98,12 +98,14 @@ def section(label, icon, role=ROLE_BETRACHTER, hint=None, show=None):
 
 
 SECTIONS = {
-    "strompreis": section(N_("Strompreis-Ampel"), "bi-lightning", hint=N_("Day-Ahead-Preise heute und morgen (SKVE)")),
+    "strompreis": section(N_("Strompreis-Ampel"), "bi-lightning", hint=N_("Day-Ahead-Preise heute und morgen (SKVE)"),
+                          show=lambda u: u.sees_biogas),
     "wichtig": section(N_("Jetzt wichtig"), "bi-exclamation-circle"),
     "plan": section(N_("Mein Tagesplan"), "bi-people", ROLE_MITARBEITER),
     "uebergabe": section(N_("Übergabe"), "bi-chat-square-text"),
     "aufgaben": section(N_("Aufgaben"), "bi-list-check"),
-    "bhkw": section(N_("BHKW"), "bi-lightning-charge", hint=N_("Motoren, Leistung, nächste Wartung")),
+    "bhkw": section(N_("BHKW"), "bi-lightning-charge", hint=N_("Motoren, Leistung, nächste Wartung"),
+                    show=lambda u: u.sees_biogas),
     "huehner": section(N_("Hühner"), "bi-egg", hint=N_("Eier heute, Vorrat, Stallkontrolle"),
                        show=lambda u: u.sees_chickens),
     "woche": section(N_("Diese Woche"), "bi-calendar-week", hint=N_("Termine der nächsten 7 Tage")),

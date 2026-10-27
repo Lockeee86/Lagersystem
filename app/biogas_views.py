@@ -1,8 +1,8 @@
 """Rubrik Biogas: Übersicht der BHKW-Motoren (SKVE-Daten, Laufzeit, Wartungsprognose)."""
 from datetime import date
 
-from flask import Blueprint, current_app, flash, redirect, render_template, url_for
-from flask_login import login_required
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, url_for
+from flask_login import current_user, login_required
 
 from . import biogas
 from .i18n import gettext as _
@@ -11,6 +11,13 @@ from .storage import StorageError
 from .utils import admin_required, flash_error, form_int
 
 bp = Blueprint("biogas", __name__)
+
+
+@bp.before_request
+def _only_with_biogas():
+    """Rubrik Biogas ist je Benutzer abwählbar (User.biogas)."""
+    if current_user.is_authenticated and not current_user.sees_biogas:
+        abort(404)
 
 
 @bp.route("/biogas")

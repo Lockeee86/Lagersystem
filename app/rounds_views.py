@@ -13,6 +13,24 @@ from .utils import admin_required, editor_required, flash_error, form_int
 bp = Blueprint("rounds", __name__)
 
 
+@bp.before_request
+def _biogas_rounds_only_with_biogas():
+    """Der Rundgang der Biogasanlage gehört zur Rubrik Biogas (je Benutzer abwählbar); Stationen im Hühnerstall
+    nicht."""
+    if not current_user.is_authenticated or current_user.sees_biogas:
+        return None
+    args = request.view_args or {}
+    station = None
+    if "code" in args:
+        station = CheckStation.query.filter_by(code=rounds.normalize_code(args["code"]) or "").first()
+    elif "check_id" in args:
+        check = db.session.get(StationCheck, args["check_id"])
+        station = check.station if check else None
+    if station is None or station.area != "huehner":
+        abort(404)
+    return None
+
+
 def _home(station=None):
     """Übersicht, zu der eine Station gehört (Rundgang Biogas oder Hühnerstall)."""
     if station is not None and station.area == "huehner":

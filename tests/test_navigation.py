@@ -116,3 +116,29 @@ def test_tabbar_choice(as_worker, as_admin, db, seed):
     as_admin.post("/admin/startseite", data={"tab_mitarbeiter": ["feld", "huehner"]})
     assert tabbar.role_default("mitarbeiter") == ["feld", "huehner"] and tabbar.keys_for(worker) == ["feld", "huehner"]
     assert "Untere Leiste am Handy" in as_worker.get("/konto").get_data(as_text=True)
+
+
+def test_biogas_optional(as_admin, as_worker, db, seed):
+    """Rubrik Biogas je Benutzer abwählbar – bestehende Benutzer haben sie, Admins immer."""
+    from app import tabbar, tiles
+    from app.models import CheckStation
+    worker = seed["worker"]
+    assert worker.biogas and worker.sees_biogas
+    station = CheckStation(code="R-01", name="Fermenter", area="biogas")
+    hens = CheckStation(code="R-02", name="Stall", area="huehner")
+    db.session.add_all([station, hens])
+    db.session.commit()
+    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter",
+                                           "language": "de", "active": "1"})              # ohne Haken „Biogas“
+    assert not worker.biogas and not worker.sees_biogas
+    for url in ("/biogas", "/rundgang", "/station/R-01", "/bereich/biogas"):
+        assert as_worker.get(url).status_code == 404, url
+    assert as_worker.get("/station/R-02").status_code != 404                  # Hühnerstall bleibt erreichbar
+    assert "biogas" not in tabbar.available(worker) and "bhkw" not in tiles.sections_for(worker)
+    assert not [k for k in worker.push_topics() if k in ("round_issue", "round_due", "biogas_week")]
+    more = as_worker.get("/bereich/mehr").get_data(as_text=True)
+    assert 'href="/biogas"' not in more and 'href="/rundgang"' not in more
+    assert as_admin.get("/biogas").status_code == 200
+    seed["admin"].biogas = False
+    assert seed["admin"].sees_biogas                                           # Admins sehen sie immer
+    assert "ohne Biogas" in as_admin.get("/admin/benutzer").get_data(as_text=True)

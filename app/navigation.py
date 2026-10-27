@@ -55,7 +55,8 @@ AREAS = [
         item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
         item("main.weather_page", N_("Wetter"), "bi-cloud-sun"),
     ]},
-    {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge", "items": [
+    # Biogas: in der Benutzerverwaltung je Benutzer abwählbar (User.biogas)
+    {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge", "show": lambda u: u.sees_biogas, "items": [
         item("biogas.overview", N_("Übersicht"), "bi-lightning-charge", endpoints=("biogas.sync_now", "biogas.window_settings")),
         item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",)),
     ]},

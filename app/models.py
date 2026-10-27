@@ -95,6 +95,7 @@ class User(UserMixin, db.Model):
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     can_plan = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     chickens = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # Rubrik Hühner
+    biogas = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())        # Rubrik Biogas
     # Sieht nur die Hühner (und deren Aufgaben/Stallkontrolle), sonst nichts vom Betrieb – siehe chickens_only.py
     chickens_only = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Geheimer Schlüssel für den Kalender-Abo-Link (leer = noch nie abonniert)
@@ -168,6 +169,11 @@ class User(UserMixin, db.Model):
         return bool(self.chickens_only) and not self.is_admin
 
     @property
+    def sees_biogas(self):
+        """Rubrik Biogas (BHKW, Rundgang, Strompreis) – in der Benutzerverwaltung abwählbar, Admins immer."""
+        return self.is_admin or (bool(self.biogas) and not self.only_chickens)
+
+    @property
     def sees_chickens(self):
         """Rubrik Hühner in Navigation und Startseite (in der Benutzerverwaltung freigeschaltet)."""
         return bool(self.chickens) or self.only_chickens
@@ -180,6 +186,8 @@ class User(UserMixin, db.Model):
     def push_topics(self):
         """Push-Themen, die für diesen Benutzer in Frage kommen (je nach Rolle)."""
         keys = [key for key, topic in PUSH_TOPICS.items() if topic["who"](self)]
+        if not self.sees_biogas:
+            keys = [k for k in keys if PUSH_TOPICS[k]["group"] != "Biogas"]
         if self.only_chickens:                         # nur Hühner und eigene Aufgaben
             keys = [k for k in keys if PUSH_TOPICS[k]["group"] == "Hühner" or k in ("tasks_new", "tasks_due")]
         return keys

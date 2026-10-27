@@ -2479,4 +2479,6 @@ MESSAGES = {
     'Die Uhrzeit bitte zwischen 5 und 13 Uhr wählen.': 'Wybierz godzinę między 5 a 13.',
     'Um {time} Uhr noch zu – Klappe, Lichtsensor oder Batterie prüfen.': 'O {time} nadal zamknięta – sprawdź klapę, czujnik światła lub baterię.',
     'Push, wenn die Klappe morgens um diese Uhrzeit noch zu ist': 'Powiadomienie, gdy klapa rano o tej godzinie jest jeszcze zamknięta',
+    'ohne Biogas': 'bez biogazu',
+    'Rubrik Biogas (BHKW, Rundgang, Strompreis-Ampel; Admins sehen sie immer)': 'Dział Biogaz (CHP, obchód, sygnalizacja cen prądu; admini widzą go zawsze)',
 }

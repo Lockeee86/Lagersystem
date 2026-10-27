@@ -207,7 +207,8 @@ def dashboard():
                            arrived, backup_alert, today, unclaimed,
                            team.due_count(today) if current_user.is_admin else 0,
                            irrigation.alerts() if current_user.is_admin else (),
-                           rounds.overview() if current_user.can_edit and rounds.has_stations() else None,
+                           rounds.overview() if current_user.can_edit and current_user.sees_biogas
+                           and rounds.has_stations() else None,
                            climate.important())
     plan_today = team.plan_for(today)
     show_order = tiles.sections_for(current_user)
