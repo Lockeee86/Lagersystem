@@ -18,6 +18,15 @@ from .utils import admin_required, editor_required, flash_error, form_date, form
 bp = Blueprint("machines", __name__)
 
 
+@bp.before_request
+def _bhkw_only_with_biogas():
+    """BHKW-Motoren gehören zur Rubrik Biogas – ohne sie 404 (auch über alte Links)."""
+    machine_id = (request.view_args or {}).get("machine_id")
+    if machine_id and current_user.is_authenticated and not machines.can_see(db.session.get(Machine, machine_id),
+                                                                             current_user):
+        abort(404)
+
+
 def _get(model, obj_id):
     obj = db.session.get(model, obj_id)
     if obj is None:
@@ -70,7 +79,7 @@ def machine_costs():
 def machine_list():
     show_all = request.args.get("alle") == "1"
     query = Machine.query if show_all else Machine.query.filter_by(active=True)
-    query = sites.apply(query, Machine)
+    query = machines.visible(sites.apply(query, Machine), current_user)
     items = query.order_by(Machine.name).all()
     groups = {}
     for m in items:
@@ -78,8 +87,8 @@ def machine_list():
     ordered = [(key, _(label), groups[key]) for key, label in MACHINE_CATEGORIES.items() if key in groups]
     return render_template("machines/list.html", groups=ordered, count=len(items), show_all=show_all,
                            categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
-                           default_units=machines.DEFAULT_UNITS, due=machines.due_tasks(),
-                           faults=machines.open_faults())
+                           default_units=machines.DEFAULT_UNITS, due=machines.due_tasks(user=current_user),
+                           faults=machines.open_faults(current_user))
 
 
 def _bhkw_fields(machine):

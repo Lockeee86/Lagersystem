@@ -1,4 +1,5 @@
 """Suche über alle Bereiche: Kisten, Schläge, Maschinen, Ersatzteile, Lieferscheine, Kunden, Aufgaben, Lieferanten."""
+from flask_login import current_user
 from sqlalchemy import or_
 
 from . import machines, storage
@@ -10,7 +11,7 @@ LIMIT = 20
 def direct_hit(q):
     """Genauer Kisten- oder Maschinencode → (Art, Objekt) für die direkte Weiterleitung."""
     code = machines.normalize_code(q)
-    if code and (m := Machine.query.filter_by(code=code).first()):
+    if code and (m := machines.visible(Machine.query, current_user).filter_by(code=code).first()):
         return "machine", m
     if q.strip().upper().startswith("K") or q.strip().isdigit():
         code = storage.normalize_code(q)
@@ -30,8 +31,9 @@ def search(q, user):
         .order_by(Box.code).limit(LIMIT).all(),
         "plots": Plot.query.filter(or_(Plot.name.ilike(like), Plot.number == q, Plot.note.ilike(like)))
         .order_by(Plot.active.desc(), Plot.name).limit(LIMIT).all(),
-        "machines": Machine.query.filter(or_(Machine.name.ilike(like), Machine.code.ilike(like), Machine.plate.ilike(like),
-                                             Machine.manufacturer.ilike(like), Machine.model.ilike(like)))
+        "machines": machines.visible(Machine.query, current_user)
+        .filter(or_(Machine.name.ilike(like), Machine.code.ilike(like), Machine.plate.ilike(like),
+                    Machine.manufacturer.ilike(like), Machine.model.ilike(like)))
         .order_by(Machine.active.desc(), Machine.name).limit(LIMIT).all(),
         "deliveries": Delivery.query.join(Customer).filter(or_(Delivery.number.ilike(like), Customer.name.ilike(like),
                                                                Delivery.vehicle.ilike(like)))
@@ -42,10 +44,10 @@ def search(q, user):
                                                       PurchaseRequest.order_number.ilike(like),
                                                       PurchaseRequest.supplier.ilike(like)))
         .order_by(PurchaseRequest.created_at.desc()).limit(LIMIT).all(),
-        "parts": MachinePart.query.filter(or_(MachinePart.name.ilike(like), MachinePart.part_number.ilike(like),
+        "parts": machines.visible(MachinePart.query.join(Machine), current_user).filter(or_(MachinePart.name.ilike(like), MachinePart.part_number.ilike(like),
                                               MachinePart.manufacturer.ilike(like), MachinePart.note.ilike(like)))
         .order_by(MachinePart.name).limit(LIMIT).all(),
-        "documents": MachineDocument.query.filter(or_(MachineDocument.title.ilike(like),
+        "documents": machines.visible(MachineDocument.query.join(Machine), current_user).filter(or_(MachineDocument.title.ilike(like),
                                                       MachineDocument.original_name.ilike(like)))
         .order_by(MachineDocument.created_at.desc()).limit(LIMIT).all(),
         "suppliers": Supplier.query.filter(or_(Supplier.name.ilike(like), Supplier.contact.ilike(like),

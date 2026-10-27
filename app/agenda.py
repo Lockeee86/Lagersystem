@@ -109,11 +109,11 @@ def _event(day, kind, uid, title, icon, color, url, note, end=None, time=None, e
             "title": title, "icon": icon, "color": color, "url": url, "note": note or "", "mine": mine}
 
 
-def overdue(today=None):
+def overdue(today=None, user=None):
     """Überfällige Wartungen mit Datum – sie sollen auch im aktuellen Monat sichtbar sein, nicht nur am Fälligkeitstag."""
     today = today or date.today()
     rows = []
-    for task in MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)):
+    for task in machines.visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)), user):
         status = machines.task_status(task, today)
         if status["state"] == "overdue" and status["due_on"] is not None:
             rows.append({"task": task, "status": status,
@@ -121,9 +121,9 @@ def overdue(today=None):
     return sorted(rows, key=lambda r: r["status"]["due_on"])
 
 
-def _maintenance(start, end, today):
+def _maintenance(start, end, today, user=None):
     events, undated = [], []
-    for task in MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)):
+    for task in machines.visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)), user):
         status = machines.task_status(task, today)
         url = url_for("machines.machine_detail", machine_id=task.machine_id) + "#wartungen"
         if status["due_on"] is None:
@@ -232,7 +232,7 @@ def _entries(start, end, user):
 def events(start, end, today=None, user=None, mine_only=False):
     """Alle Termine, die den Zeitraum `start`–`end` berühren, sortiert; dazu die Wartungen ohne Datum."""
     today = today or date.today()
-    maintenance, undated = _maintenance(start, end, today)
+    maintenance, undated = _maintenance(start, end, today, user)
     items = maintenance + _deliveries(start, end) + _tasks(start, end, user) + _entries(start, end, user) \
         + _waiting(start, end, today) + _holidays(start, end)
     if mine_only:
@@ -260,7 +260,7 @@ def month(year, month_, today=None, user=None, mine_only=False):
                    for d in week] for week in weeks],
         "entries": [e for e in items if e["date"] <= last and e["end"] >= first],
         "undated": undated,
-        "overdue": overdue(today),
+        "overdue": overdue(today, user),
     }
 
 

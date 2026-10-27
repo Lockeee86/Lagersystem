@@ -222,7 +222,8 @@ def task_assigned(task, actor, users=None):
 
 
 def fault_reported(event, actor, exclude=()):
-    return notify(editors(), "fault", Msg("Störung: {machine}", machine=event.machine.name),
+    from .machines import can_see
+    return notify([u for u in editors() if can_see(event.machine, u)], "fault", Msg("Störung: {machine}", machine=event.machine.name),
                   (event.text or "").strip().splitlines()[0][:150] if (event.text or "").strip() else None,
                   url_for("machines.machine_detail", machine_id=event.machine_id) + "#logbuch",
                   tag=f"fault-{event.id}", exclude=[actor, *exclude])
@@ -304,6 +305,16 @@ def _maintenance(today):
     db.session.commit()
     if not new:
         return 0
+    # BHKW-Wartungen nur an die, die die Rubrik Biogas sehen
+    with_biogas = [u for u in editors() if u.sees_biogas]
+    without = [u for u in editors() if not u.sees_biogas]
+    sent = _maintenance_msg(with_biogas, new)
+    return sent + _maintenance_msg(without, [(t, s) for t, s in new if t.machine.category != machines.BIOGAS_CATEGORY])
+
+
+def _maintenance_msg(users, new):
+    if not users or not new:
+        return 0
     if len(new) == 1:
         task, _status = new[0]
         title = Msg("Wartung fällig: {machine}", machine=task.machine.name)
@@ -312,7 +323,7 @@ def _maintenance(today):
         title = Msg("{n} Wartung wird fällig", "{n} Wartungen werden fällig", len(new))
         body = ", ".join(f"{t.machine.name}: {t.name}" for t, _s in new[:4]) + (" …" if len(new) > 4 else "")
         url = url_for("machines.machine_list")
-    return notify(editors(), "maintenance", title, body, url, tag="maintenance")
+    return notify(users, "maintenance", title, body, url, tag="maintenance")
 
 
 def _weather_check(now, kinds):

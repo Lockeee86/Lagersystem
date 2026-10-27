@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 
 from . import machines, push, tasks, uploads
 from .extensions import db
+from .machines import visible as visible_machines
 from .i18n import gettext as _
 from .models import (DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Plot, Task, User,
                      Warehouse)
@@ -27,7 +28,8 @@ def _choices(task=None):
     if current_user.only_chickens:                     # kein Bezug zu Maschinen, Lieferscheinen, Schlägen, Lager
         return dict(users=tasks.request_recipients(), recurrences=RECURRENCES, machines=[], deliveries=[],
                     warehouses=[], plots=[])
-    machines = Machine.query.filter((Machine.active.is_(True)) | (Machine.id == (task.machine_id if task else None)))
+    machines = visible_machines(Machine.query, current_user).filter(
+        (Machine.active.is_(True)) | (Machine.id == (task.machine_id if task else None)))
     deliveries = Delivery.query.filter((Delivery.status == DELIVERY_OPEN) |
                                        (Delivery.id == (task.delivery_id if task else None)))
     return dict(

@@ -111,7 +111,8 @@ docker compose up --build -d
   `maintenance_forecast()`, Wartungsfenster `maintenance_windows()` / `best_windows()` (Stillstand
   `MaintenanceTask.downtime_hours`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar
   (`User.biogas` → `sees_biogas`, Admins immer; Rundgang der Biogasanlage, BHKW/Strompreis auf der Startseite und
-  Push-Gruppe „Biogas“ hängen daran). Wartungen kopieren: `machines.copy_tasks`
+  Push-Gruppe „Biogas“ hängen daran; BHKW-Maschinen ebenso: `machines.visible(query, user)` / `can_see()` in Listen,
+  Suche, Startseite, Kalender, Push – neue Maschinen-Abfragen für Benutzer damit filtern). Wartungen kopieren: `machines.copy_tasks`
 - `app/rounds.py`: Rundgang – `CheckStation` (Code `R-01`, `normalize_code`, `/scan` erkennt ihn) und `StationCheck`
   (Ergebnis je Prüfpunkt, Fotos über `Photo.check_id`), `record_check()` / `resolve()` / `status()` / `overview()`,
   Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint

@@ -214,10 +214,26 @@ def task_status(task, today=None):
     return result
 
 
-def due_tasks(states=("overdue", "soon")):
-    """Fällige Wartungen aller aktiven Maschinen, überfällige zuerst."""
+BIOGAS_CATEGORY = "bhkw"                # BHKW-Motoren gehören zur Rubrik Biogas (je Benutzer abwählbar)
+
+
+def hides_biogas(user):
+    return user is not None and getattr(user, "is_authenticated", False) and not user.sees_biogas
+
+
+def visible(query, user):
+    """Maschinen-Abfrage ohne BHKW für Benutzer ohne Rubrik Biogas."""
+    return query.filter(Machine.category != BIOGAS_CATEGORY) if hides_biogas(user) else query
+
+
+def can_see(machine, user):
+    return machine is None or machine.category != BIOGAS_CATEGORY or not hides_biogas(user)
+
+
+def due_tasks(states=("overdue", "soon"), user=None):
+    """Fällige Wartungen aller aktiven Maschinen, überfällige zuerst (mit `user`: nur, was er sehen darf)."""
     rows = []
-    for task in MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)):
+    for task in visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)), user):
         status = task_status(task)
         if status["state"] in states:
             rows.append((task, status))
@@ -226,10 +242,10 @@ def due_tasks(states=("overdue", "soon")):
                                        else 9999, r[0].machine.name))
 
 
-def open_faults():
-    return (MachineEvent.query.join(Machine)
-            .filter(MachineEvent.kind == "stoerung", MachineEvent.resolved_at.is_(None), Machine.active.is_(True))
-            .order_by(MachineEvent.date.desc(), MachineEvent.id.desc()).all())
+def open_faults(user=None):
+    query = (MachineEvent.query.join(Machine)
+             .filter(MachineEvent.kind == "stoerung", MachineEvent.resolved_at.is_(None), Machine.active.is_(True)))
+    return visible(query, user).order_by(MachineEvent.date.desc(), MachineEvent.id.desc()).all()
 
 
 def machine_summary(machine):

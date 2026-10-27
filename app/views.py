@@ -199,7 +199,8 @@ def dashboard():
     week_mine = (choice or request.cookies.get(WEEK_COOKIE)) == "meine"
     today = date.today()
     due_now = tasks.due_now(None if current_user.is_admin else current_user)
-    open_deliveries, due_maintenance, faults = sales.open_deliveries(), machines.due_tasks(), machines.open_faults()
+    open_deliveries = sales.open_deliveries()
+    due_maintenance, faults = machines.due_tasks(user=current_user), machines.open_faults(current_user)
     arrived = purchases.arrived_for(current_user)
     backup_alert = backup.needs_attention() if current_user.is_admin else None
     unclaimed = [r for r in purchases.open_requests(current_user) if not r.assignee] if current_user.is_buyer else []
@@ -342,7 +343,7 @@ def _status(endpoint):
         n = _tile_info("pflanzenschutz")
         return (ngettext("{n} Wartezeit läuft", "{n} Wartezeiten laufen", n) if n else _("keine Wartezeit")), bool(n)
     if endpoint == "machines.machine_list":
-        faults, due = machines.open_faults(), machines.due_tasks()
+        faults, due = machines.open_faults(current_user), machines.due_tasks(user=current_user)
         if faults:
             return ngettext("{n} Störung", "{n} Störungen", len(faults)), True
         if due:
@@ -854,7 +855,8 @@ def scan():
     raw = request.args.get("code")
     if raw:
         machine_code = machines.normalize_code(raw)
-        machine = Machine.query.filter_by(code=machine_code).first() if machine_code else None
+        machine = machines.visible(Machine.query, current_user).filter_by(code=machine_code).first() \
+            if machine_code else None
         if machine:
             return redirect(url_for("machines.machine_detail", machine_id=machine.id))
         store_code = bulk.normalize_code(raw)

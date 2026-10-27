@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import fuel, fuel_report, purchases, push, sites
+from . import fuel, fuel_report, machines, purchases, push, sites
 from .extensions import db
 from .i18n import gettext as _
 from .models import FUEL_KINDS, FuelEntry, Machine, Setting
@@ -48,8 +48,9 @@ def tank():
     year = request.args.get("jahr", type=int) or date.today().year
     return render_template(
         "fuel/tank.html", status=fuel.status(), page=page, tank_site_id=sites.tank_site_id(), kinds=FUEL_KINDS, kind=kind, machine_id=machine_id,
-        machines=Machine.query.filter_by(active=True).order_by(Machine.name).all(),
-        fuel_machines=[m for m in Machine.query.filter_by(active=True).order_by(Machine.name) if m.uses_fuel],
+        machines=machines.visible(Machine.query.filter_by(active=True), current_user).order_by(Machine.name).all(),
+        fuel_machines=[m for m in machines.visible(Machine.query.filter_by(active=True), current_user)
+                       .order_by(Machine.name) if m.uses_fuel],
         per_machine=fuel.per_machine(year), year=year, year_total=fuel.liters_in_year(year=year),
         last_price=fuel.last_price(), suppliers=purchases.suppliers(), today=date.today(),
         filter_machine=db.session.get(Machine, machine_id) if machine_id else None,

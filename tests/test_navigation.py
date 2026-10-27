@@ -142,3 +142,30 @@ def test_biogas_optional(as_admin, as_worker, db, seed):
     seed["admin"].biogas = False
     assert seed["admin"].sees_biogas                                           # Admins sehen sie immer
     assert "ohne Biogas" in as_admin.get("/admin/benutzer").get_data(as_text=True)
+
+
+def test_bhkw_hidden_without_biogas(app, as_admin, as_worker, db, seed):
+    """BHKW-Motoren gehören zur Rubrik Biogas: ohne sie nicht in Maschinen, Suche, Startseite und Push."""
+    from app import machines, push
+    from app.models import MachineEvent, PushSubscription
+    worker = seed["worker"]
+    bhkw = machines.create_machine("Motor 1", "bhkw", seed["admin"])
+    tractor = machines.create_machine("Schlepper", "schlepper", seed["admin"])
+    db.session.add(MachineEvent(machine=bhkw, kind="stoerung", text="Zündaussetzer", date=date.today(),
+                                user_id=seed["admin"].id))
+    db.session.add(PushSubscription(user_id=worker.id, endpoint="https://push.example/w", p256dh="k", auth="a"))
+    worker.biogas = False
+    db.session.commit()
+    page = as_worker.get("/maschinen").get_data(as_text=True)
+    assert "Schlepper" in page and "Motor 1" not in page
+    assert as_worker.get(f"/maschine/{bhkw.id}").status_code == 404
+    assert as_worker.get(f"/maschine/{tractor.id}").status_code == 200
+    assert "Motor 1" not in as_worker.get("/suche?q=Motor").get_data(as_text=True)
+    assert "Zündaussetzer" not in as_worker.get("/").get_data(as_text=True)
+    assert not machines.open_faults(worker) and machines.open_faults(seed["admin"])
+    push.outbox.clear()
+    event = MachineEvent.query.first()
+    with app.test_request_context():
+        push.fault_reported(event, seed["admin"])
+    assert not [m for m in push.outbox if m["user_id"] == worker.id]
+    assert as_admin.get(f"/maschine/{bhkw.id}").status_code == 200
