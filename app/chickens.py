@@ -448,6 +448,7 @@ def _rolling(daily, start, end, days=7):
 # wieder 0 ist. Durchgänge sind unterschiedlich gut – Prognose und Warnung beziehen sich deshalb auf den laufenden
 # Durchgang selbst, nicht aufs Vorjahr (andere Herde).
 
+DEATHS = ("verendet", "raubtier")   # Verluste; abgegeben/geschlachtet/sonstiger Abgang zählen extra
 DROP_DAYS = 14            # die letzten zwei Wochen …
 DROP_BEFORE = 28          # … gegen die vier Wochen davor
 DROP_FACTOR = 0.75        # weniger als 75 % davon …
@@ -474,7 +475,7 @@ def batches(today=None):
     for e in events:
         if size <= 0 and e.change > 0:
             current = {"start": e.day, "end": None, "end_reason": None, "added": 0, "breeds": [], "age_start": None,
-                       "losses": {}, "events": []}
+                       "losses": {}, "removed": {}, "events": []}
             result.append(current)
         size += e.change
         if current is None:
@@ -486,8 +487,9 @@ def batches(today=None):
                 current["breeds"].append(e.breed)
             if current["age_start"] is None and e.hatched_on:
                 current["age_start"] = age_months(e.hatched_on, e.day)
-        elif size > 0:                         # Verluste während des Durchgangs (nicht das Leeren am Ende)
-            current["losses"][e.reason_label] = current["losses"].get(e.reason_label, 0) - e.change
+        elif size > 0 or e.reason in DEATHS:   # während des Durchgangs (das Leeren am Ende zählt nicht)
+            target = current["losses"] if e.reason in DEATHS else current["removed"]
+            target[e.reason_label] = target.get(e.reason_label, 0) - e.change
         if size <= 0:
             current["end"], current["end_reason"] = e.day, e.reason_label
             current = None
@@ -501,7 +503,9 @@ def batches(today=None):
         b["per_hen"] = round(b["eggs"] / b["added"]) if b["added"] else None
         b["per_hen_year"] = round(b["eggs"] / (b["hen_days"] / 365)) if b["hen_days"] else None
         b["lost"] = sum(b["losses"].values())
+        b["removed_n"] = sum(b["removed"].values())
         b["lost_pct"] = round(100 * b["lost"] / b["added"]) if b["added"] else None
+        b["hens"] = b["hen_days"] / b["days"] if b["days"] else 0
         b["expected"] = expected_laying(b["start"], end)
         best, month = None, b["start"].replace(day=1)
         while month <= end:
@@ -594,7 +598,7 @@ def analysis(today=None):
         y["feed_cost"] += float(m["feed_cost"] or 0)
         if m["expected"] is not None:
             y["expected"].append((m["expected"], m["hen_days"]))
-    for event in FlockEvent.query.filter(FlockEvent.change < 0):
+    for event in FlockEvent.query.filter(FlockEvent.change < 0, FlockEvent.reason.in_(DEATHS)):
         y = years.get(event.day.year)
         if y is not None:
             y["dead"] += -event.change

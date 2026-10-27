@@ -388,3 +388,15 @@ def test_batches_forecast_drop(app, as_worker, db, seed, keeper, monkeypatch):
         chickens.evening_check(evening, lambda k, d: (k, d) in sent, lambda k, d: sent.add((k, d)))
         chickens.evening_check(evening, lambda k, d: (k, d) in sent, lambda k, d: sent.add((k, d)))
     assert [m["title"] for m in push.outbox].count("Hühner: Legeleistung fällt ab") == 1
+
+
+def test_batch_losses_vs_removed(db, seed, keeper):
+    """Abgegebene Hühner sind keine Verluste; das Leeren am Ende auch nicht."""
+    chickens.add_flock_event(date(2024, 4, 16), "gekauft", 35, keeper)
+    chickens.add_flock_event(date(2024, 4, 18), "abgegeben", 5, keeper)
+    chickens.add_flock_event(date(2024, 6, 1), "verendet", 2, keeper)
+    chickens.add_flock_event(date(2025, 8, 14), "geschlachtet", 28, keeper)
+    db.session.commit()
+    b = chickens.batches(date(2025, 9, 1))[0]
+    assert b["lost"] == 2 and b["removed_n"] == 5 and b["end_reason"] == "geschlachtet" and b["lost_pct"] == 6
+    assert round(b["hens"]) == 28                                                    # 30, ab Juni 28

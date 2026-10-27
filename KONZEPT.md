@@ -368,7 +368,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    bis Bestand 0; je Durchgang Eier, je Huhn, Legeleistung, bester Monat, Verluste ohne das Leeren), **Prognose** für den
    nächsten Monat aus den letzten 4 Wochen des laufenden Durchgangs × Jahreszeit-Faktor der Vorjahre (`forecast()`),
    **Warnung** `laying_drop()` (2 Wochen < 75 % der 4 Wochen davor, ≥ 10 Punkte, nicht in den ersten 10 Wochen) auf der
-   Übersicht und als Push „Legeleistung fällt deutlich ab“ (höchstens einmal je Woche). **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
+   Übersicht und als Push „Legeleistung fällt deutlich ab“ (höchstens einmal je Woche). 0.52.1: Verluste = nur verendet
+   und Raubtier (`chickens.DEATHS`); abgegeben/geschlachtet während des Durchgangs extra, das Leeren am Ende unter „Ende“;
+   Spalte Ø Hühner. **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
    Rundgang der Anlage, kein BHKW/Strompreis auf der Startseite, keine Biogas-Pushs (Hühnerstall-Stationen bleiben); seit 0.48.1 auch keine BHKW-Motoren unter Maschinen,
    in Suche, Kalender, Startseite und Push (Störung/Wartung).
    **Biogas-Auswertungen** (0.49.0): Fahrplan-Güte `biogas.flex_quality()` = Erlös ÷ Erlös in den teuersten
