@@ -310,5 +310,8 @@ def test_availability(app, as_admin, as_viewer, db, seed):
     assert sept["fault_h"] == pytest.approx(12) and sept["service_h"] == pytest.approx(6) and sept["faults"] == 1
     assert sept["percent"] == pytest.approx(round(100 * (1 - 18 / 720), 1))
     assert biogas.availability(motor, date(2025, 1, 1), date(2025, 1, 31), now)["percent"] is None   # vor dem Anlegen
+    MachineEvent.query.filter_by(kind="stoerung").one().still_running = True             # lief eingeschränkt weiter
+    db.session.commit()
+    assert biogas.availability(motor, date(2026, 9, 1), date(2026, 9, 30), now)["fault_h"] == 0
     html = as_viewer.get("/biogas").get_data(as_text=True)
     assert "Verfügbarkeit laut Logbuch" in html and "BHKW Logbuch" in html

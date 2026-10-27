@@ -1109,6 +1109,8 @@ class MachineEvent(db.Model):
     cost = db.Column(db.Numeric(10, 2))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # nur Störungen: kann die Maschine (eingeschränkt) weiterlaufen? Sonst steht sie (zählt als Stillstand)
+    still_running = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # nur Störungen: erledigt?
     resolved_at = db.Column(db.DateTime(timezone=True))
     resolved_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))

@@ -101,7 +101,9 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     task_faults = {t.machine_event_id for t in due_now if t.machine_event_id}
     for e in faults:
         if e.id not in task_faults:
-            items.append({"level": "danger", "title": e.machine.name, "sub": _("Störung") + (f" · {e.text}" if e.text else ""),
+            items.append({"level": "warning" if e.still_running else "danger", "title": e.machine.name,
+                          "sub": (_("Störung, läuft weiter") if e.still_running else _("Störung, steht"))
+                          + (f" · {e.text}" if e.text else ""),
                           "url": url_for("machines.machine_detail", machine_id=e.machine_id) + "#logbuch"})
     for task, status in due_maintenance:
         if status["state"] == "overdue":

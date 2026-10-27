@@ -246,7 +246,8 @@ def machine_event(machine_id):
         text = form_str("text", 4000)
         event = machines.add_event(machine, kind, current_user, form_date("date"), text,
                                    _form_cost() if current_user.is_admin else None,
-                                   form_int("counter", minimum=0, maximum=10_000_000), names)
+                                   form_int("counter", minimum=0, maximum=10_000_000), names,
+                                   still_running=request.form.get("state") == "laeuft")
         created["event"] = event
         if kind == "stoerung" and request.form.get("as_task"):
             db.session.flush()
@@ -272,6 +273,24 @@ def machine_event(machine_id):
         # wer die Aufgabe schon bekommen hat, braucht die Störung nicht noch einmal
         push.fault_reported(created["event"], current_user, exclude=task.assignees if task else ())
     return _run(machine, action, "logbuch", after)
+
+
+@bp.route("/maschine/<int:machine_id>/eintrag/<int:event_id>/zustand", methods=["POST"])
+@editor_required
+def fault_state(machine_id, event_id):
+    """Offene Störung umstellen: läuft eingeschränkt weiter ↔ steht."""
+    machine = _get(Machine, machine_id)
+    event = _get(MachineEvent, event_id)
+    if event.machine_id != machine.id:
+        abort(404)
+    try:
+        machines.set_fault_running(event, request.form.get("state") == "laeuft")
+        db.session.commit()
+        flash(_("{name} läuft eingeschränkt weiter.", name=machine.name) if event.still_running
+              else _("{name} steht.", name=machine.name), "success")
+    except StorageError as e:
+        flash_error(str(e))
+    return redirect(url_for("machines.machine_detail", machine_id=machine.id) + "#logbuch")
 
 
 @bp.route("/maschine/<int:machine_id>/eintrag/<int:event_id>/erledigt", methods=["POST"])

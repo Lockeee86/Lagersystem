@@ -543,6 +543,8 @@ def _intervals(machine, start, end, now):
     for event in machine.events.filter(MachineEvent.kind.in_(("stoerung", "wartung"))):
         created = event.created_at if event.created_at.tzinfo else event.created_at.replace(tzinfo=timezone.utc)
         begin = created if created.astimezone(tz).date() == event.date else _midnight(event.date)
+        if event.kind == "stoerung" and event.still_running:
+            continue                               # läuft eingeschränkt weiter – kein Stillstand
         if event.kind == "stoerung":
             resolved = event.resolved_at
             if resolved is not None and resolved.tzinfo is None:

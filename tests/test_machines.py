@@ -141,3 +141,22 @@ def test_due_overview(db, seed, tractor):
     assert [(t.name, s["state"]) for t, s in due] == [("UVV-Prüfung", "overdue")]
     tractor.active = False
     assert machines.due_tasks() == []
+
+
+def test_fault_still_running(as_admin, as_worker, db, seed, tractor):
+    """Störung: Maschine steht oder kann eingeschränkt weiterfahren; Aufgabe auch nachträglich für Mitarbeiter."""
+    from app.models import MachineEvent
+    as_worker.post(f"/maschine/{tractor.id}/eintrag", data={"kind": "stoerung", "text": "Hydraulik leckt leicht",
+                                                           "state": "laeuft"})
+    event = MachineEvent.query.filter_by(kind="stoerung").one()
+    assert event.still_running
+    html = as_worker.get(f"/maschine/{tractor.id}").get_data(as_text=True)
+    assert "Kann eingeschränkt weiterfahren" in html and "Aufgabe daraus" in html and "alert-warning" in html
+    assert "Störung, läuft weiter" in as_worker.get("/").get_data(as_text=True)
+    as_worker.post(f"/maschine/{tractor.id}/eintrag/{event.id}/zustand", data={"state": "steht"})
+    assert not event.still_running
+    assert "Maschine steht" in as_worker.get(f"/maschine/{tractor.id}").get_data(as_text=True)
+    page = as_worker.get(f"/aufgaben?neu=1&stoerung={event.id}").get_data(as_text=True)
+    assert "Hydraulik leckt leicht" in page                                          # Aufgabe vorbelegt
+    as_worker.post(f"/maschine/{tractor.id}/eintrag", data={"kind": "notiz", "text": "Reifen ok", "state": "laeuft"})
+    assert not MachineEvent.query.filter_by(kind="notiz").one().still_running        # nur bei Störungen

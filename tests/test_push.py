@@ -113,7 +113,7 @@ def test_task_and_fault(as_admin, as_worker, db, seed):
     assert [x["title"] for x in sent_to(admin)] == ["Neue Aufgabe"]
     push.outbox.clear()
     as_worker.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Licht defekt"})
-    assert sent_to(admin)[0]["title"] == "Störung: Fendt 724" and sent_to(admin)[0]["body"] == "Licht defekt"
+    assert sent_to(admin)[0]["title"] == "Störung: Fendt 724 steht" and sent_to(admin)[0]["body"] == "Licht defekt"
     assert not sent_to(worker)
 
 

@@ -223,7 +223,9 @@ def task_assigned(task, actor, users=None):
 
 def fault_reported(event, actor, exclude=()):
     from .machines import can_see
-    return notify([u for u in editors() if can_see(event.machine, u)], "fault", Msg("Störung: {machine}", machine=event.machine.name),
+    return notify([u for u in editors() if can_see(event.machine, u)], "fault",
+                  Msg("Störung: {machine} (läuft weiter)", machine=event.machine.name) if event.still_running
+                  else Msg("Störung: {machine} steht", machine=event.machine.name),
                   (event.text or "").strip().splitlines()[0][:150] if (event.text or "").strip() else None,
                   url_for("machines.machine_detail", machine_id=event.machine_id) + "#logbuch",
                   tag=f"fault-{event.id}", exclude=[actor, *exclude])

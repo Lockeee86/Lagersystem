@@ -127,7 +127,7 @@ def complete_task(task, user, day=None, counter=None, text=None, cost=None, phot
     return event
 
 
-def add_event(machine, kind, user, day=None, text=None, cost=None, counter=None, photo_names=None):
+def add_event(machine, kind, user, day=None, text=None, cost=None, counter=None, photo_names=None, still_running=False):
     if kind not in ("reparatur", "stoerung", "notiz"):
         raise StorageError(_("Unbekannte Art des Eintrags."))
     if not text and not photo_names:
@@ -137,8 +137,16 @@ def add_event(machine, kind, user, day=None, text=None, cost=None, counter=None,
     else:
         counter = None
     event = _event(machine, kind, user, day, text=text or None, cost=cost, counter=counter)
+    event.still_running = bool(still_running) and kind == "stoerung"
     _attach(event, photo_names, user)
     return event
+
+
+def set_fault_running(event, running):
+    """Offene Störung: Maschine läuft eingeschränkt weiter (True) oder steht (False)."""
+    if event.kind != "stoerung" or event.resolved_at:
+        raise StorageError(_("Diese Störung ist schon erledigt."))
+    event.still_running = bool(running)
 
 
 def resolve_fault(event, user):
