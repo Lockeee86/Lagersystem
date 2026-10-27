@@ -271,3 +271,44 @@ def test_next_start(app, db, seed, fake_api):
     running = biogas.live(now=on_from + timedelta(hours=1))["motors"][0]
     assert running["running"] and biogas.start_label(running, day) is None
     assert biogas.start_label(stopped, day, now=on_from + timedelta(minutes=1)) is None    # Start schon vorbei
+
+
+def test_flex_quality(app, db, seed):
+    """Fahrplan-Güte: Erlös gegenüber denselben kWh in den teuersten Viertelstunden des Tages."""
+    day = date(2026, 7, 2)
+    midnight = datetime(2026, 7, 2, tzinfo=TZ).astimezone(timezone.utc)
+    prices = {midnight + timedelta(minutes=15 * i): (200.0 if 68 <= i < 76 else 50.0) for i in range(96)}  # 17–19 Uhr teuer
+    morning = [(midnight + timedelta(hours=6, minutes=15 * i), 500.0) for i in range(8)] + \
+        [(midnight + timedelta(hours=8), 0.0)]                                    # 2 h morgens zu 50 €
+    row = biogas.aggregate(morning, prices)[day]
+    assert row["revenue"] == pytest.approx(50.0) and row["ideal"] == pytest.approx(200.0)    # 1 MWh × 200 €
+    motor = make_bhkw(db, seed, 21, "BHKW Güte")
+    db.session.add(ChpDay(machine=motor, day=day, hours=2, kwh=1000, revenue_eur=50, ideal_revenue_eur=200))
+    db.session.add(ChpDay(machine=motor, day=day + timedelta(days=1), hours=2, kwh=1000, revenue_eur=150,
+                          ideal_revenue_eur=200))
+    db.session.commit()
+    info = biogas.flex_quality(day, day + timedelta(days=1), [motor])
+    assert info["total"]["percent"] == 50 and info["total"]["missed"] == pytest.approx(200.0)
+
+
+def test_availability(app, as_admin, as_viewer, db, seed):
+    """Verfügbarkeit laut Logbuch: Störung bis „behoben“ und Wartung mit ihrem Stillstand."""
+    from app.models import MachineEvent
+    motor = make_bhkw(db, seed, 31, "BHKW Logbuch")
+    motor.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    start = datetime(2026, 9, 10, 8, tzinfo=TZ)
+    db.session.add(MachineEvent(machine=motor, kind="stoerung", date=start.date(), user_id=seed["admin"].id,
+                                created_at=start.astimezone(timezone.utc),
+                                resolved_at=(start + timedelta(hours=12)).astimezone(timezone.utc)))
+    task = motor.tasks[0]
+    task.downtime_hours = 6
+    db.session.add(MachineEvent(machine=motor, kind="wartung", date=date(2026, 9, 20), task=task,
+                                user_id=seed["admin"].id))
+    db.session.commit()
+    now = datetime(2026, 10, 27, 12, tzinfo=timezone.utc)
+    sept = biogas.availability(motor, date(2026, 9, 1), date(2026, 9, 30), now)
+    assert sept["fault_h"] == pytest.approx(12) and sept["service_h"] == pytest.approx(6) and sept["faults"] == 1
+    assert sept["percent"] == pytest.approx(round(100 * (1 - 18 / 720), 1))
+    assert biogas.availability(motor, date(2025, 1, 1), date(2025, 1, 31), now)["percent"] is None   # vor dem Anlegen
+    html = as_viewer.get("/biogas").get_data(as_text=True)
+    assert "Verfügbarkeit laut Logbuch" in html and "BHKW Logbuch" in html

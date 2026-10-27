@@ -1706,6 +1706,8 @@ class ChpDay(db.Model):
     hours = db.Column(db.Numeric(5, 2), nullable=False, default=0)
     kwh = db.Column(db.Numeric(10, 1), nullable=False, default=0)
     revenue_eur = db.Column(db.Numeric(10, 2))
+    # Erlös, wenn dieselben kWh in den teuersten Viertelstunden des Tages gelaufen wären (Maßstab für den Fahrplan)
+    ideal_revenue_eur = db.Column(db.Numeric(10, 2))
     starts = db.Column(db.Integer, nullable=False, default=0)       # wie oft der Motor angefahren ist
 
     machine = db.relationship("Machine", backref=db.backref("chp_days", lazy="dynamic", cascade="all, delete-orphan",

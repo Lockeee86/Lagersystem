@@ -154,7 +154,7 @@
 {% if bhkw %}
 <div class="card shadow-sm mb-4" id="bhkw">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-lightning-charge me-1"></i>{{ _("BHKW") }}{% if bhkw.live %} <span class="small text-body-secondary">· {{ ngettext("{n} läuft", "{n} laufen", bhkw.running) }} · {{ bhkw.kw|num(0) }} kW</span>{% endif %}</span>
+        <span><i class="bi bi-lightning-charge me-1"></i>{{ _("BHKW") }}{% if bhkw.live %} <span class="small text-body-secondary">· {{ ngettext("{n} läuft", "{n} laufen", bhkw.running) }} · {{ bhkw.kw|num(0) }} kW{% if bhkw.plan_only %} · {{ _("laut Fahrplan") }}{% endif %}</span>{% endif %}</span>
         <a class="small" href="{{ url_for('biogas.overview') }}">{{ _("Biogas") }}</a>
     </div>
     <div class="list-group list-group-flush">

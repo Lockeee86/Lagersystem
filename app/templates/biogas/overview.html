@@ -34,6 +34,13 @@
 <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Die aktuellen SKVE-Daten konnten nicht geladen werden: {message}", message=live.error) }}</div>
 {% endif %}
 
+{% if plan_only and (configured or quality) %}
+<div class="alert alert-info small d-flex gap-2" role="note">
+    <i class="bi bi-info-circle"></i>
+    <div>{{ _("SKVE liefert bisher nur den Fahrplan (geplante Leistung), keine gemessenen Werte der Motoren. Laufzeiten, kWh, Day-Ahead-Werte und der Betriebsstundenzähler sind daraus gerechnet – steht ein Motor ungeplant, sieht die App das nur über eine Störung im Logbuch. Den Zähler deshalb ab und zu am Motor ablesen und eintragen.") }}</div>
+</div>
+{% endif %}
+
 {% if configured and not live.error %}
 {% from "partials/price_strip.html" import price_strip with context %}
 {{ price_strip(strip) }}
@@ -65,6 +72,7 @@
             <div><div class="small text-body-secondary">{{ _("Betriebsstunden") }}</div><div class="fs-5 fw-semibold">{{ week.hours|num(0) }} h</div></div>
             {% if week.avg_price is not none %}<div><div class="small text-body-secondary">{{ _("Ø Preis") }}</div><div class="fs-5 fw-semibold">{{ week.avg_price|num(0) }} €/MWh</div></div>{% endif %}
             {% if current_user.is_admin and week.revenue is not none %}<div><div class="small text-body-secondary">{{ _("Erlös (Day-Ahead)") }}</div><div class="fs-5 fw-semibold">{{ week.revenue|num(0) }} €</div></div>{% endif %}
+            {% if week.quality and week.quality.total.percent is not none %}<div><div class="small text-body-secondary">{{ _("Fahrplan-Güte") }}</div><div class="fs-5 fw-semibold">{{ week.quality.total.percent }} %</div></div>{% endif %}
         </div>
         <ul class="list-unstyled small mb-0">
             {% for r in week.rows %}<li class="d-flex justify-content-between gap-2 border-top py-1"><span>{{ r.machine.name }}</span><span class="text-body-secondary">{{ r.hours|num(0) }} h · {{ (r.kwh / 1000)|num(1) }} MWh{% if r.idle_days %} · <span class="text-warning-emphasis">{{ ngettext("{n} Tag Stillstand", "{n} Tage Stillstand", r.idle_days) }}</span>{% endif %}</span></li>{% endfor %}
@@ -72,6 +80,53 @@
         {% if week.issues %}<div class="small mt-2"><a href="{{ url_for('rounds.overview') }}">{{ ngettext("{n} Mangel beim Rundgang", "{n} Mängel beim Rundgang", week.issues) }}</a></div>{% endif %}
         <div class="form-text">{{ _("Kommt montags früh auch aufs Handy (Push-Thema „Montags: Wochenbericht Biogas“, für Admins eingeschaltet).") }}</div>
     </div>
+</div>
+{% endif %}
+
+{% if quality %}
+<div class="card shadow-sm mb-4" id="guete">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-graph-up-arrow me-1"></i>{{ _("Fahrplan-Güte") }}</span>
+        <span class="small text-body-secondary">{{ _("letzte {n} Tage", n=(quality.end - quality.start).days + 1) }}</span>
+    </div>
+    <div class="card-body">
+        {% set t = quality.total %}
+        <div class="d-flex flex-wrap gap-4 align-items-baseline mb-2">
+            <div><div class="fs-3 fw-bold {{ 'text-success' if t.percent >= 90 else 'text-warning-emphasis' if t.percent >= 75 else 'text-danger' }}">{{ t.percent }} %</div><div class="small text-body-secondary">{{ _("der bestmöglichen Fahrweise") }}</div></div>
+            {% if current_user.is_admin %}
+            <div><div class="small text-body-secondary">{{ _("Erlös laut Fahrplan") }}</div><div class="fw-semibold">{{ t.revenue|num(0) }} €</div></div>
+            <div><div class="small text-body-secondary">{{ _("bestmöglich") }}</div><div class="fw-semibold">{{ t.ideal|num(0) }} €</div></div>
+            <div><div class="small text-body-secondary">{{ _("Unterschied") }}</div><div class="fw-semibold">{{ t.missed|num(0) }} €</div></div>
+            {% endif %}
+        </div>
+        {% if quality.rows|length > 1 %}
+        <ul class="list-unstyled small mb-2">
+            {% for r in quality.rows %}<li class="d-flex justify-content-between gap-2 border-top py-1"><span>{{ r.machine.name }}</span><span>{{ r.percent }} %{% if current_user.is_admin %} <span class="text-body-secondary">· {{ _("{n} € weniger", n=r.missed|num(0)) }}</span>{% endif %}</span></li>{% endfor %}
+        </ul>
+        {% endif %}
+        <div class="form-text">{{ _("Vergleich: was der Fahrplan zum Day-Ahead-Preis einbringt, gegenüber demselben Tag, wenn der Motor genauso lange und mit derselben Leistung in den teuersten Viertelstunden gelaufen wäre. 100 % = perfekt in die Preisspitzen gelegt. Speicher, Wärmebedarf und Mindestlaufzeiten lassen meist keine 100 % zu – wichtig ist der Verlauf.") }}</div>
+    </div>
+</div>
+{% endif %}
+
+{% if availability %}
+<div class="card shadow-sm mb-4" id="verfuegbarkeit">
+    <div class="card-header"><i class="bi bi-shield-check me-1"></i>{{ _("Verfügbarkeit laut Logbuch") }}</div>
+    <div class="table-responsive">
+        <table class="table table-sm small align-middle mb-0">
+            <thead><tr><th>{{ _("Motor") }}</th><th class="text-end">{{ _("30 Tage") }}</th>{% for m, a in availability[0].months %}<th class="text-end {{ 'd-none d-md-table-cell' if loop.index > 3 }}">{{ m.strftime("%m/%Y") }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for row in availability %}{% set a = row.recent %}
+            <tr>
+                <td class="text-nowrap">{{ row.machine.name }}</td>
+                <td class="text-end text-nowrap {{ 'text-danger fw-semibold' if a.percent is not none and a.percent < 95 }}" title="{{ _('Störung {f} h · Wartung {w} h', f=a.fault_h|num(0), w=a.service_h|num(0)) }}">{{ (a.percent|num(1) ~ " %") if a.percent is not none else "–" }}{% if a.faults %} <span class="text-body-secondary">· {{ ngettext("{n} Störung", "{n} Störungen", a.faults) }}</span>{% endif %}</td>
+                {% for m, am in row.months %}<td class="text-end {{ 'd-none d-md-table-cell' if loop.index > 3 }} {{ 'text-danger' if am.percent is not none and am.percent < 95 }}" title="{{ _('Störung {f} h · Wartung {w} h', f=am.fault_h|num(0), w=am.service_h|num(0)) }}">{{ (am.percent|num(1) ~ " %") if am.percent is not none else "–" }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Stillstand aus dem Logbuch: Störungen von der Meldung bis „behoben“, Wartungen mit dem Stillstand der Wartung (sonst 4 Stunden). Ungemeldete Ausfälle fehlen, weil SKVE keine gemessenen Laufzeiten liefert.") }}</div>
 </div>
 {% endif %}
 

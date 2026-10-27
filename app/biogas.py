@@ -37,6 +37,9 @@ CHUNK_DAYS = 14               # größere Zeiträume liefert die API nicht zuver
 SYNC_HOUR = 2                 # ab dieser Uhrzeit (Ortszeit) ist der Vortag fertig
 LIVE_TTL = 600                # Sekunden, die die Übersicht zwischengespeichert wird
 FORECAST_DAYS = 28            # Grundlage für die Wartungsprognose (Ø Stunden je Tag)
+# SKVE liefert bisher nur den Fahrplan (geplante Leistung), keine gemessenen Werte der Motoren. Alles, was daraus
+# gerechnet wird (Laufzeit, kWh, Erlös, Zähler), steht deshalb „laut Fahrplan“ da. Liefert SKVE einmal Ist-Werte: False.
+PLAN_ONLY = True
 STATUS_KEY = "biogas_status"
 SYNC_KEY = "biogas_sync_day"
 
@@ -167,8 +170,26 @@ def _price_at(price_map, ts):
     return price_map.get(quarter, price_map.get(quarter.replace(minute=0)))
 
 
+def _ideal(day, hours, kwh, price_map):
+    """Erlös, wenn dieselbe Laufzeit mit derselben Ø-Leistung in den teuersten Viertelstunden des Tages gelegen hätte."""
+    if not price_map or hours <= 0:
+        return None
+    start, end = _midnight(day), _midnight(day + timedelta(days=1))
+    quarters, ts = [], start
+    while ts < end:
+        price = _price_at(price_map, ts)
+        if price is not None:
+            quarters.append(price)
+        ts += timedelta(minutes=15)
+    if not quarters:
+        return None
+    count = min(len(quarters), max(1, round(hours * 4)))
+    best = sorted(quarters, reverse=True)[:count]
+    return (kwh / hours) * sum(best) * 0.25 / 1000
+
+
 def aggregate(points, price_map=None, until=None):
-    """{Tag (Ortszeit): {"hours", "kwh", "revenue", "starts"}} aus den Fahrplanwerten."""
+    """{Tag (Ortszeit): {"hours", "kwh", "revenue", "ideal", "starts"}} aus den Fahrplanwerten."""
     tz = local_tz()
     days, running = {}, False
     for ts, hours, kw in _steps(points, until):
@@ -184,6 +205,8 @@ def aggregate(points, price_map=None, until=None):
             if not running:
                 row["starts"] += 1
         running = on
+    for day, row in days.items():
+        row["ideal"] = _ideal(day, row["hours"], row["kwh"], price_map) if row["revenue"] is not None else None
     return days
 
 
@@ -196,11 +219,13 @@ def _store_days(machine, days, first, last):
     existing = {row.day: row for row in machine.chp_days.filter(ChpDay.day >= first, ChpDay.day <= last)}
     day = first
     while day <= last:
-        values = days.get(day, {"hours": 0.0, "kwh": 0.0, "revenue": None, "starts": 0})
+        values = days.get(day, {"hours": 0.0, "kwh": 0.0, "revenue": None, "ideal": None, "starts": 0})
         row = existing.get(day) or ChpDay(machine=machine, day=day)
         row.hours = Decimal(str(round(min(values["hours"], 24), 2)))
         row.kwh = Decimal(str(round(values["kwh"], 1)))
         row.revenue_eur = Decimal(str(round(values["revenue"], 2))) if values["revenue"] is not None else None
+        ideal = values.get("ideal")
+        row.ideal_revenue_eur = Decimal(str(round(ideal, 2))) if ideal is not None else None
         row.starts = values["starts"]
         db.session.add(row)
         day += timedelta(days=1)
@@ -226,6 +251,13 @@ def sync_machine(machine, today, price_map=None):
     """Abgeschlossene Tage eines Motors holen und den Zähler fortschreiben. Gibt die Zahl der Tage zurück."""
     last = db.session.query(func.max(ChpDay.day)).filter(ChpDay.machine_id == machine.id).scalar()
     first = (last - timedelta(days=OVERLAP_DAYS)) if last else today - timedelta(days=FIRST_SYNC_DAYS)
+    # Tage von vor der Fahrplan-Güte einmal nachrechnen (Erlös da, Vergleichswert fehlt)
+    missing = (db.session.query(func.min(ChpDay.day))
+               .filter(ChpDay.machine_id == machine.id, ChpDay.revenue_eur.isnot(None), ChpDay.hours > 0,
+                       ChpDay.ideal_revenue_eur.is_(None), ChpDay.day >= today - timedelta(days=FIRST_SYNC_DAYS))
+               .scalar())
+    if missing is not None and missing < first:
+        first = missing
     yesterday = today - timedelta(days=1)
     if first > yesterday:
         return 0
@@ -416,7 +448,7 @@ def dashboard(today=None):
         rows.append({"machine": machine, "now": current_row, "yesterday": yesterday.get(machine.id),
                      "next": known[0] if known else (forecast[0] if forecast else None),
                      "start": start_label(current_row, today)})
-    return {"rows": rows, "live": bool(now_by_id),
+    return {"rows": rows, "live": bool(now_by_id), "plan_only": PLAN_ONLY,
             "kw": sum(r["now"]["kw_now"] or 0 for r in rows if r["now"]),
             "running": sum(1 for r in rows if r["now"] and r["now"]["running"])}
 
@@ -468,6 +500,110 @@ def overview(today=None):
                      "year_hours": float(year[0]), "year_kwh": float(year[1]),
                      "year_revenue": float(year[2]) if year[2] is not None else None,
                      "forecast": maintenance_forecast(machine, today)[:3]})
+    return rows
+
+
+# --- Fahrplan-Güte und Verfügbarkeit -------------------------------------------------------
+
+QUALITY_DAYS = 30
+AVAILABILITY_MONTHS = 6
+
+
+def _quality(rows):
+    revenue = sum(float(r.revenue_eur) for r in rows if r.revenue_eur is not None and r.ideal_revenue_eur is not None)
+    ideal = sum(float(r.ideal_revenue_eur) for r in rows if r.revenue_eur is not None and r.ideal_revenue_eur is not None)
+    return {"revenue": revenue, "ideal": ideal, "missed": max(ideal - revenue, 0.0),
+            "percent": round(100 * revenue / ideal) if ideal > 0 else None}
+
+
+def flex_quality(start, end, machines_=None):
+    """Wie gut lag der Fahrplan in den teuren Stunden? Erlös ÷ Erlös in den teuersten Viertelstunden derselben Tage
+    (gleiche Laufzeit, gleiche Leistung). {"total": {...}, "rows": [{"machine", "percent", "revenue", "ideal", "missed"}]}
+    oder None ohne Daten."""
+    machines_ = machines_ if machines_ is not None else linked_machines()
+    rows, all_days = [], []
+    for machine in machines_:
+        days = machine.chp_days.filter(ChpDay.day >= start, ChpDay.day <= end, ChpDay.hours > 0).all()
+        info = _quality(days)
+        if info["percent"] is not None:
+            rows.append({"machine": machine, **info})
+            all_days += days
+    if not rows:
+        return None
+    return {"total": _quality(all_days), "rows": rows, "start": start, "end": end}
+
+
+def _intervals(machine, start, end, now):
+    """Stillstand aus dem Logbuch: Störungen (gemeldet → behoben) und Wartungen (Stillstand der Wartung, sonst
+    DEFAULT_DOWNTIME), jeweils auf start–end begrenzt und zusammengelegt."""
+    from .models import MachineEvent
+    tz = local_tz()
+    lo, hi = _midnight(start), min(_midnight(end + timedelta(days=1)), now)
+    spans = []
+    for event in machine.events.filter(MachineEvent.kind.in_(("stoerung", "wartung"))):
+        created = event.created_at if event.created_at.tzinfo else event.created_at.replace(tzinfo=timezone.utc)
+        begin = created if created.astimezone(tz).date() == event.date else _midnight(event.date)
+        if event.kind == "stoerung":
+            resolved = event.resolved_at
+            if resolved is not None and resolved.tzinfo is None:
+                resolved = resolved.replace(tzinfo=timezone.utc)
+            finish = resolved or now
+        else:
+            hours = (event.task.downtime_hours if event.task and event.task.downtime_hours else DEFAULT_DOWNTIME)
+            begin = _midnight(event.date) + timedelta(hours=window_hours()[0])     # Wartung in der Arbeitszeit
+            finish = begin + timedelta(hours=float(hours))
+        begin, finish = max(begin, lo), min(finish, hi)
+        if finish > begin:
+            spans.append((begin, finish, event.kind))
+    spans.sort()
+    merged = []
+    for begin, finish, kind in spans:
+        if merged and begin <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], finish), merged[-1][2] | {kind})
+        else:
+            merged.append((begin, finish, {kind}))
+    return merged, (hi - lo).total_seconds() / 3600 if hi > lo else 0.0
+
+
+def availability(machine, start, end, now=None):
+    """Verfügbarkeit eines Motors laut Logbuch: {"hours", "fault_h", "service_h", "down_h", "percent", "faults"}."""
+    now = now or datetime.now(timezone.utc)
+    created = machine.created_at
+    if created is not None and created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    since = created.astimezone(local_tz()).date() if created else None
+    if since and since > start:
+        start = since                          # vor dem Anlegen in der App gibt es kein Logbuch
+    if start > end:
+        return {"hours": 0.0, "fault_h": 0.0, "service_h": 0.0, "down_h": 0.0, "faults": 0, "percent": None}
+    spans, hours = _intervals(machine, start, end, now)
+    fault = sum((f - b).total_seconds() / 3600 for b, f, kinds in spans if "stoerung" in kinds)
+    service = sum((f - b).total_seconds() / 3600 for b, f, kinds in spans if "stoerung" not in kinds)
+    down = fault + service
+    from .models import MachineEvent
+    faults = machine.events.filter(MachineEvent.kind == "stoerung", MachineEvent.date >= start,
+                                   MachineEvent.date <= end).count()
+    return {"hours": hours, "fault_h": fault, "service_h": service, "down_h": down, "faults": faults,
+            "percent": round(100 * (1 - down / hours), 1) if hours else None}
+
+
+def availability_overview(today=None, now=None):
+    """Je BHKW: letzte 30 Tage und die letzten Monate (neuester zuerst)."""
+    today = today or date.today()
+    bhkw = (Machine.query.filter(Machine.active.is_(True),
+                                 (Machine.category == "bhkw") | Machine.skve_chp_id.isnot(None))
+            .order_by(Machine.name).all())
+    months = []
+    first = date(today.year, today.month, 1)
+    for _i in range(AVAILABILITY_MONTHS):
+        last = (date(first.year + (first.month == 12), first.month % 12 + 1, 1) - timedelta(days=1))
+        months.append((first, min(last, today)))
+        first = (first - timedelta(days=1)).replace(day=1)
+    rows = []
+    for machine in bhkw:
+        rows.append({"machine": machine,
+                     "recent": availability(machine, today - timedelta(days=QUALITY_DAYS - 1), today, now),
+                     "months": [(m, availability(machine, m, last, now)) for m, last in months]})
     return rows
 
 
@@ -637,6 +773,7 @@ def week_report(today=None):
     issues = StationCheck.query.filter(StationCheck.ok.is_(False), StationCheck.created_at >= since,
                                        StationCheck.created_at < until).count()
     return {"monday": monday, "sunday": sunday, "rows": rows, "kwh": kwh, "hours": sum(r["hours"] for r in rows),
+            "quality": flex_quality(monday, sunday, machines_),
             "revenue": revenue, "avg_price": revenue / (kwh / 1000) if revenue is not None and kwh else None,
             "idle": [r for r in rows if r["idle_days"]], "next": upcoming[0] if upcoming else None, "issues": issues}
 
@@ -651,6 +788,8 @@ def week_push(today=None):
     parts = [Msg("{hours} Betriebsstunden", hours=f"{report['hours']:.0f}")]
     if report["avg_price"] is not None:
         parts.append(Msg("Ø {price} €/MWh", price=f"{report['avg_price']:.0f}"))
+    if report["quality"] and report["quality"]["total"]["percent"] is not None:
+        parts.append(Msg("Fahrplan-Güte {n} %", n=report["quality"]["total"]["percent"]))
     for r in report["idle"]:
         parts.append(Msg("{name}: {n} Tag Stillstand", "{name}: {n} Tage Stillstand", r["idle_days"],
                          name=r["machine"].name))

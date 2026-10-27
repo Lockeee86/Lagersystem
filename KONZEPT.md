@@ -361,6 +361,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Legehybriden (`is_hybrid` nach Rasse), `expected_laying()` nur bei ≥ 80 % Hybriden mit Alter). **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
    Rundgang der Anlage, kein BHKW/Strompreis auf der Startseite, keine Biogas-Pushs (Hühnerstall-Stationen bleiben); seit 0.48.1 auch keine BHKW-Motoren unter Maschinen,
    in Suche, Kalender, Startseite und Push (Störung/Wartung).
+   **Biogas-Auswertungen** (0.49.0): Fahrplan-Güte `biogas.flex_quality()` = Erlös ÷ Erlös in den teuersten
+   Viertelstunden bei gleicher Laufzeit (30 Tage, Wochenbericht); Verfügbarkeit laut Logbuch `availability()` je Motor
+   und Monat aus Störungen/Wartungen; Hinweis, dass SKVE nur den Fahrplan liefert (`biogas.PLAN_ONLY`).
    **Benutzer „nur Hühner“** (0.47.0, `User.chickens_only`,
    `app/chickens_only.py`): sieht nur die Rubrik Hühner, Hühner-Aufgaben (`Task.area` oder ihm zugeteilt), Stallkontrolle
    und sein Konto; alles andere 404 (`before_request`), Startseite = Hühner-Übersicht, eigene untere Leiste,

@@ -1,5 +1,5 @@
 """Rubrik Biogas: Übersicht der BHKW-Motoren (SKVE-Daten, Laufzeit, Wartungsprognose)."""
-from datetime import date
+from datetime import date, timedelta
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
@@ -29,7 +29,10 @@ def overview():
                            strip=biogas.price_strip(live.get("price_series")) if not live.get("error") else None, rows=biogas.overview(),
                            status=biogas.status(), configured=biogas.configured(), today=date.today(),
                            linked=biogas.linked_machines(), windows=windows, windows_error=windows_error,
-                           work=biogas.window_hours(), week=biogas.week_report(),
+                           work=biogas.window_hours(), week=biogas.week_report(), plan_only=biogas.PLAN_ONLY,
+                           quality=biogas.flex_quality(date.today() - timedelta(days=biogas.QUALITY_DAYS),
+                                                       date.today() - timedelta(days=1)),
+                           availability=biogas.availability_overview(),
                            starts={m["machine_id"]: biogas.start_label(m) for m in live.get("motors") or []})
 
 
