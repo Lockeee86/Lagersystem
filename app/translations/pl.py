@@ -2514,4 +2514,5 @@ MESSAGES = {
     'Störung ist weg, die Aufgabe bleibt offen (z. B. Teil trotzdem tauschen)': 'Awarii już nie ma, zadanie pozostaje otwarte (np. i tak wymienić część)',
     'Behoben, Aufgabe bleibt': 'Usunięta, zadanie zostaje',
     'Behoben, Aufgabe erledigt': 'Usunięta, zadanie wykonane',
+    'Wärmenetz (Zusatzheizung, Pumpen, Übergabestationen …)': 'Sieć ciepłownicza (ogrzewanie dodatkowe, pompy, stacje przekazowe …)',
 }

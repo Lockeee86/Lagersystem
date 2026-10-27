@@ -186,3 +186,15 @@ def test_fault_resolved_task_stays(as_admin, db, seed, tractor):
     assert linked.title == "Fendt 724: Licht flackert"
     as_admin.post(f"/maschine/{tractor.id}/eintrag/{second.id}/erledigt", data={"close_task": "1"})
     assert second.resolved_at is not None and linked.done_at is not None
+
+
+def test_heating_network_category(as_admin, as_worker, db, seed):
+    """Wärmenetz (Zusatzheizung …) als eigene Maschinen-Art – unabhängig von den BHKW, für alle sichtbar."""
+    heater = machines.create_machine("Zusatzheizung", "waermenetz", seed["admin"])
+    db.session.commit()
+    assert {t.name for t in heater.tasks} >= {"Jahreswartung", "Abgasmessung (Schornsteinfeger)"}
+    seed["worker"].biogas = False
+    db.session.commit()
+    page = as_worker.get("/maschinen").get_data(as_text=True)
+    assert "Zusatzheizung" in page and "Wärmenetz" in page
+    assert as_worker.get(f"/maschine/{heater.id}").status_code == 200

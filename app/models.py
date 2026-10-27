@@ -999,6 +999,7 @@ MACHINE_CATEGORIES = {
     "lagertechnik": N_("Lagertechnik"),
     "bhkw": N_("BHKW / Gasmotor"),
     "biogas": N_("Biogasanlage (Rührwerk, Pumpe, Fütterung …)"),
+    "waermenetz": N_("Wärmenetz (Zusatzheizung, Pumpen, Übergabestationen …)"),
     "sonstiges": N_("Sonstiges"),
 }
 COUNTER_UNITS = {"h": N_("Betriebsstunden"), "km": N_("Kilometer")}
@@ -1010,7 +1011,7 @@ MACHINE_ICONS = {"schlepper": "bi-truck-front", "fahrzeug": "bi-car-front", "rod
                  "pflanzenschutz": "bi-droplet", "duengung": "bi-moisture",
                  "legemaschine": "bi-grid-3x3", "sortieranlage": "bi-funnel", "anhaenger": "bi-truck-flatbed",
                  "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "bhkw": "bi-lightning-charge",
-                 "biogas": "bi-recycle", "sonstiges": "bi-gear-wide-connected"}
+                 "biogas": "bi-recycle", "waermenetz": "bi-fire", "sonstiges": "bi-gear-wide-connected"}
 
 
 class Machine(db.Model):

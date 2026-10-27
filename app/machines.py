@@ -39,6 +39,8 @@ TASK_TEMPLATES = {
              ("Zylinderköpfe (Revision)", 30000, None), ("Generalüberholung", 60000, None),
              ("Elektroprüfung (DGUV V3)", None, 48)],
     "biogas": [("Wartung", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
+    "waermenetz": [("Jahreswartung", None, 12), ("Abgasmessung (Schornsteinfeger)", None, 12),
+                   ("Elektroprüfung (DGUV V3)", None, 48)],
     "sonstiges": [],
 }
 # Stillstand in Stunden je BHKW-Wartung (Grundlage fürs Wartungsfenster nach Strompreis); 0 = Motor läuft weiter
