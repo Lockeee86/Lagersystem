@@ -1924,6 +1924,7 @@ class CoopReading(db.Model):
     pressure = db.Column(db.Float)                     # hPa (BME280/BME680)
     gas = db.Column(db.Float)                          # Gas-Widerstand in MOhm (BME680): sinkt bei „dicker Luft“
     iaq = db.Column(db.Integer)                        # Luftqualität 0–500 (BME680, wenn die Firmware sie rechnet)
+    co2 = db.Column(db.Integer)                        # ppm (SCD41)
     rssi = db.Column(db.Float)
     snr = db.Column(db.Float)
 

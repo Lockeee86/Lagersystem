@@ -1,4 +1,4 @@
-"""Sensor am Hühnerstall: Temperatur, Luftfeuchte, Akku und Klappe (auf/zu).
+"""Sensor am Hühnerstall: Temperatur, Luftfeuchte, CO₂, Akku und Klappe (auf/zu).
 
 Die Werte kommen per HTTP von der Meshtastic-Brücke (`bridge/`), die die MQTT-Nachrichten des Knotens im Haus
 liest: `POST /api/huehner/sensor` mit dem Schlüssel aus der Hühner-Übersicht (nur der Hash liegt in `settings`).
@@ -26,6 +26,9 @@ FROST_C = 0.5                                    # Stall: Wasser friert, Kämme 
 HEAT_C = 30.0                                    # Stall: Hitzestress
 KEEP_DAYS = 400                                  # Messwerte so lange aufbewahren
 IAQ_BAD = 200                                    # ab hier „stark belastet“ (Bosch-Skala 0–500)
+# CO₂ (SCD41): Tierschutz-Nutztierhaltungsverordnung – im Legehennenstall höchstens 3000 ppm
+CO2_WARN, CO2_HIGH = 2000, 3000
+CO2_RECENT = timedelta(hours=2)                  # nur ein frischer Wert zählt für die Warnung
 GAS_DROP = 0.6                                   # Gas-Widerstand unter 60 % der Vorwoche = Luft deutlich schlechter
 # Bosch-IAQ-Stufen (obere Grenze, Text)
 IAQ_LEVELS = [(50, N_("ausgezeichnet")), (100, N_("gut")), (150, N_("leicht belastet")),
@@ -107,12 +110,13 @@ def record(data, now=None):
     values = {"temperature": _number(data, "temperature", -40, 70), "humidity": _number(data, "humidity", 0, 100),
               "battery": _number(data, "battery", 0, 101), "voltage": _number(data, "voltage", 0, 30),
               "pressure": _number(data, "pressure", 300, 1100), "gas": _number(data, "gas", 0, 1000),
-              "iaq": _number(data, "iaq", 0, 500),
+              "iaq": _number(data, "iaq", 0, 500), "co2": _number(data, "co2", 0, 40000),
               "rssi": _number(data, "rssi", -200, 50), "snr": _number(data, "snr", -50, 50)}
     doors = {"unten": _door(data.get("door")), "oben": _door(data.get("door_top"))}
     result = {"reading": None, "door": None}
-    if values["iaq"] is not None:
-        values["iaq"] = int(round(values["iaq"]))
+    for key in ("iaq", "co2"):
+        if values[key] is not None:
+            values[key] = int(round(values[key]))
     if any(v is not None for v in values.values()):
         result["reading"] = CoopReading(at=at, node=node, **values)
         db.session.add(result["reading"])
@@ -164,7 +168,7 @@ def status(now=None):
     if seen is None:
         return None
     latest = {}
-    for key in ("temperature", "humidity", "battery", "voltage", "rssi", "snr", "pressure", "gas", "iaq"):
+    for key in ("temperature", "humidity", "battery", "voltage", "rssi", "snr", "pressure", "gas", "iaq", "co2"):
         row = (CoopReading.query.filter(getattr(CoopReading, key).isnot(None))
                .order_by(CoopReading.at.desc()).first())
         latest[key] = (getattr(row, key), _aware(row.at)) if row else (None, None)
@@ -180,7 +184,33 @@ def status(now=None):
             "door": door.is_open if door else None, "door_since": _aware(door.at) if door else None,
             "seen": seen, "offline": now - seen > OFFLINE_AFTER,
             "min24": min(temps) if temps else None, "max24": max(temps) if temps else None,
-            "pressure": latest["pressure"][0], "air": air_quality(now)}
+            "pressure": latest["pressure"][0], "air": air_quality(now),
+            "co2": co2_info(*latest["co2"], now=now)}
+
+
+def co2_level(value):
+    """„gut“ bis 2000 ppm, „erhöht“ bis 3000 ppm, darüber „zu hoch“ (Grenze für Legehennen)."""
+    return "gut" if value < CO2_WARN else "erhöht" if value <= CO2_HIGH else "zu hoch"
+
+
+CO2_LABELS = (N_("gut"), N_("erhöht"), N_("zu hoch"))   # Anzeige über _(level)
+
+
+def co2_info(value, at, now=None):
+    """Letzter CO₂-Wert: None ohne Wert, sonst {value, at, level, bad} – bad nur, wenn er frisch ist."""
+    if value is None:
+        return None
+    now = now or utcnow()
+    level = co2_level(value)
+    return {"value": value, "at": at, "level": level, "bad": level == "zu hoch" and now - at <= CO2_RECENT}
+
+
+def co2_history(hours=48, now=None):
+    """CO₂ für die Kurve: [(Zeit, ppm)], ältester zuerst."""
+    now = now or utcnow()
+    rows = (CoopReading.query.filter(CoopReading.at >= now - timedelta(hours=hours), CoopReading.co2.isnot(None))
+            .order_by(CoopReading.at).all())
+    return [(_aware(r.at), r.co2) for r in rows]
 
 
 def iaq_label(value):
@@ -340,6 +370,11 @@ def alerts(now, done, mark, recipients):
         push.notify(recipients, "coop_sensor", Msg("Hühnerstall: schlechte Luft"),
                     Msg("Lüften oder ausmisten – die Luftqualität im Stall ist deutlich schlechter."), url,
                     tag=f"coop-air-{today.isoformat()}")
+    co2 = info["co2"]
+    if co2 and co2["bad"] and not done("coop_co2", today):
+        mark("coop_co2", today)
+        push.notify(recipients, "coop_sensor", Msg("Hühnerstall: CO₂ zu hoch ({n} ppm)", n=co2["value"]),
+                    Msg("Über {limit} ppm – lüften.", limit=CO2_HIGH), url, tag=f"coop-co2-{today.isoformat()}")
     temp = info["temperature"]
     if temp is None or info["offline"]:
         return

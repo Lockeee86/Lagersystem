@@ -2618,4 +2618,13 @@ MESSAGES = {
     'Region': 'Region',
     'Funkprofil': 'Profil radiowy',
     'Läuft der Kanal schon: Name und Schlüssel aus der Meshtastic-App übernehmen (Kanäle → Kanal antippen). Leer gelassener Schlüssel = neuer Kanal – dann müssen alle Knoten neu eingestellt werden.': 'Jeśli kanał już działa: przepisz nazwę i klucz z aplikacji Meshtastic (Kanały → dotknij kanału). Pusty klucz = nowy kanał – wtedy wszystkie węzły trzeba ustawić od nowa.',
+    'Hühnerstall: CO₂ zu hoch ({n} ppm)': 'Kurnik: za dużo CO₂ ({n} ppm)',
+    'Über {limit} ppm – lüften.': 'Ponad {limit} ppm – przewietrz.',
+    'CO₂ über {n} ppm – bitte lüften.': 'CO₂ ponad {n} ppm – proszę przewietrzyć.',
+    'CO₂ im Stall': 'CO₂ w kurniku',
+    'CO₂ in ppm': 'CO₂ w ppm',
+    'Grenze {n} ppm': 'Limit {n} ppm',
+    'max. {n}': 'maks. {n}',
+    'CO₂ der letzten 48 Stunden': 'CO₂ z ostatnich 48 godzin',
+    'zu hoch': 'za wysokie',
 }

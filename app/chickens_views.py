@@ -89,7 +89,7 @@ def overview():
         "chickens/overview.html", info=chickens.summary(today), today=today, days=chickens.recent_days(today),
         open_tasks=chickens.open_tasks(), suggestions=suggestions, sunset=chickens.farm_sunset(today),
         sensor=coop.status(), sensor_history=coop.history(48), door_times=coop.day_times(local_tz()),
-        air_kind=air_kind, air_points=air_points,
+        air_kind=air_kind, air_points=air_points, co2_points=coop.co2_history(48), co2_limit=coop.CO2_HIGH,
         entries=EggEntry.query.filter(EggEntry.day >= today - timedelta(days=1))
         .order_by(EggEntry.day.desc(), EggEntry.id.desc()).all(),
     )

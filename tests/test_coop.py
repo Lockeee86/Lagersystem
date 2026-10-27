@@ -314,3 +314,37 @@ def test_bridge_handle():
     assert sender.sent[-1] == (None, {"temperature": 4})
     bridge.handle("msh/EU_868/2/json/LongFast/!gw", b"kein json", sender, seen, set())
     assert len(sender.sent) == 3
+
+
+def test_co2(app, as_admin, client, db, seed, token):
+    seed["admin"].chickens = True
+    db.session.add(PushSubscription(user_id=seed["admin"].id, endpoint="https://push.example/x", p256dh="k", auth="a"))
+    db.session.commit()
+    now = datetime.now(timezone.utc)
+    for i, ppm in enumerate((900, 1800, 2600, 3400)):
+        post(client, {"co2": ppm, "temperature": 8, "at": (now - timedelta(hours=4 - i)).timestamp()}, token)
+    info = coop.status()
+    assert info["co2"]["value"] == 3400 and info["co2"]["level"] == "zu hoch" and info["co2"]["bad"]
+    assert coop.co2_level(1999) == "gut" and coop.co2_level(3000) == "erhöht"
+    assert [v for _, v in coop.co2_history(48)] == [900, 1800, 2600, 3400]
+    html = as_admin.get("/huehner").get_data(as_text=True)
+    assert "3400 ppm CO₂" in html and "bitte lüften" in html and "coop-co2" in html
+    marks = set()
+    with app.test_request_context():
+        coop.alerts(now.astimezone(BERLIN), lambda k, d: (k, d) in marks, lambda k, d: marks.add((k, d)),
+                    [seed["admin"]])
+    assert [m for m in push.outbox if m["tag"].startswith("coop-co2-")]
+    old = coop.co2_info(3400, now - timedelta(hours=3), now)
+    assert not old["bad"]                                                            # alter Wert: keine Warnung
+
+
+def test_co2_from_meshtastic(client, db, seed, token):
+    from app import sensors
+    from app.models import MeshNode
+    mesh = MeshNode(node="!00000007")
+    db.session.add(mesh)
+    sensors.assign(mesh, "coop")
+    db.session.commit()
+    client.post("/api/meshtastic", json={"node": "!00000007", "values": {"temperature": 6.5, "co2": 1200}},
+                headers={"Authorization": f"Bearer {token}"})
+    assert CoopReading.query.one().co2 == 1200

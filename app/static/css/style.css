@@ -867,6 +867,7 @@ body:not(.has-tabbar) {
 .coop-key-hum { background: var(--bs-info); opacity: .6; }
 .coop-chart-sm { height: 4rem; }
 .coop-air { stroke: var(--bs-warning); }
+.coop-co2 { stroke: var(--bs-secondary-color); }
 
 /* Lagerklima */
 .climate-band { fill: var(--bs-success); opacity: .08; }

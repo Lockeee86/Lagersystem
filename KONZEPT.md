@@ -109,6 +109,9 @@ Portainer-Stack (docker-compose)
   **Untere Leiste wählbar** (0.46.0, `tabbar.py`): Heute · [frei] · Scannen · [frei] · Mehr; Voreinstellung je Rolle
   (Verwaltung → Startseite, `settings` `tabbar_<rolle>`), eigene Wahl unter Mein Konto (`User.tabbar`). Jede Rubrik
   hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
+  **CO₂ im Hühnerstall** (0.54.0): SCD41 am Stall-Knoten → `CoopReading.co2`, Anzeige mit Kurve (Grenze
+  3000 ppm laut Tierschutz-Nutztierhaltungsverordnung für Legehennen, ab 2000 „erhöht“), Push „CO₂ zu hoch“ einmal am
+  Tag (nur bei frischem Wert, `coop.co2_info`).
   **Kanal** (0.53.0): Name, Schlüssel (PSK), Region und Funkprofil des privaten Hof-Kanals unter Sensoren → Kanal
   (`settings` `mesh_*`). Die App zeigt daraus den Kanal-QR-Code der Meshtastic-App (ohne Uplink für Sensoren, mit
   Uplink fürs Gateway) – ein neuer Sensor ist mit einem Scan auf dem richtigen Kanal.

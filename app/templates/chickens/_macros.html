@@ -60,6 +60,9 @@
     {% if sensor.air %}{% set air = sensor.air %}
     <span class="{{ 'text-danger fw-semibold' if air.bad }}" title="{{ _('Luftqualität im Stall') }}"><i class="bi bi-wind me-1"></i>{% if air.iaq is not none %}{{ _("Luft {level} (IAQ {n})", level=_(air.level), n=air.iaq) }}{% elif air.gas_ratio is not none %}{{ _("Luft schlechter als sonst") if air.bad else _("Luft wie sonst") }}{% else %}{{ _("Luft: Sensor lernt noch") }}{% endif %}</span>
     {% endif %}
+    {% if sensor.co2 %}{% set co2 = sensor.co2 %}
+    <span class="{{ 'text-danger fw-semibold' if co2.level == 'zu hoch' else 'text-warning-emphasis' if co2.level == 'erhöht' }}" title="{{ _('CO₂ im Stall') }}"><i class="bi bi-cloud-haze2 me-1"></i>{{ co2.value }} ppm CO₂{% if co2.level != "gut" %} · {{ _(co2.level) }}{% endif %}</span>
+    {% endif %}
     {% if sensor.offline %}<span class="text-danger"><i class="bi bi-wifi-off me-1"></i>{{ _("Sensor stumm seit {date}", date=sensor.seen|datetime) }}</span>{% endif %}
 </div>
 {% endif %}
@@ -91,6 +94,25 @@
 {% endmacro %}
 
 {# Luftqualität (BME680): IAQ (höher = schlechter) oder Gas-Widerstand (niedriger = schlechter) #}
+{% macro co2_chart(points, limit) %}
+{% if points|length > 1 %}
+{% set values = points|map(attribute=1)|list %}
+{% set lo, hi = [values|min, 400]|min, [values|max, limit + 500]|max %}
+{% set t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp() %}
+{% set span = [t1 - t0, 1]|max %}
+{% set ns = namespace(line="") %}
+{% for at, v in points %}
+{% set ns.line = ns.line ~ (1000 * (at.timestamp() - t0) / span)|round(1) ~ "," ~ (200 - 200 * (v - lo) / (hi - lo))|round(1) ~ " " %}
+{% endfor %}
+{% set ly = (200 - 200 * (limit - lo) / (hi - lo))|round(1) %}
+<div class="small text-body-secondary mt-3 mb-1"><i class="bi bi-cloud-haze2 me-1"></i>{{ _("CO₂ in ppm") }} · <span class="text-danger">{{ _("Grenze {n} ppm", n=limit) }}</span> · {{ _("max. {n}", n=values|max) }}</div>
+<svg class="coop-chart coop-chart-sm" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('CO₂ der letzten 48 Stunden') }}">
+    <line x1="0" x2="1000" y1="{{ ly }}" y2="{{ ly }}" class="coop-zero"/>
+    <polyline points="{{ ns.line }}" class="coop-co2"/>
+</svg>
+{% endif %}
+{% endmacro %}
+
 {% macro air_chart(kind, points) %}
 {% if points|length > 1 %}
 {% set values = points|map(attribute=1)|list %}

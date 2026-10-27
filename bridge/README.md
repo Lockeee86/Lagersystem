@@ -32,6 +32,10 @@ unter **Sensoren → Kanal** hinterlegen (Schlüssel leer = neuer wird erzeugt).
 in der Meshtastic-App mit dem neuen Knoten verbinden, Kanäle → QR-Code scannen, fertig (fürs Gateway gibt es einen
 eigenen Code mit Uplink).
 
+**Mit SCD41 am Stall** (z. B. XIAO ESP32S3 + Wio-SX1262): SCD41 an SDA = D4, SCL = D5, 3V3, GND; Reedkontakt zwischen
+D1 und GND → Monitor-Pin **2** (GPIO-Nummer). Telemetrie → Luftqualität **an** – dann zeigt die App beim Hühnerstall
+auch CO₂ (Grenze 3000 ppm, Push bei Überschreitung). Der XIAO misst seinen Akku nicht; besser USB-Netzteil.
+
 **Knoten am Stall**
 
 | Einstellung | Wert |

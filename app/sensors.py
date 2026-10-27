@@ -246,7 +246,7 @@ def record(data, now=None):
     try:
         if mesh.purpose == "coop":
             payload = {**common, **{k: data[k] for k in ("rssi", "snr") if data.get(k) not in (None, 0)},
-                       **{k: v for k, v in values.items() if k != "co2"}}
+                       **values}
             if active is not None:
                 payload["door"] = "open" if active == (doors["door"] == "open") else "closed"
             if len(payload) > len(common):
