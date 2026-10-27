@@ -1805,6 +1805,8 @@ class EggEntry(db.Model):
     eggs = db.Column(db.Integer, nullable=False)
     cracked = db.Column(db.Integer, nullable=False, default=0, server_default="0")
     note = db.Column(db.String(200))
+    # aus einer alten Liste übernommen (egg_import.py): zählt in Auswertungen, aber nicht zum Vorrat
+    imported = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 

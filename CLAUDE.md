@@ -122,7 +122,8 @@ docker compose up --build -d
   `Household` + Verteilung `EggShare` (Reihenfolge `fair_order()`), Vorrat `stock()`, Herde `FlockEvent` (`flock_size()`), Futter `FeedEntry`,
   Stallbuch `FlockTreatment` (Wartezeit `blocked()`), Monate `months()`, `summary()` für Startseite; Stallkontrolle =
   Rundgang mit `CheckStation.area == "huehner"`, Aufgaben `Task.area`; Push `evening_check()` aus `push.daily`
-  (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Rubriken mit
+  (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Alte Legedaten aus Excel:
+  `app/egg_import.py` (`parse_file` → `plan` → `apply`, `EggEntry.imported` zählt nicht zum Vorrat; echte Listen nie committen). Rubriken mit
   `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer.
   Benutzer „nur Hühner“ (`User.chickens_only` → `only_chickens`): `app/chickens_only.py` (`allowed()` im
   `before_request`, `filter_tasks()`); neue Seiten für sie dort freigeben

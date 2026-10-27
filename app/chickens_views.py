@@ -3,16 +3,19 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
-from flask import Blueprint, abort, flash, render_template, request
+import os
+import secrets
+
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
-from . import chickens, coop, tasks
+from . import chickens, coop, egg_import, tasks
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .models import (FLOCK_REASONS, RECURRENCES, EggEntry, EggShare, FeedEntry, FlockEvent, FlockTreatment,
                      Household)
 from .storage import StorageError
-from .utils import back, flash_error, form_date, form_int, form_money, form_str, local_tz
+from .utils import admin_required, back, flash_error, form_date, form_int, form_money, form_str, local_tz
 
 bp = Blueprint("chickens", __name__)
 
@@ -135,6 +138,61 @@ def eggs():
         entries=EggEntry.query.order_by(EggEntry.day.desc(), EggEntry.id.desc()).limit(40).all(),
         blocked=chickens.blocked(today),
     )
+
+
+@bp.route("/huehner/eier/import", methods=["POST"])
+@admin_required
+def egg_import_preview():
+    """Alte Legedaten (Excel): erst Vorschau, dann übernehmen."""
+    from .admin import _cleanup_imports, _import_dir
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("chickens.eggs") + "#import")
+    data = upload.read()
+    try:
+        parsed = egg_import.parse_file(data)
+    except egg_import.EggImportError as e:
+        flash_error(str(e))
+        return redirect(url_for("chickens.eggs") + "#import")
+    _cleanup_imports()
+    token = secrets.token_hex(16)
+    with open(os.path.join(_import_dir(), token), "wb") as f:
+        f.write(data)
+    session["egg_import"] = {"token": token}
+    return render_template("chickens/egg_import.html", parsed=parsed, plan=egg_import.plan(parsed),
+                           filename=upload.filename)
+
+
+@bp.route("/huehner/eier/import/uebernehmen", methods=["POST"])
+@admin_required
+def egg_import_apply():
+    from .admin import _pending_import
+    info, path = _pending_import("egg_import")
+    if not info:
+        flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
+        return redirect(url_for("chickens.eggs") + "#import")
+    with open(path, "rb") as f:
+        data = f.read()
+    try:
+        parsed = egg_import.parse_file(data)
+        start = form_int("start_flock", minimum=1, maximum=1000) if form_str("start_flock", 10) else None
+        stats = egg_import.apply(parsed, current_user, start_flock=start, breed=form_str("breed", 80) or None,
+                                 age_months=form_int("age_months", minimum=0, maximum=120)
+                                 if form_str("age_months", 10) else None)
+        db.session.commit()
+    except (egg_import.EggImportError, StorageError) as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("chickens.eggs") + "#import")
+    os.remove(path)
+    session.pop("egg_import", None)
+    flash(_("Alte Legedaten übernommen: {days} Tage, {eggs} Eier.", days=stats["days"], eggs=stats["eggs"]), "success")
+    if stats["dead_skipped"]:
+        flash(ngettext("{n} totes Huhn nicht eingetragen – dafür war der Bestand zu klein.",
+                       "{n} tote Hühner nicht eingetragen – dafür war der Bestand zu klein.", stats["dead_skipped"]),
+              "warning")
+    return redirect(url_for("chickens.eggs"))
 
 
 @bp.route("/huehner/verteilen", methods=["POST"])

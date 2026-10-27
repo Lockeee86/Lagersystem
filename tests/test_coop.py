@@ -164,14 +164,14 @@ def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
 
     # Morgen: um 10 Uhr noch zu → Push (feste Zeit, damit es nicht von der Uhrzeit abhängt)
     push.outbox.clear()
-    morning = datetime(2026, 10, 27, 9, 30, tzinfo=BERLIN)
+    morning = datetime(2031, 3, 12, 9, 30, tzinfo=BERLIN)            # fern von „heute“
     coop.record({"door": "closed"}, now=morning.astimezone(timezone.utc) - timedelta(minutes=1))
     db.session.commit()
     monkeypatch.setattr(chickens, "farm_sunrise", lambda day: morning - timedelta(hours=2))
     monkeypatch.setattr(coop, "utcnow", lambda: morning.astimezone(timezone.utc))
     push.daily(app, morning)
     assert not [m for m in push.outbox if m["tag"].startswith("coop-morning")]     # erst um 10 Uhr
-    ten = datetime(2026, 10, 27, 10, 2, tzinfo=BERLIN)
+    ten = datetime(2031, 3, 12, 10, 2, tzinfo=BERLIN)
     monkeypatch.setattr(coop, "utcnow", lambda: ten.astimezone(timezone.utc))
     push.daily(app, ten)
     msgs = [m for m in push.outbox if m["tag"].startswith("coop-morning")]

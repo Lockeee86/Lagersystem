@@ -99,7 +99,8 @@ def eggs_on(day):
 
 def stock():
     """Eier im Vorrat: gute Eier insgesamt minus verteilte (nie unter 0)."""
-    good = db.session.query(func.coalesce(func.sum(EggEntry.eggs - EggEntry.cracked), 0)).scalar()
+    good = (db.session.query(func.coalesce(func.sum(EggEntry.eggs - EggEntry.cracked), 0))
+            .filter(EggEntry.imported.is_(False)).scalar())       # alte Listen: längst verteilt
     given = db.session.query(func.coalesce(func.sum(EggShare.eggs), 0)).scalar()
     return max(int(good) - int(given), 0)
 

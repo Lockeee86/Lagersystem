@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Alte Legedaten – Vorschau") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Alte Legedaten – Vorschau") }}</h1>
+        <p class="text-body-secondary mb-0">{{ filename }} · {{ plan.first|date }} – {{ plan.last|date }}</p>
+    </div>
+</div>
+
+{% for w in parsed.warnings %}<div class="alert alert-warning small py-2">{{ w }}</div>{% endfor %}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-egg"></i>{{ _("Eier gelegt") }}</div><div class="stat-value">{{ plan.eggs }}</div><div class="stat-sub">{{ _("davon {n} kaputt/Windei", n=plan.cracked) }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-calendar3"></i>{{ _("Tage") }}</div><div class="stat-value">{{ plan.months|sum(attribute="days") }}</div><div class="stat-sub">{{ _("mit Eiern") }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-heartbreak"></i>{{ _("Tot") }}</div><div class="stat-value">{{ plan.dead }}</div><div class="stat-sub">{{ _("als Abgang „verendet“") }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-skip-forward"></i>{{ _("Übersprungen") }}</div><div class="stat-value">{{ plan.skipped|length + plan.future|length }}</div><div class="stat-sub">{{ _("schon eingetragen oder in der Zukunft") }}</div></div></div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header">{{ _("Je Monat") }}</div>
+    <div class="table-responsive">
+        <table class="table table-sm small align-middle mb-0">
+            <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Tage") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end">{{ _("kaputt") }}</th><th class="text-end">{{ _("Tot") }}</th></tr></thead>
+            <tbody>
+            {% for m in plan.months %}
+            <tr><td>{{ m.month.strftime("%m/%Y") }}</td><td class="text-end">{{ m.days }}</td><td class="text-end">{{ m.eggs }}</td><td class="text-end">{{ m.cracked or "" }}</td><td class="text-end">{{ m.dead or "" }}</td></tr>
+            {% else %}
+            <tr><td colspan="5" class="text-body-secondary">{{ _("Nichts Neues – alle Tage sind schon eingetragen.") }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('chickens.egg_import_apply') }}" class="card shadow-sm mb-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="card-body">
+        <h2 class="h6">{{ _("Bestand am {date}", date=plan.first|date) }}</h2>
+        <p class="small text-body-secondary">
+            {% if plan.flock_at_start %}{{ ngettext("Laut App waren da {n} Huhn im Bestand.", "Laut App waren da {n} Hühner im Bestand.", plan.flock_at_start) }}
+            {% else %}{{ _("Laut App gab es da noch keine Hühner. Damit Legeleistung und Abgänge stimmen, hier den damaligen Bestand eintragen (wird ein Zugang an diesem Tag).") }}{% endif %}
+            {% if plan.needs_flock %}<strong>{{ _("Ohne Bestand können die toten Hühner nicht eingetragen werden.") }}</strong>{% endif %}
+        </p>
+        <div class="row g-2 mb-3">
+            <div class="col-4 col-md-2"><label class="form-label small mb-1" for="i_flock">{{ _("Hühner") }}</label>
+                <input class="form-control" id="i_flock" name="start_flock" type="number" min="1" max="1000" inputmode="numeric" {% if not plan.flock_at_start %}placeholder="{{ _('z. B. 25') }}"{% endif %}></div>
+            <div class="col-8 col-md-4"><label class="form-label small mb-1" for="i_breed">{{ _("Rasse (wahlweise)") }}</label>
+                <input class="form-control" id="i_breed" name="breed" maxlength="80" placeholder="{{ _('z. B. Lohmann Braun') }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label small mb-1" for="i_age">{{ _("Alter in Monaten (wahlweise)") }}</label>
+                <input class="form-control" id="i_age" name="age_months" type="number" min="0" max="120" inputmode="numeric"></div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('chickens.eggs') }}">{{ _("Abbrechen") }}</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

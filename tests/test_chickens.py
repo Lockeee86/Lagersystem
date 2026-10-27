@@ -270,3 +270,55 @@ def test_chickens_only_user(as_admin, as_worker, db, seed):
     # Admins sind nie „nur Hühner“
     seed["admin"].chickens_only = True
     assert not seed["admin"].only_chickens
+
+
+def _egg_sheet():
+    """Erfundene Legeliste wie aus Excel: ein Blatt je Jahr."""
+    import io
+    import openpyxl
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "2025"
+    sheet.append(["WT", "Datum", "KW", "Eier", "kaputte Eier", "Windei", "Tot", "Bemerkung"])
+    sheet.append([datetime(2025, 3, 1), datetime(2025, 3, 1), 9, 10, 2, None, None, "Stall gemistet"])
+    sheet.append([datetime(2025, 3, 2), datetime(2025, 3, 2), 9, 12, None, 1, 1, None])
+    sheet.append([datetime(2025, 3, 3), datetime(2025, 3, 3), 10, None, None, " ", None, None])   # leer
+    sheet.append([datetime(2025, 3, 4), datetime(2025, 3, 4), 10, 11, None, None, None, None])
+    old = book.create_sheet("2024")
+    old.append(["WT", "Datum", "KW", "Eier", "Bemerkung"])
+    old.append([datetime(2024, 5, 1), datetime(2024, 5, 1), 18, 3, None])
+    buf = io.BytesIO()
+    book.save(buf)
+    return buf.getvalue()
+
+
+def test_egg_import(as_admin, as_worker, db, seed, keeper):
+    """Alte Legedaten: Eier = gute, kaputt + Windei kommen dazu; Tot = Abgang; zählt nicht zum Vorrat."""
+    import io
+    from app import egg_import
+    from app.models import FlockEvent
+    chickens.add_eggs(date(2025, 3, 4), 9, 0, "schon in der App", keeper)          # dieser Tag bleibt
+    db.session.commit()
+    parsed = egg_import.parse_file(_egg_sheet())
+    assert [(r["day"], r["eggs"], r["cracked"], r["dead"]) for r in parsed["rows"]] == [
+        (date(2024, 5, 1), 3, 0, 0), (date(2025, 3, 1), 12, 2, 0), (date(2025, 3, 2), 13, 1, 1),
+        (date(2025, 3, 4), 11, 0, 0)]
+    plan = egg_import.plan(parsed)
+    assert plan["eggs"] == 28 and len(plan["skipped"]) == 1 and plan["needs_flock"]
+    with pytest.raises(egg_import.EggImportError):
+        egg_import.parse_file(b"kein excel")
+
+    assert as_worker.post("/huehner/eier/import").status_code == 403                    # nur Admin
+    r = as_admin.post("/huehner/eier/import", data={"file": (io.BytesIO(_egg_sheet()), "liste.xlsx")},
+                      content_type="multipart/form-data")
+    html = r.get_data(as_text=True)
+    assert "Vorschau" in html and "03/2025" in html and "Ohne Bestand" in html
+    stock_before = chickens.stock()
+    as_admin.post("/huehner/eier/import/uebernehmen", data={"start_flock": "20", "breed": "Lohmann Braun",
+                                                             "age_months": "6"})
+    assert EggEntry.query.filter_by(imported=True).count() == 3
+    assert EggEntry.query.filter_by(day=date(2025, 3, 4)).one().eggs == 9               # nicht überschrieben
+    assert chickens.stock() == stock_before                                             # alte Eier: kein Vorrat
+    assert chickens.flock_size(date(2025, 3, 3)) == 19
+    assert FlockEvent.query.filter_by(reason="verendet").one().change == -1
+    assert chickens.eggs_on(date(2025, 3, 1)) == {"eggs": 12, "cracked": 2}
