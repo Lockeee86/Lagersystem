@@ -109,6 +109,9 @@ Portainer-Stack (docker-compose)
   **Untere Leiste wählbar** (0.46.0, `tabbar.py`): Heute · [frei] · Scannen · [frei] · Mehr; Voreinstellung je Rolle
   (Verwaltung → Startseite, `settings` `tabbar_<rolle>`), eigene Wahl unter Mein Konto (`User.tabbar`). Jede Rubrik
   hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
+  **Kanal** (0.53.0): Name, Schlüssel (PSK), Region und Funkprofil des privaten Hof-Kanals unter Sensoren → Kanal
+  (`settings` `mesh_*`). Die App zeigt daraus den Kanal-QR-Code der Meshtastic-App (ohne Uplink für Sensoren, mit
+  Uplink fürs Gateway) – ein neuer Sensor ist mit einem Scan auf dem richtigen Kanal.
   0.46.1: Brücke stürzte bei jeder Nachricht ab (Variable überdeckte `packet`) – Verarbeitung jetzt in `handle()`,
   im Test einmal ganz durchgespielt.
   **Abweichung zur Planung:** außer „Jetzt wichtig“ jetzt auch Push (Thema „Lagerklima“, von sich aus für Admins,

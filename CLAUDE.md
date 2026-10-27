@@ -129,7 +129,9 @@ docker compose up --build -d
   `before_request`, `filter_tasks()`); neue Seiten für sie dort freigeben
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
   leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
-  `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, committet nicht;
+  `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, Hof-Kanal `channel()` / `save_channel()`
+  (`settings` `mesh_*`, nicht im Protokoll) → Kanal-Link/QR der Meshtastic-App `channel_url()` (ChannelSet als Protobuf
+  von Hand), committet nicht;
   `app/sensors_views.py` (Blueprint `sensors`, `/sensoren`, auch Schlüssel für die Brücke)
 - `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` (auch direkt `/api/huehner/sensor` für eigenes JSON), Schlüssel
   `new_token()`/`check_token()`, `status()`, `history()`, Warnungen `alerts()` aus `chickens.evening_check`;

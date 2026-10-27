@@ -5,8 +5,12 @@ Hühnerstall (Kontakt unten + Messwerte → `coop.record`), Kontakt oben (→ `c
 (→ `climate.record`, Lager/Reihe in `ClimateSensor`) oder nicht verwenden. Neue Knoten warten, bis der Admin sie
 zuordnet. Committet nicht.
 """
+import base64
 import re
+import secrets
 from datetime import timedelta, timezone
+
+import segno
 
 from . import climate, coop
 from .extensions import db
@@ -56,6 +60,93 @@ def detection(text):
     if match:
         return match.group(1) == "1"
     return True if DETECTED_RE.search(lower) else None
+
+
+# --- Kanal --------------------------------------------------------------------------------
+# Der private Meshtastic-Kanal, auf dem alle Hof-Knoten funken. Die App erzeugt daraus den Kanal-Link/QR-Code der
+# Meshtastic-App (meshtastic.org/e/#…, ein `ChannelSet` als Protobuf) – damit ist ein neuer Sensor in einem Schritt
+# auf dem richtigen Kanal. Der Link ersetzt die Kanäle und LoRa-Einstellungen des Knotens.
+
+CHANNEL_KEYS = {"name": "mesh_channel_name", "psk": "mesh_channel_psk", "region": "mesh_region",
+                "preset": "mesh_preset"}
+REGIONS = {"EU_868": 3, "EU_433": 2}                       # Config.LoRaConfig.RegionCode
+PRESETS = {"LONG_FAST": (0, "LongFast"), "LONG_MODERATE": (7, "LongModerate"), "LONG_SLOW": (1, "LongSlow"),
+           "MEDIUM_FAST": (4, "MediumFast"), "MEDIUM_SLOW": (3, "MediumSlow"), "SHORT_FAST": (6, "ShortFast"),
+           "SHORT_SLOW": (5, "ShortSlow")}               # Config.LoRaConfig.ModemPreset
+CHANNEL_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,11}$")
+HOP_LIMIT = 3
+
+
+def channel():
+    """{"name", "psk", "region", "preset"} oder None, solange kein Kanal hinterlegt ist."""
+    values = {key: _setting(setting) for key, setting in CHANNEL_KEYS.items()}
+    if not (values["name"] and values["psk"]):
+        return None
+    values["region"] = values["region"] if values["region"] in REGIONS else "EU_868"
+    values["preset"] = values["preset"] if values["preset"] in PRESETS else "LONG_FAST"
+    return values
+
+
+def _psk_bytes(psk):
+    try:
+        key = base64.b64decode(psk, validate=True)
+    except ValueError:
+        return None
+    return key if len(key) in (1, 16, 32) else None
+
+
+def new_psk():
+    return base64.b64encode(secrets.token_bytes(32)).decode()
+
+
+def save_channel(name, psk, region, preset):
+    """Kanal hinterlegen. Leerer Schlüssel = neuen erzeugen (dann alle Knoten neu einrichten)."""
+    name, psk = (name or "").strip(), (psk or "").strip().replace(" ", "")
+    if not CHANNEL_NAME_RE.match(name):
+        raise SensorError(N_("Kanalname: 1–11 Zeichen, nur Buchstaben, Ziffern, - und _."))
+    if name.lower() in {label.lower() for _, label in PRESETS.values()}:
+        raise SensorError(N_("Bitte einen eigenen Kanalnamen wählen – nicht den öffentlichen."))
+    psk = psk or new_psk()
+    key = _psk_bytes(psk)
+    if key is None or len(key) == 1:
+        raise SensorError(N_("Der Schlüssel muss Base64 sein (16 oder 32 Byte), so wie in der Meshtastic-App."))
+    if region not in REGIONS or preset not in PRESETS:
+        raise SensorError(N_("Unbekannte Region oder unbekanntes Funkprofil."))
+    for key_name, value in (("name", name), ("psk", psk), ("region", region), ("preset", preset)):
+        Setting.put(CHANNEL_KEYS[key_name], value)
+
+
+def _varint(value):
+    out = bytearray()
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        out.append(byte | (0x80 if value else 0))
+        if not value:
+            return bytes(out)
+
+
+def _field(number, value):
+    """Protobuf-Feld: int/bool als varint, bytes/str längenbegrenzt."""
+    if isinstance(value, (bool, int)):
+        return _varint(number << 3) + _varint(int(value))
+    data = value.encode() if isinstance(value, str) else value
+    return _varint(number << 3 | 2) + _varint(len(data)) + data
+
+
+def channel_url(ch, uplink=False):
+    """Kanal-Link der Meshtastic-App. `uplink` nur fürs Gateway (schickt die Pakete an MQTT)."""
+    settings = _field(2, _psk_bytes(ch["psk"])) + _field(3, ch["name"])
+    if uplink:
+        settings += _field(5, True)
+    lora = (_field(1, True) + _field(2, PRESETS[ch["preset"]][0]) + _field(7, REGIONS[ch["region"]])
+            + _field(8, HOP_LIMIT) + _field(9, True) + _field(13, True) + _field(105, True))
+    data = _field(1, settings) + _field(2, lora)
+    return "https://meshtastic.org/e/#" + base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def channel_qr(url):
+    return segno.make(url, error="l").svg_inline(scale=4, border=2, dark="#000", light="#fff")
 
 
 # --- Knoten -------------------------------------------------------------------------------

@@ -124,7 +124,52 @@
                 <input class="form-control form-control-sm" id="add_row" name="row" type="number" min="1" max="99"></div>
             <div class="col-12 col-md-1"><button class="btn btn-sm btn-primary w-100">{{ _("Anlegen") }}</button></div>
         </form>
-        <p class="small text-body-secondary mt-2 mb-0">{{ _("Die Knoten-ID steht in der Meshtastic-App in der Knotenliste (beginnt mit !). Knoten, die schon Werte schicken, erscheinen auch von selbst.") }}</p>
+        <p class="small text-body-secondary mt-2 mb-0">{{ _("Die Knoten-ID steht in der Meshtastic-App in der Knotenliste (beginnt mit !). Knoten, die schon Werte schicken, erscheinen auch von selbst.") }}
+            {% if channel %}<a href="#kanal">{{ _("Neuer Sensor: zuerst den Kanal-QR-Code scannen.") }}</a>{% endif %}</p>
+    </div>
+</details>
+
+<details class="card shadow-sm mb-3" id="kanal" {% if not channel %}open{% endif %}>
+    <summary class="card-header"><i class="bi bi-broadcast me-1"></i>{{ _("Kanal") }}{% if channel %} <span class="small text-body-secondary">· {{ channel.name }}</span>{% endif %}</summary>
+    <div class="card-body">
+        {% if channel %}
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+                <div class="fw-semibold small mb-1">{{ _("Neuer Sensor") }}</div>
+                <div class="channel-qr mb-2">{{ channel_qr|safe }}</div>
+                <p class="small mb-1">{{ _("In der Meshtastic-App mit dem neuen Knoten verbinden, dann Kanäle → QR-Code scannen (oder den Link am Handy öffnen) und übernehmen. Danach ist er auf dem Hof-Kanal und erscheint hier unter „Neue Knoten“.") }}</p>
+                <a class="small text-break" href="{{ channel_link }}">{{ _("Kanal-Link öffnen") }}</a>
+            </div>
+            <div class="col-12 col-md-6">
+                <details class="small">
+                    <summary class="text-body-secondary">{{ _("Für das Gateway (mit Uplink)") }}</summary>
+                    <div class="channel-qr my-2">{{ gateway_qr|safe }}</div>
+                    <p class="mb-1">{{ _("Wie oben, aber mit Uplink an – nur für den Knoten im Haus, der die Pakete an MQTT schickt. WLAN und MQTT bleiben, wie sie sind.") }}</p>
+                    <a class="text-break" href="{{ gateway_link }}">{{ _("Kanal-Link öffnen") }}</a>
+                </details>
+            </div>
+        </div>
+        <p class="small text-body-secondary">{{ _("Der Link ersetzt die Kanäle des Knotens und setzt Region und Funkprofil – beides muss bei allen Hof-Knoten gleich sein.") }}</p>
+        {% else %}
+        <p class="small">{{ _("Hier den privaten Meshtastic-Kanal hinterlegen, auf dem alle Hof-Knoten funken. Dann zeigt die App einen QR-Code, mit dem ein neuer Sensor in einem Schritt eingestellt ist.") }}</p>
+        {% endif %}
+        <form method="post" action="{{ url_for('sensors.channel_save') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-12 col-md-2"><label class="form-label small mb-1" for="chName">{{ _("Kanalname") }}</label>
+                <input class="form-control form-control-sm" id="chName" name="name" maxlength="11" pattern="[A-Za-z0-9_\-]{1,11}" required value="{{ channel.name if channel else '' }}" placeholder="{{ _('z. B. Hof') }}"></div>
+            <div class="col-12 col-md-4"><label class="form-label small mb-1" for="chPsk">{{ _("Schlüssel (PSK, Base64)") }}</label>
+                <input class="form-control form-control-sm font-monospace" id="chPsk" name="psk" maxlength="100" autocomplete="off" value="{{ channel.psk if channel else '' }}" placeholder="{{ _('leer = neuen erzeugen') }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-1" for="chRegion">{{ _("Region") }}</label>
+                <select class="form-select form-select-sm" id="chRegion" name="region">
+                    {% for key in regions %}<option value="{{ key }}" {% if channel and channel.region == key %}selected{% endif %}>{{ key }}</option>{% endfor %}
+                </select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-1" for="chPreset">{{ _("Funkprofil") }}</label>
+                <select class="form-select form-select-sm" id="chPreset" name="preset">
+                    {% for key, (number, label) in presets.items() %}<option value="{{ key }}" {% if channel and channel.preset == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            <div class="col-12 col-md-2"><button class="btn btn-sm btn-primary w-100">{{ _("Speichern") }}</button></div>
+        </form>
+        <p class="small text-body-secondary mt-2 mb-0">{{ _("Läuft der Kanal schon: Name und Schlüssel aus der Meshtastic-App übernehmen (Kanäle → Kanal antippen). Leer gelassener Schlüssel = neuer Kanal – dann müssen alle Knoten neu eingestellt werden.") }}</p>
     </div>
 </details>
 
@@ -163,6 +208,8 @@
 
 {% block scripts %}
 <script>
+var target = location.hash && document.getElementById(location.hash.slice(1));
+if (target && target.tagName === "DETAILS") { target.open = true; }
 document.querySelectorAll(".sensor-form").forEach(function (form) {
     var select = form.querySelector("[data-purpose]");
     function update() {

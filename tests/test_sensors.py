@@ -101,3 +101,30 @@ def test_open_by_setting(as_admin, db, seed):
     r = as_admin.post("/sensoren/klappe", data={"open_by": "quatsch"}, follow_redirects=True)
     assert "Uhrzeit" in r.get_data(as_text=True) and coop.open_by().strftime("%H:%M") == "09:30"
     assert 'value="09:30"' in as_admin.get("/sensoren").get_data(as_text=True)
+
+
+def test_channel_qr(as_admin, as_worker, db, seed):
+    import base64
+    html = as_admin.get("/sensoren").get_data(as_text=True)
+    assert "Kanalname" in html and "<svg" not in html                              # noch kein Kanal
+    r = as_admin.post("/sensoren/kanal", data={"name": "LongFast", "psk": "", "region": "EU_868",
+                                              "preset": "LONG_FAST"}, follow_redirects=True)
+    assert "eigenen Kanalnamen" in r.get_data(as_text=True) and sensors.channel() is None
+    r = as_admin.post("/sensoren/kanal", data={"name": "Testhof", "psk": "kein-base64", "region": "EU_868",
+                                              "preset": "LONG_FAST"}, follow_redirects=True)
+    assert "Base64" in r.get_data(as_text=True) and sensors.channel() is None
+    as_admin.post("/sensoren/kanal", data={"name": "Testhof", "psk": "", "region": "EU_868", "preset": "MEDIUM_FAST"})
+    ch = sensors.channel()
+    assert ch["name"] == "Testhof" and len(base64.b64decode(ch["psk"])) == 32 and ch["preset"] == "MEDIUM_FAST"
+    url = sensors.channel_url(ch)
+    data = base64.urlsafe_b64decode(url.split("#")[1] + "=" * (-len(url.split("#")[1]) % 4))
+    assert url.startswith("https://meshtastic.org/e/#") and b"Testhof" in data and base64.b64decode(ch["psk"]) in data
+    assert b"\x28\x01" not in data.split(b"Testhof")[0] + data.split(b"Testhof")[1][:2]      # Sensor: kein Uplink
+    html = as_admin.get("/sensoren").get_data(as_text=True)
+    assert "<svg" in html and url in html and "Für das Gateway" in html
+    as_admin.post("/sensoren/kanal", data={"name": "Testhof", "psk": ch["psk"], "region": "EU_868",
+                                           "preset": "LONG_FAST"})
+    assert sensors.channel()["psk"] == ch["psk"]                                    # Schlüssel bleibt
+    from app.models import AuditEntry
+    assert not AuditEntry.query.filter(AuditEntry.object_id.like("mesh_%")).count()   # Schlüssel nicht im Protokoll
+    assert as_worker.post("/sensoren/kanal", data={"name": "X"}).status_code in (302, 403)

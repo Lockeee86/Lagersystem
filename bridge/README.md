@@ -27,7 +27,10 @@ Server: Mosquitto ──► coop-bridge ──► Lagersystem  POST /api/huehner
 Am besten mit der Meshtastic-App (Handy) oder `meshtastic --set …` per USB.
 
 **Beide Knoten:** einen **eigenen, privaten Kanal** mit eigenem Schlüssel (PSK) anlegen – auf dem öffentlichen
-„LongFast“ könnte jeder in der Nähe die Werte mitlesen. Region `EU_868`.
+„LongFast“ könnte jeder in der Nähe die Werte mitlesen. Region `EU_868`. Einfacher: den Kanal einmal in der App
+unter **Sensoren → Kanal** hinterlegen (Schlüssel leer = neuer wird erzeugt). Dann zeigt die App einen QR-Code –
+in der Meshtastic-App mit dem neuen Knoten verbinden, Kanäle → QR-Code scannen, fertig (fürs Gateway gibt es einen
+eigenen Code mit Uplink).
 
 **Knoten am Stall**
 

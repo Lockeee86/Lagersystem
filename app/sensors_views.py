@@ -28,7 +28,19 @@ def overview_page():
     return render_template("sensors/overview.html", data=data, purposes=sensors.PURPOSES,
                            warehouses=climate.warehouses(), coop_status=coop.status() if data["coop"] else None,
                            has_token=coop.has_token(), doors=sensors.door_settings(),
-                           open_by=coop.open_by())
+                           open_by=coop.open_by(), **_channel())
+
+
+def _channel():
+    if not current_user.is_admin:
+        return {"channel": None}
+    ch = sensors.channel()
+    if ch is None:
+        return {"channel": None, "regions": sensors.REGIONS, "presets": sensors.PRESETS}
+    url, gateway = sensors.channel_url(ch), sensors.channel_url(ch, uplink=True)
+    return {"channel": ch, "regions": sensors.REGIONS, "presets": sensors.PRESETS,
+            "channel_link": url, "channel_qr": sensors.channel_qr(url),
+            "gateway_link": gateway, "gateway_qr": sensors.channel_qr(gateway)}
 
 
 @bp.route("/sensoren/neu", methods=["POST"])
@@ -83,6 +95,20 @@ def door_save():
         db.session.rollback()
         flash_error(_(str(e)))
     return redirect(url_for("sensors.overview_page") + "#einrichtung")
+
+
+@bp.route("/sensoren/kanal", methods=["POST"])
+@admin_required
+def channel_save():
+    try:
+        sensors.save_channel(form_str("name", 20), form_str("psk", 100), form_str("region", 10),
+                             form_str("preset", 20))
+        db.session.commit()
+        flash(_("Kanal gespeichert – neue Sensoren den QR-Code mit der Meshtastic-App scannen lassen."), "success")
+    except sensors.SensorError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
+    return redirect(url_for("sensors.overview_page") + "#kanal")
 
 
 @bp.route("/sensoren/schluessel", methods=["POST"])
