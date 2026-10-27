@@ -366,6 +366,9 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    und Monat aus Störungen/Wartungen; Hinweis, dass SKVE nur den Fahrplan liefert (`biogas.PLAN_ONLY`).
    Störungen (0.49.1): „Maschine steht“ oder „kann weiterfahren“ (`MachineEvent.still_running`, umschaltbar über
    `machines.fault_state`); nur stehende zählen als Stillstand. Aufgabe aus einer Störung dürfen jetzt alle Mitarbeiter.
+   0.49.2: Störung und Aufgabe getrennt – „Behoben, Aufgabe bleibt“ (z. B. Starter hängt → lief wieder, „Starter
+   wechseln“ bleibt offen) oder „Behoben, Aufgabe erledigt“ (`close_task`); beim Melden „Was ist zu tun?“ als Titel.
+   Abhaken der Aufgabe erledigt eine noch offene Störung weiterhin mit.
    **Benutzer „nur Hühner“** (0.47.0, `User.chickens_only`,
    `app/chickens_only.py`): sieht nur die Rubrik Hühner, Hühner-Aufgaben (`Task.area` oder ihm zugeteilt), Stallkontrolle
    und sein Konto; alles andere 404 (`before_request`), Startseite = Hühner-Übersicht, eigene untere Leiste,

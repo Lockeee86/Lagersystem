@@ -160,3 +160,29 @@ def test_fault_still_running(as_admin, as_worker, db, seed, tractor):
     assert "Hydraulik leckt leicht" in page                                          # Aufgabe vorbelegt
     as_worker.post(f"/maschine/{tractor.id}/eintrag", data={"kind": "notiz", "text": "Reifen ok", "state": "laeuft"})
     assert not MachineEvent.query.filter_by(kind="notiz").one().still_running        # nur bei Störungen
+
+
+def test_fault_resolved_task_stays(as_admin, db, seed, tractor):
+    """Starter hängt → Aufgabe „Starter wechseln“ → Störung behoben (lief beim nächsten Start), Aufgabe bleibt offen."""
+    from app.models import Task
+    as_admin.post(f"/maschine/{tractor.id}/eintrag", data={"kind": "stoerung", "text": "Starter hängt beim Starten",
+                                                          "as_task": "1", "task_title": "Starter wechseln"})
+    event = MachineEvent.query.filter_by(kind="stoerung").one()
+    task = Task.query.one()
+    assert task.title == "Fendt 724: Starter wechseln" and task.machine_event_id == event.id
+    html = as_admin.get(f"/maschine/{tractor.id}").get_data(as_text=True)
+    assert "Behoben, Aufgabe bleibt" in html and "Behoben, Aufgabe erledigt" in html
+    r = as_admin.post(f"/maschine/{tractor.id}/eintrag/{event.id}/erledigt", follow_redirects=True)
+    assert "Aufgabe dazu bleibt offen" in r.get_data(as_text=True)
+    assert event.resolved_at is not None and task.done_at is None
+    assert "behoben" in as_admin.get(f"/aufgabe/{task.id}").get_data(as_text=True)
+    # die Aufgabe später erledigen geht ohne Fehler, obwohl die Störung schon behoben ist
+    as_admin.post(f"/aufgabe/{task.id}/erledigt", data={"note": "Starter getauscht"})
+    assert task.done_at is not None
+    # zweite Störung: beides auf einmal erledigen
+    as_admin.post(f"/maschine/{tractor.id}/eintrag", data={"kind": "stoerung", "text": "Licht flackert", "as_task": "1"})
+    second = MachineEvent.query.filter_by(text="Licht flackert").one()
+    linked = Task.query.filter_by(machine_event_id=second.id).one()
+    assert linked.title == "Fendt 724: Licht flackert"
+    as_admin.post(f"/maschine/{tractor.id}/eintrag/{second.id}/erledigt", data={"close_task": "1"})
+    assert second.resolved_at is not None and linked.done_at is not None

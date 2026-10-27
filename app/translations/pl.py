@@ -2509,4 +2509,9 @@ MESSAGES = {
     'Aufgabe daraus': 'Utwórz zadanie',
     'lief weiter': 'pracowała dalej',
     'läuft weiter': 'pracuje dalej',
+    'Störung als behoben markiert – die Aufgabe dazu bleibt offen.': 'Awaria oznaczona jako usunięta – zadanie do niej pozostaje otwarte.',
+    'z. B. Starter wechseln – leer: aus der Beschreibung': 'np. wymienić rozrusznik – puste: z opisu',
+    'Störung ist weg, die Aufgabe bleibt offen (z. B. Teil trotzdem tauschen)': 'Awarii już nie ma, zadanie pozostaje otwarte (np. i tak wymienić część)',
+    'Behoben, Aufgabe bleibt': 'Usunięta, zadanie zostaje',
+    'Behoben, Aufgabe erledigt': 'Usunięta, zadanie wykonane',
 }

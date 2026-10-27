@@ -253,8 +253,10 @@ def machine_event(machine_id):
             db.session.flush()
             ids = {int(v) for v in request.form.getlist("assignee_ids") if v.isdigit()}
             wanted = User.query.filter(User.id.in_(ids)).all() if ids else []
+            todo = form_str("task_title", 150)
             created["task"] = tasks.create_task(
-                current_user, title=tasks.title_for(machine, text), description=text,
+                current_user, title=f"{machine.name}: {todo}"[:200] if todo else tasks.title_for(machine, text),
+                description=text,
                 due_on=form_date("task_due") or date.today(), important=bool(request.form.get("task_important")),
                 assignees=tasks.allowed_assignees(current_user, wanted),
                 machine_id=machine.id, machine_event_id=event.id,
@@ -302,9 +304,11 @@ def fault_resolved(machine_id, event_id):
         abort(404)
     try:
         machines.resolve_fault(event, current_user)
-        tasks.close_linked(current_user, event=event)
+        # Die Aufgabe dazu (z. B. „Starter wechseln“) bleibt offen, außer sie ist damit auch erledigt
+        closed = tasks.close_linked(current_user, event=event) if request.form.get("close_task") else 0
         db.session.commit()
-        flash(_("Störung als behoben markiert."), "success")
+        flash(_("Störung als behoben markiert.") if closed or not tasks.open_linked(event=event)
+              else _("Störung als behoben markiert – die Aufgabe dazu bleibt offen."), "success")
     except StorageError as e:
         flash_error(str(e))
     return _to_machine(machine, "logbuch")

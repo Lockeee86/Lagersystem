@@ -125,13 +125,13 @@ def test_task_from_fault_and_maintenance(as_admin, as_worker, db, seed):
     as_worker.post(f"/maschine/{m.id}/eintrag", data={"kind": "stoerung", "text": "Licht defekt"})
     fault2 = MachineEvent.query.filter_by(kind="stoerung", resolved_at=None).one()
     assert Task.query.count() == 1
-    # Aufgabe nachträglich aus der Störung (vorbefüllt) – Störung an der Maschine erledigen schließt sie
+    # Aufgabe nachträglich aus der Störung (vorbefüllt) – „Behoben, Aufgabe erledigt“ schließt beides
     html = as_admin.get(f"/aufgaben?neu=1&stoerung={fault2.id}").get_data(as_text=True)
     assert "Fendt 724: Licht defekt" in html and f'name="machine_event_id" value="{fault2.id}"' in html
     as_admin.post("/aufgaben/neu", data={"title": "Fendt 724: Licht defekt", "machine_event_id": str(fault2.id),
                                          "machine_id": str(m.id)})
     t2 = Task.query.filter_by(machine_event_id=fault2.id).one()
-    as_worker.post(f"/maschine/{m.id}/eintrag/{fault2.id}/erledigt")
+    as_worker.post(f"/maschine/{m.id}/eintrag/{fault2.id}/erledigt", data={"close_task": "1"})
     assert t2.is_done and fault2.resolved_at is not None
 
     # Fällige Wartung als Aufgabe: Abhaken trägt die Wartung mit dem aktuellen Zählerstand ein

@@ -100,6 +100,10 @@
                         </div>
                         <div class="row g-2 mt-1" id="asTaskFields">
                             <div class="col-12">
+                                <label class="form-label small mb-1" for="task_title">{{ _("Was ist zu tun?") }}</label>
+                                <input class="form-control form-control-sm" id="task_title" name="task_title" maxlength="150" placeholder="{{ _('z. B. Starter wechseln – leer: aus der Beschreibung') }}">
+                            </div>
+                            <div class="col-12">
                                 <div class="small text-body-secondary mb-1">{{ _("Für wen?") }} {{ _("(niemand gewählt = alle)") if current_user.is_admin else _("(niemand gewählt = alle Admins und Besteller)") }}</div>
                                 <div class="d-flex flex-wrap gap-2">
                                     {% for u in assignable %}
@@ -154,9 +158,14 @@
     <a class="btn btn-sm btn-outline-light text-nowrap" href="{{ url_for('tasks.task_list', neu=1, stoerung=e.id) }}"><i class="bi bi-plus-lg me-1"></i>{{ _("Aufgabe daraus") }}</a>
     {% endif %}
     {% if current_user.can_edit %}
-    <form method="post" action="{{ url_for('machines.fault_resolved', machine_id=machine.id, event_id=e.id) }}">
+    <form method="post" action="{{ url_for('machines.fault_resolved', machine_id=machine.id, event_id=e.id) }}" class="d-flex flex-wrap gap-2">
         {{ csrf() }}
+        {% if linked %}
+        <button class="btn btn-sm btn-outline-success text-nowrap" title="{{ _('Störung ist weg, die Aufgabe bleibt offen (z. B. Teil trotzdem tauschen)') }}"><i class="bi bi-check2 me-1"></i>{{ _("Behoben, Aufgabe bleibt") }}</button>
+        <button class="btn btn-sm btn-outline-success text-nowrap" name="close_task" value="1"><i class="bi bi-check2-all me-1"></i>{{ _("Behoben, Aufgabe erledigt") }}</button>
+        {% else %}
         <button class="btn btn-sm btn-outline-success text-nowrap"><i class="bi bi-check2 me-1"></i>{{ _("Behoben") }}</button>
+        {% endif %}
     </form>
     {% endif %}
 </div>
@@ -370,6 +379,7 @@
                             {% if e.kind == "stoerung" %}
                             {% if e.resolved_at %}<span class="badge text-bg-success">{{ _("behoben") }}</span>{% else %}<span class="badge text-bg-danger">{{ _("offen") }}</span>{% endif %}
                             {% if e.still_running %}<span class="badge text-bg-warning">{{ _("lief weiter") if e.resolved_at else _("läuft weiter") }}</span>{% endif %}
+                            {% if e.kind == "stoerung" and e.resolved_at and current_user.can_edit and not fault_tasks.get(e.id) %}<a class="small" href="{{ url_for('tasks.task_list', neu=1, stoerung=e.id) }}"><i class="bi bi-plus-lg"></i> {{ _("Aufgabe daraus") }}</a>{% endif %}
                             {% endif %}
                             {% if e.counter is not none %}<span class="small text-body-secondary">{{ e.counter }} {{ machine.unit_short }}</span>{% endif %}
                             {% if e.cost is not none %}<span class="small text-body-secondary">{{ e.cost|money }}</span>{% endif %}
