@@ -367,8 +367,10 @@ def months(today=None, count=12):
         key = start.year * 100 + start.month
         n, days = eggs.get(key, 0), (end - start).days + 1
         kg, cost = feed.get(key, (None, None))
+        hen_days = _hen_days(start, end)
         rows.append({"month": start, "eggs": n, "cracked": cracked.get(key, 0), "given": given.get(key, 0),
-                     "per_day": n / days, "rate": laying_rate(n, _hen_days(start, end)), "age": flock_age(end),
+                     "days": days, "hen_days": hen_days,
+                     "per_day": n / days, "rate": laying_rate(n, hen_days), "age": flock_age(end),
                      "expected": expected_laying(start, end),
                      "feed_kg": kg, "feed_cost": cost,
                      "per_egg": (Decimal(cost) / n) if cost and n else None})
@@ -377,6 +379,134 @@ def months(today=None, count=12):
     while rows and not (rows[0]["eggs"] or rows[0]["given"] or rows[0]["feed_kg"]):
         rows.pop(0)
     return list(reversed(rows))
+
+
+# --- Auswertung über alle Jahre -----------------------------------------------------------
+
+MONTH_NAMES = (N_("Jan"), N_("Feb"), N_("Mär"), N_("Apr"), N_("Mai"), N_("Jun"), N_("Jul"), N_("Aug"), N_("Sep"),
+               N_("Okt"), N_("Nov"), N_("Dez"))
+CHART_W, CHART_H = 1000, 220
+
+
+def first_day():
+    days = [d for d in (db.session.query(func.min(EggEntry.day)).scalar(),
+                        db.session.query(func.min(FlockEvent.day)).scalar()) if d]
+    return min(days) if days else None
+
+
+def _daily_totals():
+    return {d: int(n) for d, n in db.session.query(EggEntry.day, func.sum(EggEntry.eggs)).group_by(EggEntry.day)}
+
+
+def _records(daily, start, today):
+    """Bester Tag, beste Woche (7 Tage), längste Pause ohne Eier (zwischen dem ersten und letzten Eintrag)."""
+    if not daily:
+        return None
+    best_day = max(daily.items(), key=lambda kv: (kv[1], kv[0]))
+    first, last = min(daily), max(daily)
+    window, best_week, best_week_end = 0, 0, None
+    gap = longest = 0
+    gap_end = longest_end = None
+    day = first
+    while day <= last:
+        window += daily.get(day, 0) - daily.get(day - timedelta(days=7), 0)
+        if window > best_week:
+            best_week, best_week_end = window, day
+        if daily.get(day, 0) == 0:
+            gap += 1
+            gap_end = day
+            if gap > longest:
+                longest, longest_end = gap, gap_end
+        else:
+            gap = 0
+        day += timedelta(days=1)
+    return {"best_day": best_day, "best_week": best_week,
+            "best_week_from": best_week_end - timedelta(days=6) if best_week_end else None,
+            "best_week_to": best_week_end, "longest_gap": longest,
+            "gap_from": longest_end - timedelta(days=longest - 1) if longest_end else None, "gap_to": longest_end}
+
+
+def _line(values, top):
+    """[(x, y)] für eine Linie im Diagramm (None = Lücke)."""
+    count = len(values)
+    return [(round(CHART_W * i / max(count - 1, 1), 1), round(CHART_H - CHART_H * v / top, 1) if v is not None else None)
+            for i, v in enumerate(values)]
+
+
+def _rolling(daily, start, end, days=7):
+    """Gleitender Durchschnitt der Eier am Tag über `days` Tage."""
+    values, window, day = [], 0, start
+    while day <= end:
+        window += daily.get(day, 0) - daily.get(day - timedelta(days=days), 0)
+        values.append((day, window / days))
+        day += timedelta(days=1)
+    return values
+
+
+def analysis(today=None):
+    """Alles für die Seite Auswertung: Jahre, Monate, Jahreszeiten-Kurven, Legeleistung, Rekorde, Verluste, Haushalte."""
+    today = today or date.today()
+    start = first_day()
+    if start is None:
+        return None
+    count = (today.year - start.year) * 12 + today.month - start.month + 1
+    month_rows = months(today, count)                               # neuester zuerst
+    years = {}
+    for m in month_rows:
+        y = years.setdefault(m["month"].year, {"year": m["month"].year, "eggs": 0, "cracked": 0, "given": 0,
+                                               "hen_days": 0, "days": 0, "feed_kg": 0.0, "feed_cost": 0.0,
+                                               "expected": [], "dead": 0, "losses": {}})
+        for key in ("eggs", "cracked", "given", "hen_days", "days"):
+            y[key] += m[key]
+        y["feed_kg"] += float(m["feed_kg"] or 0)
+        y["feed_cost"] += float(m["feed_cost"] or 0)
+        if m["expected"] is not None:
+            y["expected"].append((m["expected"], m["hen_days"]))
+    for event in FlockEvent.query.filter(FlockEvent.change < 0):
+        y = years.get(event.day.year)
+        if y is not None:
+            y["dead"] += -event.change
+            y["losses"][event.reason_label] = y["losses"].get(event.reason_label, 0) - event.change
+    for y in years.values():
+        weight = sum(h for _e, h in y["expected"])
+        y["expected"] = round(sum(e * h for e, h in y["expected"]) / weight) if weight else None
+        y["rate"] = laying_rate(y["eggs"], y["hen_days"])
+        y["hens"] = y["hen_days"] / y["days"] if y["days"] else 0                # Ø Hühner im Jahr
+        y["per_hen"] = round(y["eggs"] / (y["hen_days"] / 365)) if y["hen_days"] else None   # Eier je Huhn und Jahr
+        y["per_day"] = y["eggs"] / y["days"] if y["days"] else 0
+        y["cracked_pct"] = round(100 * y["cracked"] / y["eggs"], 1) if y["eggs"] else None
+        y["per_egg"] = y["feed_cost"] / (y["eggs"] - y["cracked"]) if y["feed_cost"] and y["eggs"] > y["cracked"] else None
+        y["feed_per_hen"] = round(y["feed_kg"] * 1000 / y["hen_days"]) if y["feed_kg"] and y["hen_days"] else None
+    year_rows = sorted(years.values(), key=lambda y: y["year"], reverse=True)
+
+    # Jahreszeiten: Ø Eier am Tag je Monat, eine Linie je Jahr
+    by_month = {(m["month"].year, m["month"].month): m for m in month_rows}
+    top = max([m["per_day"] for m in month_rows] + [1])
+    season = [{"year": y["year"], "points": _line([by_month[(y["year"], mo)]["per_day"]
+                                                   if (y["year"], mo) in by_month else None for mo in range(1, 13)],
+                                                  top * 1.1)} for y in sorted(year_rows, key=lambda y: y["year"])]
+    # Legeleistung und Richtwert je Monat (ältester zuerst)
+    chrono = list(reversed(month_rows))
+    rates = [m["rate"] for m in chrono]
+    expected = [m["expected"] for m in chrono]
+    rate_chart = {"rate": _line(rates, 100), "expected": _line(expected, 100),
+                  "labels": [(i, m["month"]) for i, m in enumerate(chrono) if m["month"].month == 1 or i == 0],
+                  "count": len(chrono)}
+    daily = _daily_totals()
+    rolling = _rolling(daily, max(start, min(daily) if daily else start), today) if daily else []
+    roll_top = max([v for _d, v in rolling] + [1]) * 1.1
+    trend = {"points": _line([v for _d, v in rolling], roll_top), "top": roll_top,
+             "first": rolling[0][0] if rolling else None, "last": today}
+    shares = (db.session.query(func.extract("year", EggShare.day).label("y"), Household.name, func.sum(EggShare.eggs))
+              .join(Household).group_by("y", Household.name).all())
+    households = {}
+    for year, name, eggs in shares:
+        households.setdefault(int(year), []).append((name, int(eggs)))
+    for rows in households.values():
+        rows.sort(key=lambda r: -r[1])
+    return {"years": year_rows, "months": month_rows, "season": season, "season_top": top * 1.1,
+            "rate_chart": rate_chart, "trend": trend, "records": _records(daily, start, today),
+            "households": households, "start": start}
 
 
 def recent_days(today=None, days=30):

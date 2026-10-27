@@ -140,6 +140,13 @@ def eggs():
     )
 
 
+@bp.route("/huehner/auswertung")
+@viewer_required
+def analysis():
+    return render_template("chickens/analysis.html", data=chickens.analysis(date.today()), today=date.today(),
+                           month_names=chickens.MONTH_NAMES, w=chickens.CHART_W, h=chickens.CHART_H)
+
+
 @bp.route("/huehner/eier/import", methods=["POST"])
 @admin_required
 def egg_import_preview():

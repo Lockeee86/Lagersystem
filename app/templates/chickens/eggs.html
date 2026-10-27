@@ -103,7 +103,7 @@
 
     <div class="col-lg-6">
         <div class="card shadow-sm mb-4">
-            <div class="card-header">{{ _("Monate") }}</div>
+            <div class="card-header d-flex justify-content-between align-items-center"><span>{{ _("Monate") }}</span><a class="small" href="{{ url_for('chickens.analysis') }}"><i class="bi bi-graph-up me-1"></i>{{ _("Alle Jahre und Auswertung") }}</a></div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0 small">
                     <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Ø am Tag") }}</th><th class="text-end">{{ _("Legeleistung") }}</th>{% if months|selectattr("expected")|list %}<th class="text-end" title="{{ _('Richtwert der Zuchtunternehmen für Legehybriden in diesem Alter') }}">{{ _("erwartet") }}</th>{% endif %}<th class="text-end">{{ _("Ø Alter") }}</th><th class="text-end d-none d-md-table-cell">{{ _("kaputt") }}</th><th class="text-end">{{ _("verteilt") }}</th></tr></thead>

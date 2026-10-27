@@ -361,7 +361,10 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Legehybriden (`is_hybrid` nach Rasse), `expected_laying()` nur bei ≥ 80 % Hybriden mit Alter). **Alte Legedaten importieren** (0.50.0, `app/egg_import.py`,
    Eier → „Alte Legedaten importieren“, nur Admin): Excel je Jahr mit Datum/Eier (= gute)/kaputt/Windei/Tot/Bemerkung,
    Vorschau, vorhandene Tage bleiben; `EggEntry.imported` zählt nicht zum Vorrat; Tot → Abgang „verendet“, Bestand am
-   ersten Tag wahlweise als Zugang. **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
+   ersten Tag wahlweise als Zugang. **Auswertung über alle Jahre** (0.51.0, `chickens.analysis()`, `/huehner/auswertung`):
+   Jahresvergleich (Eier, Ø Hühner, Eier je Huhn und Jahr, Legeleistung/erwartet, kaputt, Verluste, Futter, € je Ei,
+   verteilt), Jahreszeiten-Kurve je Jahr, Legeleistung gegen Richtwert, 7-Tage-Verlauf, Rekorde, Haushalte je Jahr,
+   alle Monate je Jahr. **Rubrik Biogas je Benutzer abwählbar** (0.48.0, `User.biogas`, Standard an): ohne Haken kein Biogas, kein
    Rundgang der Anlage, kein BHKW/Strompreis auf der Startseite, keine Biogas-Pushs (Hühnerstall-Stationen bleiben); seit 0.48.1 auch keine BHKW-Motoren unter Maschinen,
    in Suche, Kalender, Startseite und Push (Störung/Wartung).
    **Biogas-Auswertungen** (0.49.0): Fahrplan-Güte `biogas.flex_quality()` = Erlös ÷ Erlös in den teuersten

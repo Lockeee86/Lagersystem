@@ -64,6 +64,7 @@ AREAS = [
     {"key": "huehner", "label": N_("Hühner"), "icon": "bi-egg", "show": lambda u: u.sees_chickens, "items": [
         item("chickens.overview", N_("Übersicht"), "bi-egg"),
         item("chickens.eggs", N_("Eier & Haushalte"), "bi-basket2"),
+        item("chickens.analysis", N_("Auswertung"), "bi-graph-up"),
         item("chickens.flock", N_("Herde"), "bi-egg-fried"),
         item("chickens.feed", N_("Futter"), "bi-bag"),
         item("chickens.log", N_("Stallbuch"), "bi-journal-medical"),

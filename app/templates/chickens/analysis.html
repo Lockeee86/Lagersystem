@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Hühner – Auswertung") }}{% endblock %}
+
+{% macro path(points) -%}
+{%- set ns = namespace(d="", pen=false) -%}
+{%- for x, y in points -%}
+{%- if y is none -%}{%- set ns.pen = false -%}
+{%- else -%}{%- set ns.d = ns.d ~ ("L" if ns.pen else "M") ~ x ~ "," ~ y ~ " " -%}{%- set ns.pen = true -%}{%- endif -%}
+{%- endfor -%}
+{{ ns.d }}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Auswertung") }}</h1>
+        {% if data %}<p class="text-body-secondary mb-0">{{ _("Seit {date}", date=data.start|date) }}</p>{% endif %}
+    </div>
+</div>
+
+{% if not data %}
+<div class="card shadow-sm"><div class="card-body text-body-secondary">{{ _("Noch keine Daten – Eier eintragen oder alte Legedaten importieren.") }}</div></div>
+{% else %}
+
+{# --- Jahresvergleich --- #}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-calendar3 me-1"></i>{{ _("Jahresvergleich") }}</div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small text-nowrap chicken-table">
+            <thead><tr>
+                <th>{{ _("Jahr") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end">{{ _("Ø am Tag") }}</th>
+                <th class="text-end">{{ _("Ø Hühner") }}</th><th class="text-end" title="{{ _('Eier je Huhn aufs Jahr gerechnet') }}">{{ _("je Huhn/Jahr") }}</th>
+                <th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end">{{ _("erwartet") }}</th>
+                <th class="text-end">{{ _("kaputt") }}</th><th class="text-end">{{ _("Verluste") }}</th>
+                <th class="text-end">{{ _("Futter") }}</th><th class="text-end">{{ _("€ je Ei") }}</th><th class="text-end">{{ _("verteilt") }}</th>
+            </tr></thead>
+            <tbody>
+            {% for y in data.years %}
+            <tr>
+                <td class="fw-semibold">{{ y.year }}{% if y.year == today.year %} <span class="text-body-secondary fw-normal">{{ _("(bis heute)") }}</span>{% endif %}</td>
+                <td class="text-end">{{ y.eggs }}</td>
+                <td class="text-end">{{ y.per_day|num(1) }}</td>
+                <td class="text-end">{{ y.hens|num(0) if y.hens else "–" }}</td>
+                <td class="text-end">{{ y.per_hen if y.per_hen is not none else "–" }}</td>
+                <td class="text-end {{ 'text-warning-emphasis' if y.rate is not none and y.expected and y.rate < y.expected - 15 }}">{{ (y.rate ~ " %") if y.rate is not none else "–" }}</td>
+                <td class="text-end text-body-secondary">{{ (y.expected ~ " %") if y.expected is not none else "–" }}</td>
+                <td class="text-end">{{ y.cracked }}{% if y.cracked_pct %} <span class="text-body-secondary">({{ y.cracked_pct|num(1) }} %)</span>{% endif %}</td>
+                <td class="text-end" title="{% for reason, n in y.losses.items() %}{{ reason }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}">{{ y.dead or "–" }}</td>
+                <td class="text-end">{{ (y.feed_kg|num(0) ~ " kg") if y.feed_kg else "–" }}{% if y.feed_per_hen %} <span class="text-body-secondary">({{ _("{g} g/Tag", g=y.feed_per_hen) }})</span>{% endif %}</td>
+                <td class="text-end">{{ ((y.per_egg * 100)|num(1) ~ " ct") if y.per_egg else "–" }}</td>
+                <td class="text-end">{{ y.given or "–" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("„je Huhn/Jahr“: gelegte Eier ÷ Hühnertage × 365. Verluste: tippen zeigt die Gründe. Futterkosten je gutem Ei.") }}</div>
+</div>
+
+<div class="row g-4">
+    {# --- Jahreszeiten --- #}
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4 h-100">
+            <div class="card-header"><i class="bi bi-sun me-1"></i>{{ _("Jahreszeiten – Ø Eier am Tag je Monat") }}</div>
+            <div class="card-body">
+                <svg viewBox="0 -10 {{ w }} {{ h + 30 }}" class="w-100 chicken-chart" role="img" aria-label="{{ _('Ø Eier am Tag je Monat, eine Linie je Jahr') }}">
+                    {% for i in range(12) %}<text x="{{ (w * i / 11)|round(1) }}" y="{{ h + 18 }}" text-anchor="middle" class="axis">{{ _(month_names[i]) }}</text>{% endfor %}
+                    <line x1="0" x2="{{ w }}" y1="{{ h }}" y2="{{ h }}" class="grid"/>
+                    {% for s in data.season %}
+                    <path d="{{ path(s.points) }}" class="season season-{{ loop.revindex0 }}" fill="none"/>
+                    {% endfor %}
+                </svg>
+                <div class="d-flex flex-wrap gap-3 small mt-1">
+                    {% for s in data.season|reverse %}<span><span class="legend season-{{ loop.index0 }}"></span>{{ s.year }}</span>{% endfor %}
+                    <span class="text-body-secondary ms-auto">{{ _("oben = {n} Eier am Tag", n=data.season_top|num(1)) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Legeleistung gegenüber Richtwert --- #}
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4 h-100">
+            <div class="card-header"><i class="bi bi-graph-up me-1"></i>{{ _("Legeleistung je Monat") }}</div>
+            <div class="card-body">
+                {% set rc = data.rate_chart %}
+                <svg viewBox="0 -10 {{ w }} {{ h + 30 }}" class="w-100 chicken-chart" role="img" aria-label="{{ _('Legeleistung je Monat und Richtwert') }}">
+                    {% for p in (25, 50, 75) %}<line x1="0" x2="{{ w }}" y1="{{ h - h * p / 100 }}" y2="{{ h - h * p / 100 }}" class="grid"/><text x="4" y="{{ h - h * p / 100 - 4 }}" class="axis">{{ p }} %</text>{% endfor %}
+                    <line x1="0" x2="{{ w }}" y1="{{ h }}" y2="{{ h }}" class="grid"/>
+                    {% for i, m in rc.labels %}<text x="{{ (w * i / [rc.count - 1, 1]|max)|round(1) }}" y="{{ h + 18 }}" class="axis">{{ m.year }}</text>{% endfor %}
+                    <path d="{{ path(rc.expected) }}" class="expected" fill="none"/>
+                    <path d="{{ path(rc.rate) }}" class="rate" fill="none"/>
+                </svg>
+                <div class="d-flex flex-wrap gap-3 small mt-1">
+                    <span><span class="legend rate"></span>{{ _("Legeleistung") }}</span>
+                    <span><span class="legend expected"></span>{{ _("Richtwert Legehybriden") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Verlauf --- #}
+<div class="card shadow-sm my-4">
+    <div class="card-header"><i class="bi bi-activity me-1"></i>{{ _("Verlauf – Eier am Tag (7-Tage-Mittel)") }}</div>
+    <div class="card-body">
+        <svg viewBox="0 -10 {{ w }} {{ h + 30 }}" class="w-100 chicken-chart" role="img" aria-label="{{ _('Eier am Tag, gleitendes 7-Tage-Mittel') }}">
+            <line x1="0" x2="{{ w }}" y1="{{ h }}" y2="{{ h }}" class="grid"/>
+            <path d="{{ path(data.trend.points) }}" class="rate" fill="none"/>
+            {% if data.trend.first %}<text x="0" y="{{ h + 18 }}" class="axis">{{ data.trend.first|date }}</text><text x="{{ w }}" y="{{ h + 18 }}" text-anchor="end" class="axis">{{ _("Heute") }}</text>{% endif %}
+        </svg>
+        <div class="small text-body-secondary">{{ _("oben = {n} Eier am Tag", n=data.trend.top|num(1)) }}</div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    {# --- Rekorde --- #}
+    {% set r = data.records %}
+    {% if r %}
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-trophy me-1"></i>{{ _("Rekorde") }}</div>
+            <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between"><span>{{ _("Bester Tag") }}</span><span><strong>{{ r.best_day[1] }}</strong> · {{ r.best_day[0]|date }}</span></li>
+                <li class="list-group-item d-flex justify-content-between"><span>{{ _("Beste Woche") }}</span><span><strong>{{ r.best_week }}</strong> · {{ r.best_week_from|date }} – {{ r.best_week_to|date }}</span></li>
+                {% set best = data.months|max(attribute="eggs") %}
+                <li class="list-group-item d-flex justify-content-between"><span>{{ _("Bester Monat") }}</span><span><strong>{{ best.eggs }}</strong> · {{ best.month.strftime("%m/%Y") }}</span></li>
+                {% if r.longest_gap %}<li class="list-group-item d-flex justify-content-between"><span>{{ _("Längste Zeit ohne Eier") }}</span><span><strong>{{ ngettext("{n} Tag", "{n} Tage", r.longest_gap) }}</strong> · {{ r.gap_from|date }} – {{ r.gap_to|date }}</span></li>{% endif %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {# --- Haushalte --- #}
+    {% if data.households %}
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-house-heart me-1"></i>{{ _("Verteilt je Haushalt") }}</div>
+            <ul class="list-group list-group-flush small">
+                {% for year, rows in data.households.items()|sort(reverse=true) %}
+                <li class="list-group-item"><div class="fw-semibold">{{ year }}</div>
+                    {% for name, eggs in rows %}<div class="d-flex justify-content-between"><span>{{ name }}</span><span>{{ eggs }}</span></div>{% endfor %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# --- alle Monate --- #}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-list-ol me-1"></i>{{ _("Alle Monate") }}</div>
+    {% for year, rows in data.months|groupby("month.year")|sort(reverse=true) %}
+    <details {% if loop.first %}open{% endif %} class="border-top">
+        <summary class="px-3 py-2 fw-semibold">{{ year }}</summary>
+        <div class="table-responsive">
+            <table class="table table-sm small align-middle mb-0 text-nowrap chicken-table">
+                <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Eier") }}</th><th class="text-end">{{ _("Ø am Tag") }}</th><th class="text-end">{{ _("Legeleistung") }}</th><th class="text-end">{{ _("erwartet") }}</th><th class="text-end">{{ _("Ø Alter") }}</th><th class="text-end">{{ _("kaputt") }}</th><th class="text-end">{{ _("Futter") }}</th><th class="text-end">{{ _("verteilt") }}</th></tr></thead>
+                <tbody>
+                {% for m in rows|sort(attribute="month", reverse=true) %}
+                <tr><td>{{ _(month_names[m.month.month - 1]) }}</td><td class="text-end">{{ m.eggs }}</td><td class="text-end">{{ m.per_day|num(1) }}</td>
+                    <td class="text-end">{{ (m.rate ~ " %") if m.rate is not none else "–" }}</td><td class="text-end text-body-secondary">{{ (m.expected ~ " %") if m.expected is not none else "–" }}</td>
+                    <td class="text-end">{{ (m.age|num(0) ~ " " ~ _("Mon.")) if m.age is not none else "–" }}</td><td class="text-end">{{ m.cracked or "" }}</td>
+                    <td class="text-end">{{ (m.feed_kg|num(0) ~ " kg") if m.feed_kg else "" }}</td><td class="text-end">{{ m.given or "" }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -874,3 +874,20 @@ body:not(.has-tabbar) {
                  border-radius: .5rem; background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); white-space: nowrap; }
 .climate-badge.climate-warning { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
 .climate-badge.climate-danger { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+
+/* Hühner – Auswertung (SVG-Diagramme) */
+.chicken-chart { height: auto; max-height: 16rem; overflow: visible; }
+.chicken-chart .grid { stroke: var(--bs-border-color); stroke-width: 1; }
+.chicken-chart .axis { font-size: 34px; fill: var(--bs-secondary-color); }
+.chicken-chart path { stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+.chicken-chart .rate { stroke: var(--brand); }
+.chicken-chart .expected { stroke: var(--bs-secondary-color); stroke-dasharray: 10 8; stroke-width: 3; }
+.chicken-chart .season-0, .legend.season-0 { stroke: var(--brand); background: var(--brand); }
+.chicken-chart .season-1, .legend.season-1 { stroke: #e8b13a; background: #e8b13a; }
+.chicken-chart .season-2, .legend.season-2 { stroke: #5b9bd5; background: #5b9bd5; }
+.chicken-chart .season-3, .legend.season-3 { stroke: #c9403a; background: #c9403a; }
+.chicken-chart .season-4, .legend.season-4 { stroke: #9a6fd0; background: #9a6fd0; }
+.legend { display: inline-block; width: 1rem; height: .25rem; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }
+.legend.rate { background: var(--brand); }
+.legend.expected { background: var(--bs-secondary-color); }
+.chicken-table th, .chicken-table td { white-space: nowrap; }

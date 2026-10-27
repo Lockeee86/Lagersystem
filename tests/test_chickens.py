@@ -322,3 +322,28 @@ def test_egg_import(as_admin, as_worker, db, seed, keeper):
     assert chickens.flock_size(date(2025, 3, 3)) == 19
     assert FlockEvent.query.filter_by(reason="verendet").one().change == -1
     assert chickens.eggs_on(date(2025, 3, 1)) == {"eggs": 12, "cracked": 2}
+
+
+def test_analysis_all_years(as_worker, db, seed, keeper):
+    """Auswertung über alle Jahre: Jahresvergleich, Monate aller Jahre, Rekorde, Diagramme."""
+    from app.models import EggShare
+    chickens.add_flock_event(date(2023, 1, 1), "gekauft", 10, keeper, breed="Lohmann Braun", age_months=5)
+    for year in (2023, 2024, 2025):
+        for i in range(0, 360, 3):
+            chickens.add_eggs(date(year, 1, 1) + timedelta(days=i), 7 + (i % 5), 1 if i % 30 == 0 else 0, None, keeper)
+    chickens.add_flock_event(date(2024, 6, 1), "raubtier", 2, keeper)
+    house = Household(name="Haus Nord")
+    db.session.add(house)
+    db.session.flush()
+    db.session.add(EggShare(day=date(2025, 2, 1), household_id=house.id, eggs=30))
+    db.session.commit()
+    data = chickens.analysis(date(2025, 12, 31))
+    years = {y["year"]: y for y in data["years"]}
+    assert set(years) == {2023, 2024, 2025} and years[2024]["dead"] == 2
+    assert years[2023]["per_hen"] and years[2023]["rate"] and years[2023]["expected"]
+    assert len(data["months"]) == 36 and data["records"]["best_day"][1] == 11
+    assert data["records"]["longest_gap"] == 8                                       # 24.–31.12.2024
+    assert data["households"][2025] == [("Haus Nord", 30)]
+    html = as_worker.get("/huehner/auswertung").get_data(as_text=True)
+    assert "Jahresvergleich" in html and "2023" in html and "Jahreszeiten" in html and "Rekorde" in html
+    assert "Alle Jahre und Auswertung" in as_worker.get("/huehner/eier-haushalte").get_data(as_text=True)
