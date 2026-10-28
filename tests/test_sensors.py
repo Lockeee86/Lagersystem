@@ -125,6 +125,10 @@ def test_channel_qr(as_admin, as_worker, db, seed):
     as_admin.post("/sensoren/kanal", data={"name": "Testhof", "psk": ch["psk"], "region": "EU_868",
                                            "preset": "LONG_FAST"})
     assert sensors.channel()["psk"] == ch["psk"]                                    # Schlüssel bleibt
+    key = base64.b64decode(ch["psk"])
+    for written in ("base64:" + ch["psk"], "0x" + key.hex(), base64.urlsafe_b64encode(key).decode().rstrip("=")):
+        sensors.save_channel("Testhof", written, "EU_868", "LONG_FAST")
+        assert sensors.channel()["psk"] == ch["psk"]                                # andere Schreibweisen
     from app.models import AuditEntry
     assert not AuditEntry.query.filter(AuditEntry.object_id.like("mesh_%")).count()   # Schlüssel nicht im Protokoll
     assert as_worker.post("/sensoren/kanal", data={"name": "X"}).status_code in (302, 403)

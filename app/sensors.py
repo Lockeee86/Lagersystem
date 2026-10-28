@@ -88,8 +88,15 @@ def channel():
 
 
 def _psk_bytes(psk):
+    """Schlüssel wie in der Meshtastic-App (Base64), auch „base64:…“, URL-Base64 oder Hex „0x…“ (Kommandozeile)."""
+    text = (psk or "").strip().replace(" ", "")
     try:
-        key = base64.b64decode(psk, validate=True)
+        if text.lower().startswith("0x"):
+            key = bytes.fromhex(text[2:])
+        else:
+            text = text[7:] if text.lower().startswith("base64:") else text
+            text = text.replace("-", "+").replace("_", "/")
+            key = base64.b64decode(text + "=" * (-len(text) % 4), validate=True)
     except ValueError:
         return None
     return key if len(key) in (1, 16, 32) else None
@@ -106,7 +113,8 @@ def save_channel(name, psk, region, preset):
         raise SensorError(N_("Kanalname: 1–11 Zeichen, nur Buchstaben, Ziffern, - und _."))
     if name.lower() in {label.lower() for _, label in PRESETS.values()}:
         raise SensorError(N_("Bitte einen eigenen Kanalnamen wählen – nicht den öffentlichen."))
-    psk = psk or new_psk()
+    key = _psk_bytes(psk) if psk else None
+    psk = base64.b64encode(key).decode() if key else (psk or new_psk())
     key = _psk_bytes(psk)
     if key is None or len(key) == 1:
         raise SensorError(N_("Der Schlüssel muss Base64 sein (16 oder 32 Byte), so wie in der Meshtastic-App."))
