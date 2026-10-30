@@ -2678,4 +2678,7 @@ MESSAGES = {
     '{n} in 7 Tagen': '{n} w 7 dni',
     'erwartet {n}': 'oczekiwane {n}',
     'hängt': 'zablokowana',
+    '{place} lüften': '{place} – przewietrzyć',
+    'Lüften als Aufgabe anlegen': 'Dodaj wietrzenie jako zadanie',
+    'CO₂ ppm': 'CO₂ ppm',
 }

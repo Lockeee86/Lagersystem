@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
-{% from "climate/_macros.html" import climate_values, climate_chart %}
+{% from "climate/_macros.html" import climate_now, climate_pill, climate_chart %}
 {% block title %}{{ _("Lagerklima") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -24,15 +24,22 @@
     <div class="row g-3">
         {% for s in rows %}
         <div class="col-lg-6" id="s{{ s.sensor.id }}">
-            <div class="card shadow-sm h-100 {{ 'border-danger' if s.level == 'danger' else 'border-warning' if s.level == 'warning' }}">
-                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-1">
-                    <span class="fw-semibold text-nowrap"><i class="bi bi-thermometer-half me-1"></i>{{ s.sensor.name or s.sensor.node }}{% if s.sensor.row %} <span class="small text-body-secondary fw-normal">· {{ _("Reihe {row}", row=warehouse.row_label(s.sensor.row)) }}</span>{% endif %}</span>
-                    <span class="small text-body-secondary">{% if s.seen %}{{ _("zuletzt {date}", date=s.seen|datetime) }}{% endif %}{% if s.battery is not none %} · <i class="bi bi-battery-half"></i> {{ s.battery|num(0) }} %{% endif %}</span>
-                </div>
+            {% set place = (s.sensor.name or s.sensor.node) ~ ((" · " ~ _("Reihe {row}", row=warehouse.row_label(s.sensor.row))) if s.sensor.row else "") %}
+            <div class="card shadow-sm h-100 climate-card climate-card-{{ s.level }}">
                 <div class="card-body">
-                    {{ climate_values(s) }}
-                    {% for key, text in s.issues %}<div class="small {{ 'text-danger' if key in ('temp_low', 'temp_high', 'co2_high', 'offline') else 'text-warning-emphasis' }}"><i class="bi bi-exclamation-triangle me-1"></i>{{ _(text) }}</div>{% endfor %}
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <span class="fw-bold fs-5">{{ place }}</span>
+                        {{ climate_pill(s) }}
+                    </div>
+                    {{ climate_now(s) }}
+                    {% for key, text in s.issues[1:] %}<div class="small {{ 'text-danger' if key in ('temp_low', 'temp_high', 'co2_high', 'offline') else 'text-warning-emphasis' }}"><i class="bi bi-exclamation-triangle me-1"></i>{{ _(text) }}</div>{% endfor %}
                     {{ climate_chart(charts.get(s.sensor.id, []), limits[warehouse.id], target) }}
+                    <div class="d-flex flex-wrap justify-content-between gap-2 small text-body-secondary mt-2">
+                        <span>{% if s.seen %}{{ _("zuletzt {date}", date=s.seen|datetime) }}{% endif %}{% if s.battery is not none %} · <i class="bi bi-battery-half"></i> {{ s.battery|num(0) }} %{% endif %}</span>
+                    </div>
+                    {% if s.level == "danger" and current_user.can_edit and s.issues[0][0] != "offline" %}
+                    <a class="btn btn-light w-100 mt-3 climate-action" href="{{ url_for('tasks.task_list', neu=1, titel=_('{place} lüften', place=warehouse.name ~ ' · ' ~ place)) }}#neu"><i class="bi bi-wind me-1"></i>{{ _("Lüften als Aufgabe anlegen") }}</a>
+                    {% endif %}
                 </div>
             </div>
         </div>

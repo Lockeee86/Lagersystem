@@ -274,3 +274,29 @@ html[data-bg] .coop-air { stroke: #ffd08a; }
 html[data-bg] #fuetterung .feeding-btn.btn-success { background: rgba(255, 192, 97, .5); border: 1px solid rgba(255, 214, 120, .65); color: #fff; }
 html[data-bg] #fuetterung .feeding-btn.btn-outline-secondary { background: rgba(255, 255, 255, .08); }
 html[data-bg] .kpi-klappe .kpi-icon { background: rgba(143, 209, 138, .4); }
+
+/* --- Lagerklima ------------------------------------------------------------------------------ */
+html[data-bg] .climate-card { border-radius: 2rem; }
+html[data-bg] .climate-card-danger { background: rgba(255, 110, 110, .16); border-color: rgba(255, 150, 150, .5); }
+html[data-bg] .climate-card-warning { background: rgba(255, 179, 92, .14); border-color: rgba(255, 214, 120, .45); }
+html[data-bg] .climate-temp { font-size: 3.6rem; }
+html[data-bg] .climate-temp.is-bad, html[data-bg] .climate-fact.is-bad strong { color: #ffb0b0; }
+html[data-bg] .climate-fact.is-warn strong { color: #ffd08a; }
+html[data-bg] .climate-pill { color: #fff; }
+html[data-bg] .climate-pill-ok { background: rgba(143, 209, 138, .38); }
+html[data-bg] .climate-pill-ok::before { background: #a8e08f; }
+html[data-bg] .climate-pill-warning { background: rgba(255, 179, 92, .45); }
+html[data-bg] .climate-pill-danger { background: rgba(255, 122, 122, .5); }
+html[data-bg] .climate-pill-danger::before, html[data-bg] .climate-pill-warning::before { background: #fff; }
+html[data-bg] .climate-band { fill: #a8e08f; opacity: .14; }
+html[data-bg] .climate-temp-line { stroke: #8fd0ff; }
+html[data-bg] .climate-card-danger .climate-temp-line { stroke: #ffb0b0; }
+html[data-bg] .climate-fill-top { stop-color: #8fd0ff; stop-opacity: .45; }
+html[data-bg] .climate-fill-bottom { stop-color: #8fd0ff; }
+html[data-bg] .climate-card-danger .climate-fill-top, html[data-bg] .climate-card-danger .climate-fill-bottom { stop-color: #ffa3a3; }
+html[data-bg] .climate-action { background: rgba(255, 255, 255, .9); color: #3a1f2a; border: 0; }
+/* Zeitraum-Umschalter (Lagerklima, Lagerkarte …) als Glas-Segmente */
+html[data-bg] .view-switch { background: rgba(255, 255, 255, .12); border: 1px solid var(--glass-edge); border-radius: 1.4rem; padding: .25rem;
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+html[data-bg] .view-switch a { border-radius: 1.1rem; color: rgba(255, 255, 255, .85); }
+html[data-bg] .view-switch a.active { background: rgba(255, 255, 255, .9); color: #2c202a; }

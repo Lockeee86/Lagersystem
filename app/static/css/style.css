@@ -973,3 +973,25 @@ body:not(.has-tabbar) {
 .coop-fill-bottom { stop-color: var(--brand); stop-opacity: 0; }
 .coop-area { stroke: none; }
 #fuetterung .feeding-btn { min-height: 2.75rem; min-width: 7.5rem; font-size: 1rem; }
+
+/* Lagerklima: Karten mit großer Temperatur und Status */
+.climate-now { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .5rem 1.25rem; }
+.climate-temp { font-size: 3.2rem; font-weight: 300; line-height: .95; letter-spacing: -.04em; }
+.climate-temp.is-bad, .climate-fact.is-bad strong { color: #b42318; }
+.climate-fact.is-warn strong { color: #a07d2a; }
+.climate-fact { display: flex; flex-direction: column; padding-bottom: .2rem; }
+.climate-fact strong { font-size: 1.1rem; line-height: 1.2; }
+.climate-fact small { color: var(--bs-secondary-color); font-weight: 600; }
+.climate-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .7rem; border-radius: 999px; font-size: .8rem; font-weight: 700; }
+.climate-pill::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+.climate-pill-ok { background: rgba(63, 143, 79, .14); color: #2f7a3f; }
+.climate-pill-warning { background: rgba(200, 162, 74, .2); color: #8a6a1f; }
+.climate-pill-danger { background: rgba(180, 35, 24, .12); color: #b42318; }
+.climate-card-danger { border-color: rgba(180, 35, 24, .45); }
+.climate-card-warning { border-color: rgba(200, 162, 74, .55); }
+.climate-fill-top { stop-color: #3d7ea6; stop-opacity: .25; }
+.climate-fill-bottom { stop-color: #3d7ea6; stop-opacity: 0; }
+[data-bs-theme="dark"] .climate-temp.is-bad, [data-bs-theme="dark"] .climate-fact.is-bad strong,
+[data-bs-theme="dark"] .climate-pill-danger { color: #f08a80; }
+[data-bs-theme="dark"] .climate-pill-ok { color: #9fd49a; }
+[data-bs-theme="dark"] .climate-pill-warning { color: var(--accent); }

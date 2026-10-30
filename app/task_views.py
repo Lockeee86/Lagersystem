@@ -92,6 +92,8 @@ def task_list():
         "plot_ids": request.args.getlist("schlag", type=int),
         "area": "huehner" if request.args.get("bereich") == "huehner" or current_user.only_chickens else None,
     }
+    if request.args.get("titel"):                      # z. B. „Halle 2 lüften“ aus dem Lagerklima
+        prefill.update(title=request.args["titel"].strip()[:200], important=True, due_on=date.today())
     # Aus einer Störung oder fälligen Wartung heraus: Titel, Maschine und Verknüpfung vorbelegen
     event = db.session.get(MachineEvent, request.args.get("stoerung", type=int) or 0)
     if event is not None and event.kind == "stoerung":

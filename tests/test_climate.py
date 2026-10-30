@@ -50,7 +50,7 @@ def test_api_and_assignment(client, as_admin, as_worker, db, seed, token):
     info = climate.status(sensor)
     assert info["co2"] == 1850 and info["in_target"] and not info["issues"] and info["level"] == "ok"
     html = as_worker.get("/lager/klima").get_data(as_text=True)
-    assert "5,5 °C" in html and "1850 ppm" in html
+    assert "5,5°" in html and "<strong>1850</strong>" in html and "im Ziel" in html
     page = as_worker.get(f"/lager/{seed['wh'].id}").get_data(as_text=True)
     assert "climate-badge" in page and "Lagerklima" in page
     # deaktivieren: neue Werte werden ignoriert
@@ -122,3 +122,17 @@ def test_bridge_co2():
     assert values["co2"] == 1720 and values["temperature"] == 4.75
 
 
+
+
+def test_ventilate_task_link(as_worker, db, seed):
+    """Zu warm: Knopf „Lüften als Aufgabe anlegen“ öffnet das Aufgaben-Formular mit Titel."""
+    from app.models import ClimateSensor
+    sensor = ClimateSensor(node="!0000beef", warehouse=seed["wh"], row=2, active=True)
+    db.session.add(sensor)
+    db.session.commit()
+    climate.record({"node": "!0000beef", "temperature": 11.5, "humidity": 90})
+    db.session.commit()
+    html = as_worker.get("/lager/klima").get_data(as_text=True)
+    assert "climate-card-danger" in html and "Lüften als Aufgabe anlegen" in html
+    html = as_worker.get("/aufgaben?neu=1&titel=Halle+lüften").get_data(as_text=True)
+    assert 'value="Halle lüften"' in html

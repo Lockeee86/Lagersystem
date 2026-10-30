@@ -9,13 +9,32 @@
 </div>
 {% endmacro %}
 
-{% macro _line(points, index, lo, hi, cls) %}
-{% set ns = namespace(d="") %}
+{# Große Anzeige oben in der Sensor-Karte: Temperatur groß, Feuchte und CO₂ daneben #}
+{% macro climate_now(s) %}
+{% set keys = s.issues|map('first')|list %}
+<div class="climate-now">
+    {% if s.temperature is not none %}<span class="climate-temp {{ 'is-bad' if 'temp_low' in keys or 'temp_high' in keys }}">{{ s.temperature|num(1) }}°</span>{% endif %}
+    {% if s.humidity is not none %}<span class="climate-fact {{ 'is-warn' if 'hum_low' in keys or 'hum_high' in keys }}"><strong>{{ s.humidity|num(0) }} %</strong><small>{{ _("Feuchte") }}</small></span>{% endif %}
+    {% if s.co2 is not none %}<span class="climate-fact {{ 'is-bad' if 'co2_high' in keys }}"><strong>{{ s.co2 }}</strong><small>{{ _("CO₂ ppm") }}</small></span>{% endif %}
+</div>
+{% endmacro %}
+
+{# Status-Etikett: erstes Problem, sonst „im Ziel“ #}
+{% macro climate_pill(s) %}
+{% if s.issues %}<span class="climate-pill climate-pill-{{ s.level if s.level != 'ok' else 'warning' }}">{{ _(s.issues[0][1]) }}</span>
+{% elif s.in_target %}<span class="climate-pill climate-pill-ok">{{ _("im Ziel") }}</span>{% endif %}
+{% endmacro %}
+
+{% macro _line(points, index, lo, hi, cls, area=false) %}
+{% set ns = namespace(d="", first=none, last=none) %}
 {% set t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp() %}
 {% set span = [t1 - t0, 1]|max %}
 {% for p in points %}{% if p[index] is not none %}
-{% set ns.d = ns.d ~ (1000 * (p[0].timestamp() - t0) / span)|round(1) ~ "," ~ (200 - 200 * (p[index] - lo) / (hi - lo))|round(1) ~ " " %}
+{% set x = (1000 * (p[0].timestamp() - t0) / span)|round(1) %}
+{% set ns.d = ns.d ~ x ~ "," ~ (200 - 200 * (p[index] - lo) / (hi - lo))|round(1) ~ " " %}
+{% if ns.first is none %}{% set ns.first = x %}{% endif %}{% set ns.last = x %}
 {% endif %}{% endfor %}
+{% if ns.d and area %}<polygon points="{{ ns.first }},200 {{ ns.d }}{{ ns.last }},200" class="coop-area" fill="url(#climateFill)"/>{% endif %}
 {% if ns.d %}<polyline points="{{ ns.d }}" class="{{ cls }}"/>{% endif %}
 {% endmacro %}
 
@@ -25,9 +44,10 @@
 {% if temps|length > 1 %}
 {% set lo, hi = [temps|min, target.temp[0]]|min - 0.5, [temps|max, target.temp[1]]|max + 0.5 %}
 <svg class="coop-chart mt-2" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('Temperatur und Luftfeuchte') }}">
+    <defs><linearGradient id="climateFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="climate-fill-top"/><stop offset="1" class="climate-fill-bottom"/></linearGradient></defs>
     <rect x="0" width="1000" y="{{ (200 - 200 * (target.temp[1] - lo) / (hi - lo))|round(1) }}" height="{{ (200 * (target.temp[1] - target.temp[0]) / (hi - lo))|round(1) }}" class="climate-band"/>
     {{ _line(points, 2, 0, 100, "coop-hum") }}
-    {{ _line(points, 1, lo, hi, "coop-temp") }}
+    {{ _line(points, 1, lo, hi, "coop-temp climate-temp-line", area=true) }}
 </svg>
 <div class="d-flex justify-content-between small text-body-secondary mt-1">
     <span>{{ points[0][0]|datetime }}</span>
