@@ -183,4 +183,4 @@ def test_dashboard_hero(as_worker, located, monkeypatch):
     html = as_worker.get("/").get_data(as_text=True)
     assert "home-hero" in html and "Teils bewölkt" in html and "hero-day" in html
     assert "home-alert cold" in html and "Tränke und Lager prüfen" in html
-    assert "Guten " in html and "home-kpis" in html
+    assert "Guten " in html and "home-kpis" not in html

@@ -29,7 +29,7 @@
 </div>
 {% endif %}
 
-{# Kopf: Wetter groß (wenn „Wetter“ eingeschaltet ist), Hinweis bei Frost/Krautfäule, Kennzahlen #}
+{# Kopf: Wetter (wenn „Wetter“ eingeschaltet ist), Hinweis bei Frost/Krautfäule #}
 {% set has_weather = "wetter" in show and weather and not weather.error and weather.current %}
 {% if has_weather %}
 {% set cur = weather.current %}{% set day0 = weather.forecast[0] if weather.forecast else none %}
@@ -71,18 +71,6 @@
 </div>
 {% endif %}
 
-{% if kpis %}
-<div class="home-kpis mb-4">
-    {% for k in kpis %}
-    <a class="stat-card stat-link kpi kpi-{{ k.key }} {{ 'stat-warn' if k.warn }}" href="{{ k.url }}">
-        <span class="kpi-head"><span class="kpi-icon"><i class="bi {{ k.icon }}"></i></span><span class="stat-label">{{ k.label }}</span></span>
-        <span class="stat-value d-block">{{ k.value }}</span>
-        {% if k.bar is defined %}<span class="kpi-bar"><span style="width: {{ k.bar }}%"></span></span>{% endif %}
-        <span class="stat-sub d-block">{{ k.sub }}</span>
-    </a>
-    {% endfor %}
-</div>
-{% endif %}
 
 {% if tank and tank.has_entries %}
 <div class="info-chips d-lg-none">

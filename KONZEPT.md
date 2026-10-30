@@ -112,8 +112,8 @@ Portainer-Stack (docker-compose)
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
   untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht,
   nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,
-  großes Wetter oben (`weather.LABELS`), Frost/Krautfäule als Hinweis, Kennzahlen-Kacheln (`views._home_kpis`: Lager,
-  Lagerklima, Eier, Aufgaben), „Jetzt wichtig“ farbig. Hühner (0.58.0): Tageskarte mit großem Wert,
+  großes Wetter oben (`weather.LABELS`), Frost/Krautfäule als Hinweis, „Jetzt wichtig“ farbig (Kennzahlen-Kacheln wieder
+  entfernt – doppelt zu den Bereichen; am Handy ist das Wetter eine schmale Zeile). Hühner (0.58.0): Tageskarte mit großem Wert,
   Ring für die Legeleistung (7 Tage gegen Richtwert), 30-Tage-Balken und Eintragen darin; Kacheln Vorrat/Herde/Klappe;
   Stall-Kurve mit Farbverlauf. Lagerklima (0.59.0): Karten mit großer
   Temperatur, Status-Etikett, Kurve mit Zielband; „Lüften als Aufgabe anlegen“ (Aufgaben-Formular mit `?titel=`).

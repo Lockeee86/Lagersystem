@@ -199,37 +199,6 @@ def _greeting(name, hour):
     return _("Guten Abend, {name}", name=name)
 
 
-def _home_kpis(stock, today):
-    """Kacheln oben auf der Startseite: Lager, Lagerklima, Eier, Aufgaben – nur was es gibt und sehen darf."""
-    kpis = []
-    capacity = sum(o["capacity"] or 0 for o in stock["occupancy"])
-    if capacity:
-        stored = sum(o["stored"] for o in stock["occupancy"])
-        kpis.append({"key": "lager", "icon": "bi-grid-3x3-gap", "label": _("Lager"),
-                     "value": f"{round(100 * stored / capacity)} %", "bar": round(100 * stored / capacity),
-                     "sub": ngettext("{n} Kiste eingelagert", "{n} Kisten eingelagert", stored),
-                     "url": url_for("main.storage_home")})
-    states = [climate.status(s) for s in climate.sensors() if s.warehouse is not None]
-    temps = [s["temperature"] for s in states if not s["offline"] and s["temperature"] is not None]
-    if temps:
-        issues = sum(1 for s in states if s["issues"])
-        hums = [s["humidity"] for s in states if not s["offline"] and s["humidity"] is not None]
-        kpis.append({"key": "klima", "icon": "bi-thermometer-half", "label": _("Lagerklima"),
-                     "value": f"{sum(temps) / len(temps):.1f} °C".replace(".", ","),
-                     "sub": ngettext("{n} Sensor außerhalb", "{n} Sensoren außerhalb", issues) if issues
-                     else (_("Feuchte {n} %", n=round(sum(hums) / len(hums))) if hums else _("im Ziel")),
-                     "warn": bool(issues), "url": url_for("climate.overview_page")})
-    if current_user.sees_chickens:
-        eggs = chickens.eggs_on(today)["eggs"]
-        kpis.append({"key": "eier", "icon": "bi-egg", "label": _("Eier heute"), "value": str(eggs),
-                     "sub": _("Vorrat {n}", n=chickens.stock()), "url": url_for("chickens.overview")})
-    if current_user.can_edit:
-        mine = tasks.due_now(current_user)
-        kpis.append({"key": "aufgaben", "icon": "bi-list-check", "label": _("Aufgaben"), "value": str(len(mine)),
-                     "sub": _("fällig für dich"), "url": url_for("tasks.task_list")})
-    return kpis[:4]
-
-
 @bp.route("/")
 @login_required
 def dashboard():
@@ -263,7 +232,6 @@ def dashboard():
         "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
         weather=weather.get_weather(), show_blight=weather.blight_in_season(), today=today,
         weather_labels=weather.LABELS, greeting=_greeting(current_user.name, datetime.now(local_tz()).hour),
-        kpis=_home_kpis(stock, today),
         tank=fuel.status() if current_user.can_edit else None,
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
