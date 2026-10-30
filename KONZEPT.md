@@ -109,6 +109,10 @@ Portainer-Stack (docker-compose)
   **Untere Leiste wählbar** (0.46.0, `tabbar.py`): Heute · [frei] · Scannen · [frei] · Mehr; Voreinstellung je Rolle
   (Verwaltung → Startseite, `settings` `tabbar_<rolle>`), eigene Wahl unter Mein Konto (`User.tabbar`). Jede Rubrik
   hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
+  **Jahresbudget je Einspeisestelle** (0.62.0, `feedin.py`): `FeedPoint` mit Höchstbemessungsleistung (Jahresmittel kW),
+  BHKW über `Machine.feed_point_id`; je Monat echte Menge aus der Abrechnung (`FeedMonth`) oder SKVE-Fahrplan.
+  Hochrechnung nur aus Tagen mit Werten (fehlende Monate werden gemeldet), Prognose 31.12., Rest, Ø kW, Volllaststunden,
+  „lohnend ab“ aus dem Preis-Ausblick; Push montags bei Prognose über Budget (Thema `feed_budget`).
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
   untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht, Sternenhimmel (0.61.0),
   nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,

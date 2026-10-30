@@ -236,6 +236,8 @@ PUSH_TOPICS = {
                   "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
     "biogas_week": {"label": N_("Montags: Wochenbericht Biogas"), "group": N_("Biogas"), "who": lambda u: u.can_edit,
                     "default": lambda u: u.is_admin},
+    "feed_budget": {"label": N_("Montags: Jahresbudget Einspeisung wird laut Prognose überschritten"), "group": N_("Biogas"),
+                    "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
     "day_plan": {"label": N_("Mein Tagesplan, wenn er verschickt wird"), "group": N_("Team"), "who": lambda u: u.can_edit},
     "handover": {"label": N_("Neue Übergabe-Notiz"), "group": N_("Team"), "who": lambda u: u.can_edit,
                  "default": lambda u: False},
@@ -1047,6 +1049,7 @@ class Machine(db.Model):
     power_kw = db.Column(db.Integer)
     skve_base_counter = db.Column(db.Numeric(10, 1))
     skve_base_day = db.Column(db.Date)
+    feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="SET NULL"), index=True)  # Einspeisestelle
 
     site = db.relationship("Site")
     tasks = db.relationship("MaintenanceTask", back_populates="machine", order_by="MaintenanceTask.name",
@@ -1700,6 +1703,41 @@ class Irrigation(db.Model):
         """Niederschlagshöhe auf dem Schlag: m³ ÷ (ha × 10)."""
         area = self.plot.area_ha if self.plot else None
         return float(self.m3) / (float(area) * 10) if area else None
+
+
+class FeedPoint(db.Model):
+    """Einspeisestelle mit Höchstbemessungsleistung (Jahresmittel in kW); BHKW hängen über Machine.feed_point_id dran."""
+    __tablename__ = "feed_points"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    max_kw = db.Column(db.Numeric(10, 1), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    machines = db.relationship("Machine", backref="feed_point", lazy="dynamic")
+
+    @property
+    def label(self):
+        return self.name
+
+
+class FeedMonth(db.Model):
+    """Echte Monatsmenge einer Einspeisestelle aus der Abrechnung des Netzbetreibers (ersetzt den Fahrplan-Wert)."""
+    __tablename__ = "feed_months"
+    __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", name="uq_feed_month"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="CASCADE"), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    kwh = db.Column(db.Numeric(12, 1), nullable=False)
+
+    feed_point = db.relationship("FeedPoint", backref=db.backref("months", lazy="dynamic", cascade="all, delete-orphan",
+                                                                  passive_deletes=True))
+
+    @property
+    def label(self):
+        return f"{self.feed_point.name if self.feed_point else ''} {self.month:02d}/{self.year}"
 
 
 class ChpDay(db.Model):

@@ -110,7 +110,9 @@ docker compose up --build -d
   `live()` (Übersicht, Zwischenspeicher, nächster Start `start_label()`; `refresh_live` im Zeitplan, Startseite nur `cached_only`), `dashboard()`,
   `maintenance_forecast()`, Wartungsfenster `maintenance_windows()` / `best_windows()` (Stillstand
   `MaintenanceTask.downtime_hours`), Fahrplan-Güte `flex_quality()` (`ChpDay.ideal_revenue_eur` = dieselben kWh in den
-  teuersten Viertelstunden), Verfügbarkeit laut Logbuch `availability()`. SKVE liefert nur den Fahrplan (`PLAN_ONLY`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar
+  teuersten Viertelstunden), Verfügbarkeit laut Logbuch `availability()`. Jahresbudget je Einspeisestelle (Höchstbemessungsleistung): `app/feedin.py`
+  (`FeedPoint`, `FeedMonth` = Monatsmenge aus der Abrechnung, sonst Fahrplan; `status()`, `price_threshold()`, Push `check()`),
+  Karte `#budget` auf der Biogas-Seite. Echte Abrechnungszahlen nie committen. SKVE liefert nur den Fahrplan (`PLAN_ONLY`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar
   (`User.biogas` → `sees_biogas`, Admins immer; Rundgang der Biogasanlage, BHKW/Strompreis auf der Startseite und
   Push-Gruppe „Biogas“ hängen daran; BHKW-Maschinen ebenso: `machines.visible(query, user)` / `can_see()` in Listen,
   Suche, Startseite, Kalender, Push – neue Maschinen-Abfragen für Benutzer damit filtern). Wartungen kopieren: `machines.copy_tasks`

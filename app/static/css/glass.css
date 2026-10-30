@@ -432,3 +432,12 @@ html[data-bg="sterne"] .app-backdrop::after { filter: blur(.5px); }
 html[data-bg="sterne"] .form-select option, html[data-bg="sterne"] .form-select optgroup { background: #0d1224; }
 html[data-bg="sterne"] .home-alert, html[data-bg="sterne"] .alert, html[data-bg="sterne"] .climate-card,
 html[data-bg="sterne"] .stat-warn { border-color: rgba(255, 255, 255, .1) !important; }
+
+/* Biogas: Jahresbudget */
+html[data-bg] .budget-bar { background: rgba(255, 255, 255, .16); }
+html[data-bg] .budget-used { background: #a8e08f; }
+html[data-bg] .budget-used.budget-tight { background: #ffc061; }
+html[data-bg] .budget-used.budget-over { background: #ff8a80; }
+html[data-bg] .budget-now { background: #fff; box-shadow: 0 0 8px rgba(255, 255, 255, .7); }
+html[data-bg] .budget-month-bar > span, html[data-bg] .budget-key { background: rgba(255, 255, 255, .3); }
+html[data-bg] .budget-month.is-billed .budget-month-bar > span, html[data-bg] .budget-key.is-billed { background: #a8e08f; }

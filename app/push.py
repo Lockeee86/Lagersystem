@@ -383,6 +383,8 @@ def daily(app, now=None):
             rounds.morning_due(today)
             if today.weekday() == 0:             # montags: Wochenbericht der Biogasanlage
                 biogas.week_push(today)
+            from . import feedin
+            feedin.check(now, _job_done, _mark_job)   # montags: Jahresbudget der Einspeisestellen
         if now.hour >= FROST_HOUR and not _job_done("frost", today):
             _mark_job("frost", today)
             _weather_check(now, {"frost"})
