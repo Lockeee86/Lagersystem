@@ -50,7 +50,8 @@
                     </div>
                     <div class="small text-body-secondary">
                         {{ g.reason_label }} {{ g.day|date }}
-                        {% if g.hatched_on %} · {% if c.age < 2 %}{% set weeks = ((today - g.hatched_on).days // 7) %}{{ ngettext("{n} Woche alt", "{n} Wochen alt", weeks) }}{% else %}{{ ngettext("{n} Monat alt", "{n} Monate alt", c.age) }}{% endif %}
+                        {% if c.until %} · {{ _("bis {date}", date=c.until|date) }}{% endif %}
+                        {% if g.hatched_on %} · {% if c.until %}{{ ngettext("zuletzt {n} Monat alt", "zuletzt {n} Monate alt", c.age) }}{% elif c.age < 2 %}{% set weeks = ((today - g.hatched_on).days // 7) %}{{ ngettext("{n} Woche alt", "{n} Wochen alt", weeks) }}{% else %}{{ ngettext("{n} Monat alt", "{n} Monate alt", c.age) }}{% endif %}
                         {% if g.reason == "gekauft" %}({{ ngettext("beim Kauf {n} Monat", "beim Kauf {n} Monate", c.start_age) }}){% endif %}{% endif %}
                         {% if c.expected is not none and c.left %}<div>{{ _("Richtwert Legeleistung jetzt: {n} %", n=c.expected) }}</div>{% endif %}
                     </div>

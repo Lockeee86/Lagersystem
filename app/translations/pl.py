@@ -2644,4 +2644,5 @@ MESSAGES = {
     'Zur Auswertung': 'Do analizy',
     'ältere Tage': 'starsze dni',
     'Gestern': 'Wczoraj',
+    'zuletzt {n} Monate alt': ('ostatnio {n} miesiąc', 'ostatnio {n} miesiące', 'ostatnio {n} miesięcy'),
 }

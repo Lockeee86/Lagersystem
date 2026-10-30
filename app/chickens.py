@@ -203,12 +203,13 @@ def age_months(hatched_on, day):
 
 
 def cohorts(day=None):
-    """Gruppen mit dem, was am Tag `day` noch da ist: [{"event", "left", "age", "start_age"}], neueste zuerst.
+    """Gruppen mit dem, was am Tag `day` noch da ist: [{"event", "left", "age", "start_age", "until"}], neueste zuerst.
+    Ist eine Gruppe weg, gilt ihr Alter am letzten Tag (`until`), es zählt nicht weiter.
     Abgänge hängen an keiner Gruppe – sie werden grob den ältesten Hühnern abgezogen (Gruppen ohne Alter zuerst)."""
     day = day or date.today()
     events = (FlockEvent.query.filter(FlockEvent.day <= day)
               .order_by(FlockEvent.day, FlockEvent.id).all())
-    groups_, left = [], {}
+    groups_, left, until = [], {}, {}
     for e in events:
         if e.change > 0:
             groups_.append(e)
@@ -219,9 +220,12 @@ def cohorts(day=None):
             take = min(left[g.id], missing)
             left[g.id] -= take
             missing -= take
+            if take and not left[g.id]:
+                until[g.id] = e.day
             if not missing:
                 break
-    return [{"event": g, "left": left[g.id], "age": age_months(g.hatched_on, day) if g.hatched_on else None,
+    return [{"event": g, "left": left[g.id], "until": until.get(g.id) if not left[g.id] else None,
+             "age": age_months(g.hatched_on, until.get(g.id, day) if not left[g.id] else day) if g.hatched_on else None,
              "start_age": age_months(g.hatched_on, g.day) if g.hatched_on else None,
              "expected": round(expected_rate((day - g.hatched_on).days))
              if g.hatched_on and is_hybrid(g.breed) else None}

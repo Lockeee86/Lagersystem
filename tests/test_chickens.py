@@ -437,3 +437,16 @@ def test_feeding(as_worker, as_viewer, db, seed, keeper):
     assert "Fütterung – letzte 14 Tage" in as_worker.get("/huehner/futter").get_data(as_text=True)
     html = as_worker.get("/huehner/auswertung").get_data(as_text=True)
     assert "Fütterung und Legeleistung" in html and "nur Weizen" in html and "50 %" in html
+
+
+def test_cohort_age_stops_when_gone(as_worker, db, seed, keeper):
+    """Eine leere Gruppe altert nicht weiter: Alter am Tag, an dem das letzte Huhn ging."""
+    first = chickens.add_flock_event(date(2024, 4, 16), "gekauft", 10, keeper, breed="Lohmann Braun", age_months=15)
+    chickens.add_flock_event(date(2025, 8, 14), "geschlachtet", 10, keeper)
+    chickens.add_flock_event(date(2025, 8, 18), "gekauft", 8, keeper, breed="Lohmann Braun", age_months=15)
+    db.session.commit()
+    groups = {c["event"].id: c for c in chickens.cohorts(date(2026, 10, 30))}
+    assert groups[first.id]["left"] == 0 and groups[first.id]["until"] == date(2025, 8, 14)
+    assert groups[first.id]["age"] == 30                                             # nicht 45
+    html = as_worker.get("/huehner/herde").get_data(as_text=True)
+    assert "bis 14.08.2025" in html and "zuletzt 30 Monate alt" in html
