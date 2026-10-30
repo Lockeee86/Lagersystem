@@ -117,7 +117,9 @@ Portainer-Stack (docker-compose)
   Ring für die Legeleistung (7 Tage gegen Richtwert), 30-Tage-Balken und Eintragen darin; Kacheln Vorrat/Herde/Klappe;
   Stall-Kurve mit Farbverlauf. Lagerklima (0.59.0): Karten mit großer
   Temperatur, Status-Etikett, Kurve mit Zielband; „Lüften als Aufgabe anlegen“ (Aufgaben-Formular mit `?titel=`).
-  Zeitraum-Umschalter als Glas-Segmente. Nächster Schritt: übrige Seiten nach und nach.
+  Zeitraum-Umschalter als Glas-Segmente. Übrige Seiten (0.60.0): alle 70 Seiten am Handy und PC
+  durchgesehen; Abzeichen, farbige Knöpfe, Schieberegler, hervorgehobene Zeilen, Verlauf-Symbole, Karten-Köpfe zentral in
+  `glass.css` angepasst.
   **Tägliche Fütterung** (0.55.0): `Feeding` je Tag mit Weizen/Legemehl (ohne Menge), Schalter auf der Hühner-Seite
   (heute/gestern) und unter Futter (14 Tage); nicht im Änderungsprotokoll. Auswertung `chickens.feeding_effect`:
   Legeleistung je Fütterung gegen den Richtwert fürs Alter, dazu eine Woche später (Futter wirkt verzögert) und
