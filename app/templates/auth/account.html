@@ -72,6 +72,33 @@
 
     {% endif %}
 
+    <div class="col-12" id="hintergrund">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Hintergrund") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('auth.background_save') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="bg-pick mb-3">
+                        {% for key, label in bg_choices.items() %}{% set p = bg_previews[key] %}
+                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
+                        <label for="bg_{{ key }}"><span class="bg-swatch" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
+                        {% endfor %}
+                        {% for key, label in bg_special.items() %}
+                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
+                        <label for="bg_{{ key }}"><span class="bg-swatch bg-swatch-{{ key }}"><i class="bi {{ 'bi-clock' if key == 'auto' else 'bi-layout-text-window' }}"></i></span>{{ _(label) }}</label>
+                        {% endfor %}
+                    </div>
+                    <div class="row g-2 align-items-center mb-3" style="max-width: 32rem">
+                        <div class="col-auto"><label class="form-label mb-0" for="bgStrength">{{ _("Farbstärke") }}</label></div>
+                        <div class="col"><input type="range" class="form-range" id="bgStrength" name="strength" min="20" max="100" step="5" value="{{ bg_strength }}"></div>
+                    </div>
+                    <p class="small text-body-secondary">{{ _("Gilt nur für dich. „Nach Tageszeit“: morgens Sonnenaufgang, tagsüber Wiese, abends Abend, nachts Nacht. „Klassisch“ ist das bisherige Aussehen mit Hell/Dunkel.") }}</p>
+                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="col-12" id="push">
         <div class="card shadow-sm">
             <div class="card-header"><i class="bi bi-bell me-1"></i>{{ _("Benachrichtigungen aufs Handy") }}</div>

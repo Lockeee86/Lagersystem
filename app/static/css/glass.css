@@ -1,0 +1,225 @@
+/* Glas-Design (iOS-Stil): weicher Farbverlauf-Hintergrund, Milchglas-Karten. Nur geladen, wenn der Benutzer einen
+   Hintergrund gewählt hat (html[data-bg], backgrounds.py). Baut auf style.css auf und überschreibt die Farbvariablen. */
+
+@font-face { font-family: "Figtree"; font-style: normal; font-weight: 400 800; font-display: swap;
+    src: url("../vendor/figtree/figtree-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Figtree"; font-style: normal; font-weight: 400 800; font-display: swap;
+    src: url("../vendor/figtree/figtree-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* --- Stimmungen ---------------------------------------------------------------------- */
+html[data-bg] { --bg-strength: .8; }
+html[data-bg="sonnenaufgang"] { --bg: linear-gradient(180deg, #3a2033 0%, #4a2a25 45%, #2a1c25 100%);
+    --c1: #ff8a4c; --c2: #ffc061; --c3: #e8607a; --c4: #7fc98a; --bg-solid: #3a2229; }
+html[data-bg="wiese"] { --bg: linear-gradient(180deg, #1f3328 0%, #2a3a22 50%, #1a2720 100%);
+    --c1: #7fd38a; --c2: #ffd36b; --c3: #4fb3a0; --c4: #ffb35c; --bg-solid: #22321f; }
+html[data-bg="abend"] { --bg: linear-gradient(180deg, #221d40 0%, #33224a 50%, #1d1830 100%);
+    --c1: #8c6cff; --c2: #ff7aa8; --c3: #5ab0ff; --c4: #ffb35c; --bg-solid: #2a2040; }
+html[data-bg="kuehl"] { --bg: linear-gradient(180deg, #1c2a44 0%, #23314a 50%, #1a2033 100%);
+    --c1: #5ab0ff; --c2: #7fe0c4; --c3: #8c6cff; --c4: #ffb35c; --bg-solid: #1f2b42; }
+html[data-bg="felder"] { --bg: linear-gradient(180deg, #e98a6a 0%, #c45f78 22%, #6b3d63 40%, #3a2e3a 55%, #2a2a22 100%);
+    --c1: #ffb35c; --c2: #ff8a8a; --c3: #7fc98a; --c4: #ffd08a; --bg-solid: #3a2d33; }
+html[data-bg="nacht"] { --bg: linear-gradient(180deg, #0f1424 0%, #161c30 60%, #0d111c 100%);
+    --c1: #3b5bdb; --c2: #6f42c1; --c3: #1c7ed6; --c4: #2b8a3e; --bg-solid: #121829; }
+
+/* --- Farbvariablen: alles hell auf Glas ------------------------------------------------ */
+html[data-bg] {
+    --brand: #a8e08f;
+    --brand-rgb: 168, 224, 143;
+    --brand-hover: #c2ecae;
+    --brand-soft: rgba(168, 224, 143, .2);
+    --accent: #ffc061;
+    --soil: #e0b48c;
+    --surface: rgba(255, 255, 255, .12);
+    --surface-2: rgba(255, 255, 255, .09);
+    --line: rgba(255, 255, 255, .18);
+    --box-blank: rgba(255, 255, 255, .35);
+    --slot-free: rgba(255, 255, 255, .1);
+    --nav-bg: rgba(255, 255, 255, .14);
+    --glass: rgba(255, 255, 255, .12);
+    --glass-strong: rgba(255, 255, 255, .17);
+    --glass-edge: rgba(255, 255, 255, .26);
+    --glass-blur: blur(24px) saturate(170%);
+    --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .38), 0 12px 30px rgba(0, 0, 0, .18);
+    --popup: rgba(44, 32, 42, .82);
+
+    --bs-body-bg: var(--bg-solid);
+    --bs-body-bg-rgb: 40, 30, 40;
+    --bs-body-color: #fff;
+    --bs-body-color-rgb: 255, 255, 255;
+    --bs-emphasis-color: #fff;
+    --bs-secondary-color: rgba(255, 255, 255, .78);
+    --bs-tertiary-color: rgba(255, 255, 255, .6);
+    --bs-border-color: var(--line);
+    --bs-border-color-translucent: var(--line);
+    --bs-secondary-bg: rgba(255, 255, 255, .09);
+    --bs-tertiary-bg: rgba(255, 255, 255, .07);
+    --bs-link-color: #ffd9a8;
+    --bs-link-color-rgb: 255, 217, 168;
+    --bs-link-hover-color: #fff;
+    --bs-link-hover-color-rgb: 255, 255, 255;
+    --bs-heading-color: #fff;
+    --bs-font-sans-serif: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: dark;
+}
+html[data-bg] body { background: var(--bg); background-color: var(--bg-solid); min-height: 100vh; font-family: var(--bs-font-sans-serif); }
+
+/* --- Hintergrund: Farbflächen (fest hinter allem) ----------------------------------------- */
+.app-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--bg); }
+.app-backdrop .blob { position: absolute; border-radius: 50%; opacity: var(--bg-strength); }
+.app-backdrop .b1 { width: 70vmax; height: 70vmax; left: -25vmax; top: -30vmax; background: radial-gradient(closest-side, var(--c1), transparent); }
+.app-backdrop .b2 { width: 60vmax; height: 60vmax; right: -25vmax; top: 5vh; background: radial-gradient(closest-side, var(--c2), transparent); }
+.app-backdrop .b3 { width: 70vmax; height: 70vmax; left: -20vmax; top: 45vh; background: radial-gradient(closest-side, var(--c3), transparent); opacity: calc(var(--bg-strength) * .75); }
+.app-backdrop .b4 { width: 60vmax; height: 60vmax; right: -25vmax; bottom: -25vmax; background: radial-gradient(closest-side, var(--c4), transparent); opacity: calc(var(--bg-strength) * .8); }
+.app-backdrop .sun, .app-backdrop .hill { display: none; position: absolute; }
+html[data-bg="felder"] .app-backdrop .sun { display: block; width: 18vmin; height: 18vmin; left: 68%; top: 14vh; border-radius: 50%;
+    background: #ffd08a; box-shadow: 0 0 14vmin 5vmin rgba(255, 190, 110, .55); }
+html[data-bg="felder"] .app-backdrop .hill { display: block; height: 120vh; border-radius: 50% 50% 0 0; }
+html[data-bg="felder"] .app-backdrop .h1 { left: -10%; right: -10%; top: 50vh; background: #4d4a3a; }
+html[data-bg="felder"] .app-backdrop .h2 { left: -40%; right: 25%; top: 60vh; background: repeating-linear-gradient(170deg, #3d4a2c 0 26px, #47552f 26px 52px); }
+html[data-bg="felder"] .app-backdrop .h3 { left: 30%; right: -40%; top: 70vh; background: repeating-linear-gradient(10deg, #2f3d24 0 30px, #384728 30px 60px); }
+html[data-bg="felder"] .app-backdrop .blob { opacity: calc(var(--bg-strength) * .5); }
+
+/* --- Glasflächen ------------------------------------------------------------------------- */
+html[data-bg] .card,
+html[data-bg] .stat-card,
+html[data-bg] .hub-list,
+html[data-bg] .list-group:not(.list-group-flush),
+html[data-bg] .tower-box,
+html[data-bg] .app-header,
+html[data-bg] .tabbar {
+    background: var(--glass);
+    border: 1px solid var(--glass-edge);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow);
+}
+html[data-bg] .card { --bs-card-bg: transparent; --bs-card-border-color: var(--glass-edge); --bs-card-cap-bg: transparent; border-radius: 1.5rem; }
+html[data-bg] .card .card, html[data-bg] .card .stat-card, html[data-bg] .card .list-group, html[data-bg] .card .hub-list {
+    backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; background: rgba(255, 255, 255, .07);
+}
+html[data-bg] .card-header, html[data-bg] .card-footer { border-color: var(--line); }
+html[data-bg] .stat-card { border-radius: 1.4rem; padding: 1.05rem 1.15rem; }
+html[data-bg] .stat-label { color: rgba(255, 255, 255, .82); font-size: .82rem; }
+html[data-bg] .stat-label i { color: var(--accent); }
+html[data-bg] .stat-value { font-weight: 800; }
+html[data-bg] .stat-sub { color: rgba(255, 255, 255, .72); }
+html[data-bg] .stat-warn { background: rgba(255, 179, 92, .22); border-color: rgba(255, 214, 120, .5); }
+html[data-bg] .stat-link:hover { border-color: rgba(255, 255, 255, .5); }
+html[data-bg] .hub-list { border-radius: 1.4rem; }
+html[data-bg] .hub-icon { background: rgba(255, 255, 255, .14); color: #fff; border-radius: 50%; }
+html[data-bg] .hub-icon.warn, html[data-bg] .hub-status.warn { color: #ffb0a8; }
+html[data-bg] .hub-icon.warn { background: rgba(255, 110, 110, .3); color: #fff; }
+html[data-bg] .list-group { --bs-list-group-bg: transparent; --bs-list-group-border-color: var(--line);
+    --bs-list-group-action-hover-bg: rgba(255, 255, 255, .08); --bs-list-group-color: #fff; border-radius: 1.4rem; }
+html[data-bg] h1, html[data-bg] .h1 { font-weight: 800; letter-spacing: -.02em; }
+
+/* Kopfzeile oben (PC) als Glasleiste, Unterleiste darin */
+html[data-bg] .app-header { border-width: 0 0 1px; border-radius: 0; background: rgba(255, 255, 255, .1); }
+html[data-bg] .app-areas a.active, html[data-bg] .app-header-right .btn-icon.active { background: rgba(255, 255, 255, .2); color: #fff; }
+html[data-bg] .app-areas a:hover, html[data-bg] .btn-icon:hover { background: rgba(255, 255, 255, .12); }
+html[data-bg] .app-subnav { background: transparent; border-top-color: var(--line); }
+html[data-bg] .app-subnav a.active { color: #fff; border-bottom-color: var(--accent); }
+html[data-bg] .app-search input { background: rgba(255, 255, 255, .12); border-color: var(--glass-edge); }
+html[data-bg] .avatar { background: var(--accent); color: #3a2033; }
+
+/* Untere Leiste am Handy: schwebende Glas-Pille */
+@media (max-width: 991.98px) {
+    html[data-bg] .tabbar {
+        left: .75rem; right: .75rem; bottom: calc(.6rem + env(safe-area-inset-bottom));
+        padding: .4rem .3rem; border-radius: 2.2rem; background: rgba(255, 255, 255, .16);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 14px 34px rgba(0, 0, 0, .3);
+    }
+    html[data-bg] .tabbar a { color: rgba(255, 255, 255, .86); font-weight: 700; border-radius: 1.6rem; padding: .3rem 0; }
+    html[data-bg] .tabbar a.active { color: #fff; background: rgba(255, 255, 255, .22); }
+    html[data-bg] .tabbar .tabbar-scan { margin: -1.2rem auto 0; background: rgba(168, 224, 143, .55); color: #fff;
+        border: 1px solid rgba(255, 255, 255, .45); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 10px 24px rgba(0, 0, 0, .3); }
+    html[data-bg] .tabbar .tabbar-scan.active { color: #fff; background: rgba(168, 224, 143, .75); }
+    html[data-bg] .has-tabbar main { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)) !important; }
+}
+
+/* Popups und Menüs: deutlicher Milchglas-Hintergrund, damit Text darauf lesbar bleibt */
+html[data-bg] .dropdown-menu, html[data-bg] .modal-content, html[data-bg] .offcanvas, html[data-bg] .popover, html[data-bg] .toast {
+    --bs-dropdown-bg: var(--popup); --bs-dropdown-link-color: #fff; --bs-dropdown-link-hover-bg: rgba(255, 255, 255, .12);
+    --bs-dropdown-link-active-bg: rgba(255, 255, 255, .2); --bs-dropdown-header-color: rgba(255, 255, 255, .7);
+    --bs-dropdown-divider-bg: var(--line); --bs-offcanvas-bg: var(--popup); --bs-modal-bg: var(--popup);
+    background: var(--popup); border: 1px solid var(--glass-edge); color: #fff;
+    backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 24px 60px rgba(0, 0, 0, .4);
+}
+html[data-bg] .modal-content { border-radius: 1.6rem; }
+html[data-bg] .dropdown-menu { border-radius: 1.1rem; }
+
+/* Formulare */
+html[data-bg] .form-control, html[data-bg] .form-select {
+    background-color: rgba(0, 0, 0, .18); border-color: rgba(255, 255, 255, .24); color: #fff; border-radius: .9rem;
+}
+html[data-bg] .form-control::placeholder { color: rgba(255, 255, 255, .55); }
+html[data-bg] .form-control:focus, html[data-bg] .form-select:focus { background-color: rgba(0, 0, 0, .25); border-color: var(--brand); }
+html[data-bg] .form-select option, html[data-bg] .form-select optgroup { background: #2c202a; color: #fff; }
+html[data-bg] .form-control:disabled, html[data-bg] .form-select:disabled { background-color: rgba(255, 255, 255, .05); }
+html[data-bg] .input-group-text { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .24); color: #fff; }
+html[data-bg] .form-check-input { background-color: rgba(0, 0, 0, .2); border-color: rgba(255, 255, 255, .4); }
+html[data-bg] .form-check-input:checked { background-color: var(--brand); border-color: var(--brand); }
+html[data-bg] .form-text { color: rgba(255, 255, 255, .7); }
+
+/* Knöpfe: runder, Hauptknopf hellgrün mit dunkler Schrift */
+html[data-bg] .btn { border-radius: 1.2rem; font-weight: 700; }
+html[data-bg] .btn-sm { border-radius: .9rem; }
+html[data-bg] .btn-primary { --bs-btn-color: #1f2a17; --bs-btn-hover-color: #1f2a17; --bs-btn-active-color: #1f2a17;
+    --bs-btn-disabled-color: #1f2a17; }
+html[data-bg] .btn-outline-primary { --bs-btn-hover-color: #1f2a17; --bs-btn-active-color: #1f2a17; }
+html[data-bg] .btn-outline-secondary { --bs-btn-color: #fff; --bs-btn-border-color: rgba(255, 255, 255, .35);
+    --bs-btn-hover-bg: rgba(255, 255, 255, .15); --bs-btn-hover-border-color: rgba(255, 255, 255, .5); --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: rgba(255, 255, 255, .22); --bs-btn-active-color: #fff; background: rgba(255, 255, 255, .06); }
+html[data-bg] .btn-light { --bs-btn-bg: rgba(255, 255, 255, .9); --bs-btn-color: #2c202a; }
+html[data-bg] .btn-link { --bs-btn-color: #ffd9a8; --bs-btn-hover-color: #fff; }
+
+/* Hinweise, Tabellen, Kleinteile */
+html[data-bg] .alert { border-radius: 1.2rem; backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    color: #fff; border: 1px solid var(--glass-edge); --bs-alert-link-color: #fff; }
+html[data-bg] .alert-success { background: rgba(143, 209, 138, .26); }
+html[data-bg] .alert-info { background: rgba(111, 183, 255, .24); }
+html[data-bg] .alert-warning { background: rgba(255, 179, 92, .26); border-color: rgba(255, 214, 120, .5); }
+html[data-bg] .alert-danger { background: rgba(255, 110, 110, .26); border-color: rgba(255, 150, 150, .5); }
+html[data-bg] .alert-secondary, html[data-bg] .alert-light { background: rgba(255, 255, 255, .12); }
+html[data-bg] .table { --bs-table-color: #fff; --bs-table-bg: transparent; --bs-table-border-color: var(--line);
+    --bs-table-striped-bg: rgba(255, 255, 255, .05); --bs-table-hover-bg: rgba(255, 255, 255, .08); --bs-table-hover-color: #fff; }
+html[data-bg] .table thead th { color: rgba(255, 255, 255, .72); }
+html[data-bg] .bg-body, html[data-bg] .bg-body-tertiary, html[data-bg] .bg-body-secondary, html[data-bg] .bg-light, html[data-bg] .bg-white {
+    background-color: rgba(255, 255, 255, .08) !important; color: #fff; }
+html[data-bg] .text-body-secondary { color: rgba(255, 255, 255, .78) !important; }
+html[data-bg] .text-body-tertiary { color: rgba(255, 255, 255, .6) !important; }
+html[data-bg] .text-muted { color: rgba(255, 255, 255, .7) !important; }
+html[data-bg] .text-success { color: #a8e08f !important; }
+html[data-bg] .text-danger { color: #ffa8a0 !important; }
+html[data-bg] .text-warning-emphasis { color: #ffd08a !important; }
+html[data-bg] .badge.text-bg-light, html[data-bg] .badge.text-bg-secondary { background: rgba(255, 255, 255, .2) !important; color: #fff !important; }
+html[data-bg] .chip { --chip: rgba(255, 255, 255, .14); }
+html[data-bg] .loc-badge { background: rgba(168, 224, 143, .2); color: #d6f5c6; }
+html[data-bg] .nav-pills, html[data-bg] .nav-tabs { --bs-nav-link-color: #fff; --bs-nav-pills-link-active-color: #1f2a17;
+    --bs-nav-tabs-link-active-bg: rgba(255, 255, 255, .14); --bs-nav-tabs-link-active-color: #fff;
+    --bs-nav-tabs-border-color: var(--line); --bs-nav-tabs-link-active-border-color: var(--line); }
+html[data-bg] .progress, html[data-bg] .progress-thick { background: rgba(255, 255, 255, .14); }
+html[data-bg] .lager-map .row-head { background: transparent; }
+html[data-bg] .stack-count { text-shadow: none; }
+html[data-bg] footer { color: rgba(255, 255, 255, .55) !important; }
+html[data-bg] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+html[data-bg] hr { border-color: var(--line); opacity: 1; }
+
+/* Ohne Unschärfe (alte Geräte): Glas dichter, damit Text lesbar bleibt */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html[data-bg] { --glass: rgba(40, 30, 40, .72); --popup: rgba(40, 30, 40, .95); }
+}
+@media (prefers-reduced-transparency: reduce) {
+    html[data-bg] { --glass: rgba(40, 30, 40, .82); --popup: rgba(40, 30, 40, .96); }
+}
+
+/* Figtree läuft etwas breiter: Bereiche oben enger, damit der Hofname Platz behält */
+@media (min-width: 992px) {
+    html[data-bg] .app-areas a { padding: .45rem .65rem; gap: .35rem; }
+    html[data-bg] .app-search { width: 12rem; }
+    html[data-bg] .app-brand { flex-shrink: 0; max-width: 14rem; }
+}

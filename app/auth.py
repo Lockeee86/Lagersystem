@@ -121,10 +121,12 @@ def account():
                 login_user(current_user._get_current_object(), remember=True)
                 flash(_("Passwort geändert. Andere Geräte wurden abgemeldet."), "success")
                 return redirect(url_for("auth.account"))
-    from . import tabbar
+    from . import backgrounds, tabbar
     return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS,
                            tab_choices=tabbar.available(current_user), tab_keys=tabbar.keys_for(current_user),
-                           tab_labels=tabbar.labels())
+                           tab_labels=tabbar.labels(), bg_choices=backgrounds.CHOICES, bg_special=backgrounds.SPECIAL,
+                           bg_previews=backgrounds.PREVIEWS, bg_current=current_user.background,
+                           bg_strength=backgrounds.strength(current_user))
 
 
 @bp.route("/konto/leiste", methods=["POST"])
@@ -140,6 +142,17 @@ def tabbar_save():
         db.session.commit()
         flash(_("Leiste gespeichert."), "success")
     return redirect(url_for("auth.account") + "#leiste")
+
+
+@bp.route("/konto/hintergrund", methods=["POST"])
+@login_required
+def background_save():
+    """Hintergrund der Oberfläche (nur für einen selbst)."""
+    from . import backgrounds
+    backgrounds.save(current_user, request.form.get("background", ""), form_int("strength", backgrounds.STRENGTH))
+    db.session.commit()
+    flash(_("Hintergrund gespeichert."), "success")
+    return redirect(url_for("auth.account") + "#hintergrund")
 
 
 @bp.route("/sprache", methods=["POST"])

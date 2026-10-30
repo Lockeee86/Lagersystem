@@ -896,3 +896,13 @@ body:not(.has-tabbar) {
 /* Sensoren: Kanal-QR-Code für die Meshtastic-App */
 .channel-qr svg { width: 11rem; height: auto; display: block; border-radius: .25rem; }
 .feeding-btn { min-width: 6.5rem; }
+
+/* Hintergrund-Auswahl (Mein Konto) */
+.bg-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: .75rem; }
+.bg-pick label { display: flex; flex-direction: column; gap: .4rem; font-weight: 600; font-size: .9rem; cursor: pointer; }
+.bg-swatch { display: flex; align-items: center; justify-content: center; height: 4.5rem; border-radius: 1rem;
+             border: 1px solid var(--line); font-size: 1.4rem; color: var(--bs-secondary-color); }
+.bg-swatch-auto { background: linear-gradient(90deg, #ff8a4c, #7fd38a, #8c6cff, #0f1424); color: #fff; }
+.bg-swatch-klassisch { background: var(--surface-2); }
+.bg-pick .btn-check:checked + label .bg-swatch { outline: 3px solid var(--brand); outline-offset: 2px; }
+.bg-pick .btn-check:focus-visible + label .bg-swatch { outline: 3px solid var(--bs-focus-ring-color); outline-offset: 2px; }

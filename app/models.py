@@ -113,6 +113,8 @@ class User(UserMixin, db.Model):
     home_order = db.Column(db.String(300), nullable=False, default="", server_default="")   # eigene Reihenfolge
     # Untere Leiste am Handy: die zwei freien Plätze („lager,feld“), leer = Voreinstellung der Rolle (tabbar.py)
     tabbar = db.Column(db.String(60), nullable=False, default="", server_default="")
+    background = db.Column(db.String(20), nullable=False, default="sonnenaufgang", server_default="sonnenaufgang")
+    bg_strength = db.Column(db.Integer, nullable=False, default=80, server_default="80")
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))

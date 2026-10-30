@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="{{ get_locale() }}">
+<html lang="{{ get_locale() }}"{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#3f5a2a">
+    <meta name="theme-color" content="{{ '#2a1d26' if glass_bg else '#3f5a2a' }}">
     <title>{% block title %}{{ app_name }}{% endblock %} · {{ app_name }}</title>
     <script>
         // Theme vor dem ersten Zeichnen setzen (kein Aufblitzen)
         (function () {
+            if (document.documentElement.hasAttribute("data-bg")) return;   // Glas-Design ist immer dunkel
             var t = null;
             try { t = localStorage.getItem("theme"); } catch (e) {}
             if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -24,9 +25,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
+    {% if glass_bg %}<link rel="stylesheet" href="{{ url_for('static', filename='css/glass.css') }}?v={{ app_version }}">{% endif %}
     {% block styles %}{% endblock %}
 </head>
 <body class="{% if current_user.is_authenticated %}has-tabbar{% endif %}">
+{% if glass_bg %}<div class="app-backdrop" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span><span class="sun"></span><span class="hill h1"></span><span class="hill h2"></span><span class="hill h3"></span></div>{% endif %}
 {% set ep = request.endpoint or '' %}
 {% if current_user.is_authenticated %}
 <header class="app-header sticky-top">
@@ -64,7 +67,8 @@
                     <li><h6 class="dropdown-header">{{ current_user.name }} · {{ current_user.role_label }}</h6></li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}"><i class="bi bi-person-gear me-2"></i>{{ _("Einstellungen") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}#push"><i class="bi bi-bell me-2"></i>{{ _("Benachrichtigungen") }}</a></li>
-                    <li><button class="dropdown-item" type="button" id="themeToggle"><i class="bi bi-moon-stars"></i>{{ _("Hell/Dunkel umschalten") }}</button></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.account') }}#hintergrund"><i class="bi bi-image me-2"></i>{{ _("Hintergrund") }}</a></li>
+                    {% if not glass_bg %}<li><button class="dropdown-item" type="button" id="themeToggle"><i class="bi bi-moon-stars"></i>{{ _("Hell/Dunkel umschalten") }}</button></li>{% endif %}
                     <li>
                         <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-switch-menu px-3 py-1">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -7,7 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
 from .models import FILL_LEVELS, ROLES, SORT_USAGES, Setting, User
-from . import branding, navigation, tabbar, utils
+from . import backgrounds, branding, navigation, tabbar, utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
 
@@ -183,6 +183,8 @@ def create_app(config=None):
             "mobile_crumb": navigation.crumb(endpoint, request.view_args, current_user)
             if current_user.is_authenticated else None,
             "tabbar": tabbar.entries(current_user) if current_user.is_authenticated else [],
+            "glass_bg": backgrounds.effective(current_user),
+            "glass_strength": backgrounds.strength(current_user),
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,
             "ROLES": ROLES,

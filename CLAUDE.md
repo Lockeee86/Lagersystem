@@ -166,7 +166,12 @@ docker compose up --build -d
   unten als Blatt auf (`#stackSheet`, Offcanvas), am PC als Fenster
 - `app/static/js/lager3d.js`: 3D-Ansicht der Lagerkarte (isometrisches SVG aus JSON, das `views.warehouse_map` liefert)
 - `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html` (Mehrfachauswahl Schläge: `plot_pick`)
-- `app/static/vendor/`: lokal abgelegte Bibliotheken (Bootstrap, Bootstrap Icons, html5-qrcode), **kein CDN**
+- Glas-Design: `app/backgrounds.py` (Hintergrund je Benutzer `User.background` / `bg_strength`, „auto“ nach Tageszeit,
+  „klassisch“ = altes Aussehen mit Hell/Dunkel), `static/css/glass.css` (nur geladen bei `html[data-bg]`, überschreibt die
+  Farbvariablen aus `style.css`; Glasflächen über `--glass*`), Hintergrund-Ebene `.app-backdrop` in `base.html`,
+  Auswahl unter Mein Konto (`auth.background_save`). Neue Bausteine mit den Variablen (`--surface`, `--line` …) bauen,
+  dann passen sie in beiden Designs
+- `app/static/vendor/`: lokal abgelegte Bibliotheken (Bootstrap, Bootstrap Icons, html5-qrcode, Schrift Figtree), **kein CDN**
   (die CSP erlaubt nur `'self'`)
 - `migrations/`: Alembic. Der Container führt beim Start `flask db upgrade` aus (`entrypoint.sh`).
 

@@ -109,6 +109,10 @@ Portainer-Stack (docker-compose)
   **Untere Leiste wählbar** (0.46.0, `tabbar.py`): Heute · [frei] · Scannen · [frei] · Mehr; Voreinstellung je Rolle
   (Verwaltung → Startseite, `settings` `tabbar_<rolle>`), eigene Wahl unter Mein Konto (`User.tabbar`). Jede Rubrik
   hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
+  **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
+  untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht,
+  nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Nächste Schritte: Startseite, Hühner und Lagerklima
+  wie im Entwurf, dann die übrigen Seiten.
   **Tägliche Fütterung** (0.55.0): `Feeding` je Tag mit Weizen/Legemehl (ohne Menge), Schalter auf der Hühner-Seite
   (heute/gestern) und unter Futter (14 Tage); nicht im Änderungsprotokoll. Auswertung `chickens.feeding_effect`:
   Legeleistung je Fütterung gegen den Richtwert fürs Alter, dazu eine Woche später (Futter wirkt verzögert) und
