@@ -4,9 +4,8 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <p class="text-body-secondary mb-0 small d-lg-none">{{ today|weekday }}, {{ today|date }}</p>
-        <h1><span class="d-lg-none">{{ _("Hallo {name}!", name=current_user.name) }}</span><span class="d-none d-lg-inline">{{ _("Übersicht") }}</span></h1>
-        <p class="text-body-secondary mb-0 d-none d-lg-block">{{ _("Hallo {name}!", name=current_user.name) }}</p>
+        <p class="text-body-secondary mb-0 home-date">{{ today|weekday }}, {{ today|date }}</p>
+        <h1 class="home-greeting">{{ greeting }}</h1>
     </div>
     <div class="d-none d-lg-flex gap-2">
         <a class="btn btn-outline-secondary" href="{{ url_for('main.tile_settings') }}" title="{{ _('Startseite anpassen') }}"><i class="bi bi-sliders"></i></a>
@@ -30,15 +29,66 @@
 </div>
 {% endif %}
 
-{# Am Handy: kurze Infos und Schnellzugriff (die ersten 4 eingestellten Kacheln, siehe tiles.py) #}
-<div class="info-chips d-lg-none">
-    {% if weather and not weather.error and weather.current %}
-    <a class="info-chip" href="{{ url_for('main.weather_page') }}"><i class="bi {{ weather.forecast[0].bi if weather.forecast else 'bi-thermometer-half' }}"></i>{{ weather.current.temp|num }} °C</a>
-    {% if weather.frost %}<a class="info-chip cold" href="{{ url_for('main.weather_page') }}"><i class="bi bi-snow2"></i>{{ _("Frost") if weather.frost.level == "frost" else _("Bodenfrost") }} {{ weather.frost.at|weekday }} {{ weather.frost.min|num(1) }}°</a>{% endif %}
-    {% if show_blight and weather.blight.level == "high" %}<a class="info-chip warn" href="{{ url_for('main.weather_page') }}"><i class="bi bi-virus"></i>{{ _("Krautfäule") }}</a>{% endif %}
-    {% endif %}
-    {% if tank and tank.has_entries %}<a class="info-chip {{ 'warn' if tank.low }}" href="{{ url_for('fuel.tank') }}"><i class="bi bi-fuel-pump"></i>{{ _("{liters} l", liters=tank.liters|num(0)) }}</a>{% endif %}
+{# Kopf: Wetter groß (wenn „Wetter“ eingeschaltet ist), Hinweis bei Frost/Krautfäule, Kennzahlen #}
+{% set has_weather = "wetter" in show and weather and not weather.error and weather.current %}
+{% if has_weather %}
+{% set cur = weather.current %}{% set day0 = weather.forecast[0] if weather.forecast else none %}
+<a class="card home-hero mb-3 text-reset text-decoration-none" href="{{ url_for('main.weather_page') }}">
+    <div class="card-body">
+        <div class="hero-head"><span><i class="bi bi-geo-alt-fill me-1"></i>{{ app_name }}</span><span>{{ _("Stand {time}", time=cur.time|time) }}</span></div>
+        <div class="hero-row">
+            <div class="hero-now">
+                <div class="hero-temp">{{ cur.temp|num }}°</div>
+                <div class="hero-cond">{{ _(weather_labels[cur.icon]) if cur.icon in weather_labels else "" }}</div>
+                {% if day0 %}<div class="hero-range">↑ {{ day0.tmax|num }}° · ↓ {{ day0.tmin|num }}° · {{ day0.rain|num(1) }} mm</div>{% endif %}
+            </div>
+            <i class="bi {{ day0.bi if day0 else 'bi-thermometer-half' }} hero-icon" aria-hidden="true"></i>
+            <div class="hero-days">
+                {% for day in weather.forecast[:4] %}
+                <div class="hero-day">
+                    <span class="hero-day-name">{{ _("Heute") if day.today else day.date|weekday }}</span>
+                    <i class="bi {{ day.bi }}" aria-hidden="true"></i>
+                    <span class="fw-bold">{{ day.tmax|num }}°<span class="hero-min"> {{ day.tmin|num }}°</span></span>
+                    <span class="hero-rain">{{ day.rain|num(1) }} mm</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="hero-facts">
+            <span><i class="bi bi-droplet"></i>{{ cur.rh|num }} %</span>
+            {% if cur.wind is not none %}<span><i class="bi bi-wind"></i>{{ cur.wind|num }} km/h</span>{% endif %}
+            {% if day0 and day0.sunshine is defined and day0.sunshine is not none %}<span><i class="bi bi-sun"></i>{{ (day0.sunshine / 60)|num(1) }} h</span>{% endif %}
+        </div>
+    </div>
+</a>
+{% endif %}
+{% if weather and not weather.error and (weather.frost or (show_blight and weather.blight.level == "high")) %}
+<div class="home-alerts mb-3">
+    {% if weather.frost %}<a class="home-alert cold" href="{{ url_for('main.weather_page') }}"><span class="home-alert-icon"><i class="bi bi-snow2"></i></span><span class="flex-grow-1"><strong>{{ _("Frost") if weather.frost.level == "frost" else _("Bodenfrost") }} {{ weather.frost.at|weekday }}</strong><span class="d-block small">{{ _("bis {t} °C – Tränke und Lager prüfen", t=weather.frost.min|num(1)) }}</span></span><i class="bi bi-chevron-right"></i></a>{% endif %}
+    {% if show_blight and weather.blight.level == "high" %}<a class="home-alert warn" href="{{ url_for('main.weather_page') }}"><span class="home-alert-icon"><i class="bi bi-virus"></i></span><span class="flex-grow-1"><strong>{{ _("Krautfäule") }}</strong><span class="d-block small">{{ _("hohes Risiko") }}</span></span><i class="bi bi-chevron-right"></i></a>{% endif %}
 </div>
+{% endif %}
+
+{% if kpis %}
+<div class="home-kpis mb-4">
+    {% for k in kpis %}
+    <a class="stat-card stat-link kpi kpi-{{ k.key }} {{ 'stat-warn' if k.warn }}" href="{{ k.url }}">
+        <span class="kpi-head"><span class="kpi-icon"><i class="bi {{ k.icon }}"></i></span><span class="stat-label">{{ k.label }}</span></span>
+        <span class="stat-value d-block">{{ k.value }}</span>
+        {% if k.bar is defined %}<span class="kpi-bar"><span style="width: {{ k.bar }}%"></span></span>{% endif %}
+        <span class="stat-sub d-block">{{ k.sub }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if tank and tank.has_entries %}
+<div class="info-chips d-lg-none">
+    <a class="info-chip {{ 'warn' if tank.low }}" href="{{ url_for('fuel.tank') }}"><i class="bi bi-fuel-pump"></i>{{ _("{liters} l", liters=tank.liters|num(0)) }}</a>
+</div>
+{% endif %}
+
+{# Am Handy: Schnellzugriff (die ersten 4 eingestellten Kacheln, siehe tiles.py) #}
 
 <div class="quick-row d-lg-none">
     {% for key in quick_tiles %}
@@ -101,7 +151,7 @@
     {% if important %}
     <div class="hub-list">
         {% for i in important %}
-        <a class="hub-row important-row {{ 'collapse more-important' if loop.index > 4 }} {{ 'd-lg-flex' if 4 < loop.index <= 8 }}" href="{{ i.url }}">
+        <a class="hub-row important-row lvl-{{ i.level }} {{ 'collapse more-important' if loop.index > 4 }} {{ 'd-lg-flex' if 4 < loop.index <= 8 }}" href="{{ i.url }}">
             <span class="dot dot-{{ i.level }}"></span>
             <span class="hub-text"><span class="hub-title">{{ i.title }}</span><span class="hub-status {{ 'warn' if i.level == 'danger' }}">{{ i.sub }}</span></span>
             <i class="bi bi-chevron-right hub-chevron"></i>
@@ -249,36 +299,12 @@
 {% endif %}
 {% endset %}
 {% set sec_wetter %}
-{% if "wetter" in show and weather and not weather.error %}
-{% from "weather/_macros.html" import blight_badge, blight_text, frost_alert %}
-<div class="d-none d-lg-block">{{ frost_alert(weather.frost) }}</div>
+{% if "wetter" in show and weather and not weather.error and show_blight %}
+{% from "weather/_macros.html" import blight_badge, blight_text %}
 <a class="card shadow-sm mb-4 text-reset text-decoration-none weather-card" href="{{ url_for('main.weather_page') }}">
-    <div class="card-body d-flex flex-wrap gap-3 align-items-center">
-        {% if weather.current %}
-        <div class="d-flex align-items-center gap-2">
-            <i class="bi {{ weather.forecast[0].bi if weather.forecast else 'bi-thermometer-half' }} fs-1"></i>
-            <div>
-                <div class="fs-3 fw-semibold lh-1">{{ weather.current.temp|num }} °C</div>
-                <div class="small text-body-secondary">{{ _("Luftfeuchte {n} %", n=weather.current.rh|num) }}</div>
-            </div>
-        </div>
-        {% endif %}
-        <div class="d-flex gap-3 flex-grow-1">
-            {% for day in weather.forecast[:3] %}
-            <div class="text-center small">
-                <div class="fw-semibold">{{ _("Heute") if day.today else day.date|weekday }}</div>
-                <i class="bi {{ day.bi }} fs-4"></i>
-                <div>{{ day.tmax|num }}° / {{ day.tmin|num }}°</div>
-                <div class="text-info-emphasis">{{ day.rain|num(1) }} mm</div>
-            </div>
-            {% endfor %}
-        </div>
-        {% if show_blight %}
-        <div class="small" style="max-width: 18rem">
-            <div class="fw-semibold mb-1"><i class="bi bi-virus me-1"></i>{{ _("Krautfäule") }} {{ blight_badge(weather.blight.level) }}</div>
-            <div class="text-body-secondary">{{ blight_text(weather.blight) }}</div>
-        </div>
-        {% endif %}
+    <div class="card-body small">
+        <div class="fw-semibold mb-1"><i class="bi bi-virus me-1"></i>{{ _("Krautfäule") }} {{ blight_badge(weather.blight.level) }}</div>
+        <div class="text-body-secondary">{{ blight_text(weather.blight) }}</div>
     </div>
 </a>
 {% elif "wetter" in show and weather is none and current_user.is_admin %}

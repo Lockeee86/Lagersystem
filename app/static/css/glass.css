@@ -223,3 +223,33 @@ html[data-bg] hr { border-color: var(--line); opacity: 1; }
     html[data-bg] .app-search { width: 12rem; }
     html[data-bg] .app-brand { flex-shrink: 0; max-width: 14rem; }
 }
+
+/* --- Startseite ---------------------------------------------------------------------------- */
+html[data-bg] .home-greeting { font-size: clamp(1.7rem, 1.3rem + 1.4vw, 2.3rem); }
+html[data-bg] .home-hero { border-radius: 2rem; background: var(--glass-strong); }
+html[data-bg] .hero-icon { color: #ffd08a; filter: drop-shadow(0 4px 18px rgba(255, 190, 110, .45)); }
+html[data-bg] .hero-day, html[data-bg] .hero-facts span { background: rgba(255, 255, 255, .12); }
+html[data-bg] .hero-rain { color: #a9d6ff; }
+html[data-bg] .home-alert { border: 1px solid var(--glass-edge); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+html[data-bg] .home-alert.cold { background: rgba(111, 183, 255, .24); }
+html[data-bg] .home-alert.warn { background: rgba(255, 179, 92, .26); border-color: rgba(255, 214, 120, .5); }
+html[data-bg] .home-alert-icon { background: rgba(255, 255, 255, .22); }
+html[data-bg] .kpi { border-radius: 1.6rem; }
+html[data-bg] .kpi-icon { color: #fff; background: rgba(143, 209, 138, .4); }
+html[data-bg] .kpi-klima .kpi-icon { background: rgba(111, 183, 255, .42); }
+html[data-bg] .kpi-eier .kpi-icon { background: rgba(255, 179, 92, .45); }
+html[data-bg] .kpi-aufgaben .kpi-icon { background: rgba(199, 146, 255, .42); }
+html[data-bg] .kpi .stat-value { font-size: clamp(1.7rem, 1.3rem + 1.2vw, 2.2rem); }
+html[data-bg] .kpi-bar { background: rgba(255, 255, 255, .18); }
+html[data-bg] .kpi-bar > span { background: #a8e08f; }
+html[data-bg] .important-row.lvl-danger { background: rgba(255, 110, 110, .16); }
+html[data-bg] .important-row.lvl-warning { background: rgba(255, 179, 92, .12); }
+html[data-bg] .important-row .dot { width: .75rem; height: .75rem; }
+html[data-bg] .dot-danger { background: #ff8a80; box-shadow: 0 0 10px rgba(255, 138, 128, .8) !important; }
+html[data-bg] .dot-warning { background: #ffc061; box-shadow: 0 0 10px rgba(255, 192, 97, .7); }
+html[data-bg] .quick-icon { background: rgba(255, 255, 255, .14); border: 1px solid var(--glass-edge); color: #fff;
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4); }
+html[data-bg] .quick-icon.quick-edit { background: transparent; border-style: dashed; backdrop-filter: none; box-shadow: none; }
+html[data-bg] .info-chip { background: rgba(255, 255, 255, .14); border-color: var(--glass-edge); color: #fff; }
+html[data-bg] .hub-heading { color: rgba(255, 255, 255, .85); }

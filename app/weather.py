@@ -49,6 +49,10 @@ ICONS = {
     "clear-day": "bi-sun", "clear-night": "bi-moon-stars",
 }
 SEVERITY = list(ICONS)
+LABELS = {"thunderstorm": N_("Gewitter"), "hail": N_("Hagel"), "snow": N_("Schnee"), "sleet": N_("Schneeregen"),
+          "rain": N_("Regen"), "fog": N_("Nebel"), "wind": N_("Windig"), "cloudy": N_("Bewölkt"),
+          "partly-cloudy-day": N_("Teils bewölkt"), "partly-cloudy-night": N_("Teils bewölkt"),
+          "clear-day": N_("Sonnig"), "clear-night": N_("Klar")}
 
 _cache = {}
 _month_cache = {}          # (Ort, Jahr, Monat) → mm; abgeschlossene Monate ändern sich nicht mehr

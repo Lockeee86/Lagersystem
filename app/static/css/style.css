@@ -906,3 +906,53 @@ body:not(.has-tabbar) {
 .bg-swatch-klassisch { background: var(--surface-2); }
 .bg-pick .btn-check:checked + label .bg-swatch { outline: 3px solid var(--brand); outline-offset: 2px; }
 .bg-pick .btn-check:focus-visible + label .bg-swatch { outline: 3px solid var(--bs-focus-ring-color); outline-offset: 2px; }
+
+/* --- Startseite: Kopf mit Wetter, Hinweisen und Kennzahlen ------------------------------- */
+.home-date { font-size: .9rem; font-weight: 600; }
+.home-greeting { margin-bottom: 0; }
+.home-hero .card-body { padding: 1.1rem 1.25rem; }
+.hero-head { display: flex; justify-content: space-between; gap: 1rem; font-size: .9rem; font-weight: 700; }
+.hero-head span:last-child { color: var(--bs-secondary-color); font-weight: 600; }
+.hero-row { display: flex; align-items: center; gap: 1rem 1.5rem; flex-wrap: wrap; margin: .5rem 0; }
+.hero-now { display: flex; flex-direction: column; }
+.hero-temp { font-size: 4.6rem; font-weight: 300; line-height: .95; letter-spacing: -.05em; }
+.hero-cond { font-size: 1.2rem; font-weight: 800; margin-top: .25rem; }
+.hero-range { color: var(--bs-secondary-color); font-weight: 600; }
+.hero-icon { font-size: 4.2rem; line-height: 1; color: var(--accent); margin-left: auto; }
+.hero-days { display: none; gap: .5rem; flex: 1 1 22rem; }
+.hero-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .15rem; padding: .6rem .3rem;
+            border-radius: 1rem; background: var(--surface-2); font-size: .85rem; }
+.hero-day i { font-size: 1.4rem; }
+.hero-day-name { font-weight: 700; color: var(--bs-secondary-color); }
+.hero-min { font-weight: 500; color: var(--bs-secondary-color); }
+.hero-rain { color: #4c9bd6; font-size: .78rem; font-weight: 600; }
+.hero-facts { display: flex; flex-wrap: wrap; gap: .5rem; }
+.hero-facts span { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .75rem; border-radius: 999px;
+                   background: var(--surface-2); font-size: .85rem; font-weight: 700; }
+@media (min-width: 768px) { .hero-days { display: flex; } .hero-icon { margin-left: 0; } }
+.home-alerts { display: grid; gap: .6rem; }
+@media (min-width: 992px) { .home-alerts { grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); } }
+.home-alert { display: flex; align-items: center; gap: .8rem; padding: .75rem 1rem; border-radius: 1.1rem; color: inherit;
+              text-decoration: none; border: 1px solid var(--line); }
+.home-alert:hover { color: inherit; }
+.home-alert.cold { background: #e3eef7; border-color: #c6dbea; }
+.home-alert.warn { background: rgba(200, 162, 74, .16); border-color: rgba(200, 162, 74, .4); }
+[data-bs-theme="dark"] .home-alert.cold { background: #1d2f3c; border-color: #2c4a5e; }
+.home-alert-icon { width: 2.3rem; height: 2.3rem; border-radius: 50%; flex: none; display: flex; align-items: center;
+                   justify-content: center; background: rgba(255, 255, 255, .35); font-size: 1.1rem; }
+.home-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.home-kpis > .kpi:last-child:nth-child(odd) { grid-column: span 2; }
+@media (min-width: 992px) { .home-kpis { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+                            .home-kpis > .kpi:last-child:nth-child(odd) { grid-column: auto; } }
+.kpi-head { display: flex; align-items: center; gap: .55rem; margin-bottom: .2rem; }
+.kpi-head .stat-label { font-size: .9rem; }
+.kpi { display: flex !important; flex-direction: column; gap: .2rem; }
+.kpi-icon { width: 2.4rem; height: 2.4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem; flex: none; background: var(--brand-soft); color: var(--brand); }
+.kpi-klima .kpi-icon { background: rgba(76, 155, 214, .16); color: #3d7ea6; }
+.kpi-eier .kpi-icon { background: rgba(200, 162, 74, .2); color: #a07d2a; }
+.kpi-aufgaben .kpi-icon { background: rgba(140, 108, 255, .16); color: #6a4fd1; }
+.kpi .stat-value { margin-top: 0; }
+.kpi-bar { display: block; height: .35rem; border-radius: 1rem; background: var(--slot-free); overflow: hidden; margin: .15rem 0; }
+.kpi-bar > span { display: block; height: 100%; border-radius: 1rem; background: var(--brand); }
+.important-row.lvl-danger .dot { box-shadow: 0 0 0 4px rgba(180, 35, 24, .15); }

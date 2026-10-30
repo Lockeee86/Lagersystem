@@ -111,8 +111,9 @@ Portainer-Stack (docker-compose)
   hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
   untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht,
-  nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Nächste Schritte: Startseite, Hühner und Lagerklima
-  wie im Entwurf, dann die übrigen Seiten.
+  nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,
+  großes Wetter oben (`weather.LABELS`), Frost/Krautfäule als Hinweis, Kennzahlen-Kacheln (`views._home_kpis`: Lager,
+  Lagerklima, Eier, Aufgaben), „Jetzt wichtig“ farbig. Nächste Schritte: Hühner und Lagerklima wie im Entwurf.
   **Tägliche Fütterung** (0.55.0): `Feeding` je Tag mit Weizen/Legemehl (ohne Menge), Schalter auf der Hühner-Seite
   (heute/gestern) und unter Futter (14 Tage); nicht im Änderungsprotokoll. Auswertung `chickens.feeding_effect`:
   Legeleistung je Fütterung gegen den Richtwert fürs Alter, dazu eine Woche später (Futter wirkt verzögert) und

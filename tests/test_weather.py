@@ -168,3 +168,19 @@ def test_rain_since_january(located, monkeypatch):
     monkeypatch.setattr(weather, "_fetch", broken)
     assert weather.rain_year(data, NOW)["error"]
     assert weather.rain_year({"error": True}, NOW) is None
+
+
+def test_dashboard_hero(as_worker, located, monkeypatch):
+    """Startseite: großes Wetter oben mit Beschreibung und Vorhersage, Frost als Hinweis darunter."""
+    real_build = weather.build
+
+    def frosty(data, now=None):
+        tomorrow = (now or datetime.now(TZ)).date() + timedelta(days=1)
+        return real_build(fake_data({tomorrow: {"tmin": -2.0}}, start=tomorrow - timedelta(days=30),
+                                    end=tomorrow + timedelta(days=8)), now)
+    monkeypatch.setattr(weather, "build", frosty)
+    weather.clear_cache()
+    html = as_worker.get("/").get_data(as_text=True)
+    assert "home-hero" in html and "Teils bewölkt" in html and "hero-day" in html
+    assert "home-alert cold" in html and "Tränke und Lager prüfen" in html
+    assert "Guten " in html and "home-kpis" in html
