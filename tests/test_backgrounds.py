@@ -26,3 +26,10 @@ def test_save_and_pages(app, as_worker, db, seed):
     html = as_worker.get("/").get_data(as_text=True)
     assert "data-bg=" not in html and "glass.css" not in html and "themeToggle" in html
     assert "glass.css" in app.test_client().get("/login").get_data(as_text=True)
+
+
+def test_starry_sky(as_worker, db, seed):
+    as_worker.post("/konto/hintergrund", data={"background": "sterne", "strength": "80"})
+    assert seed["worker"].background == "sterne"
+    assert 'data-bg="sterne"' in as_worker.get("/").get_data(as_text=True)
+    assert "Sternenhimmel" in as_worker.get("/konto").get_data(as_text=True)

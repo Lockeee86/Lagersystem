@@ -2675,4 +2675,5 @@ MESSAGES = {
     '{place} lüften': '{place} – przewietrzyć',
     'Lüften als Aufgabe anlegen': 'Dodaj wietrzenie jako zadanie',
     'CO₂ ppm': 'CO₂ ppm',
+    'Sternenhimmel': 'Gwiaździste niebo',
 }

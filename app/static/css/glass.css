@@ -20,6 +20,8 @@ html[data-bg="kuehl"] { --bg: linear-gradient(180deg, #1c2a44 0%, #23314a 50%, #
     --c1: #5ab0ff; --c2: #7fe0c4; --c3: #8c6cff; --c4: #ffb35c; --bg-solid: #1f2b42; }
 html[data-bg="felder"] { --bg: linear-gradient(180deg, #e98a6a 0%, #c45f78 22%, #6b3d63 40%, #3a2e3a 55%, #2a2a22 100%);
     --c1: #ffb35c; --c2: #ff8a8a; --c3: #7fc98a; --c4: #ffd08a; --bg-solid: #3a2d33; }
+html[data-bg="sterne"] { --bg: radial-gradient(ellipse at 50% 120%, #0d1330 0%, #05070f 55%, #020308 100%);
+    --c1: #1d2a5a; --c2: #2a1d4a; --c3: #102a3a; --c4: #1a1f3f; --bg-solid: #070a14; }
 html[data-bg="nacht"] { --bg: linear-gradient(180deg, #0f1424 0%, #161c30 60%, #0d111c 100%);
     --c1: #3b5bdb; --c2: #6f42c1; --c3: #1c7ed6; --c4: #2b8a3e; --bg-solid: #121829; }
 
@@ -380,3 +382,44 @@ html[data-bg] .setup-card { background: rgba(255, 192, 97, .2); border-color: rg
 html[data-bg] .tile-pick label { border-color: var(--glass-edge); background: rgba(255, 255, 255, .08); }
 html[data-bg] .tile-pick input:checked + label { background: rgba(168, 224, 143, .22); border-color: rgba(190, 240, 180, .7); }
 html[data-bg] .tile-pick label i { color: #ffd08a; }
+
+/* --- Sternenhimmel: fast schwarz, zwei Lagen Sterne (eine funkelt leise), Mond, Milchstraße angedeutet --------- */
+html[data-bg="sterne"] .app-backdrop .blob { opacity: calc(var(--bg-strength) * .55); }
+html[data-bg="sterne"] .app-backdrop::before,
+html[data-bg="sterne"] .app-backdrop::after { content: ""; position: absolute; inset: -10%; pointer-events: none; }
+html[data-bg="sterne"] .app-backdrop::before {
+    background-image:
+        radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 37% 8%, #dfe8ff 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 64% 22%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 82% 12%, #ffeccf 50%, transparent 51%),
+        radial-gradient(1px 1px at 21% 46%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 52% 38%, #cfdcff 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 90% 44%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 8% 72%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 44% 66%, #ffeccf 50%, transparent 51%),
+        radial-gradient(1px 1px at 71% 78%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 30% 90%, #dfe8ff 50%, transparent 51%),
+        radial-gradient(1px 1px at 95% 88%, #fff 50%, transparent 51%);
+    background-size: 340px 340px;
+    opacity: .85;
+}
+html[data-bg="sterne"] .app-backdrop::after {
+    background-image:
+        radial-gradient(2px 2px at 18% 30%, #fff 50%, transparent 51%),
+        radial-gradient(2px 2px at 58% 12%, #fff6e0 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 76% 58%, #fff 50%, transparent 51%),
+        radial-gradient(2px 2px at 34% 76%, #e6eeff 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 88% 86%, #fff 50%, transparent 51%),
+        linear-gradient(115deg, transparent 38%, rgba(160, 170, 255, .06) 48%, rgba(220, 200, 255, .08) 52%, transparent 62%);
+    background-size: 620px 620px, 620px 620px, 620px 620px, 620px 620px, 620px 620px, 100% 100%;
+    animation: stars-twinkle 7s ease-in-out infinite alternate;
+}
+@keyframes stars-twinkle { from { opacity: .45; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html[data-bg="sterne"] .app-backdrop::after { animation: none; } }
+html[data-bg="sterne"] .app-backdrop .sun { display: block; width: 7vmin; height: 7vmin; min-width: 46px; min-height: 46px; right: 12%; left: auto;
+    top: 9vh; border-radius: 50%; background: radial-gradient(circle at 38% 38%, #fffbea, #e9e2c8 60%, #cfc6a6);
+    box-shadow: 0 0 40px 8px rgba(255, 248, 220, .18), 0 0 120px 40px rgba(180, 190, 255, .08); }
+html[data-bg="sterne"] { --glass: rgba(255, 255, 255, .08); --glass-strong: rgba(255, 255, 255, .11); --glass-edge: rgba(255, 255, 255, .2);
+    --popup: rgba(14, 18, 34, .88); }
+html[data-bg="sterne"] .form-select option, html[data-bg="sterne"] .form-select optgroup { background: #0d1224; }

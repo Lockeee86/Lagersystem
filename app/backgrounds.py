@@ -9,12 +9,14 @@ from .i18n import N_
 from .utils import local_tz
 
 CHOICES = {"sonnenaufgang": N_("Sonnenaufgang"), "wiese": N_("Wiese"), "abend": N_("Abend"), "kuehl": N_("Kühl"),
-           "felder": N_("Felder"), "nacht": N_("Nacht")}
+           "felder": N_("Felder"), "nacht": N_("Nacht"),
+           "sterne": N_("Sternenhimmel")}
 SPECIAL = {"auto": N_("Nach Tageszeit"), "klassisch": N_("Klassisch (ohne Glas)")}
 # Vorschau in der Auswahl (dieselben Farben wie in glass.css)
 PREVIEWS = {"sonnenaufgang": ("#3a2033", "#ff8a4c", "#ffc061"), "wiese": ("#1f3328", "#7fd38a", "#ffd36b"),
             "abend": ("#221d40", "#8c6cff", "#ff7aa8"), "kuehl": ("#1c2a44", "#5ab0ff", "#7fe0c4"),
-            "felder": ("#6b3d63", "#e98a6a", "#47552f"), "nacht": ("#0f1424", "#3b5bdb", "#6f42c1")}
+            "felder": ("#6b3d63", "#e98a6a", "#47552f"), "nacht": ("#0f1424", "#3b5bdb", "#6f42c1"),
+            "sterne": ("#03050b", "#1d2a5a", "#2a1d4a")}
 DEFAULT, STRENGTH = "sonnenaufgang", 80
 # Nach Tageszeit: ab dieser Stunde (Ortszeit)
 DAY_TIMES = ((5, "sonnenaufgang"), (10, "wiese"), (17, "abend"), (21, "nacht"))

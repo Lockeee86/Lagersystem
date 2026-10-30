@@ -81,7 +81,7 @@
                     <div class="bg-pick mb-3">
                         {% for key, label in bg_choices.items() %}{% set p = bg_previews[key] %}
                         <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
-                        <label for="bg_{{ key }}"><span class="bg-swatch" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
+                        <label for="bg_{{ key }}"><span class="bg-swatch {{ 'bg-swatch-sterne' if key == 'sterne' }}" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
                         {% endfor %}
                         {% for key, label in bg_special.items() %}
                         <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
