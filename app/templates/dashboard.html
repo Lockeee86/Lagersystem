@@ -39,8 +39,10 @@
         <div class="hero-row">
             <div class="hero-now">
                 <div class="hero-temp">{{ cur.temp|num }}°</div>
-                <div class="hero-cond">{{ _(weather_labels[cur.icon]) if cur.icon in weather_labels else "" }}</div>
-                {% if day0 %}<div class="hero-range">↑ {{ day0.tmax|num }}° · ↓ {{ day0.tmin|num }}° · {{ day0.rain|num(1) }} mm</div>{% endif %}
+                <div class="hero-text">
+                    <div class="hero-cond">{{ _(weather_labels[cur.icon]) if cur.icon in weather_labels else "" }}</div>
+                    {% if day0 %}<div class="hero-range">↑ {{ day0.tmax|num }}° · ↓ {{ day0.tmin|num }}° · {{ day0.rain|num(1) }} mm</div>{% endif %}
+                </div>
             </div>
             <i class="bi {{ day0.bi if day0 else 'bi-thermometer-half' }} hero-icon" aria-hidden="true"></i>
             <div class="hero-days">

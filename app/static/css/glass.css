@@ -357,7 +357,9 @@ html[data-bg] .bg-success-subtle { background-color: rgba(143, 209, 138, .2) !im
 html[data-bg] .bg-warning-subtle { background-color: rgba(255, 192, 97, .2) !important; }
 html[data-bg] .bg-danger-subtle { background-color: rgba(255, 110, 110, .2) !important; }
 html[data-bg] .bg-info-subtle { background-color: rgba(111, 183, 255, .2) !important; }
-html[data-bg] .rotation-table .sticky-col { background: rgba(48, 32, 42, .92); }
+/* feste erste Spalte: Grundfarbe des Hintergrunds, damit beim Wischen nichts durchscheint */
+html[data-bg] .rotation-table .sticky-col { background: color-mix(in srgb, var(--bg-solid) 94%, #fff 6%) !important;
+    box-shadow: 1px 0 0 var(--line) !important; z-index: 2; }
 
 /* Verlauf/Zeitleiste: Symbole hell auf getöntem Kreis */
 html[data-bg] .timeline-icon { background: rgba(255, 255, 255, .14); color: #fff; }

@@ -618,6 +618,7 @@ body:not(.has-tabbar) {
     background: color-mix(in srgb, var(--chip, #b7b2a6) 35%, transparent); border: 1px solid var(--chip, #b7b2a6); }
 .rotation-chip.planned { background: transparent; border-style: dashed; font-style: italic; }
 .rotation-table .sticky-col { position: sticky; left: 0; background: var(--bs-body-bg); z-index: 1; min-width: 9rem; }
+@media (max-width: 767.98px) { .rotation-table .sticky-col { min-width: 7rem; max-width: 8.5rem; } }
 
 /* Regen nach Monaten */
 .rain-months { height: 90px; gap: 4px; }
@@ -995,3 +996,25 @@ body:not(.has-tabbar) {
 [data-bs-theme="dark"] .climate-pill-danger { color: #f08a80; }
 [data-bs-theme="dark"] .climate-pill-ok { color: #9fd49a; }
 [data-bs-theme="dark"] .climate-pill-warning { color: var(--accent); }
+
+/* Startseite am Handy: Wetter und Kennzahlen kompakt, damit „Jetzt wichtig“ oben bleibt */
+@media (max-width: 991.98px) {
+    .home-hero .card-body { padding: .7rem 1rem; }
+    .home-hero .hero-head, .home-hero .hero-facts { display: none; }
+    .home-hero .hero-row { margin: 0; flex-wrap: nowrap; gap: .8rem; }
+    .home-hero .hero-now { flex-direction: row; align-items: center; gap: .8rem; flex: 1; min-width: 0; }
+    .home-hero .hero-temp { font-size: 2.4rem; }
+    .home-hero .hero-cond { font-size: 1rem; margin: 0; }
+    .home-hero .hero-range { font-size: .85rem; white-space: nowrap; }
+    .home-hero .hero-text { display: flex; flex-direction: column; min-width: 0; }
+    .home-hero .hero-icon { font-size: 2.2rem; }
+    .home-alert { padding: .5rem .8rem; }
+    .home-alert-icon { width: 2rem; height: 2rem; }
+    .home-kpis { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; }
+    .home-kpis > .kpi:last-child:nth-child(odd) { grid-column: auto; }
+    .home-kpis .kpi { padding: .55rem .6rem; gap: 0; text-align: center; align-items: center; }
+    .home-kpis .kpi-icon, .home-kpis .kpi-bar, .home-kpis .stat-sub { display: none !important; }
+    .home-kpis .kpi-head { margin: 0; }
+    .home-kpis .kpi-head .stat-label { font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .home-kpis .stat-value { font-size: 1.15rem !important; white-space: nowrap; }
+}
