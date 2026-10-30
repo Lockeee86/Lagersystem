@@ -419,7 +419,16 @@ html[data-bg="sterne"] .app-backdrop::after {
 @media (prefers-reduced-motion: reduce) { html[data-bg="sterne"] .app-backdrop::after { animation: none; } }
 html[data-bg="sterne"] .app-backdrop .sun { display: block; width: 7vmin; height: 7vmin; min-width: 46px; min-height: 46px; right: 12%; left: auto;
     top: 9vh; border-radius: 50%; background: radial-gradient(circle at 38% 38%, #fffbea, #e9e2c8 60%, #cfc6a6);
-    box-shadow: 0 0 40px 8px rgba(255, 248, 220, .18), 0 0 120px 40px rgba(180, 190, 255, .08); }
-html[data-bg="sterne"] { --glass: rgba(255, 255, 255, .08); --glass-strong: rgba(255, 255, 255, .11); --glass-edge: rgba(255, 255, 255, .2);
-    --popup: rgba(14, 18, 34, .88); }
+    filter: blur(1.5px);
+    box-shadow: 0 0 30px 10px rgba(255, 248, 220, .22), 0 0 120px 50px rgba(180, 190, 255, .1); }
+html[data-bg="sterne"] { --glass: rgba(255, 255, 255, .08); --glass-strong: rgba(255, 255, 255, .1); --glass-edge: rgba(255, 255, 255, .09);
+    --glass-blur: blur(40px) saturate(150%);
+    --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 255, 255, .03), 0 14px 40px rgba(0, 0, 0, .35);
+    --line: rgba(255, 255, 255, .1); --popup: rgba(14, 18, 34, .88); }
+/* weiche statt harter Kanten: Rand kaum sichtbar, Licht oben nur angedeutet */
+html[data-bg="sterne"] .tabbar { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 14px 34px rgba(0, 0, 0, .45) !important; }
+html[data-bg="sterne"] .app-backdrop::before { filter: blur(.4px); }
+html[data-bg="sterne"] .app-backdrop::after { filter: blur(.5px); }
 html[data-bg="sterne"] .form-select option, html[data-bg="sterne"] .form-select optgroup { background: #0d1224; }
+html[data-bg="sterne"] .home-alert, html[data-bg="sterne"] .alert, html[data-bg="sterne"] .climate-card,
+html[data-bg="sterne"] .stat-warn { border-color: rgba(255, 255, 255, .1) !important; }
