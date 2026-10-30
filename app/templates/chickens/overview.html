@@ -19,11 +19,27 @@
 {{ blocked_alert(info.blocked) }}
 {% if info.drop %}<a class="alert alert-warning d-block small text-decoration-none" href="{{ url_for('chickens.analysis') }}"><i class="bi bi-graph-down-arrow me-1"></i>{{ _("Legeleistung fällt ab: letzte 2 Wochen {recent} %, davor {before} %. Mauser, Licht, Milben oder Futter prüfen.", recent=info.drop.recent, before=info.drop.before) }}</a>{% endif %}
 
-{% if can_keep %}
-<div class="card shadow-sm mb-4" id="eier">
+<div class="card shadow-sm mb-4 chicken-hero" id="eier">
     <div class="card-body">
-        <h2 class="h6 mb-3"><i class="bi bi-basket2 me-1"></i>{{ _("Eier eintragen") }}</h2>
-        {{ egg_form(today, url_for('chickens.overview')) }}
+        <div class="hero-eggs">
+            <div class="d-flex flex-column">
+                <span class="hero-eggs-label">{{ _("Heute gelegt") }}</span>
+                <span class="hero-eggs-value">{{ info.today.eggs }}</span>
+                <span class="text-body-secondary small">{% if info.today.cracked %}{{ _("{n} kaputt", n=info.today.cracked) }} · {% endif %}{{ _("{n} in 7 Tagen", n=info.week_eggs) }}</span>
+            </div>
+            {% if info.week_rate is not none %}
+            {% set low = info.week_expected is not none and info.week_rate < info.week_expected - 15 %}
+            <div class="rate-ring {{ 'is-low' if low }}" style="--p: {{ [info.week_rate, 100]|min }}" role="img" aria-label="{{ _('Legeleistung {n} %', n=info.week_rate) }}">
+                <div class="rate-ring-inner">
+                    <span class="rate-ring-value">{{ info.week_rate }} %</span>
+                    <span class="rate-ring-sub">{% if info.week_expected is not none %}{{ _("erwartet {n}", n=info.week_expected) }}{% else %}{{ _("7 Tage") }}{% endif %}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="mt-3">{{ egg_chart(days, today) }}</div>
+        {% if can_keep %}
+        <div class="hero-egg-form mt-3">{{ egg_form(today, url_for('chickens.overview')) }}</div>
         {% if entries %}
         <div class="small text-body-secondary mt-3">
             {% for e in entries %}
@@ -34,9 +50,9 @@
             {% endfor %}
         </div>
         {% endif %}
+        {% endif %}
     </div>
 </div>
-{% endif %}
 
 <div class="card shadow-sm mb-4" id="fuetterung">
     <div class="card-body">
@@ -45,11 +61,24 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-egg"></i>{{ _("Heute") }}</div><div class="stat-value">{{ info.today.eggs }}</div><div class="stat-sub">{% if info.today.cracked %}{{ _("{n} kaputt", n=info.today.cracked) }}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>
-    <div class="col-6 col-lg-3"><div class="stat-card"><div class="stat-label"><i class="bi bi-calendar-week"></i>{{ _("Letzte 7 Tage") }}</div><div class="stat-value">{{ info.week_eggs }}</div><div class="stat-sub">{% if info.week_rate is not none %}{{ _("Legeleistung {n} %", n=info.week_rate) }}{% if info.week_expected is not none %} <span class="{{ 'text-warning-emphasis' if info.week_rate < info.week_expected - 15 }}">({{ _("erwartet {n} %", n=info.week_expected) }})</span>{% endif %}{% else %}{{ _("Eier") }}{% endif %}</div></div></div>
-    <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.eggs') }}"><div class="stat-label"><i class="bi bi-box2"></i>{{ _("Vorrat") }}</div><div class="stat-value">{{ info.stock }}</div><div class="stat-sub">{{ _("Eier noch nicht verteilt") }}</div></a></div>
-    <div class="col-6 col-lg-3"><a class="stat-card d-block text-decoration-none" href="{{ url_for('chickens.flock') }}"><div class="stat-label"><i class="bi bi-egg-fried"></i>{{ _("Herde") }}</div><div class="stat-value">{{ info.flock }}</div><div class="stat-sub">{% if info.age is not none %}{{ _("Hühner, Ø {n} Monate", n=info.age|num(0)) }}{% else %}{{ _("Hühner") }}{% endif %}</div></a></div>
+<div class="home-kpis mb-4">
+    <a class="stat-card stat-link kpi kpi-eier" href="{{ url_for('chickens.eggs') }}">
+        <span class="kpi-head"><span class="kpi-icon"><i class="bi bi-box2"></i></span><span class="stat-label">{{ _("Vorrat") }}</span></span>
+        <span class="stat-value d-block">{{ info.stock }}</span>
+        <span class="stat-sub d-block">{% if info.next %}{{ _("als Nächstes: {name}", name=info.next.household.name) }}{% else %}{{ _("Eier noch nicht verteilt") }}{% endif %}</span>
+    </a>
+    <a class="stat-card stat-link kpi" href="{{ url_for('chickens.flock') }}">
+        <span class="kpi-head"><span class="kpi-icon"><i class="bi bi-egg-fried"></i></span><span class="stat-label">{{ _("Herde") }}</span></span>
+        <span class="stat-value d-block">{{ info.flock }}</span>
+        <span class="stat-sub d-block">{% if info.age is not none %}{{ _("Hühner, Ø {n} Monate", n=info.age|num(0)) }}{% else %}{{ _("Hühner") }}{% endif %}</span>
+    </a>
+    {% if info.sensor and info.sensor.state %}{% set st = info.sensor %}
+    <a class="stat-card stat-link kpi kpi-klappe {{ 'stat-warn' if st.state == 'halb' }}" href="#sensor">
+        <span class="kpi-head"><span class="kpi-icon"><i class="bi {{ 'bi-door-closed' if st.state == 'zu' else 'bi-door-open' }}"></i></span><span class="stat-label">{{ _("Klappe") }}</span></span>
+        <span class="stat-value d-block">{{ _("zu") if st.state == "zu" else _("hängt") if st.state == "halb" else _("offen") }}</span>
+        <span class="stat-sub d-block">{{ _("seit {time}", time=st.state_since|time) }}</span>
+    </a>
+    {% endif %}
 </div>
 
 {% if sensor or current_user.is_admin %}
@@ -89,11 +118,6 @@
     </div>
 </div>
 {% endif %}
-
-<div class="card shadow-sm mb-4">
-    <div class="card-header">{{ _("Eier der letzten 30 Tage") }}</div>
-    <div class="card-body">{{ egg_chart(days, today) }}</div>
-</div>
 
 <div class="row g-4">
     <div class="col-lg-6">

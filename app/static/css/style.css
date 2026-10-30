@@ -956,3 +956,20 @@ body:not(.has-tabbar) {
 .kpi-bar { display: block; height: .35rem; border-radius: 1rem; background: var(--slot-free); overflow: hidden; margin: .15rem 0; }
 .kpi-bar > span { display: block; height: 100%; border-radius: 1rem; background: var(--brand); }
 .important-row.lvl-danger .dot { box-shadow: 0 0 0 4px rgba(180, 35, 24, .15); }
+
+/* Hühner: Tageskarte mit Ring (Legeleistung 7 Tage) */
+.hero-eggs { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.hero-eggs-label { font-size: .9rem; font-weight: 700; color: var(--bs-secondary-color); }
+.hero-eggs-value { font-size: 4rem; font-weight: 800; line-height: 1; letter-spacing: -.04em; }
+.rate-ring { --p: 0; --ring: var(--accent); flex: none; width: 7rem; height: 7rem; border-radius: 50%; display: flex;
+             align-items: center; justify-content: center;
+             background: conic-gradient(var(--ring) calc(var(--p) * 1%), var(--slot-free) 0); }
+.rate-ring.is-low { --ring: #e07b39; }
+.rate-ring-inner { width: 5.4rem; height: 5.4rem; border-radius: 50%; background: var(--surface); display: flex;
+                   flex-direction: column; align-items: center; justify-content: center; }
+.rate-ring-value { font-size: 1.35rem; font-weight: 800; line-height: 1.1; }
+.rate-ring-sub { font-size: .72rem; font-weight: 700; color: var(--bs-secondary-color); }
+.coop-fill-top { stop-color: var(--brand); stop-opacity: .3; }
+.coop-fill-bottom { stop-color: var(--brand); stop-opacity: 0; }
+.coop-area { stroke: none; }
+#fuetterung .feeding-btn { min-height: 2.75rem; min-width: 7.5rem; font-size: 1rem; }

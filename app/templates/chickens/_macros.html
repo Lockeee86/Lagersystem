@@ -74,14 +74,16 @@
 {% set lo, hi = (temps|min) - 1, (temps|max) + 1 %}
 {% set t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp() %}
 {% set span = [t1 - t0, 1]|max %}
-{% set ns = namespace(temp="", hum="") %}
+{% set ns = namespace(temp="", hum="", first=none, last=none) %}
 {% for at, t, h in points %}
 {% set x = (1000 * (at.timestamp() - t0) / span)|round(1) %}
-{% if t is not none %}{% set ns.temp = ns.temp ~ x ~ "," ~ (200 - 200 * (t - lo) / (hi - lo))|round(1) ~ " " %}{% endif %}
+{% if t is not none %}{% set ns.temp = ns.temp ~ x ~ "," ~ (200 - 200 * (t - lo) / (hi - lo))|round(1) ~ " " %}{% if ns.first is none %}{% set ns.first = x %}{% endif %}{% set ns.last = x %}{% endif %}
 {% if h is not none %}{% set ns.hum = ns.hum ~ x ~ "," ~ (200 - 2 * h)|round(1) ~ " " %}{% endif %}
 {% endfor %}
 <svg class="coop-chart" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="{{ _('Temperatur und Luftfeuchte der letzten 48 Stunden') }}">
     {% if lo < 0 < hi %}<line x1="0" x2="1000" y1="{{ (200 - 200 * (0 - lo) / (hi - lo))|round(1) }}" y2="{{ (200 - 200 * (0 - lo) / (hi - lo))|round(1) }}" class="coop-zero"/>{% endif %}
+    <defs><linearGradient id="coopTempFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="coop-fill-top"/><stop offset="1" class="coop-fill-bottom"/></linearGradient></defs>
+    <polygon points="{{ ns.first }},200 {{ ns.temp }}{{ ns.last }},200" class="coop-area" fill="url(#coopTempFill)"/>
     {% if ns.hum %}<polyline points="{{ ns.hum }}" class="coop-hum"/>{% endif %}
     <polyline points="{{ ns.temp }}" class="coop-temp"/>
 </svg>

@@ -253,3 +253,24 @@ html[data-bg] .quick-icon { background: rgba(255, 255, 255, .14); border: 1px so
 html[data-bg] .quick-icon.quick-edit { background: transparent; border-style: dashed; backdrop-filter: none; box-shadow: none; }
 html[data-bg] .info-chip { background: rgba(255, 255, 255, .14); border-color: var(--glass-edge); color: #fff; }
 html[data-bg] .hub-heading { color: rgba(255, 255, 255, .85); }
+
+/* --- Hühner -------------------------------------------------------------------------------- */
+html[data-bg] .chicken-hero { border-radius: 2rem; background: var(--glass-strong); }
+html[data-bg] .hero-eggs-value { font-size: 4.6rem; }
+html[data-bg] .rate-ring { --ring: #ffc061; background: conic-gradient(var(--ring) calc(var(--p) * 1%), rgba(255, 255, 255, .16) 0);
+    filter: drop-shadow(0 6px 18px rgba(255, 192, 97, .3)); }
+html[data-bg] .rate-ring.is-low { --ring: #ff9a6a; }
+html[data-bg] .rate-ring-inner { background: rgba(50, 32, 40, .85); }
+html[data-bg] .egg-bar span { background: rgba(255, 255, 255, .38); opacity: 1; border-radius: 3px; }
+html[data-bg] .egg-bar.is-today span { background: #ffc061; }
+html[data-bg] .coop-temp { stroke: #ffc061; }
+html[data-bg] .coop-hum { stroke: #8fd0ff; }
+html[data-bg] .coop-fill-top { stop-color: #ffc061; stop-opacity: .45; }
+html[data-bg] .coop-fill-bottom { stop-color: #ffc061; }
+html[data-bg] .coop-key-temp { background: #ffc061; }
+html[data-bg] .coop-key-hum { background: #8fd0ff; }
+html[data-bg] .coop-co2 { stroke: #c792ff; }
+html[data-bg] .coop-air { stroke: #ffd08a; }
+html[data-bg] #fuetterung .feeding-btn.btn-success { background: rgba(255, 192, 97, .5); border: 1px solid rgba(255, 214, 120, .65); color: #fff; }
+html[data-bg] #fuetterung .feeding-btn.btn-outline-secondary { background: rgba(255, 255, 255, .08); }
+html[data-bg] .kpi-klappe .kpi-icon { background: rgba(143, 209, 138, .4); }
