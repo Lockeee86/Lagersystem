@@ -117,6 +117,10 @@ Portainer-Stack (docker-compose)
   Import der Abrechnungs-Positionen als CSV (0.63.0, `feedin.parse_csv` → Vorschau mit Zuordnung → `apply_import`):
   Einspeisung = Menge der Flexibilitätsprämie (sonst Marktwert + Verringerung), „Verringerung“ = kWh ohne Marktprämie
   (`FeedMonth.reduced_kwh`), „JAHR“ = Jahresabrechnung (`month` 0). Echte Abrechnungsdateien nie committen.
+  0.64.0: Erlöse aus den Beträgen (`FeedRevenue`, `feedin.revenue`: Gesamterlös = Gutschriften, davon Netzbetreiber
+  und Marktwert, entgangene Prämie durch Verringerung), Budget-Fahrplan bis 31.12. (`feedin.plan`, Gewichte `SEASON`,
+  gedeckelt auf die Motorleistung), Ausfallkosten der Störungen (`biogas.loss_per_hour`), Prüffristen der Anlage
+  (Maschinenart `anlage` mit Vorlagen, Karte `#pruefungen`, für Benutzer ohne Biogas unsichtbar wie BHKW).
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
   untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht, Sternenhimmel (0.61.0),
   nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,

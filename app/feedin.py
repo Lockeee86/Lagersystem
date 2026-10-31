@@ -16,7 +16,7 @@ from sqlalchemy import extract, func
 
 from .extensions import db
 from .i18n import N_
-from .models import ChpDay, FeedMonth, FeedPoint, Machine
+from .models import ChpDay, FeedMonth, FeedPoint, FeedRevenue, Machine
 from .storage import StorageError
 
 TIGHT = 0.98          # Prognose ab 98 % des Budgets: „knapp“
@@ -233,7 +233,7 @@ def parse_csv(data):
     for needed in ("einspeisestelle", "monat", "kategorie", "menge_kwh"):
         if needed not in fields:
             raise FeedImportError(N_("Die Datei passt nicht: Es fehlen die Spalten einspeisestelle, monat, kategorie und menge_kwh."))
-    parts, skipped = {}, 0
+    parts, skipped, revenues = {}, 0, {}
     for row in reader:
         get = lambda key: (row.get(fields.get(key, ""), "") or "").strip()      # noqa: E731
         name, period, kind = get("einspeisestelle"), get("monat").upper(), " ".join(get("kategorie").lower().split())
@@ -250,6 +250,14 @@ def parse_csv(data):
         except ValueError:
             skipped += 1
             continue
+        try:
+            eur = _csv_float(get("betrag_eur")) if "betrag_eur" in fields else 0.0
+        except ValueError:
+            eur = 0.0
+        category = category_name(get("kategorie"))
+        slot = revenues.setdefault((name, year, month), {}).setdefault(category, {"kwh": 0.0, "eur": 0.0})
+        slot["kwh"] += kwh
+        slot["eur"] += eur
         key = (name, year, month, get("anlage"))
         part = parts.setdefault(key, {"flex": 0.0, "has_flex": False, "market": 0.0, "reduced": 0.0})
         if kind.startswith(FLEX):
@@ -269,7 +277,99 @@ def parse_csv(data):
         slot["reduced"] += part["reduced"]
     if not points:
         raise FeedImportError(N_("In der Datei stehen keine Einspeisemengen (Kategorie Flexibilitätsprämie oder Marktwert)."))
-    return {"points": {n: dict(sorted(v.items())) for n, v in sorted(points.items())}, "skipped": skipped}
+    return {"points": {n: dict(sorted(v.items())) for n, v in sorted(points.items())}, "skipped": skipped,
+            "revenues": revenues}
+
+
+def category_name(raw):
+    """Kategorie wie in der Abrechnung, aufgeräumt: Leerzeichen zusammengefasst, Kennzeichen „(B)(Z)“ entfernt."""
+    text = re.sub(r"^\(\w\)(\(\w\))*\s*", "", " ".join((raw or "").split()))
+    return text[:60] or "?"
+
+
+# Gruppen für die Anzeige (Reihenfolge = Stapel im Diagramm); Vorzeichen in der Abrechnung: Gutschrift negativ
+REVENUE_GROUPS = (("grund", N_("Anzulegender Wert")), ("guelle", N_("Gülle-Bonus")), ("boni", N_("weitere Boni")),
+                  ("immission", N_("Immissionsschutz")), ("flex", N_("Flexibilitätsprämie")),
+                  ("sonstige", N_("Sonstiges")))
+PREMIUM_GROUPS = ("grund", "guelle", "boni", "immission")     # entfallen für kWh über der Höchstbemessungsleistung
+
+
+def revenue_group(category):
+    low = category.lower()
+    if low.startswith("marktwert"):
+        return "marktwert"
+    if low.startswith(("marktprämie", "mp ", "managementprämie", "verringerung")):
+        return "grund"
+    if low.startswith("gülle"):
+        return "guelle"
+    if low.startswith(("nawaro", "strom aus anlagen")):
+        return "boni"
+    if low.startswith("immissionsschutz"):
+        return "immission"
+    if low.startswith("flexibilit"):
+        return "flex"
+    return "sonstige"
+
+
+def _month_revenue(rows, kwh, reduced):
+    groups = {key: 0.0 for key, _label in REVENUE_GROUPS}
+    market_eur = market_kwh = netz = premium = 0.0
+    for r in rows:
+        eur, group = float(r.eur), revenue_group(r.category)
+        netz -= eur
+        if group == "marktwert":
+            market_eur += eur
+            market_kwh += float(r.kwh)
+            continue
+        groups[group] -= eur
+        if group in PREMIUM_GROUPS and not r.category.lower().startswith(("mp ", "managementprämie", "verringerung")):
+            premium -= eur
+    total = sum(groups.values())
+    lost = None
+    if reduced and market_kwh:
+        rate = (premium - market_eur) / market_kwh                 # anzulegender Wert + Boni − Marktwert je kWh
+        lost = max(rate, 0) * reduced
+    return {"groups": groups, "total": total, "netz": netz, "market": market_eur,
+            "ct": 100 * total / kwh if kwh else None, "kwh": kwh, "lost": lost}
+
+
+def revenue(point, year):
+    """Erlöse aus den importierten Abrechnungen: {"months": [ {month, …} ], "year": {…}} oder None ohne Daten."""
+    rows = point.revenues.filter_by(year=year).all()
+    if not rows:
+        return None
+    by_month = {}
+    for r in rows:
+        by_month.setdefault(r.month, []).append(r)
+    volumes = {m.month: m for m in point.months.filter_by(year=year)}
+    months_ = []
+    for month in sorted(by_month):
+        if month == 0 and len(by_month) > 1:
+            continue                                                   # Monate da: Jahresabrechnung nicht doppelt
+        vol = volumes.get(month)
+        info = _month_revenue(by_month[month], float(vol.kwh) if vol else 0.0,
+                              float(vol.reduced_kwh) if vol and vol.reduced_kwh else 0.0)
+        info["month"] = month
+        months_.append(info)
+    total = {"groups": {key: sum(m["groups"][key] for m in months_) for key, _l in REVENUE_GROUPS},
+             "total": sum(m["total"] for m in months_), "netz": sum(m["netz"] for m in months_),
+             "market": sum(m["market"] for m in months_), "kwh": sum(m["kwh"] for m in months_),
+             "lost": sum(m["lost"] for m in months_ if m["lost"]) or None}
+    total["ct"] = 100 * total["total"] / total["kwh"] if total["kwh"] else None
+    top = max([m["total"] for m in months_] + [1])
+    for m in months_:
+        m["height"] = {key: round(100 * max(m["groups"][key], 0) / top, 1) for key, _l in REVENUE_GROUPS}
+    return {"months": months_, "year": total, "annual_only": [m["month"] for m in months_] == [0]}
+
+
+def rate_eur_per_kwh(point, today=None):
+    """Erlös je kWh laut den letzten Abrechnungen (für Ausfallkosten) oder None."""
+    today = today or date.today()
+    for year in (today.year, today.year - 1):
+        data = revenue(point, year)
+        if data and data["year"]["kwh"]:
+            return data["year"]["total"] / data["year"]["kwh"]
+    return None
 
 
 def guess(name):
@@ -294,6 +394,10 @@ def apply_import(parsed, mapping):
             row.kwh = Decimal(str(round(v["kwh"], 1)))
             row.reduced_kwh = Decimal(str(round(v["reduced"], 1))) if v["reduced"] else None
             count += 1
+            point.revenues.filter_by(year=year, month=month).delete()
+            for category, r in parsed.get("revenues", {}).get((name, year, month), {}).items():
+                db.session.add(FeedRevenue(feed_point_id=point.id, year=year, month=month, category=category,
+                                           kwh=Decimal(str(round(r["kwh"], 1))), eur=Decimal(str(round(r["eur"], 2)))))
     db.session.flush()
     return count
 
@@ -309,6 +413,46 @@ def price_threshold(hours_per_day, outlook):
         return None
     take = max(int(round(len(prices) * hours_per_day / 24)), 1)
     return prices[min(take, len(prices)) - 1]
+
+
+# Budget-Fahrplan: Rest bis 31.12. auf die Monate verteilen – im Winter mehr (höhere Preise), höchstens was die
+# Motoren schaffen. Gewichte je Monat (Jan–Dez), angelehnt an den üblichen Verlauf der Strompreise.
+SEASON = (1.25, 1.2, 1.05, 0.9, 0.8, 0.8, 0.85, 0.9, 1.0, 1.05, 1.15, 1.2)
+
+
+def plan(s, today=None):
+    """Soll je Monat ab dem laufenden: {"months": [{month, target, hours_per_day}], "now": {…}} oder None."""
+    today = today or date.today()
+    if s["year"] != today.year or not s["left_days"]:
+        return None
+    current = today.month
+    rows = s["months"]
+    this_month = rows[current - 1]["kwh"] or 0.0
+    before = max(s["estimated"] - this_month, 0.0)
+    capacity = s["capacity"]
+    months_ = list(range(current, 13))
+    days = {m: calendar.monthrange(s["year"], m)[1] for m in months_}
+    weight = {m: SEASON[m - 1] * days[m] for m in months_}
+    cap = {m: capacity * 24 * days[m] if capacity else None for m in months_}
+    target, open_ = {}, set(months_)
+    rest = max(s["budget"] - before, 0.0)
+    while open_ and rest > 0.5:                                         # verteilen, Monate am Anschlag festhalten
+        total_w = sum(weight[m] for m in open_)
+        full = [m for m in open_ if cap[m] is not None and target.get(m, 0) + rest * weight[m] / total_w >= cap[m]]
+        if not full:
+            for m in open_:
+                target[m] = target.get(m, 0) + rest * weight[m] / total_w
+            break
+        for m in full:
+            rest -= cap[m] - target.get(m, 0)
+            target[m] = cap[m]
+            open_.discard(m)
+    result = [{"month": m, "target": target.get(m, 0.0),
+               "hours_per_day": target.get(m, 0.0) / capacity / days[m] if capacity else None} for m in months_]
+    expected = target.get(current, 0.0) * (today.day - 1) / days[current]
+    now_ = {"month": current, "target": target.get(current, 0.0), "actual": this_month, "expected": expected,
+            "deviation": round(100 * (this_month - expected) / expected) if expected else None}
+    return {"months": result, "now": now_}
 
 
 def check(now, done, mark):

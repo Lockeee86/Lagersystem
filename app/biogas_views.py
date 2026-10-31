@@ -8,7 +8,7 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask_login import current_user, login_required
 
 from . import biogas, feedin
-from .models import FeedPoint
+from .models import FeedPoint, Machine
 from .i18n import gettext as _, ngettext
 from .extensions import db
 from .storage import StorageError
@@ -38,6 +38,8 @@ def overview():
         except Exception:                                  # noqa: BLE001 – ohne Preise nur ohne Preis-Hinweis
             outlook = []
     for s in budget:
+        s["plan"] = feedin.plan(s)
+        s["revenue"] = feedin.revenue(s["point"], budget_year)
         s["price_from"] = feedin.price_threshold(s["hours_per_day"], outlook) if budget_year == date.today().year \
             else None
     return render_template("biogas/overview.html", live=live,
@@ -50,7 +52,9 @@ def overview():
                            availability=biogas.availability_overview(),
                            starts={m["machine_id"]: biogas.start_label(m) for m in live.get("motors") or []},
                            budget=budget, budget_year=budget_year, feed_candidates=feedin.candidates(),
-                           month_names=feedin.MONTH_NAMES)
+                           month_names=feedin.MONTH_NAMES, revenue_groups=feedin.REVENUE_GROUPS,
+                           inspections=biogas.plant_inspections(),
+                           plants=Machine.query.filter_by(category=biogas.PLANT_CATEGORY, active=True).all())
 
 
 def _feed_point(point_id):
@@ -181,3 +185,13 @@ def feed_import_apply():
         return redirect(url_for("biogas.overview") + "#budget")
     flash(ngettext("{n} Abrechnungswert übernommen.", "{n} Abrechnungswerte übernommen.", count), "success")
     return redirect(url_for("biogas.overview") + "#budget")
+
+
+@bp.route("/biogas/pruefliste", methods=["POST"])
+@admin_required
+def plant_create():
+    from flask_login import current_user as user
+    machine = biogas.create_plant(user)
+    db.session.commit()
+    flash(_("Prüfliste angelegt – Fristen und letzte Prüfung bitte an Genehmigung und Prüfbescheide anpassen."), "success")
+    return redirect(url_for("machines.machine_detail", machine_id=machine.id) + "#wartungen")

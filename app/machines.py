@@ -41,6 +41,13 @@ TASK_TEMPLATES = {
     "biogas": [("Wartung", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
     "waermenetz": [("Jahreswartung", None, 12), ("Abgasmessung (Schornsteinfeger)", None, 12),
                    ("Elektroprüfung (DGUV V3)", None, 48)],
+    # Typische Prüfungen einer Biogasanlage – Fristen stehen in Genehmigung und Prüfbescheiden, bitte anpassen
+    "anlage": [("Emissionsmessung BHKW", None, 36), ("Sachverständigenprüfung Behälter", None, 60),
+               ("Gasspeicher / Membran prüfen", None, 12), ("Über-/Unterdrucksicherung prüfen", None, 12),
+               ("Gaswarnanlage prüfen", None, 12), ("Gasfackel Funktionsprüfung", None, 12),
+               ("Explosionsschutzdokument überprüfen", None, 12), ("Blitzschutzanlage prüfen", None, 48),
+               ("Elektroprüfung (DGUV V3)", None, 48), ("Feuerlöscher prüfen", None, 24),
+               ("Betriebsanweisungen und Unterweisung aktualisieren", None, 12)],
     "sonstiges": [],
 }
 # Stillstand in Stunden je BHKW-Wartung (Grundlage fürs Wartungsfenster nach Strompreis); 0 = Motor läuft weiter
@@ -224,7 +231,8 @@ def task_status(task, today=None):
     return result
 
 
-BIOGAS_CATEGORY = "bhkw"                # BHKW-Motoren gehören zur Rubrik Biogas (je Benutzer abwählbar)
+BIOGAS_CATEGORY = "bhkw"                # BHKW-Motoren gehören zur Rubrik Biogas (je Benutzer abwählbar) …
+BIOGAS_HIDDEN = (BIOGAS_CATEGORY, "anlage")   # … ebenso die Prüfungen der Anlage
 
 
 def hides_biogas(user):
@@ -233,11 +241,11 @@ def hides_biogas(user):
 
 def visible(query, user):
     """Maschinen-Abfrage ohne BHKW für Benutzer ohne Rubrik Biogas."""
-    return query.filter(Machine.category != BIOGAS_CATEGORY) if hides_biogas(user) else query
+    return query.filter(Machine.category.notin_(BIOGAS_HIDDEN)) if hides_biogas(user) else query
 
 
 def can_see(machine, user):
-    return machine is None or machine.category != BIOGAS_CATEGORY or not hides_biogas(user)
+    return machine is None or machine.category not in BIOGAS_HIDDEN or not hides_biogas(user)
 
 
 def due_tasks(states=("overdue", "soon"), user=None):

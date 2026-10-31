@@ -1006,6 +1006,7 @@ MACHINE_CATEGORIES = {
     "bhkw": N_("BHKW / Gasmotor"),
     "biogas": N_("Biogasanlage (Rührwerk, Pumpe, Fütterung …)"),
     "waermenetz": N_("Wärmenetz (Zusatzheizung, Pumpen, Übergabestationen …)"),
+    "anlage": N_("Biogasanlage – Prüfungen und Nachweise"),
     "sonstiges": N_("Sonstiges"),
 }
 COUNTER_UNITS = {"h": N_("Betriebsstunden"), "km": N_("Kilometer")}
@@ -1017,7 +1018,7 @@ MACHINE_ICONS = {"schlepper": "bi-truck-front", "fahrzeug": "bi-car-front", "rod
                  "pflanzenschutz": "bi-droplet", "duengung": "bi-moisture",
                  "legemaschine": "bi-grid-3x3", "sortieranlage": "bi-funnel", "anhaenger": "bi-truck-flatbed",
                  "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "bhkw": "bi-lightning-charge",
-                 "biogas": "bi-recycle", "waermenetz": "bi-fire", "sonstiges": "bi-gear-wide-connected"}
+                 "biogas": "bi-recycle", "waermenetz": "bi-fire", "anlage": "bi-clipboard2-check", "sonstiges": "bi-gear-wide-connected"}
 
 
 class Machine(db.Model):
@@ -1753,6 +1754,28 @@ class FeedMonth(db.Model):
     @property
     def label(self):
         return f"{self.feed_point.name if self.feed_point else ''} {self.month:02d}/{self.year}"
+
+
+class FeedRevenue(db.Model):
+    """Betrag einer Abrechnungs-Kategorie je Einspeisestelle und Monat (Vorzeichen wie in der Abrechnung des
+    Netzbetreibers: Gutschriften negativ, Marktwert positiv). `month` 0 = Jahresabrechnung."""
+    __tablename__ = "feed_revenues"
+    __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", "category", name="uq_feed_revenue"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="CASCADE"), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    category = db.Column(db.String(60), nullable=False)
+    kwh = db.Column(db.Numeric(12, 1), nullable=False, default=0)
+    eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    feed_point = db.relationship("FeedPoint", backref=db.backref("revenues", lazy="dynamic", cascade="all, delete-orphan",
+                                                                  passive_deletes=True))
+
+    @property
+    def label(self):
+        return f"{self.category} {self.month:02d}/{self.year}"
 
 
 class ChpDay(db.Model):

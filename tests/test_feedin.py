@@ -179,3 +179,75 @@ def test_csv_import_creates_points(as_admin, db, seed):
     assert "3 Abrechnungswerte übernommen" in r.get_data(as_text=True)
     point = FeedPoint.query.one()
     assert point.name == "Nord" and float(point.annual_kwh) == 1752000
+
+
+REV_CSV = """einspeisestelle;monat;anlage;kategorie;menge_kwh;preis_ct_kwh;betrag_eur
+Nord;2026-01;A1;Marktwert steuerbare ET;10000;10.0;1000.00
+Nord;2026-01;A1;Marktprämie;10000;-11.0;-1100.00
+Nord;2026-01;A1;Gülle-Bonus;10000;-8.0;-800.00
+Nord;2026-01;A1;Verringerung (BiK1011);2000;-0.2;-4.00
+Nord;2026-01;A1;Flexibilitätsprämie;12000;-2.0;-240.00
+Nord;2026-01;A1;(B)(Z)   MP steuerbare     ET Korr;100;-0.2;-0.20
+"""
+
+
+def test_revenue(db, seed, plant):
+    parsed = feedin.parse_csv(REV_CSV.encode())
+    assert "MP steuerbare ET Korr" in parsed["revenues"][("Nord", 2026, 1)]
+    feedin.apply_import(parsed, {"Nord": plant})
+    db.session.commit()
+    r = feedin.revenue(plant, 2026)
+    m = r["months"][0]
+    assert m["groups"]["grund"] == pytest.approx(1104.2) and m["groups"]["guelle"] == pytest.approx(800)
+    assert m["groups"]["flex"] == pytest.approx(240) and m["total"] == pytest.approx(2144.2)
+    assert m["netz"] == pytest.approx(1144.2) and m["market"] == pytest.approx(1000)
+    assert m["ct"] == pytest.approx(100 * 2144.2 / 12000)
+    assert m["lost"] == pytest.approx((1900 - 1000) / 10000 * 2000)             # (AW + Boni − Marktwert) × Verringerung
+    assert feedin.rate_eur_per_kwh(plant, date(2026, 5, 1)) == pytest.approx(2144.2 / 12000)
+    feedin.apply_import(parsed, {"Nord": plant})                                  # zweimal: nichts doppelt
+    db.session.commit()
+    assert feedin.revenue(plant, 2026)["year"]["total"] == pytest.approx(2144.2)
+    assert feedin.revenue(plant, 2025) is None
+
+
+def test_plan(plant):
+    s = feedin.status(plant, 2025, today=date(2025, 7, 16))
+    p = feedin.plan(s, today=date(2025, 7, 16))
+    targets = {m["month"]: m["target"] for m in p["months"]}
+    assert list(targets) == [7, 8, 9, 10, 11, 12]
+    assert sum(targets.values()) == pytest.approx(s["budget"] - (s["estimated"] - s["months"][6]["kwh"] if s["months"][6]["kwh"] else s["estimated"]))
+    assert targets[12] / targets[7] == pytest.approx(1.2 / 0.85)                 # Winter mehr
+    assert p["now"]["month"] == 7 and p["now"]["expected"] == pytest.approx(targets[7] * 15 / 31)
+    assert feedin.plan(feedin.status(plant, 2025, today=date(2026, 1, 5)), today=date(2026, 1, 5)) is None
+
+
+def test_plan_caps_at_capacity(db, seed):
+    m = bhkw(db, seed, 51, "Motor E", 100)
+    point = feedin.save_point(None, "Einspeisung Eng", "2.000.000", [m.id])      # mehr, als 100 kW schaffen
+    s = feedin.status(point, 2025, today=date(2025, 10, 1))
+    p = feedin.plan(s, today=date(2025, 10, 1))
+    assert all(x["target"] == pytest.approx(100 * 24 * {10: 31, 11: 30, 12: 31}[x["month"]]) for x in p["months"])
+    assert all(x["hours_per_day"] == pytest.approx(24) for x in p["months"])
+
+
+def test_loss_and_plant_checks(app, as_admin, as_worker, db, seed, plant):
+    from app import biogas
+    from app.models import Machine, MachineEvent
+    motor = plant.machines.order_by(Machine.name).first()                         # Motor A, 6000 kWh am Tag
+    today = date(2025, 7, 1)
+    for d in range(60):
+        row = ChpDay.query.filter_by(machine_id=motor.id, day=today - timedelta(days=60 - d)).one()
+        row.revenue_eur = Decimal("600")
+    db.session.commit()
+    assert biogas.loss_per_hour(motor, today) == pytest.approx(6000 / 24 * 0.1)   # Ø 250 kW × 10 ct (Day-Ahead)
+    assert biogas.loss_per_hour(motor, date(2020, 1, 1)) is None
+
+    r = as_admin.post("/biogas/pruefliste", follow_redirects=True)
+    assert "Prüfliste angelegt" in r.get_data(as_text=True)
+    plant_machine = Machine.query.filter_by(category="anlage").one()
+    assert len(plant_machine.tasks) >= 10
+    html = as_admin.get("/biogas").get_data(as_text=True)
+    assert "Prüffristen der Anlage" in html and "Emissionsmessung BHKW" in html and "noch nie eingetragen" in html
+    seed["worker"].biogas = False
+    db.session.commit()
+    assert as_worker.get(f"/maschine/{plant_machine.id}").status_code in (403, 404)  # ohne Rubrik Biogas unsichtbar

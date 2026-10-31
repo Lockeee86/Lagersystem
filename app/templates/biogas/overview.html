@@ -103,6 +103,23 @@
                 {% if s.price_from is not none %}<div><span>{{ _("Lohnend ab") }}</span><strong>{{ s.price_from|num(0) }} €/MWh</strong><small>{{ _("teuerste Stunden der nächsten Tage") }}</small></div>{% endif %}
                 {% endif %}
             </div>
+            {% if s.plan %}{% set pn = s.plan.now %}
+            <div class="budget-plan mt-3">
+                <div class="fw-semibold small mb-1"><i class="bi bi-signpost-split me-1"></i>{{ _("Fahrplan bis 31.12.") }}</div>
+                {% if pn.deviation is not none %}
+                <div class="small mb-2 {{ 'text-danger' if pn.deviation > 5 else 'text-success' if pn.deviation < -5 else '' }}">
+                    {{ _("{month}: bisher {actual} MWh, laut Plan bis heute {expected} MWh", month=_(month_names[pn.month - 1]), actual=(pn.actual / 1000)|num(0), expected=(pn.expected / 1000)|num(0)) }}
+                    · <strong>{{ _("{n} % über Plan", n=pn.deviation) if pn.deviation > 0 else _("{n} % unter Plan", n=-pn.deviation) if pn.deviation < 0 else _("genau im Plan") }}</strong>
+                </div>
+                {% endif %}
+                <div class="budget-plan-months">
+                    {% for m in s.plan.months %}
+                    <div class="budget-plan-month {{ 'is-now' if loop.first }}"><span>{{ _(month_names[m.month - 1]) }}</span><strong>{{ (m.target / 1000)|num(0) }}</strong><small>{% if m.hours_per_day is not none %}{{ _("{n} h/Tag", n=m.hours_per_day|num(1)) }}{% else %}MWh{% endif %}</small></div>
+                    {% endfor %}
+                </div>
+                <div class="form-text">{{ _("Soll in MWh je Monat: Rest-Budget verteilt nach den üblichen Strompreisen (Winter mehr), höchstens was die Motoren schaffen. h/Tag = Volllaststunden aller Motoren.") }}</div>
+            </div>
+            {% endif %}
             <div class="budget-months mt-3">
                 {% set top = [s.months|map(attribute='kwh')|reject('none')|max if s.months|map(attribute='kwh')|reject('none')|list else 1, 1]|max %}
                 {% for m in s.months %}
@@ -171,6 +188,44 @@
 </div>
 {% endif %}
 
+{% set rev = budget|selectattr("revenue")|list %}
+{% if rev and current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="erloese">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-cash-coin me-1"></i>{{ _("Erlöse {year} laut Abrechnung", year=budget_year) }}</span>
+    </div>
+    <div class="card-body">
+        {% for s in rev %}{% set r = s.revenue %}{% set y = r.year %}
+        <div class="{{ 'border-top pt-3 mt-3' if not loop.first }}">
+            <div class="fw-bold fs-5 mb-2">{{ s.point.name }}</div>
+            <div class="budget-facts">
+                <div><span>{{ _("Gesamterlös") }}</span><strong>{{ y.total|num(0) }} €</strong><small>{% if y.ct is not none %}{{ _("{n} ct/kWh", n=y.ct|num(2)) }}{% endif %}</small></div>
+                <div><span>{{ _("davon Netzbetreiber") }}</span><strong>{{ y.netz|num(0) }} €</strong><small>{{ _("Prämien und Boni") }}</small></div>
+                <div><span>{{ _("davon Direktvermarktung") }}</span><strong>{{ y.market|num(0) }} €</strong><small>{{ _("Marktwert") }}</small></div>
+                {% if y.lost %}<div><span>{{ _("Entgangen durch Verringerung") }}</span><strong class="text-danger">≈ {{ y.lost|num(0) }} €</strong><small>{{ _("kWh über der Höchstbemessungsleistung") }}</small></div>{% endif %}
+            </div>
+            {% if not r.annual_only %}
+            <div class="revenue-chart mt-3" role="img" aria-label="{{ _('Erlös je Monat nach Bestandteilen') }}">
+                {% for m in r.months %}
+                <div class="revenue-month" title="{{ _(month_names[m.month - 1]) }}: {{ m.total|num(0) }} €{% if m.ct is not none %} · {{ m.ct|num(2) }} ct/kWh{% endif %}">
+                    <span class="revenue-stack">{% for key, label in revenue_groups %}{% if m.height[key] %}<span class="rev-{{ key }}" style="height: {{ m.height[key] }}%"></span>{% endif %}{% endfor %}</span>
+                    <span class="budget-month-name">{{ _(month_names[m.month - 1]) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex flex-wrap gap-3 small text-body-secondary mt-1">
+                {% for key, label in revenue_groups %}{% if y.groups[key] %}<span><span class="budget-key rev-{{ key }}"></span>{{ _(label) }} {{ y.groups[key]|num(0) }} €</span>{% endif %}{% endfor %}
+            </div>
+            {% else %}
+            <div class="small text-body-secondary mt-2">{{ _("Nur Jahresabrechnung – ohne Aufteilung nach Monaten.") }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Aus den importierten Abrechnungen: Gesamterlös = anzulegender Wert, Boni und Flexprämie. Der Netzbetreiber zahlt das abzüglich Marktwert, den Marktwert bekommt ihr über die Direktvermarktung. „Entgangen“ ist geschätzt: kWh der Verringerung × (anzulegender Wert + Boni − Marktwert) desselben Monats.") }}</div>
+</div>
+{% endif %}
+
 {% if week %}
 <div class="card shadow-sm mb-4" id="woche">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -225,19 +280,50 @@
     <div class="card-header"><i class="bi bi-shield-check me-1"></i>{{ _("Verfügbarkeit laut Logbuch") }}</div>
     <div class="table-responsive">
         <table class="table table-sm small align-middle mb-0">
-            <thead><tr><th>{{ _("Motor") }}</th><th class="text-end">{{ _("30 Tage") }}</th>{% for m, a in availability[0].months %}<th class="text-end {{ 'd-none d-md-table-cell' if loop.index > 3 }}">{{ m.strftime("%m/%Y") }}</th>{% endfor %}</tr></thead>
+            <thead><tr><th>{{ _("Motor") }}</th><th class="text-end">{{ _("30 Tage") }}</th>{% if current_user.is_admin and availability|selectattr("loss_year")|list %}<th class="text-end">{{ _("Ausfall {year}", year=today.year) }}</th>{% endif %}{% for m, a in availability[0].months %}<th class="text-end {{ 'd-none d-md-table-cell' if loop.index > 3 }}">{{ m.strftime("%m/%Y") }}</th>{% endfor %}</tr></thead>
             <tbody>
             {% for row in availability %}{% set a = row.recent %}
             <tr>
                 <td class="text-nowrap">{{ row.machine.name }}</td>
                 <td class="text-end text-nowrap {{ 'text-danger fw-semibold' if a.percent is not none and a.percent < 95 }}" title="{{ _('Störung {f} h · Wartung {w} h', f=a.fault_h|num(0), w=a.service_h|num(0)) }}">{{ (a.percent|num(1) ~ " %") if a.percent is not none else "–" }}{% if a.faults %} <span class="text-body-secondary">· {{ ngettext("{n} Störung", "{n} Störungen", a.faults) }}</span>{% endif %}</td>
+                {% if current_user.is_admin and availability|selectattr("loss_year")|list %}<td class="text-end text-nowrap" title="{{ _('{h} h Störung seit 1. Januar', h=row.fault_h_year|num(0)) }}">{{ ("≈ " ~ row.loss_year|num(0) ~ " €") if row.loss_year else "–" }}</td>{% endif %}
                 {% for m, am in row.months %}<td class="text-end {{ 'd-none d-md-table-cell' if loop.index > 3 }} {{ 'text-danger' if am.percent is not none and am.percent < 95 }}" title="{{ _('Störung {f} h · Wartung {w} h', f=am.fault_h|num(0), w=am.service_h|num(0)) }}">{{ (am.percent|num(1) ~ " %") if am.percent is not none else "–" }}</td>{% endfor %}
             </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
-    <div class="card-footer small text-body-secondary">{{ _("Stillstand aus dem Logbuch: Störungen, bei denen die Maschine steht, von der Meldung bis „behoben“, Wartungen mit dem Stillstand der Wartung (sonst 4 Stunden). Ungemeldete Ausfälle fehlen, weil SKVE keine gemessenen Laufzeiten liefert.") }}</div>
+    <div class="card-footer small text-body-secondary">{{ _("Stillstand aus dem Logbuch: Störungen, bei denen die Maschine steht, von der Meldung bis „behoben“, Wartungen mit dem Stillstand der Wartung (sonst 4 Stunden). Ungemeldete Ausfälle fehlen, weil SKVE keine gemessenen Laufzeiten liefert.") }}{% if current_user.is_admin %} {{ _("Ausfall = Störungsstunden × Ø Leistung der letzten 60 Tage × Erlös je kWh (aus den Abrechnungen, sonst Day-Ahead) – grob geschätzt; wenn die Jahresgrenze ohnehin erreicht wird, lässt sich ein Teil später nachholen.") }}{% endif %}</div>
+</div>
+{% endif %}
+
+{% if inspections or current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="pruefungen">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-clipboard2-check me-1"></i>{{ _("Prüffristen der Anlage") }}</span>
+        {% for p in plants %}<a class="small" href="{{ url_for('machines.machine_detail', machine_id=p.id) }}#wartungen">{{ _("Nachweise und Fristen") }}</a>{% endfor %}
+    </div>
+    {% if inspections %}
+    <ul class="list-group list-group-flush">
+        {% for t, st in inspections %}
+        <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <a class="text-reset text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=t.machine_id) }}#wartungen">{{ t.name }}{% if plants|length > 1 %} <span class="small text-body-secondary">· {{ t.machine.name }}</span>{% endif %}</a>
+            <span class="small text-nowrap">
+                {% if st.state == "overdue" %}<span class="badge text-bg-danger">{{ _("überfällig") }}</span>
+                {% elif st.state == "soon" %}<span class="badge text-bg-warning">{{ _("bald fällig") }}</span>
+                {% elif st.state == "unknown" %}<span class="badge text-bg-secondary">{{ _("noch nie eingetragen") }}</span>{% endif %}
+                {% if st.due_on %} <span class="text-body-secondary">{{ _("fällig {date}", date=st.due_on|date) }}</span>{% endif %}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="card-footer small text-body-secondary">{{ _("Erledigte Prüfung an der Anlage eintragen und den Prüfbericht unter Dokumente hochladen – dann rechnet die App die nächste Frist. Fällige Prüfungen erscheinen auch unter „Jetzt wichtig“ und im Kalender.") }}</div>
+    {% else %}
+    <div class="card-body small">
+        <p class="text-body-secondary">{{ _("Noch keine Prüfliste. Die App legt eine „Biogasanlage“ mit den üblichen Prüfungen an (Emissionsmessung, Behälter, Gasspeicher, Gaswarnanlage, Fackel, Explosionsschutz, Blitzschutz, Elektro, Feuerlöscher …). Fristen danach an Genehmigung und Prüfbescheide anpassen.") }}</p>
+        <form method="post" action="{{ url_for('biogas.plant_create') }}">{{ csrf() }}<button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>{{ _("Prüfliste anlegen") }}</button></form>
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 

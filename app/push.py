@@ -311,7 +311,7 @@ def _maintenance(today):
     with_biogas = [u for u in editors() if u.sees_biogas]
     without = [u for u in editors() if not u.sees_biogas]
     sent = _maintenance_msg(with_biogas, new)
-    return sent + _maintenance_msg(without, [(t, s) for t, s in new if t.machine.category != machines.BIOGAS_CATEGORY])
+    return sent + _maintenance_msg(without, [(t, s) for t, s in new if t.machine.category not in machines.BIOGAS_HIDDEN])
 
 
 def _maintenance_msg(users, new):

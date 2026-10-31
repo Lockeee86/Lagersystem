@@ -589,8 +589,28 @@ def availability(machine, start, end, now=None):
             "percent": round(100 * (1 - down / hours), 1) if hours else None}
 
 
+LOSS_DAYS = 60                # Grundlage für die Ausfallkosten (Ø Leistung, Ø Erlös je kWh)
+
+
+def loss_per_hour(machine, today=None):
+    """Entgangener Erlös je Stunde Stillstand (€): Ø Leistung der letzten Wochen × Erlös je kWh – aus den
+    importierten Abrechnungen der Einspeisestelle, sonst zum Day-Ahead-Preis. None ohne Daten."""
+    from . import feedin
+    today = today or date.today()
+    start = today - timedelta(days=LOSS_DAYS)
+    kwh, revenue = (db.session.query(func.coalesce(func.sum(ChpDay.kwh), 0), func.sum(ChpDay.revenue_eur))
+                    .filter(ChpDay.machine_id == machine.id, ChpDay.day >= start, ChpDay.day < today).one())
+    kwh = float(kwh or 0)
+    if not kwh:
+        return None
+    rate = feedin.rate_eur_per_kwh(machine.feed_point, today) if machine.feed_point else None
+    if rate is None and revenue is not None:
+        rate = float(revenue) / kwh
+    return kwh / (LOSS_DAYS * 24) * rate if rate else None
+
+
 def availability_overview(today=None, now=None):
-    """Je BHKW: letzte 30 Tage und die letzten Monate (neuester zuerst)."""
+    """Je BHKW: letzte 30 Tage und die letzten Monate (neuester zuerst), dazu Ausfallkosten der Störungen."""
     today = today or date.today()
     bhkw = (Machine.query.filter(Machine.active.is_(True),
                                  (Machine.category == "bhkw") | Machine.skve_chp_id.isnot(None))
@@ -603,9 +623,14 @@ def availability_overview(today=None, now=None):
         first = (first - timedelta(days=1)).replace(day=1)
     rows = []
     for machine in bhkw:
-        rows.append({"machine": machine,
-                     "recent": availability(machine, today - timedelta(days=QUALITY_DAYS - 1), today, now),
-                     "months": [(m, availability(machine, m, last, now)) for m, last in months]})
+        per_hour = loss_per_hour(machine, today)
+        recent = availability(machine, today - timedelta(days=QUALITY_DAYS - 1), today, now)
+        year = availability(machine, date(today.year, 1, 1), today, now)
+        rows.append({"machine": machine, "recent": recent,
+                     "months": [(m, availability(machine, m, last, now)) for m, last in months],
+                     "loss_recent": recent["fault_h"] * per_hour if per_hour is not None else None,
+                     "loss_year": year["fault_h"] * per_hour if per_hour is not None else None,
+                     "fault_h_year": year["fault_h"]})
     return rows
 
 
@@ -896,3 +921,24 @@ def price_strip(series, now=None, view=None):
                                                 else "bad" if level == ("low" if producer else "high") else "mid"),
             "best": (best[0].astimezone(tz), best[1]) if best else None, "view": view,
             "min": ordered[0], "max": ordered[-1], "days": days}
+
+
+# --- Prüffristen der Anlage (Maschinenart „anlage“) -------------------------------------------
+
+PLANT_CATEGORY = "anlage"
+
+
+def plant_inspections(today=None):
+    """[(MaintenanceTask, task_status)] aller Prüfungen der Anlage, überfällige zuerst."""
+    from .machines import task_status
+    from .models import MaintenanceTask
+    rows = [(t, task_status(t, today)) for t in MaintenanceTask.query.join(Machine)
+            .filter(Machine.active.is_(True), Machine.category == PLANT_CATEGORY)]
+    order = {"overdue": 0, "soon": 1, "unknown": 2, "ok": 3}
+    return sorted(rows, key=lambda r: (order[r[1]["state"]], r[1]["due_on"] or date.max, r[0].name))
+
+
+def create_plant(user):
+    """Prüfliste anlegen: Maschine „Biogasanlage“ mit den üblichen Prüfungen als Vorlage. Committet nicht."""
+    from .machines import create_machine
+    return create_machine("Biogasanlage", PLANT_CATEGORY, user)

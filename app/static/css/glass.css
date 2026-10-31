@@ -441,3 +441,8 @@ html[data-bg] .budget-used.budget-over { background: #ff8a80; }
 html[data-bg] .budget-now { background: #fff; box-shadow: 0 0 8px rgba(255, 255, 255, .7); }
 html[data-bg] .budget-month-bar > span, html[data-bg] .budget-key { background: rgba(255, 255, 255, .3); }
 html[data-bg] .budget-month.is-billed .budget-month-bar > span, html[data-bg] .budget-key.is-billed { background: #a8e08f; }
+html[data-bg] .budget-plan-month { background: rgba(255, 255, 255, .1); }
+html[data-bg] .budget-plan-month.is-now { outline-color: #a8e08f; }
+html[data-bg] .rev-grund { background: #8fd0ff; } html[data-bg] .rev-guelle { background: #a8e08f; }
+html[data-bg] .rev-boni { background: #ffd08a; } html[data-bg] .rev-immission { background: #c7a6ff; }
+html[data-bg] .rev-flex { background: #ff9a6a; } html[data-bg] .rev-sonstige { background: rgba(255, 255, 255, .5); }
