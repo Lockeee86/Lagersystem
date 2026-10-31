@@ -145,3 +145,20 @@ def choices(user=None, exclude=None):
     skip = set(descendant_ids(exclude)) if exclude is not None else set()
     return [(p.id, "  " * depth + ("› " if depth else "") + p.name)
             for p, depth in tree(user) if p.id not in skip]
+
+
+def group_machines(items):
+    """Maschinen für Auswahllisten nach Platz gruppieren: [(Pfad oder None, [Maschinen])] in Baumreihenfolge,
+    ohne festen Platz zum Schluss. Ohne Plätze eine einzige Gruppe mit `None` (dann ohne Überschrift anzeigen)."""
+    items = list(items)
+    if not any(m.place_id for m in items):
+        return [(None, items)] if items else []
+    order = {p.id: i for i, (p, _depth) in enumerate(tree(include_inactive=True))}
+    groups = {}
+    for m in items:
+        groups.setdefault(m.place, []).append(m)
+    rows = sorted(((p, ms) for p, ms in groups.items() if p is not None), key=lambda r: order.get(r[0].id, 1e9))
+    result = [(p.label, ms) for p, ms in rows]
+    if None in groups:
+        result.append((_("Ohne festen Platz"), groups[None]))
+    return result

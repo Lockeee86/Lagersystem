@@ -93,3 +93,19 @@ def test_pages(app, as_admin, as_worker, db, seed):
     # löschen
     as_admin.post(f"/platz/{vent.id}/loeschen")
     assert db.session.get(TechPlace, vent.id) is None
+
+
+def test_grouped_machine_selects(as_admin, db, seed):
+    admin = seed["admin"]
+    plant, chp_room, hall, cooling, motor, stirrer, chiller = _tree(db, admin)
+    tractor = machines.create_machine("Schlepper 9", "schlepper", admin)
+    db.session.commit()
+    groups = places.group_machines(Machine.query.order_by(Machine.name))
+    assert [label for label, _items in groups] == ["Anlage Ost", "Anlage Ost › Motorenraum", "Halle Süd › Kühlung",
+                                                   "Ohne festen Platz"]
+    assert groups[-1][1] == [tractor]
+    for url in ("/bestellungen", "/aufgaben", "/tagesplan"):
+        html = as_admin.get(url).get_data(as_text=True)
+        assert '<optgroup label="Anlage Ost › Motorenraum">' in html, url
+    # ohne Plätze: keine Gruppen
+    assert places.group_machines([tractor]) == [(None, [tractor])]

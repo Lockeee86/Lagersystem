@@ -232,6 +232,8 @@ steht sein Stand auf der Lagerkarte – und zur Rubrik Biogas (vererbt sich, fü
 Neue Maschinenarten Kühlung und Lüftung mit Wartungsvorschlägen (Dichtheitsprüfung Kältemittel, Filter …).
 BHKW-Motoren werden generalüberholt, nicht getauscht – SKVE-ID und Zähler bleiben daher an der Maschine.
 Ein-/Ausbau steht im Änderungsprotokoll.
+Maschinen-Auswahlen (Bestellung, Aufgabe, Tagesplan, Tankbuch, Einbauen) sind nach Platz gruppiert (0.67.1,
+`places.group_machines`, Makro `macros.machine_options`), Maschinen ohne Platz stehen unter „Ohne festen Platz“.
 
 ### Baustein D – Schlagkartei & Ertrag (umgesetzt in 0.13.0)
 Umsetzung: Import der Schlagkartei aus Myfarm24 als KML/KMZ (Verwaltung → Schläge) mit Vorschau. Übernommen

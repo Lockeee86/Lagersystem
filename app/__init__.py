@@ -145,6 +145,8 @@ def create_app(config=None):
                                   default_site_id=sites.default_id)
     app.after_request(sites.remember)
     login_manager.localize_callback = gettext
+    from . import places
+    app.jinja_env.globals["machine_groups"] = places.group_machines
     app.jinja_env.filters.update(
         datetime=utils.fmt_datetime,
         date=utils.fmt_date,

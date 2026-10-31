@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, site_select %}
+{% from "macros.html" import csrf, site_select, machine_options %}
 {% from "machines/_macros.html" import state_badge, due_text %}
 {% from "machines/_place_macros.html" import place_badges, place_form with context %}
 {% block title %}{{ place.name }}{% endblock %}
@@ -98,7 +98,7 @@
             {{ csrf() }}
             <select class="form-select" name="machine_id" required aria-label="{{ _('Maschine') }}">
                 <option value="">{{ _("Maschine hier einbauen …") }}</option>
-                {% for m in installable %}<option value="{{ m.id }}">{{ m.name }}{% if m.place %} ({{ _("jetzt: {place}", place=m.place.name) }}){% endif %}</option>{% endfor %}
+                {{ machine_options(installable) }}
             </select>
             <button class="btn btn-outline-primary"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Einbauen") }}</button>
         </form>

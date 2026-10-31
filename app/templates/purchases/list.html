@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, machine_options %}
 {% from "machines/_macros.html" import photo_input %}
 {% block title %}{{ _("Bestellungen") }}{% endblock %}
 {% block content %}
@@ -41,7 +41,7 @@
                     <label class="form-label" for="p_machine">{{ _("Für Maschine (optional)") }}</label>
                     <select class="form-select" id="p_machine" name="machine_id">
                         <option value="">–</option>
-                        {% for m in machines %}<option value="{{ m.id }}" {% if m.id == prefill.machine_id %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                        {{ machine_options(machines, prefill.machine_id) }}
                     </select>
                 </div>
                 <div class="col-md-6">

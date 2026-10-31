@@ -75,7 +75,8 @@ docker compose up --build -d
   Kartoffellager `warehouse_id` und Rubrik Biogas `biogas` – vererbt sich, `in_biogas`/`can_see()`); Maschinen = Equipments,
   eingebaut über `Machine.place_id` (`install()`). `tree()`, `summary()` (Störungen, fällige Wartungen, Kosten über den
   Unterbaum), `for_warehouse()` (Lagerkarte), `choices()`; committet nicht. Routen in `machine_views.py`
-  (`place_list` `/plaetze`, `place_detail` `/platz/<id>`, `place_install`). Arten `kuehlung`/`lueftung` für Lagertechnik
+  (`place_list` `/plaetze`, `place_detail` `/platz/<id>`, `place_install`). Arten `kuehlung`/`lueftung` für Lagertechnik.
+  Maschinen-Auswahlen immer über `macros.machine_options` (nach Platz gruppiert, `places.group_machines`)
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
 - `app/aerial.py`: Luftbild-Proxy für die Schlagkarte (Quellen `SOURCES`, Zwischenspeicher, `_download` in Tests

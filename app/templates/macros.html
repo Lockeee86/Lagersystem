@@ -215,3 +215,13 @@
     </div>
 </div>
 {% endmacro %}
+
+
+{# Optionen einer Maschinen-Auswahl, nach technischem Platz gruppiert (optgroup) #}
+{% macro machine_options(machines, selected=none, counter=false) %}
+{% for label, items in machine_groups(machines) %}
+{% if label %}<optgroup label="{{ label }}">{% endif %}
+{% for m in items %}<option value="{{ m.id }}" {% if m.id == selected %}selected{% endif %}>{{ m.name }}{% if counter and m.counter is not none %} ({{ m.counter }} {{ m.unit_short }}){% endif %}</option>{% endfor %}
+{% if label %}</optgroup>{% endif %}
+{% endfor %}
+{% endmacro %}

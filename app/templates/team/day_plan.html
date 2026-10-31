@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, plot_pick %}
+{% from "macros.html" import csrf, plot_pick, machine_options %}
 {% from "team/_macros.html" import plan_lines with context %}
 {% block title %}{{ _("Tagesplan") }}{% endblock %}
 {% block content %}
@@ -114,7 +114,7 @@
                     <div class="row g-1 mt-1">
                         <div class="col-6"><select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
                             <option value="">{{ _("Maschine …") }}</option>
-                            {% for m in machines %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+                            {{ machine_options(machines) }}
                         </select></div>
                         <div class="col-6">{{ plot_pick(plots, [], _("Schlag …")) }}</div>
                     </div>

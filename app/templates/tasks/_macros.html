@@ -1,4 +1,4 @@
-{% from "macros.html" import plot_pick %}
+{% from "macros.html" import plot_pick, machine_options %}
 {% macro task_item(task, today, back="", extra_class="") %}
 {% set can_tick = not task.is_done and current_user.can_edit and (current_user.is_admin or task.is_for(current_user)) %}
 <li class="list-group-item gap-2 align-items-start task-item {% if task.is_done %}is-done{% endif %} {{ extra_class or 'd-flex' }}">
@@ -96,7 +96,7 @@
         <select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
             <option value="">{{ _("– keine Maschine –") }}</option>
             {% set mid = task.machine_id if task else prefill.get('machine_id') %}
-            {% for m in machines %}<option value="{{ m.id }}" {% if m.id == mid %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+            {{ machine_options(machines, mid) }}
         </select>
     </div>
     <div class="col-12 col-md-6 col-xl-3">

@@ -2820,7 +2820,6 @@ MESSAGES = {
     '{name} hier ausbauen?': 'Zdemontować {name} z tego miejsca?',
     'Hier ist noch nichts eingebaut.': 'Nic tu jeszcze nie zamontowano.',
     'Maschine hier einbauen …': 'Zamontuj tu maszynę …',
-    'jetzt: {place}': 'teraz: {place}',
     'Einbauen': 'Zamontuj',
     'Reparaturen/Wartungen': 'Naprawy/przeglądy',
     '{name} löschen? Eingebaute Maschinen bleiben erhalten.': 'Usunąć {name}? Zamontowane maszyny pozostaną.',
@@ -2833,4 +2832,5 @@ MESSAGES = {
     '– oberste Ebene –': '– najwyższy poziom –',
     'Kartoffellager (wahlweise)': 'Przechowalnia ziemniaków (opcjonalnie)',
     'Gehört zur Rubrik Biogas': 'Należy do działu Biogaz',
+    'Ohne festen Platz': 'Bez stałego miejsca',
 }
