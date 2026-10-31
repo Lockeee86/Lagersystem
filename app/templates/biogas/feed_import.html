@@ -1,6 +1,19 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf %}
 {% block title %}{{ _("Abrechnungen importieren") }}{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll("select[data-new]").forEach(function (select) {
+    var box = document.getElementById(select.dataset.new);
+    function update() {
+        box.hidden = select.value !== "new";
+        box.querySelector("input").required = select.value === "new";
+    }
+    select.addEventListener("change", update);
+    update();
+});
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-head">
     <div>
@@ -16,11 +29,17 @@
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span><i class="bi bi-plug me-1"></i>{{ _("In der Datei: {name}", name=name) }}</span>
             <label class="d-flex align-items-center gap-2 small fw-normal">{{ _("übernehmen nach") }}
-                <select class="form-select form-select-sm" name="point{{ i }}" style="width: auto">
+                <select class="form-select form-select-sm" name="point{{ i }}" style="width: auto" data-new="new{{ i }}">
                     <option value="">{{ _("– nicht übernehmen –") }}</option>
                     {% for p in feed_points %}<option value="{{ p.id }}" {% if guesses[name] and guesses[name].id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                    <option value="new" {% if not guesses[name] %}selected{% endif %}>{{ _("neu anlegen: {name}", name=name) }}</option>
                 </select>
             </label>
+        </div>
+        <div class="card-body py-2 small" id="new{{ i }}" {% if guesses[name] %}hidden{% endif %}>
+            <label class="form-label small mb-1" for="amount{{ i }}">{{ _("Erlaubte Jahresmenge laut Höchstbemessungsleistung (kWh)") }}</label>
+            <input class="form-control form-control-sm" style="max-width: 16rem" id="amount{{ i }}" name="amount{{ i }}" inputmode="decimal" maxlength="20" placeholder="{{ _('z. B. 1.752.000') }}">
+            <div class="form-text">{{ _("Die BHKW ordnest du danach auf der Biogas-Seite unter „Einspeisestelle bearbeiten“ zu.") }}</div>
         </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0 small text-nowrap">
@@ -36,9 +55,8 @@
         </div>
     </div>
     {% endfor %}
-    {% if not feed_points %}<div class="alert alert-warning small">{{ _("Es gibt noch keine Einspeisestelle in der App – bitte zuerst auf der Biogas-Seite anlegen.") }}</div>{% endif %}
     <div class="d-flex gap-2 mb-4">
-        <button class="btn btn-primary" {% if not feed_points %}disabled{% endif %}><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
+        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
         <a class="btn btn-outline-secondary" href="{{ url_for('biogas.overview') }}#budget">{{ _("Abbrechen") }}</a>
     </div>
 </form>

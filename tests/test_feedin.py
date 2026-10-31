@@ -165,3 +165,17 @@ def test_csv_import(app, as_admin, db, seed, plant):
     assert s["reduced"] == 1500 and s["billed"] == 2
     r = as_admin.post("/biogas/einspeisestelle/import/uebernehmen", data={}, follow_redirects=True)
     assert "Vorschau ist abgelaufen" in r.get_data(as_text=True)
+
+
+def test_csv_import_creates_points(as_admin, db, seed):
+    """Ohne Einspeisestellen: Import ist trotzdem da und legt sie aus der Datei an."""
+    from io import BytesIO
+    assert "Abrechnungen importieren (CSV)" in as_admin.get("/biogas").get_data(as_text=True)
+    html = as_admin.post("/biogas/einspeisestelle/import", data={"file": (BytesIO(CSV.encode()), "p.csv")},
+                         content_type="multipart/form-data").get_data(as_text=True)
+    assert "neu anlegen: Nord" in html
+    r = as_admin.post("/biogas/einspeisestelle/import/uebernehmen",
+                      data={"point0": "new", "amount0": "1.752.000", "point1": ""}, follow_redirects=True)
+    assert "3 Abrechnungswerte übernommen" in r.get_data(as_text=True)
+    point = FeedPoint.query.one()
+    assert point.name == "Nord" and float(point.annual_kwh) == 1752000

@@ -2742,5 +2742,7 @@ MESSAGES = {
     'Einspeisung': 'Wprowadzenie do sieci',
     'davon ohne Marktprämie': 'w tym bez premii rynkowej',
     'Jahr {year} (Jahresabrechnung)': 'Rok {year} (rozliczenie roczne)',
-    'Es gibt noch keine Einspeisestelle in der App – bitte zuerst auf der Biogas-Seite anlegen.': 'W aplikacji nie ma jeszcze punktu zasilania – najpierw dodaj go na stronie biogazu.',
+    'neu anlegen: {name}': 'dodaj nowy: {name}',
+    'Erlaubte Jahresmenge laut Höchstbemessungsleistung (kWh)': 'Dozwolona ilość roczna wg maksymalnej mocy rozliczeniowej (kWh)',
+    'Die BHKW ordnest du danach auf der Biogas-Seite unter „Einspeisestelle bearbeiten“ zu.': 'BHKW przypiszesz potem na stronie biogazu w „Edytuj punkt zasilania”.',
 }

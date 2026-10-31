@@ -166,10 +166,18 @@ def feed_import_apply():
         parsed = feedin.parse_csv(f.read())
     os.remove(path)
     mapping = {}
-    for i, name in enumerate(parsed["points"]):
-        point_id = request.form.get(f"point{i}", type=int)
-        mapping[name] = db.session.get(FeedPoint, point_id) if point_id else None
-    count = feedin.apply_import(parsed, mapping)
-    db.session.commit()
+    try:
+        for i, name in enumerate(parsed["points"]):
+            choice = request.form.get(f"point{i}", "")
+            if choice == "new":                    # Einspeisestelle aus der Datei neu anlegen
+                mapping[name] = feedin.save_point(None, name, form_str(f"amount{i}", 20), [])
+            else:
+                mapping[name] = db.session.get(FeedPoint, int(choice)) if choice.isdigit() else None
+        count = feedin.apply_import(parsed, mapping)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
+        return redirect(url_for("biogas.overview") + "#budget")
     flash(ngettext("{n} Abrechnungswert übernommen.", "{n} Abrechnungswerte übernommen.", count), "success")
     return redirect(url_for("biogas.overview") + "#budget")
