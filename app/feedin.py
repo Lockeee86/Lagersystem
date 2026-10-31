@@ -107,7 +107,8 @@ def save_months(point, year, values):
 def months(point, year, today=None):
     """12 × {month, kwh, source: "abrechnung" | "fahrplan" | None} (künftige Monate ohne Wert)."""
     today = today or date.today()
-    actual = {m.month: float(m.kwh) for m in point.months.filter_by(year=year)}
+    stored = {m.month: m for m in point.months.filter_by(year=year)}
+    actual = {k: float(m.kwh) for k, m in stored.items() if k}
     ids = [m.id for m in point.machines]
     planned = {}
     if ids:
@@ -128,6 +129,8 @@ def months(point, year, today=None):
         else:
             result.append({"month": month, "kwh": None, "source": None, "days": 0, "past": past})
         result[-1]["missing"] = result[-1]["past"] - result[-1]["days"] > 2       # mehr als 2 Tage ohne Werte
+        row = stored.get(month)
+        result[-1]["reduced"] = float(row.reduced_kwh) if row is not None and row.reduced_kwh is not None else None
     return result
 
 
@@ -159,7 +162,18 @@ def status(point, year=None, today=None):
     gap = max(elapsed - covered, 0)                                # vergangene Tage ohne Werte
     estimated = used + pace * gap if pace is not None else used    # bisher (fehlende Tage im selben Tempo)
     projected = estimated + pace * left_days if pace is not None else None
+    annual = point.months.filter_by(year=year, month=0).first()
+    if annual is not None and not any(r["source"] == "abrechnung" for r in rows):
+        # nur die Jahresabrechnung: sie gilt für das ganze Jahr
+        used = estimated = float(annual.kwh)
+        gap, elapsed, left_days = 0, total, 0
+        projected = estimated
+        for r in rows:
+            r["missing"] = False
     remaining = budget - estimated
+    reduced = [r["reduced"] for r in rows if r["reduced"] is not None]
+    if annual is not None and annual.reduced_kwh is not None and not reduced:
+        reduced = [float(annual.reduced_kwh)]
     capacity = sum(m.power_kw or 0 for m in point.machines)
     level = None
     if projected is not None:
@@ -179,12 +193,109 @@ def status(point, year=None, today=None):
         if capacity and left_days else None,
         "billed": sum(1 for r in rows if r["source"] == "abrechnung"),
         "gap_days": gap, "estimated": estimated, "missing": [r["month"] for r in rows if r["missing"]],
+        "annual": float(annual.kwh) if annual is not None else None, "reduced": sum(reduced) if reduced else None,
         "level": level,
     }
 
 
 def overview(year=None, today=None):
     return [status(p, year, today) for p in points()]
+
+
+# --- Import der Abrechnungs-Positionen (CSV) -------------------------------------------------
+# Je Zeile: einspeisestelle;monat (2026-01 oder 2025-JAHR);anlage;kategorie;menge_kwh … Die eingespeiste Menge steht bei
+# der Flexibilitätsprämie (= Marktwert + Verringerung); ohne Flexprämie wird Marktwert + Verringerung genommen.
+
+FLEX, MARKET, REDUCED = "flexibilitätsprämie", "marktwert", "verringerung"
+
+
+class FeedImportError(ValueError):
+    pass
+
+
+def _csv_float(text):
+    text = (text or "").strip()
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "," in text:
+        text = text.replace(",", ".")
+    return float(text) if text else 0.0
+
+
+def parse_csv(data):
+    """Bytes → {"points": {Name: {(Jahr, Monat 0–12): {"kwh", "reduced"}}}, "skipped": n}."""
+    import csv
+    import io
+    text = data.decode("utf-8-sig", errors="replace")
+    dialect = ";" if text.split("\n", 1)[0].count(";") >= text.split("\n", 1)[0].count(",") else ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=dialect)
+    fields = {(f or "").strip().lower(): f for f in reader.fieldnames or []}
+    for needed in ("einspeisestelle", "monat", "kategorie", "menge_kwh"):
+        if needed not in fields:
+            raise FeedImportError(N_("Die Datei passt nicht: Es fehlen die Spalten einspeisestelle, monat, kategorie und menge_kwh."))
+    parts, skipped = {}, 0
+    for row in reader:
+        get = lambda key: (row.get(fields.get(key, ""), "") or "").strip()      # noqa: E731
+        name, period, kind = get("einspeisestelle"), get("monat").upper(), " ".join(get("kategorie").lower().split())
+        match = re.fullmatch(r"(\d{4})-(\d{2}|JAHR)", period)
+        if not name or not match:
+            skipped += 1
+            continue
+        year, month = int(match.group(1)), 0 if match.group(2) == "JAHR" else int(match.group(2))
+        if not 0 <= month <= 12:
+            skipped += 1
+            continue
+        try:
+            kwh = _csv_float(get("menge_kwh"))
+        except ValueError:
+            skipped += 1
+            continue
+        key = (name, year, month, get("anlage"))
+        part = parts.setdefault(key, {"flex": 0.0, "has_flex": False, "market": 0.0, "reduced": 0.0})
+        if kind.startswith(FLEX):
+            part["flex"] += kwh
+            part["has_flex"] = True
+        elif kind.startswith(MARKET):
+            part["market"] += kwh
+        elif kind.startswith(REDUCED):
+            part["reduced"] += kwh
+    points = {}
+    for (name, year, month, _plant), part in parts.items():
+        kwh = part["flex"] if part["has_flex"] else part["market"] + part["reduced"]
+        if not kwh:
+            continue
+        slot = points.setdefault(name, {}).setdefault((year, month), {"kwh": 0.0, "reduced": 0.0})
+        slot["kwh"] += kwh
+        slot["reduced"] += part["reduced"]
+    if not points:
+        raise FeedImportError(N_("In der Datei stehen keine Einspeisemengen (Kategorie Flexibilitätsprämie oder Marktwert)."))
+    return {"points": {n: dict(sorted(v.items())) for n, v in sorted(points.items())}, "skipped": skipped}
+
+
+def guess(name):
+    """Einspeisestelle der App mit gleichem Namen (ohne Groß/Klein) oder None."""
+    wanted = name.strip().lower()
+    return next((p for p in points() if p.name.strip().lower() == wanted), None)
+
+
+def apply_import(parsed, mapping):
+    """`mapping`: {Name in der Datei: FeedPoint | None}. Vorhandene Monate werden überschrieben. Gibt die Anzahl zurück."""
+    count = 0
+    for name, values in parsed["points"].items():
+        point = mapping.get(name)
+        if point is None:
+            continue
+        existing = {(m.year, m.month): m for m in point.months}
+        for (year, month), v in values.items():
+            row = existing.get((year, month))
+            if row is None:
+                row = FeedMonth(feed_point_id=point.id, year=year, month=month, kwh=0)
+                db.session.add(row)
+            row.kwh = Decimal(str(round(v["kwh"], 1)))
+            row.reduced_kwh = Decimal(str(round(v["reduced"], 1))) if v["reduced"] else None
+            count += 1
+    db.session.flush()
+    return count
 
 
 def price_threshold(hours_per_day, outlook):

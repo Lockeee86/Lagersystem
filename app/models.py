@@ -1735,7 +1735,8 @@ class FeedPoint(db.Model):
 
 
 class FeedMonth(db.Model):
-    """Echte Monatsmenge einer Einspeisestelle aus der Abrechnung des Netzbetreibers (ersetzt den Fahrplan-Wert)."""
+    """Echte Monatsmenge einer Einspeisestelle aus der Abrechnung des Netzbetreibers (ersetzt den Fahrplan-Wert).
+    `month` 0 = Jahresabrechnung (nur die Summe des Jahres)."""
     __tablename__ = "feed_months"
     __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", name="uq_feed_month"),)
 
@@ -1744,6 +1745,7 @@ class FeedMonth(db.Model):
     year = db.Column(db.Integer, nullable=False)
     month = db.Column(db.Integer, nullable=False)
     kwh = db.Column(db.Numeric(12, 1), nullable=False)
+    reduced_kwh = db.Column(db.Numeric(12, 1))        # davon ohne Marktprämie (Verringerung wegen Höchstbemessungsleistung)
 
     feed_point = db.relationship("FeedPoint", backref=db.backref("months", lazy="dynamic", cascade="all, delete-orphan",
                                                                   passive_deletes=True))

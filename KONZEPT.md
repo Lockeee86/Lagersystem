@@ -114,6 +114,9 @@ Portainer-Stack (docker-compose)
   BHKW über `Machine.feed_point_id`; je Monat echte Menge aus der Abrechnung (`FeedMonth`) oder SKVE-Fahrplan.
   Hochrechnung nur aus Tagen mit Werten (fehlende Monate werden gemeldet), Prognose 31.12., Rest, Ø kW, Volllaststunden,
   „lohnend ab“ aus dem Preis-Ausblick; Push montags bei Prognose über Budget (Thema `feed_budget`).
+  Import der Abrechnungs-Positionen als CSV (0.63.0, `feedin.parse_csv` → Vorschau mit Zuordnung → `apply_import`):
+  Einspeisung = Menge der Flexibilitätsprämie (sonst Marktwert + Verringerung), „Verringerung“ = kWh ohne Marktprämie
+  (`FeedMonth.reduced_kwh`), „JAHR“ = Jahresabrechnung (`month` 0). Echte Abrechnungsdateien nie committen.
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
   untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht, Sternenhimmel (0.61.0),
   nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Abrechnungen importieren") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Abrechnungen importieren") }}</h1>
+        <p class="text-body-secondary mb-0">{{ filename }}{% if parsed.skipped %} · {{ ngettext("{n} Zeile übersprungen", "{n} Zeilen übersprungen", parsed.skipped) }}{% endif %}</p>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('biogas.feed_import_apply') }}">
+    {{ csrf() }}
+    {% for name, values in parsed.points.items() %}{% set i = loop.index0 %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><i class="bi bi-plug me-1"></i>{{ _("In der Datei: {name}", name=name) }}</span>
+            <label class="d-flex align-items-center gap-2 small fw-normal">{{ _("übernehmen nach") }}
+                <select class="form-select form-select-sm" name="point{{ i }}" style="width: auto">
+                    <option value="">{{ _("– nicht übernehmen –") }}</option>
+                    {% for p in feed_points %}<option value="{{ p.id }}" {% if guesses[name] and guesses[name].id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                </select>
+            </label>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 small text-nowrap">
+                <thead><tr><th>{{ _("Zeitraum") }}</th><th class="text-end">{{ _("Einspeisung") }}</th><th class="text-end">{{ _("davon ohne Marktprämie") }}</th></tr></thead>
+                <tbody>
+                {% for (year, month), v in values.items() %}
+                <tr><td>{% if month %}{{ _(month_names[month - 1]) }} {{ year }}{% else %}{{ _("Jahr {year} (Jahresabrechnung)", year=year) }}{% endif %}</td>
+                    <td class="text-end">{{ v.kwh|num(0) }} kWh</td>
+                    <td class="text-end">{{ (v.reduced|num(0) ~ " kWh") if v.reduced else "–" }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not feed_points %}<div class="alert alert-warning small">{{ _("Es gibt noch keine Einspeisestelle in der App – bitte zuerst auf der Biogas-Seite anlegen.") }}</div>{% endif %}
+    <div class="d-flex gap-2 mb-4">
+        <button class="btn btn-primary" {% if not feed_points %}disabled{% endif %}><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('biogas.overview') }}#budget">{{ _("Abbrechen") }}</a>
+    </div>
+</form>
+{% endblock %}

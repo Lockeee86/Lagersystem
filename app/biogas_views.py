@@ -1,12 +1,15 @@
 """Rubrik Biogas: Übersicht der BHKW-Motoren (SKVE-Daten, Laufzeit, Wartungsprognose)."""
 from datetime import date, timedelta
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+import os
+import secrets
+
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
 from . import biogas, feedin
 from .models import FeedPoint
-from .i18n import gettext as _
+from .i18n import gettext as _, ngettext
 from .extensions import db
 from .storage import StorageError
 from .utils import admin_required, flash_error, form_int, form_str
@@ -123,3 +126,50 @@ def sync_now():
     else:
         flash_error(_("SKVE-Abruf fehlgeschlagen: {message}", message=state.get("message") if state else "–"))
     return redirect(url_for("biogas.overview"))
+
+
+@bp.route("/biogas/einspeisestelle/import", methods=["POST"])
+@admin_required
+def feed_import_preview():
+    """Abrechnungs-Positionen (CSV): erst Vorschau mit Zuordnung, dann übernehmen."""
+    from .admin import _cleanup_imports, _import_dir
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("biogas.overview") + "#budget")
+    data = upload.read()
+    try:
+        parsed = feedin.parse_csv(data)
+    except feedin.FeedImportError as e:
+        flash_error(_(str(e)))
+        return redirect(url_for("biogas.overview") + "#budget")
+    _cleanup_imports()
+    token = secrets.token_hex(16)
+    with open(os.path.join(_import_dir(), token), "wb") as f:
+        f.write(data)
+    session["feed_import"] = {"token": token}
+    return render_template("biogas/feed_import.html", parsed=parsed, filename=upload.filename,
+                           feed_points=feedin.points(), guesses={n: feedin.guess(n) for n in parsed["points"]},
+                           month_names=feedin.MONTH_NAMES)
+
+
+@bp.route("/biogas/einspeisestelle/import/uebernehmen", methods=["POST"])
+@admin_required
+def feed_import_apply():
+    from .admin import _import_dir
+    token = (session.pop("feed_import", None) or {}).get("token", "")
+    path = os.path.join(_import_dir(), token) if token and token.isalnum() else ""
+    if not path or not os.path.exists(path):
+        flash_error(_("Die Vorschau ist abgelaufen – bitte die Datei noch einmal hochladen."))
+        return redirect(url_for("biogas.overview") + "#budget")
+    with open(path, "rb") as f:
+        parsed = feedin.parse_csv(f.read())
+    os.remove(path)
+    mapping = {}
+    for i, name in enumerate(parsed["points"]):
+        point_id = request.form.get(f"point{i}", type=int)
+        mapping[name] = db.session.get(FeedPoint, point_id) if point_id else None
+    count = feedin.apply_import(parsed, mapping)
+    db.session.commit()
+    flash(ngettext("{n} Abrechnungswert übernommen.", "{n} Abrechnungswerte übernommen.", count), "success")
+    return redirect(url_for("biogas.overview") + "#budget")

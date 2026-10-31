@@ -123,3 +123,45 @@ def test_missing_months_are_extrapolated(db, seed):
     assert s["level"] == "ok"                                      # 300 kW Schnitt wären 7200 kWh am Tag
     feedin.save_months(point, 2025, {m_: "223200" for m_ in (1, 2, 3, 4)})
     assert feedin.status(point, 2025, today=date(2025, 7, 1))["missing"] == []
+
+
+CSV = """\ufeffeinspeisestelle;monat;zeitraum_von;zeitraum_bis;rechnung_nr;anlage;kategorie;bik_code;bezeichnung_original;menge_kwh;preis_ct_kwh;betrag_eur;quelldatei
+Nord;2026-01;2026-01-01;2026-01-31;1;A1;Marktwert steuerbare ET;X;Marktwert;10000.0;10.0;1000.0;a.txt
+Nord;2026-01;2026-01-01;2026-01-31;1;A1;Verringerung (BiK1011);X;Verringerung;500.0;-0.2;-1.0;a.txt
+Nord;2026-01;2026-01-01;2026-01-31;1;A1;Flexibilitätsprämie;X;Flex;10500.0;2.0;210.0;a.txt
+Nord;2026-01;2026-01-01;2026-01-31;1;A2;Marktwert steuerbare ET;X;Marktwert;40000.0;10.0;4000.0;a.txt
+Nord;2026-01;2026-01-01;2026-01-31;1;A2;Verringerung (BiK1011);X;Verringerung;1000.0;-0.2;-2.0;a.txt
+Nord;2026-03;2026-03-01;2026-03-31;2;A1;Marktwert steuerbare ET;X;Marktwert;20000.0;9.0;1800.0;b.txt
+Nord;2025-JAHR;2025-01-01;2025-12-31;3;A1;Flexibilitätsprämie;X;Flex;600000.0;2.0;1.0;c.txt
+Süd;2026-01;2026-01-01;2026-01-31;4;A1;Flexibilitätsprämie;X;Flex;7000.0;2.0;1.0;d.txt
+Süd;kaputt;;;;A1;Flexibilitätsprämie;X;Flex;7.0;2.0;1.0;d.txt
+"""
+
+
+def test_csv_import(app, as_admin, db, seed, plant):
+    parsed = feedin.parse_csv(CSV.encode())
+    nord = parsed["points"]["Nord"]
+    assert nord[(2026, 1)] == {"kwh": 10500 + 41000, "reduced": 1500}      # A1 Flexprämie, A2 Marktwert + Verringerung
+    assert nord[(2026, 3)]["kwh"] == 20000 and nord[(2025, 0)]["kwh"] == 600000
+    assert parsed["points"]["Süd"][(2026, 1)]["kwh"] == 7000 and parsed["skipped"] == 1
+    with pytest.raises(feedin.FeedImportError):
+        feedin.parse_csv(b"a;b\n1;2\n")
+
+    from io import BytesIO
+    plant.name = "nord"
+    db.session.commit()
+    html = as_admin.post("/biogas/einspeisestelle/import", data={"file": (BytesIO(CSV.encode()), "positionen.csv")},
+                         content_type="multipart/form-data").get_data(as_text=True)
+    assert "In der Datei: Nord" in html and "Jahresabrechnung" in html
+    assert f'<option value="{plant.id}" selected>' in html                   # Name passt (ohne Groß/Klein)
+    r = as_admin.post("/biogas/einspeisestelle/import/uebernehmen", data={"point0": str(plant.id), "point1": ""},
+                      follow_redirects=True)
+    assert "3 Abrechnungswerte übernommen" in r.get_data(as_text=True)
+    jan = plant.months.filter_by(year=2026, month=1).one()
+    assert float(jan.kwh) == 51500 and float(jan.reduced_kwh) == 1500
+    s = feedin.status(plant, 2025, today=date(2026, 3, 1))
+    assert s["annual"] == 600000 and s["used"] == 600000 and s["missing"] == []
+    s = feedin.status(plant, 2026, today=date(2026, 4, 1))
+    assert s["reduced"] == 1500 and s["billed"] == 2
+    r = as_admin.post("/biogas/einspeisestelle/import/uebernehmen", data={}, follow_redirects=True)
+    assert "Vorschau ist abgelaufen" in r.get_data(as_text=True)
