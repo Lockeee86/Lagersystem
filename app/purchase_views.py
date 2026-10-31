@@ -1,14 +1,14 @@
 """Seiten für Bestellungen: Liste, Bestellwunsch anlegen (mit Fotos), Bearbeiten durch den Besteller."""
 from datetime import date
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 
 from . import purchases, push, uploads
 from .extensions import db
 from .i18n import gettext as _
-from .models import (PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, MachinePart, PurchaseRequest, Supplier,
-                     User)
+from .models import (PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, MachinePart, PurchaseDocument,
+                     PurchaseRequest, Supplier, User)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
 
@@ -134,7 +134,7 @@ def purchase_update(req_id):
             order_number=form_str("order_number", 80), price=form_money("price"),
             ordered_on=form_date("ordered_on"), expected_on=form_date("expected_on"),
             delivered_on=form_date("delivered_on"), buyer_note=form_str("buyer_note", 4000),
-            inquired_on=form_date("inquired_on"),
+            inquired_on=form_date("inquired_on"), invoice_handed="invoice_handed" in request.form,
         )
         db.session.commit()
         if req.status != old_status:
@@ -169,9 +169,12 @@ def purchase_delete(req_id):
     if not (current_user.is_admin or (req.requested_by_id == current_user.id and req.status == "neu")):
         abort(403)
     names = [p.filename for p in req.photos]
+    docs = [d.filename for d in req.documents]
     db.session.delete(req)
     db.session.commit()
     uploads.delete_files(names)
+    for name in docs:
+        uploads.delete_document(name)
     flash(_("Bestellwunsch „{title}“ gelöscht.", title=req.title), "success")
     return redirect(url_for("purchases.purchase_list"))
 
@@ -229,3 +232,58 @@ def supplier_delete(sup_id):
         flash(_("{name} gelöscht.", name=supplier.name), "success")
     db.session.commit()
     return redirect(url_for("purchases.suppliers"))
+
+
+# --- Dateien an der Bestellung (Bestellung, Auftragsbestätigung, Rechnung …) ---------------
+
+@bp.route("/bestellung/<int:req_id>/datei", methods=["POST"])
+@editor_required
+def purchase_file_upload(req_id):
+    req = _get(req_id)
+    if not req.can_handle(current_user):
+        abort(403)
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("purchases.purchase_detail", req_id=req.id) + "#dateien")
+    name = None
+    try:
+        name, mimetype, size = uploads.save_document(upload)
+        title = form_str("title", 150) or upload.filename.rsplit(".", 1)[0][:150]
+        db.session.add(PurchaseDocument(request=req, title=title, filename=name, original_name=upload.filename[:200],
+                                        mimetype=mimetype, size=size, user_id=current_user.id))
+        db.session.commit()
+        flash(_("„{title}“ hochgeladen.", title=title), "success")
+    except StorageError as e:
+        db.session.rollback()
+        if name:
+            uploads.delete_document(name)
+        flash_error(str(e))
+    return redirect(url_for("purchases.purchase_detail", req_id=req.id) + "#dateien")
+
+
+@bp.route("/bestellung/datei/<int:doc_id>")
+@login_required
+def purchase_file(doc_id):
+    doc = db.session.get(PurchaseDocument, doc_id) or abort(404)
+    ext = doc.filename.rsplit(".", 1)[-1]
+    response = send_from_directory(uploads.document_dir(), doc.filename, mimetype=doc.mimetype, max_age=86400,
+                                   as_attachment=request.args.get("download") == "1",
+                                   download_name=f"{doc.title[:80]}.{ext}")
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'"
+    return response
+
+
+@bp.route("/bestellung/datei/<int:doc_id>/loeschen", methods=["POST"])
+@editor_required
+def purchase_file_delete(doc_id):
+    doc = db.session.get(PurchaseDocument, doc_id) or abort(404)
+    req = doc.request
+    if not (current_user.is_admin or req.can_handle(current_user)):
+        abort(403)
+    db.session.delete(doc)
+    db.session.commit()
+    uploads.delete_document(doc.filename)
+    flash(_("„{title}“ gelöscht.", title=doc.title), "success")
+    return redirect(url_for("purchases.purchase_detail", req_id=req.id) + "#dateien")

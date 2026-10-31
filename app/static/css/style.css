@@ -1057,3 +1057,6 @@ body:not(.has-tabbar) {
 .revenue-stack > span:last-child { border-radius: 3px 3px 0 0; }
 .rev-grund { background: #4c9bd6; } .rev-guelle { background: #8bbf5a; } .rev-boni { background: #c8a24a; }
 .rev-immission { background: #9b7fd6; } .rev-flex { background: #e07b39; } .rev-sonstige { background: #9a9a9a; }
+
+/* Offene Auswahl (Dropdown) liegt über den folgenden Karten – Glas-Karten bilden eigene Ebenen */
+:is(.card, .list-group-item, .modal-content):has(.dropdown-menu.show) { position: relative; z-index: 1030; }

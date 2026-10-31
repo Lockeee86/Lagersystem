@@ -292,6 +292,11 @@ Status „Neu“ (0.16.2): Eine Meldung ist zuerst „Neu“. „Angefragt“ be
 Lieferanten angefragt (Datum „Angefragt am“). Der Schritt ist optional – wer gleich bestellt, überspringt ihn
 (gestrichelt in der Fortschrittsanzeige). Zurückziehen kann der Meldende nur, solange die Meldung „Neu“ ist.
 
+Rechnung und Dateien (0.65.0): Häkchen „Rechnung an … übergeben“ beim Bearbeiten (Empfänger in den
+Einstellungen, sonst „Buchhaltung“; das Datum wird gemerkt). „Erledigt“ – vom Besteller wie vom Meldenden –
+geht erst, wenn die Rechnung übergeben ist. An jede Bestellung lassen sich Dateien hängen (Bestellung,
+Auftragsbestätigung, Rechnung; PDF oder Foto), hochladen dürfen die Besteller.
+
 Zuständigkeit (0.16.1): Jede Bestellung hat einen zuständigen Besteller. Neue Wünsche sind „noch frei“, bis
 ein Besteller „Ich übernehme“ drückt (oder als Erster bearbeitet). Danach bearbeitet nur er (und der Admin);
 andere Besteller sehen „X kümmert sich darum“ und können bewusst selbst übernehmen. Weitergeben an einen

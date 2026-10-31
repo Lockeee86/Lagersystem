@@ -52,6 +52,7 @@ class Setting(db.Model):
         "farm_address": (N_("Anschrift"), 500, True),
         "farm_phone": (N_("Telefon"), 50, False),
         "farm_email": (N_("E-Mail"), 120, False),
+        "invoice_recipient": (N_("Rechnungen gehen an (Bestellungen)"), 60, False),
         "farm_passport_reg": (N_("Registriernummer für den Pflanzenpass (z. B. DE-NI1-12345)"), 40, False),
         "farm_location": (N_("Standort für das Wetter (Breite, Länge)"), 60, False),
         "blight_from_month": (N_("Krautfäule-Ampel auf der Übersicht ab"), 2, False),
@@ -1296,6 +1297,7 @@ class PurchaseRequest(db.Model):
     expected_on = db.Column(db.Date)
     delivered_on = db.Column(db.Date)
     buyer_note = db.Column(db.Text)                               # auch Begründung bei Ablehnung
+    invoice_handed_on = db.Column(db.Date)                        # Rechnung an die Buchhaltung übergeben
     handled_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     assignee_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)   # welcher Besteller kümmert sich
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
@@ -1377,6 +1379,29 @@ DOCUMENT_KINDS = {
     "teile": N_("Ersatzteilliste"),
     "sonstiges": N_("Sonstiges"),
 }
+
+
+class PurchaseDocument(db.Model):
+    """Datei an einer Bestellung (Bestellung, Auftragsbestätigung, Rechnung …), wie hochgeladen unter `dokumente/`."""
+    __tablename__ = "purchase_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey("purchase_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = db.Column(db.String(150), nullable=False)
+    filename = db.Column(db.String(80), nullable=False, unique=True)
+    original_name = db.Column(db.String(200))
+    mimetype = db.Column(db.String(50), nullable=False)
+    size = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    request = db.relationship("PurchaseRequest", backref=db.backref("documents", order_by="PurchaseDocument.created_at",
+                                                                    cascade="all, delete-orphan", passive_deletes=True))
+    user = db.relationship("User")
+
+    @property
+    def label(self):
+        return self.title
 
 
 class MachineDocument(db.Model):

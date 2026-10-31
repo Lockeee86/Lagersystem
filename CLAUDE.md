@@ -85,7 +85,8 @@ docker compose up --build -d
   Reihenfolge `User.home_order` / `section_order()`; `dashboard.html` sammelt je Bereich einen Block und gibt sie in
   `show_order` aus). Strompreis-Ampel `biogas.price_strip`
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
-  Rechte über `PurchaseRequest.can_handle`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
+  Rechte über `PurchaseRequest.can_handle`; „erledigt“ erst mit `invoice_handed_on` = Rechnung übergeben an
+  `settings` `invoice_recipient`; Dateien `PurchaseDocument` unter `dokumente/`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`
 - `app/tasks.py`: Aufgaben (Zuteilung, Fälligkeit, Wiederholung `next_due`), committet nicht;
   `app/task_views.py` (Blueprint `tasks`). Makros aus `tasks/_macros.html` mit `with context` importieren.

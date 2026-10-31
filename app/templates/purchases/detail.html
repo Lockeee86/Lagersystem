@@ -69,8 +69,12 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             {% if req.status == "geliefert" and (current_user.is_buyer or req.requested_by_id == current_user.id) %}
+            {% if req.invoice_handed_on %}
             <form method="post" action="{{ url_for('purchases.purchase_done', req_id=req.id) }}">{{ csrf() }}
                 <button class="btn btn-success"><i class="bi bi-check2-all me-1"></i>{{ _("Eingebaut / verbraucht – erledigt") }}</button></form>
+            {% else %}
+            <span class="btn btn-outline-secondary disabled"><i class="bi bi-receipt me-1"></i>{{ _("Erledigt erst, wenn die Rechnung an {name} übergeben ist", name=farm.invoice_recipient or _("Buchhaltung")) }}</span>
+            {% endif %}
             {% endif %}
             {% if current_user.is_admin or (req.requested_by_id == current_user.id and req.status == "neu") %}
             <form method="post" action="{{ url_for('purchases.purchase_delete', req_id=req.id) }}">{{ csrf() }}
@@ -111,6 +115,37 @@
             </div>
         </div>
         {% endif %}
+        {% if req.documents or req.can_handle(current_user) %}
+        <div class="card shadow-sm mb-4" id="dateien">
+            <div class="card-header"><i class="bi bi-paperclip me-1"></i>{{ _("Dateien") }}</div>
+            {% if req.documents %}
+            <ul class="list-group list-group-flush">
+                {% for d in req.documents %}
+                <li class="list-group-item d-flex align-items-center gap-2">
+                    <i class="bi {{ 'bi-file-earmark-pdf' if d.mimetype == 'application/pdf' else 'bi-file-earmark-image' if d.mimetype.startswith('image/') else 'bi-file-earmark' }} fs-5"></i>
+                    <a class="flex-grow-1 min-w-0 text-truncate" href="{{ url_for('purchases.purchase_file', doc_id=d.id) }}" target="_blank" rel="noopener">{{ d.title }}</a>
+                    <span class="small text-body-secondary text-nowrap">{{ d.created_at|date }}</span>
+                    {% if current_user.is_admin or req.can_handle(current_user) %}
+                    <form method="post" action="{{ url_for('purchases.purchase_file_delete', doc_id=d.id) }}">{{ csrf() }}<button class="btn btn-sm btn-link text-danger p-0" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('„{title}“ löschen?', title=d.title) }}"><i class="bi bi-trash"></i></button></form>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if req.can_handle(current_user) %}
+            <div class="card-body">
+                <form method="post" action="{{ url_for('purchases.purchase_file_upload', req_id=req.id) }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+                    {{ csrf() }}
+                    <div class="col-12 col-md-5"><label class="form-label small mb-1" for="f_title">{{ _("Bezeichnung (wahlweise)") }}</label>
+                        <input class="form-control form-control-sm" id="f_title" name="title" maxlength="150" placeholder="{{ _('z. B. Bestellung, Rechnung') }}"></div>
+                    <div class="col-12 col-md-5"><label class="form-label small mb-1" for="f_file">{{ _("Datei (PDF oder Foto)") }}</label>
+                        <input class="form-control form-control-sm" type="file" id="f_file" name="file" accept="application/pdf,image/jpeg,image/png" required></div>
+                    <div class="col-12 col-md-2"><button class="btn btn-sm btn-primary w-100"><i class="bi bi-upload me-1"></i>{{ _("Hochladen") }}</button></div>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
         {% if req.can_handle(current_user) %}
         <div class="card shadow-sm mb-4 border-primary-subtle">
             <div class="card-header"><i class="bi bi-cart-check me-1"></i>{{ _("Bestellung bearbeiten") }}</div>
@@ -143,6 +178,13 @@
                         <input class="form-control form-control-sm" type="date" id="b_delivered" name="delivered_on" value="{{ req.delivered_on.isoformat() if req.delivered_on else '' }}"></div>
                     <div class="col-12"><label class="form-label small" for="b_note">{{ _("Notiz an den Anfragenden (bei Ablehnung: Begründung)") }}</label>
                         <textarea class="form-control form-control-sm" id="b_note" name="buyer_note" rows="2" maxlength="4000">{{ req.buyer_note or '' }}</textarea></div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="b_invoice" name="invoice_handed" {% if req.invoice_handed_on %}checked{% endif %}>
+                            <label class="form-check-label" for="b_invoice">{{ _("Rechnung an {name} übergeben", name=farm.invoice_recipient or _("Buchhaltung")) }}{% if req.invoice_handed_on %} <span class="small text-body-secondary">({{ req.invoice_handed_on|date }})</span>{% endif %}</label>
+                        </div>
+                        <div class="form-text">{{ _("„Erledigt“ geht erst mit übergebener Rechnung.") }}</div>
+                    </div>
                     <div class="col-12"><button class="btn btn-primary btn-sm">{{ _("Speichern") }}</button></div>
                 </form>
             </div>

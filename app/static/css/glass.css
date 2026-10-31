@@ -446,3 +446,8 @@ html[data-bg] .budget-plan-month.is-now { outline-color: #a8e08f; }
 html[data-bg] .rev-grund { background: #8fd0ff; } html[data-bg] .rev-guelle { background: #a8e08f; }
 html[data-bg] .rev-boni { background: #ffd08a; } html[data-bg] .rev-immission { background: #c7a6ff; }
 html[data-bg] .rev-flex { background: #ff9a6a; } html[data-bg] .rev-sonstige { background: rgba(255, 255, 255, .5); }
+
+/* Menüs innerhalb von Glasflächen: dort wirkt kein zweiter Weichzeichner, also fast deckend füllen */
+html[data-bg] :is(.card, .list-group-item, .glass) .dropdown-menu {
+    background: color-mix(in srgb, var(--bg-solid) 94%, transparent);
+}

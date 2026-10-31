@@ -39,12 +39,19 @@ def create_request(user, title, details=None, quantity=None, urgent=False, machi
 
 
 def update_request(req, user, status, supplier=None, order_number=None, price=None, ordered_on=None,
-                   expected_on=None, delivered_on=None, buyer_note=None, inquired_on=None):
+                   expected_on=None, delivered_on=None, buyer_note=None, inquired_on=None, invoice_handed=None):
     """Besteller trägt Status und Bestelldaten ein. Datumsfelder werden beim Statuswechsel sinnvoll vorbelegt."""
     if status not in PURCHASE_STATUSES:
         raise StorageError(_("Unbekannter Status."))
     if status == "abgelehnt" and not buyer_note:
         raise StorageError(_("Bitte begründen, warum nicht bestellt wird."))
+    if invoice_handed is not None:
+        if invoice_handed and req.invoice_handed_on is None:
+            req.invoice_handed_on = date.today()
+        elif not invoice_handed:
+            req.invoice_handed_on = None
+    if status == "erledigt" and req.invoice_handed_on is None:
+        raise StorageError(_("Erledigt geht erst, wenn die Rechnung übergeben ist."))
     req.supplier, req.order_number, req.price = supplier or None, order_number or None, price
     known = supplier_by_name(supplier)
     req.supplier_id = known.id if known else None
@@ -80,6 +87,8 @@ def mark_done(req, user):
     """Teil ist da und eingebaut/verbraucht – darf auch der Anfragende."""
     if req.status != "geliefert":
         raise StorageError(_("Erledigt werden kann nur, was geliefert ist."))
+    if req.invoice_handed_on is None:
+        raise StorageError(_("Erledigt geht erst, wenn die Rechnung übergeben ist."))
     req.status = "erledigt"
     req.updated_at = utcnow()
     db.session.flush()

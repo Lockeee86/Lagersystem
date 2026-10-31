@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from app import machines, purchases
-from app.models import MachineEvent, PurchaseRequest, Task, User
+from app.models import MachineEvent, PurchaseRequest, Setting, Task, User
 from app.storage import StorageError
 
 from .conftest import login, make_user
@@ -46,6 +46,12 @@ def test_status_flow(db, seed):
     assert purchases.counts(seed["admin"]) == {"new": 0, "mine": 0, "late": 1}
     purchases.update_request(req, seed["admin"], "geliefert", supplier="Landtechnik Meyer")
     assert req.delivered_on == date.today() and purchases.arrived_for(seed["worker"]) == [req]
+    with pytest.raises(StorageError):
+        purchases.mark_done(req, seed["worker"])                            # Rechnung noch nicht übergeben
+    with pytest.raises(StorageError):
+        purchases.update_request(req, seed["admin"], "erledigt", supplier="Landtechnik Meyer")
+    purchases.update_request(req, seed["admin"], "geliefert", supplier="Landtechnik Meyer", invoice_handed=True)
+    assert req.invoice_handed_on == date.today()
     purchases.mark_done(req, seed["worker"])
     assert req.status == "erledigt" and not req.is_open
 
@@ -91,8 +97,30 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed):
     # Geliefert → Mitarbeiter sieht es auf der Übersicht und hakt ab
     client.post(f"/bestellung/{req.id}/bearbeiten", data=data | {"status": "geliefert"})
     assert f"{req.title} ist da" in as_worker.get("/").get_data(as_text=True)
+    assert "Rechnung an Buchhaltung übergeben" in client.get(f"/bestellung/{req.id}").get_data(as_text=True)
+    as_worker.post(f"/bestellung/{req.id}/erledigt")
+    assert req.status == "geliefert"                                       # Rechnung fehlt noch
+    Setting.put("invoice_recipient", "Steuerbüro Beispiel")
+    db.session.commit()
+    client.post(f"/bestellung/{req.id}/bearbeiten", data=data | {"status": "geliefert", "invoice_handed": "on"})
+    assert req.invoice_handed_on == date.today()
+    assert "Rechnung an Steuerbüro Beispiel übergeben" in client.get(f"/bestellung/{req.id}").get_data(as_text=True)
     as_worker.post(f"/bestellung/{req.id}/erledigt")
     assert req.status == "erledigt"
+
+    # Dateien: Bestellung als PDF anhängen, abrufen, löschen
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
+    r = client.post(f"/bestellung/{req.id}/datei", data={"title": "Bestellung", "file": (io.BytesIO(pdf), "best.pdf")},
+                    content_type="multipart/form-data")
+    assert r.status_code == 302 and len(req.documents) == 1
+    doc = req.documents[0]
+    assert as_worker.post(f"/bestellung/{req.id}/datei", data={"file": (io.BytesIO(pdf), "x.pdf")},
+                          content_type="multipart/form-data").status_code == 403
+    r = as_viewer.get(f"/bestellung/datei/{doc.id}")
+    assert r.status_code == 200 and r.data.startswith(b"%PDF") and "sandbox" in r.headers["Content-Security-Policy"]
+    assert "Bestellung" in client.get(f"/bestellung/{req.id}").get_data(as_text=True)
+    client.post(f"/bestellung/datei/{doc.id}/loeschen")
+    assert req.documents == []
 
     # Zurückziehen nur, solange neu
     other = purchases.create_request(seed["worker"], "Netze 10 kg")
