@@ -2835,4 +2835,10 @@ MESSAGES = {
     'Ohne festen Platz': 'Bez stałego miejsca',
     'Gruppieren nach': 'Grupuj według',
     'nach Art': 'według rodzaju',
+    '„{name}“ ist jetzt ein technischer Platz ({code}), {n} Maschinen übernommen.': ('„{name}” jest teraz miejscem technicznym ({code}), przeniesiono {n} maszynę.', '„{name}” jest teraz miejscem technicznym ({code}), przeniesiono {n} maszyny.', '„{name}” jest teraz miejscem technicznym ({code}), przeniesiono {n} maszyn.'),
+    'Die Betriebsstätte ist noch zugeordnet (Schläge, Lager …) und wurde nur deaktiviert.': 'Zakład jest nadal przypisany (pola, magazyny …) i został tylko dezaktywowany.',
+    'Ist keine Betriebsstätte, sondern ein Anlagen-Standort?': 'To nie zakład, tylko lokalizacja instalacji?',
+    'Wird ein technischer Platz gleichen Namens; die Maschinen der Betriebsstätte werden dort eingebaut. Schläge, Lager und Lieferscheine bleiben unverändert – ist danach nichts mehr zugeordnet, wird die Betriebsstätte gelöscht.': 'Powstanie miejsce techniczne o tej samej nazwie; maszyny zakładu zostaną w nim zamontowane. Pola, magazyny i dowody dostawy pozostaną bez zmian – jeśli nic już nie będzie przypisane, zakład zostanie usunięty.',
+    '„{name}“ in einen technischen Platz umwandeln?': 'Zamienić „{name}” na miejsce techniczne?',
+    'In technischen Platz umwandeln': 'Zamień na miejsce techniczne',
 }

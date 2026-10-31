@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, sites, storage, tabbar,
+from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, places, sites, storage, tabbar,
                tiles, transfer, weather)
 from .auth import validate_password
 from .extensions import db
@@ -533,7 +533,27 @@ def site_list():
         flash(_("Betriebsstätte „{name}“ gespeichert.", name=site.name), "success")
         return redirect(url_for("admin.site_list"))
     items = Site.query.order_by(Site.active.desc(), Site.name).all()
-    return render_template("admin/sites.html", items=items, usage={s.id: sites.usage(s) for s in items})
+    return render_template("admin/sites.html", items=items, usage={s.id: sites.usage(s) for s in items},
+                           place_choices=places.choices())
+
+
+@bp.route("/betriebsstaetten/<int:s_id>/platz", methods=["POST"])
+@admin_required
+def site_to_place(s_id):
+    """Betriebsstätte ist eigentlich ein Anlagen-Standort → technischer Platz."""
+    from .models import Site
+    site = _get(Site, s_id)
+    name = site.name
+    place, moved, deleted = places.place_from_site(site, parent_id=form_int("parent_id"),
+                                                   biogas=bool(request.form.get("biogas")))
+    db.session.commit()
+    text = ngettext("„{name}“ ist jetzt ein technischer Platz ({code}), {n} Maschine übernommen.",
+                    "„{name}“ ist jetzt ein technischer Platz ({code}), {n} Maschinen übernommen.", moved,
+                    name=name, code=place.code)
+    if not deleted:
+        text += " " + _("Die Betriebsstätte ist noch zugeordnet (Schläge, Lager …) und wurde nur deaktiviert.")
+    flash(text, "success")
+    return redirect(url_for("machines.place_detail", place_id=place.id))
 
 
 @bp.route("/betriebsstaetten/<int:s_id>/loeschen", methods=["POST"])

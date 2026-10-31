@@ -120,3 +120,31 @@ def test_machine_list_by_place(as_admin, db, seed):
     assert "Anlage Ost › Motorenraum" in html and "Ohne festen Platz" in html and "nach Art" in html
     html = as_admin.get("/maschinen?gruppe=art").get_data(as_text=True)
     assert "Anlage Ost › Motorenraum" not in html and "Schlepper" in html
+
+
+def test_site_to_place(as_admin, db, seed):
+    from app.models import Plot, Site
+    admin = seed["admin"]
+    root = places.save_place(None, "Anlage West", biogas=True)
+    site = Site(name="Standort Mitte")
+    other = Site(name="Standort Feld")
+    db.session.add_all([site, other])
+    db.session.flush()
+    motor = machines.create_machine("Gasmotor B", "bhkw", admin, site_id=site.id)
+    pump = machines.create_machine("Pumpe 2", "biogas", admin, site_id=site.id)
+    placed = places.save_place(None, "Vorhanden")
+    pump.place = placed
+    tractor = machines.create_machine("Schlepper 3", "schlepper", admin, site_id=other.id)
+    db.session.add(Plot(name="Feld Ost", site_id=other.id))
+    db.session.commit()
+    r = as_admin.post(f"/admin/betriebsstaetten/{site.id}/platz", data={"parent_id": root.id, "biogas": "1"})
+    place = TechPlace.query.filter_by(name="Standort Mitte").one()
+    assert r.headers["Location"].endswith(f"/platz/{place.id}")
+    assert place.parent == root and place.in_biogas
+    assert motor.place == place and motor.site_id is None
+    assert pump.place == placed and pump.site_id is None             # schon eingebaut: bleibt
+    assert db.session.get(Site, site.id) is None                      # nichts mehr zugeordnet → gelöscht
+    # Betriebsstätte mit Schlägen: nur deaktiviert, Schläge bleiben dort
+    as_admin.post(f"/admin/betriebsstaetten/{other.id}/platz", data={})
+    assert db.session.get(Site, other.id).active is False and tractor.site_id is None
+    assert Plot.query.filter_by(name="Feld Ost").one().site_id == other.id

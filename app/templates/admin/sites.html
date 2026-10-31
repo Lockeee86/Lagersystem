@@ -35,6 +35,19 @@
                     <a class="badge text-bg-light border text-decoration-none" href="{{ url_for('sales.deliveries', betrieb=site.id) }}">{{ ngettext("{n} Lieferschein", "{n} Lieferscheine", u.deliveries) }}</a>
                     {% if u.tank %}<span class="badge text-bg-light border">{{ _("Hoftank") }}</span>{% endif %}
                 </div>
+                <button class="btn btn-sm btn-link px-0 mt-2 text-decoration-none text-start" data-bs-toggle="collapse" data-bs-target="#toPlace{{ site.id }}"><i class="bi bi-diagram-3 me-1"></i>{{ _("Ist keine Betriebsstätte, sondern ein Anlagen-Standort?") }}</button>
+                <form method="post" action="{{ url_for('admin.site_to_place', s_id=site.id) }}" class="collapse mt-1" id="toPlace{{ site.id }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <p class="small text-body-secondary mb-2">{{ _("Wird ein technischer Platz gleichen Namens; die Maschinen der Betriebsstätte werden dort eingebaut. Schläge, Lager und Lieferscheine bleiben unverändert – ist danach nichts mehr zugeordnet, wird die Betriebsstätte gelöscht.") }}</p>
+                    <label class="form-label small" for="tp_parent{{ site.id }}">{{ _("Gehört zu") }}</label>
+                    <select class="form-select form-select-sm mb-2" id="tp_parent{{ site.id }}" name="parent_id">
+                        <option value="">{{ _("– oberste Ebene –") }}</option>
+                        {% for pid, label in place_choices %}<option value="{{ pid }}">{{ label }}</option>{% endfor %}
+                    </select>
+                    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="tp_bio{{ site.id }}" name="biogas" value="1" checked>
+                        <label class="form-check-label small" for="tp_bio{{ site.id }}">{{ _("Gehört zur Rubrik Biogas") }}</label></div>
+                    <button class="btn btn-sm btn-primary" data-confirm="{{ _('„{name}“ in einen technischen Platz umwandeln?', name=site.name) }}">{{ _("In technischen Platz umwandeln") }}</button>
+                </form>
             </div>
         </div>
     </div>

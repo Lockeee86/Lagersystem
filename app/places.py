@@ -162,3 +162,29 @@ def group_machines(items):
     if None in groups:
         result.append((_("Ohne festen Platz"), groups[None]))
     return result
+
+
+def place_from_site(site, parent_id=None, biogas=False):
+    """Betriebsstätte, die eigentlich ein Standort einer Anlage ist (z. B. BHKW-Standort), in einen technischen Platz
+    umwandeln: Platz gleichen Namens anlegen (oder vorhandenen unter demselben Vater nehmen), ihre Maschinen dort
+    einbauen (bereits eingebaute bleiben, wo sie sind) und die Zuordnung zur Betriebsstätte lösen. Die Betriebsstätte
+    wird gelöscht, wenn nichts anderes mehr an ihr hängt, sonst deaktiviert.
+    Gibt (Platz, Zahl der Maschinen, gelöscht?) zurück."""
+    from . import sites
+    parent = db.session.get(TechPlace, parent_id) if parent_id else None
+    place = TechPlace.query.filter_by(name=site.name, parent_id=parent.id if parent else None).first()
+    if place is None:
+        place = save_place(None, site.name, parent_id=parent.id if parent else None, biogas=biogas, note=site.note)
+    elif biogas:
+        place.biogas = True
+    moved = 0
+    for m in Machine.query.filter_by(site_id=site.id):
+        if m.place_id is None:
+            m.place = place
+        m.site_id = None
+        moved += 1
+    for p in TechPlace.query.filter_by(site_id=site.id):
+        p.site_id = None
+    db.session.flush()
+    deleted = sites.delete_site(site)
+    return place, moved, deleted

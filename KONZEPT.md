@@ -235,6 +235,9 @@ Ein-/Ausbau steht im Änderungsprotokoll.
 Maschinen-Auswahlen (Bestellung, Aufgabe, Tagesplan, Tankbuch, Einbauen) sind nach Platz gruppiert (0.67.1,
 `places.group_machines`, Makro `macros.machine_options`), Maschinen ohne Platz stehen unter „Ohne festen Platz“.
 Die Maschinenliste ist nach Platz gruppiert, sobald es Plätze gibt (Umschalter „nach Platz / nach Art“, 0.67.2).
+Betriebsstätten sind Hofstellen/Betriebe mit eigener Anschrift – Standorte einer Anlage (z. B. BHKW-Standorte der
+Biogasanlage) sind technische Plätze. Verwaltung → Betriebsstätten → „In technischen Platz umwandeln“ (0.67.3,
+`places.place_from_site`): Platz gleichen Namens, Maschinen dort eingebaut, Betriebsstätte gelöscht bzw. deaktiviert.
 
 ### Baustein D – Schlagkartei & Ertrag (umgesetzt in 0.13.0)
 Umsetzung: Import der Schlagkartei aus Myfarm24 als KML/KMZ (Verwaltung → Schläge) mit Vorschau. Übernommen
