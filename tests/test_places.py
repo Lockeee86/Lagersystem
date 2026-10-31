@@ -109,3 +109,14 @@ def test_grouped_machine_selects(as_admin, db, seed):
         assert '<optgroup label="Anlage Ost › Motorenraum">' in html, url
     # ohne Plätze: keine Gruppen
     assert places.group_machines([tractor]) == [(None, [tractor])]
+
+
+def test_machine_list_by_place(as_admin, db, seed):
+    admin = seed["admin"]
+    _tree(db, admin)
+    machines.create_machine("Schlepper 9", "schlepper", admin)
+    db.session.commit()
+    html = as_admin.get("/maschinen").get_data(as_text=True)
+    assert "Anlage Ost › Motorenraum" in html and "Ohne festen Platz" in html and "nach Art" in html
+    html = as_admin.get("/maschinen?gruppe=art").get_data(as_text=True)
+    assert "Anlage Ost › Motorenraum" not in html and "Schlepper" in html

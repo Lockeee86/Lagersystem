@@ -2833,4 +2833,6 @@ MESSAGES = {
     'Kartoffellager (wahlweise)': 'Przechowalnia ziemniaków (opcjonalnie)',
     'Gehört zur Rubrik Biogas': 'Należy do działu Biogaz',
     'Ohne festen Platz': 'Bez stałego miejsca',
+    'Gruppieren nach': 'Grupuj według',
+    'nach Art': 'według rodzaju',
 }

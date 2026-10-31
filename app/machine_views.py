@@ -81,11 +81,19 @@ def machine_list():
     query = Machine.query if show_all else Machine.query.filter_by(active=True)
     query = machines.visible(sites.apply(query, Machine), current_user)
     items = query.order_by(Machine.name).all()
-    groups = {}
-    for m in items:
-        groups.setdefault(m.category, []).append((m, *machines.machine_summary(m)))
-    ordered = [(key, _(label), groups[key]) for key, label in MACHINE_CATEGORIES.items() if key in groups]
+    has_places = any(m.place_id for m in items)
+    by = request.args.get("gruppe") or ("platz" if has_places else "art")
+    if by == "platz" and has_places:
+        ordered = [(label or "", label or _("Ohne festen Platz"), [(m, *machines.machine_summary(m)) for m in ms])
+                   for label, ms in places.group_machines(items)]
+    else:
+        by = "art"
+        groups = {}
+        for m in items:
+            groups.setdefault(m.category, []).append((m, *machines.machine_summary(m)))
+        ordered = [(key, _(label), groups[key]) for key, label in MACHINE_CATEGORIES.items() if key in groups]
     return render_template("machines/list.html", groups=ordered, count=len(items), show_all=show_all,
+                           group_by=by, has_places=has_places,
                            categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
                            default_units=machines.DEFAULT_UNITS, due=machines.due_tasks(user=current_user),
                            faults=machines.open_faults(current_user), place_choices=places.choices(current_user))

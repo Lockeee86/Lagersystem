@@ -7,7 +7,7 @@
     <div>
         <h1>{{ _("Maschinen") }}</h1>
         <p class="text-body-secondary mb-0">{{ ngettext("{n} Maschine", "{n} Maschinen", count) }}
-            · <a href="{{ url_for('machines.machine_list', alle='0' if show_all else '1') }}">{{ _("nur aktive") if show_all else _("auch ausgemusterte zeigen") }}</a>
+            · <a href="{{ url_for('machines.machine_list', alle='0' if show_all else '1', gruppe=group_by if has_places else none) }}">{{ _("nur aktive") if show_all else _("auch ausgemusterte zeigen") }}</a>
             · <a href="{{ url_for('machines.place_list') }}">{{ _("Technische Plätze") }}</a>
             {% if current_user.is_admin %} · <a href="{{ url_for('machines.machine_costs') }}">{{ _("Kosten") }}</a>{% endif %}</p>
     </div>
@@ -118,6 +118,13 @@
 </div>
 {% endif %}
 
+{% if has_places %}
+<nav class="view-switch mb-2 mt-4" aria-label="{{ _('Gruppieren nach') }}">
+    {% for key, label, icon in (("platz", _("nach Platz"), "bi-diagram-3"), ("art", _("nach Art"), "bi-tags")) %}
+    <a href="{{ url_for('machines.machine_list', gruppe=key, alle='1' if show_all else none) }}" class="{% if group_by == key %}active{% endif %}" {% if group_by == key %}aria-current="page"{% endif %}><i class="bi {{ icon }} me-1"></i>{{ label }}</a>
+    {% endfor %}
+</nav>
+{% endif %}
 {% for key, label, rows in groups %}
 <h2 class="h6 text-body-secondary text-uppercase mt-4 mb-2">{{ label }}</h2>
 <div class="card shadow-sm">
@@ -133,9 +140,10 @@
                     {% if not m.active %}<span class="badge text-bg-secondary">{{ _("ausgemustert") }}</span>{% endif %}
                 </div>
                 <div class="small text-body-secondary">
-                    {% if m.place %}<i class="bi bi-geo me-1"></i>{{ m.place.name }} · {% endif %}
-                    {% if m.counter_unit %}{{ m.counter if m.counter is not none else "–" }} {{ m.unit_short }}{% endif %}
-                    {% if m.manufacturer or m.model %}{% if m.counter_unit %} · {% endif %}{{ m.manufacturer or "" }} {{ m.model or "" }}{% endif %}
+                    {% set bits = [] %}
+                    {% if m.counter_unit %}{% set _unused = bits.append((m.counter if m.counter is not none else "–")|string ~ " " ~ m.unit_short) %}{% endif %}
+                    {% if m.manufacturer or m.model %}{% set _unused = bits.append(((m.manufacturer or "") ~ " " ~ (m.model or ""))|trim) %}{% endif %}
+                    {% if m.place and group_by != "platz" %}<i class="bi bi-geo me-1"></i>{{ m.place.name }}{% if bits %} · {% endif %}{% elif group_by == "platz" %}{% set bits = [m.category_label] + bits %}{% endif %}{{ bits|join(" · ") }}
                 </div>
                 {# Handy: Marken unter dem Namen, damit der Name Platz hat #}
                 {% if faults_count or m.tasks %}
