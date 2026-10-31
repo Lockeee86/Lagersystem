@@ -6,12 +6,12 @@ from flask import (Blueprint, Response, abort, flash, redirect, render_template,
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import fuel, machines, purchases, push, sites, tasks, uploads
+from . import fuel, machines, places, purchases, push, sites, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
 from .models import (ChpDay, COUNTER_UNITS, DOCUMENT_KINDS, FUEL_CATEGORIES, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, FuelEntry, Machine,
-                     MachineDocument, MachineEvent, MachinePart, MaintenanceTask, Photo, User)
+                     MachineDocument, MachineEvent, MachinePart, MaintenanceTask, Photo, TechPlace, User, Warehouse)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
 
@@ -88,7 +88,7 @@ def machine_list():
     return render_template("machines/list.html", groups=ordered, count=len(items), show_all=show_all,
                            categories=MACHINE_CATEGORIES, units=COUNTER_UNITS,
                            default_units=machines.DEFAULT_UNITS, due=machines.due_tasks(user=current_user),
-                           faults=machines.open_faults(current_user))
+                           faults=machines.open_faults(current_user), place_choices=places.choices(current_user))
 
 
 def _bhkw_fields(machine):
@@ -112,6 +112,7 @@ def _machine_fields():
         year=form_int("year", minimum=1900, maximum=2100), plate=form_str("plate", 30) or None,
         serial_no=form_str("serial_no", 100) or None, counter_unit=unit if unit in COUNTER_UNITS else None,
         note=form_str("note", 2000) or None, site_id=sites.from_form(request.form.get("site_id")),
+        place_id=place.id if (place := db.session.get(TechPlace, form_int("place_id") or 0)) else None,
     )
 
 
@@ -169,6 +170,7 @@ def machine_detail(machine_id):
                            .order_by(Machine.category != machine.category, Machine.name).all()
                            if current_user.is_admin and machine.tasks else [],
                            faults=[e for e in machines.open_faults() if e.machine_id == machine.id],
+                           place_choices=places.choices(current_user) if current_user.is_admin else [],
                            total_cost=total_cost, label_formats=LABEL_FORMATS,
                            doc_kinds=DOCUMENT_KINDS, suppliers=purchases.suppliers(),
                            fuel_recent=machine.fuel_entries.filter(FuelEntry.kind == "tanken")
@@ -566,3 +568,115 @@ def machine_label(machine_id):
     pdf = render_labels([machine.code] * count, fmt, skip=form_int("skip", 0, minimum=0, maximum=100))
     return Response(pdf, mimetype="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="etikett_{machine.code}.pdf"'})
+
+
+# --- Technische Plätze ------------------------------------------------------------
+
+def _place(place_id):
+    place = _get(TechPlace, place_id)
+    if not places.can_see(place, current_user):
+        abort(404)
+    return place
+
+
+def _place_form(place):
+    return places.save_place(place, form_str("name", 100), parent_id=form_int("parent_id"),
+                             site_id=sites.from_form(request.form.get("site_id")),
+                             warehouse_id=form_int("warehouse_id"), biogas=bool(request.form.get("biogas")),
+                             note=form_str("note", 2000), active=not request.form.get("inactive"))
+
+
+@bp.route("/plaetze")
+@login_required
+def place_list():
+    rows = [(p, depth, places.summary(p, current_user)) for p, depth in places.tree(current_user)]
+    loose = machines.visible(Machine.query.filter(Machine.active.is_(True), Machine.place_id.is_(None),
+                                                  Machine.category.in_(places.STATIONARY)), current_user)
+    return render_template("machines/places.html", rows=rows, place_choices=places.choices(current_user),
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all(),
+                           loose=loose.order_by(Machine.name).all())
+
+
+@bp.route("/plaetze/neu", methods=["POST"])
+@admin_required
+def place_create():
+    try:
+        place = _place_form(None)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("machines.place_list"))
+    flash(_("{name} angelegt ({code}).", name=place.name, code=place.code), "success")
+    return redirect(url_for("machines.place_detail", place_id=place.id))
+
+
+@bp.route("/platz/<int:place_id>")
+@login_required
+def place_detail(place_id):
+    place = _place(place_id)
+    year = request.args.get("kosten", type=int) or date.today().year
+    info = places.summary(place, current_user, year=year if current_user.is_admin else None)
+    installable = []
+    if current_user.is_admin:
+        installable = machines.visible(Machine.query.filter(Machine.active.is_(True),
+                                                            db.or_(Machine.place_id.is_(None),
+                                                                   Machine.place_id != place.id)),
+                                       current_user).order_by(Machine.place_id.isnot(None), Machine.name).all()
+    return render_template("machines/place.html", place=place, info=info, year=year,
+                           years=list(range(date.today().year, date.today().year - 6, -1)),
+                           children=[(c, places.summary(c, current_user)) for c in place.children
+                                     if c.active and places.can_see(c, current_user)],
+                           direct=[m for m in info["machines"] if m.place_id == place.id],
+                           place_choices=places.choices(current_user, exclude=place) if current_user.is_admin else [],
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all(), installable=installable)
+
+
+@bp.route("/platz/<int:place_id>/bearbeiten", methods=["POST"])
+@admin_required
+def place_edit(place_id):
+    place = _place(place_id)
+    try:
+        _place_form(place)
+        db.session.commit()
+        flash(_("{name} gespeichert.", name=place.name), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("machines.place_detail", place_id=place.id))
+
+
+@bp.route("/platz/<int:place_id>/loeschen", methods=["POST"])
+@admin_required
+def place_delete(place_id):
+    place = _place(place_id)
+    parent_id = place.parent_id
+    try:
+        places.delete_place(place)
+        db.session.commit()
+        flash(_("{name} gelöscht.", name=place.name), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return redirect(url_for("machines.place_detail", place_id=place.id))
+    return redirect(url_for("machines.place_detail", place_id=parent_id) if parent_id
+                    else url_for("machines.place_list"))
+
+
+@bp.route("/platz/<int:place_id>/einbauen", methods=["POST"])
+@admin_required
+def place_install(place_id):
+    """Maschine hier einbauen (`machine_id`) bzw. ausbauen (`remove`)."""
+    place = _place(place_id)
+    machine = _get(Machine, form_int("machine_id") or 0)
+    if not machines.can_see(machine, current_user):
+        abort(404)
+    if request.form.get("remove"):
+        if machine.place_id == place.id:
+            places.install(machine, None)
+            flash(_("{name} ausgebaut.", name=machine.name), "success")
+    else:
+        places.install(machine, place)
+        flash(_("{name} in {place} eingebaut.", name=machine.name, place=place.name), "success")
+    db.session.commit()
+    return redirect(url_for("machines.place_detail", place_id=place.id) + "#equipments")

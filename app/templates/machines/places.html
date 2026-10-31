@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros.html" import site_select %}
+{% from "machines/_place_macros.html" import place_badges, place_form with context %}
+{% block title %}{{ _("Technische Plätze") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <a class="small d-none d-lg-inline" href="{{ url_for('machines.machine_list') }}"><i class="bi bi-chevron-left"></i>{{ _("Maschinen") }}</a>
+        <h1>{{ _("Technische Plätze") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Feste Orte im Betrieb – Maschinen und Anlagenteile sind dort eingebaut.") }}</p>
+    </div>
+    {% if current_user.is_admin %}
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#newPlace"><i class="bi bi-plus-lg me-1"></i>{{ _("Neuer Platz") }}</button>
+    {% endif %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="collapse {% if not rows %}show{% endif %}" id="newPlace">
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        {{ place_form(url_for('machines.place_create'), none, place_choices, warehouses, _("Anlegen")) }}
+    </div></div>
+</div>
+{% endif %}
+
+{% if rows %}
+<div class="card shadow-sm mb-4">
+    <div class="list-group list-group-flush place-tree">
+        {% for p, depth, info in rows %}
+        <a class="list-group-item list-group-item-action d-flex flex-wrap align-items-center gap-2" href="{{ url_for('machines.place_detail', place_id=p.id) }}" style="--depth: {{ depth }}">
+            <i class="bi {{ 'bi-diagram-3' if p.children else 'bi-geo' }} text-body-secondary"></i>
+            <span class="fw-semibold">{{ p.name }}</span>
+            <span class="small text-body-secondary">{{ p.code }}</span>
+            {% if p.warehouse %}<span class="badge text-bg-secondary"><i class="bi bi-grid-3x3-gap me-1"></i>{{ p.warehouse.name }}</span>{% endif %}
+            <span class="ms-auto d-flex flex-wrap gap-1">{{ place_badges(info) }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% elif not current_user.is_admin %}
+<div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Noch keine technischen Plätze angelegt.") }}</div></div>
+{% endif %}
+
+{% if loose and current_user.is_admin %}
+<div class="card shadow-sm">
+    <div class="card-header"><i class="bi bi-question-circle me-1"></i>{{ _("Fest eingebaut, aber noch ohne Platz") }}</div>
+    <div class="list-group list-group-flush">
+        {% for m in loose %}
+        <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}"><i class="bi {{ m.icon }} me-1"></i>{{ m.name }} <span class="text-body-secondary">· {{ m.category_label }}</span></a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1067,3 +1067,7 @@ body:not(.has-tabbar) {
 .suggest-pick { flex: 0 0 auto; width: auto; }
 .suggest-pick .form-select { min-width: 8rem; }
 @media (max-width: 575.98px) { .suggest-pick { flex: 1 1 100%; } .suggest-pick .form-select { flex: 1 1 auto; } }
+
+/* Technische Plätze: Baum eingerückt */
+.place-tree .list-group-item { padding-left: calc(1rem + var(--depth, 0) * 1.4rem); }
+.place-path a { text-decoration: none; }

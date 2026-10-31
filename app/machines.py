@@ -33,6 +33,10 @@ TASK_TEMPLATES = {
     "anhaenger": [("Hauptuntersuchung (TÜV)", None, 24), ("Bremsen prüfen", None, 12), ("UVV-Prüfung", None, 12)],
     "stapler": [("Wartung", 500, 12), ("UVV-Prüfung", None, 12)],
     "lagertechnik": [("Wartung Lüftung", None, 12), ("Elektroprüfung (DGUV V3)", None, 48)],
+    "kuehlung": [("Dichtheitsprüfung Kältemittel (F-Gase)", None, 12), ("Verflüssiger und Verdampfer reinigen", None, 12),
+                 ("Elektroprüfung (DGUV V3)", None, 48)],
+    "lueftung": [("Lüfter, Lager und Riemen prüfen", None, 12), ("Filter reinigen oder wechseln", None, 6),
+                 ("Elektroprüfung (DGUV V3)", None, 48)],
     # Übliche Werte für Gas-Otto-Motoren – an den Wartungsplan des Herstellers anpassen
     "bhkw": [("Ölwechsel", 2000, None), ("Zündkerzen", 2000, None), ("Ventilspiel einstellen", 2000, None),
              ("Luftfilter", 4000, None), ("Ölanalyse", 500, None), ("Kühlwasser / Frostschutz prüfen", None, 12),

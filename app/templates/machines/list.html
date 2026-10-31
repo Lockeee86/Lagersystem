@@ -8,6 +8,7 @@
         <h1>{{ _("Maschinen") }}</h1>
         <p class="text-body-secondary mb-0">{{ ngettext("{n} Maschine", "{n} Maschinen", count) }}
             · <a href="{{ url_for('machines.machine_list', alle='0' if show_all else '1') }}">{{ _("nur aktive") if show_all else _("auch ausgemusterte zeigen") }}</a>
+            · <a href="{{ url_for('machines.place_list') }}">{{ _("Technische Plätze") }}</a>
             {% if current_user.is_admin %} · <a href="{{ url_for('machines.machine_costs') }}">{{ _("Kosten") }}</a>{% endif %}</p>
     </div>
     {% if current_user.is_admin %}
@@ -57,6 +58,15 @@
                 </div>
                 {% if any_sites() %}
                 <div class="col-6 col-md-3">{{ site_select(chosen_site().id if chosen_site() else none, id="m_site") }}</div>
+                {% endif %}
+                {% if place_choices %}
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="m_place">{{ _("Eingebaut in") }}</label>
+                    <select class="form-select" id="m_place" name="place_id">
+                        <option value="">{{ _("– kein fester Platz –") }}</option>
+                        {% for pid, label in place_choices %}<option value="{{ pid }}">{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
                 {% endif %}
                 <div class="col-12 col-md-3">
                     <button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
@@ -123,6 +133,7 @@
                     {% if not m.active %}<span class="badge text-bg-secondary">{{ _("ausgemustert") }}</span>{% endif %}
                 </div>
                 <div class="small text-body-secondary">
+                    {% if m.place %}<i class="bi bi-geo me-1"></i>{{ m.place.name }} · {% endif %}
                     {% if m.counter_unit %}{{ m.counter if m.counter is not none else "–" }} {{ m.unit_short }}{% endif %}
                     {% if m.manufacturer or m.model %}{% if m.counter_unit %} · {% endif %}{{ m.manufacturer or "" }} {{ m.model or "" }}{% endif %}
                 </div>

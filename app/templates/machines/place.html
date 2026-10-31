@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, site_select %}
+{% from "machines/_macros.html" import state_badge, due_text %}
+{% from "machines/_place_macros.html" import place_badges, place_form with context %}
+{% block title %}{{ place.name }}{% endblock %}
+{% block content %}
+<nav aria-label="{{ _('Pfad') }}" class="small mb-1 place-path">
+    <a href="{{ url_for('machines.place_list') }}">{{ _("Technische Plätze") }}</a>
+    {% for p in place.path %} › <a href="{{ url_for('machines.place_detail', place_id=p.id) }}">{{ p.name }}</a>{% endfor %}
+</nav>
+<div class="page-head">
+    <div class="min-w-0">
+        <h1 class="d-flex flex-wrap align-items-center gap-2">{{ place.name }}
+            {% if not place.active %}<span class="badge text-bg-secondary fs-6">{{ _("stillgelegt") }}</span>{% endif %}</h1>
+        <p class="text-body-secondary mb-0">{{ place.code }}
+            {% if place.warehouse %} · <a href="{{ url_for('main.warehouse_map', warehouse_id=place.warehouse_id) }}"><i class="bi bi-grid-3x3-gap me-1"></i>{{ place.warehouse.name }}</a>{% endif %}
+            {% if place.site %} · {{ place.site.name }}{% endif %}</p>
+        {% if place.note %}<p class="mb-0 mt-1 small">{{ place.note }}</p>{% endif %}
+    </div>
+    <div class="d-flex flex-wrap gap-1 align-self-start">{{ place_badges(info) }}</div>
+</div>
+
+{% if children %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-diagram-3 me-1"></i>{{ _("Unterplätze") }}</div>
+    <div class="list-group list-group-flush">
+        {% for c, cinfo in children %}
+        <a class="list-group-item list-group-item-action d-flex flex-wrap align-items-center gap-2" href="{{ url_for('machines.place_detail', place_id=c.id) }}">
+            <i class="bi {{ 'bi-diagram-3' if c.children else 'bi-geo' }} text-body-secondary"></i>
+            <span class="fw-semibold">{{ c.name }}</span><span class="small text-body-secondary">{{ c.code }}</span>
+            <span class="ms-auto d-flex flex-wrap gap-1">{{ place_badges(cinfo) }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if info.faults or info.due %}
+<div class="row g-3 mb-4">
+    {% if info.faults %}
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-danger h-100">
+            <div class="card-header text-danger-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Offene Störungen") }}</div>
+            <div class="list-group list-group-flush">
+                {% for e in info.faults %}
+                <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}#logbuch">
+                    <span class="fw-semibold">{{ e.machine.name }}</span> · {{ e.date|date }}{% if not e.still_running %} · <span class="text-danger">{{ _("steht") }}</span>{% endif %}
+                    <div class="text-body-secondary text-truncate">{{ e.text or "" }}</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if info.due %}
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-warning h-100">
+            <div class="card-header"><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Fällige Wartungen") }}</div>
+            <div class="list-group list-group-flush">
+                {% for task, status in info.due %}
+                <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}#wartungen">
+                    {{ state_badge(status.state) }} <span class="fw-semibold">{{ task.machine.name }}</span>: {{ task.name }}
+                    <div class="text-body-secondary">{{ due_text(task, status, task.machine) }}</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4" id="equipments">
+    <div class="card-header"><i class="bi bi-gear-wide-connected me-1"></i>{{ _("Eingebaut") }} <span class="badge text-bg-secondary ms-1">{{ info.machines|length }}</span></div>
+    {% if info.machines %}
+    <div class="list-group list-group-flush">
+        {% for m in info.machines %}
+        <div class="list-group-item d-flex flex-wrap align-items-center gap-2">
+            <i class="bi {{ m.icon }} text-body-secondary"></i>
+            <a class="fw-semibold" href="{{ url_for('machines.machine_detail', machine_id=m.id) }}">{{ m.name }}</a>
+            <span class="small text-body-secondary">{{ m.code }} · {{ m.category_label }}{% if m.counter_unit and m.counter is not none %} · {{ m.counter }} {{ m.unit_short }}{% endif %}</span>
+            {% if m.place_id != place.id %}<a class="badge text-bg-light text-decoration-none" href="{{ url_for('machines.place_detail', place_id=m.place_id) }}"><i class="bi bi-geo me-1"></i>{{ m.place.name }}</a>{% endif %}
+            {% if current_user.is_admin and m.place_id == place.id %}
+            <form method="post" action="{{ url_for('machines.place_install', place_id=place.id) }}" class="ms-auto">
+                {{ csrf() }}<input type="hidden" name="machine_id" value="{{ m.id }}"><input type="hidden" name="remove" value="1">
+                <button class="btn btn-sm btn-link text-body-secondary p-0" title="{{ _('Ausbauen') }}" aria-label="{{ _('Ausbauen') }}" data-confirm="{{ _('{name} hier ausbauen?', name=m.name) }}"><i class="bi bi-box-arrow-up-right"></i></button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card-body text-body-secondary small">{{ _("Hier ist noch nichts eingebaut.") }}</div>
+    {% endif %}
+    {% if current_user.is_admin and installable %}
+    <div class="card-body border-top">
+        <form method="post" action="{{ url_for('machines.place_install', place_id=place.id) }}" class="input-group input-group-sm">
+            {{ csrf() }}
+            <select class="form-select" name="machine_id" required aria-label="{{ _('Maschine') }}">
+                <option value="">{{ _("Maschine hier einbauen …") }}</option>
+                {% for m in installable %}<option value="{{ m.id }}">{{ m.name }}{% if m.place %} ({{ _("jetzt: {place}", place=m.place.name) }}){% endif %}</option>{% endfor %}
+            </select>
+            <button class="btn btn-outline-primary"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Einbauen") }}</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+{% if info.costs is defined and info.machines %}
+<div class="card shadow-sm mb-4" id="kosten">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cash-coin me-1"></i>{{ _("Kosten {year}", year=year) }}</span>
+        <form method="get" action="#kosten"><select class="form-select form-select-sm" name="kosten" onchange="this.form.submit()" aria-label="{{ _('Jahr') }}">
+            {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select></form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead><tr><th>{{ _("Maschine") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Diesel") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Reparaturen/Wartungen") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Bestellungen") }}</th><th class="text-end">{{ _("Summe") }}</th></tr></thead>
+            <tbody>
+                {% for r in info.costs %}
+                <tr><td><a href="{{ url_for('machines.machine_detail', machine_id=r.machine.id, kosten=year) }}">{{ r.machine.name }}</a></td>
+                    <td class="text-end d-none d-md-table-cell">{{ r.diesel|money }}</td><td class="text-end d-none d-md-table-cell">{{ r.repairs|money }}</td>
+                    <td class="text-end d-none d-md-table-cell">{{ r.purchases|money }}</td><td class="text-end fw-semibold">{{ r.total|money }}</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot><tr><th>{{ _("Summe") }}</th><th class="d-none d-md-table-cell" colspan="3"></th><th class="text-end">{{ info.cost_total|money }}</th></tr></tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if current_user.is_admin %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><button class="btn btn-link p-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#editPlace"><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</button></div>
+    <div class="collapse" id="editPlace"><div class="card-body">
+        {{ place_form(url_for('machines.place_edit', place_id=place.id), place, place_choices, warehouses) }}
+        <form method="post" action="{{ url_for('machines.place_delete', place_id=place.id) }}" class="mt-3">
+            {{ csrf() }}<button class="btn btn-outline-danger btn-sm" data-confirm="{{ _('{name} löschen? Eingebaute Maschinen bleiben erhalten.', name=place.name) }}"><i class="bi bi-trash me-1"></i>{{ _("Löschen") }}</button>
+        </form>
+    </div></div>
+</div>
+{% endif %}
+{% endblock %}

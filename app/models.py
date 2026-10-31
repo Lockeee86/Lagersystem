@@ -1004,6 +1004,8 @@ MACHINE_CATEGORIES = {
     "anhaenger": N_("Anhänger"),
     "stapler": N_("Stapler / Lader"),
     "lagertechnik": N_("Lagertechnik"),
+    "kuehlung": N_("Kühlung (Kälteanlage, Verdampfer …)"),
+    "lueftung": N_("Lüftung (Lüfter, Zuluft, Befeuchtung …)"),
     "bhkw": N_("BHKW / Gasmotor"),
     "biogas": N_("Biogasanlage (Rührwerk, Pumpe, Fütterung …)"),
     "waermenetz": N_("Wärmenetz (Zusatzheizung, Pumpen, Übergabestationen …)"),
@@ -1018,8 +1020,48 @@ MACHINE_ICONS = {"schlepper": "bi-truck-front", "fahrzeug": "bi-car-front", "rod
                  "maehdrescher": "bi-wind", "saetechnik": "bi-flower1", "bodenbearbeitung": "bi-tools",
                  "pflanzenschutz": "bi-droplet", "duengung": "bi-moisture",
                  "legemaschine": "bi-grid-3x3", "sortieranlage": "bi-funnel", "anhaenger": "bi-truck-flatbed",
-                 "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear", "bhkw": "bi-lightning-charge",
+                 "stapler": "bi-box-seam", "lagertechnik": "bi-building-gear",
+                 "kuehlung": "bi-snow", "lueftung": "bi-fan", "bhkw": "bi-lightning-charge",
                  "biogas": "bi-recycle", "waermenetz": "bi-fire", "anlage": "bi-clipboard2-check", "sonstiges": "bi-gear-wide-connected"}
+
+
+class TechPlace(db.Model):
+    """Technischer Platz (wie in SAP): fester Ort im Betrieb als Baum, z. B. Biogasanlage → BHKW-Raum oder
+    Halle 2 → Kühlung. Maschinen (= Equipments) sind dort optional eingebaut (`Machine.place_id`)."""
+    __tablename__ = "tech_places"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey("tech_places.id"), index=True)
+    site_id = site_column()
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
+    biogas = db.Column(db.Boolean, nullable=False, default=False)      # gehört zur Rubrik Biogas (vererbt sich)
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+
+    parent = db.relationship("TechPlace", remote_side=[id], back_populates="children")
+    children = db.relationship("TechPlace", back_populates="parent", order_by="TechPlace.name")
+    machines = db.relationship("Machine", back_populates="place", order_by="Machine.name")
+    site = db.relationship("Site")
+    warehouse = db.relationship("Warehouse")
+
+    @property
+    def path(self):
+        """Vorfahren von oben nach unten (ohne sich selbst)."""
+        chain, node = [], self.parent
+        while node is not None and len(chain) < 20:
+            chain.append(node)
+            node = node.parent
+        return chain[::-1]
+
+    @property
+    def in_biogas(self):
+        return self.biogas or any(p.biogas for p in self.path)
+
+    @property
+    def label(self):
+        return " › ".join([p.name for p in self.path] + [self.name])
 
 
 class Machine(db.Model):
@@ -1052,8 +1094,10 @@ class Machine(db.Model):
     skve_base_counter = db.Column(db.Numeric(10, 1))
     skve_base_day = db.Column(db.Date)
     feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="SET NULL"), index=True)  # Einspeisestelle
+    place_id = db.Column(db.Integer, db.ForeignKey("tech_places.id", ondelete="SET NULL"), index=True)  # eingebaut in
 
     site = db.relationship("Site")
+    place = db.relationship("TechPlace", back_populates="machines")
     tasks = db.relationship("MaintenanceTask", back_populates="machine", order_by="MaintenanceTask.name",
                             cascade="all, delete-orphan")
     events = db.relationship("MachineEvent", back_populates="machine", lazy="dynamic",

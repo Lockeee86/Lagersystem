@@ -1,0 +1,35 @@
+{# Stand eines Platzes als kleine Marken #}
+{% macro place_badges(info) -%}
+{% if info.faults %}<span class="badge text-bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ info.faults|length }}</span>{% endif %}
+{% if info.overdue %}<span class="badge text-bg-danger">{{ ngettext("{n} Wartung überfällig", "{n} Wartungen überfällig", info.overdue) }}</span>
+{% elif info.due %}<span class="badge text-bg-warning">{{ ngettext("{n} Wartung bald", "{n} Wartungen bald", info.due|length) }}</span>{% endif %}
+<span class="badge text-bg-light"><i class="bi bi-gear-wide-connected me-1"></i>{{ info.machines|length }}</span>
+{%- endmacro %}
+
+{% macro place_form(action, place=none, place_choices=[], warehouses=[], submit="") %}
+<form method="post" action="{{ action }}" class="row g-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-6"><label class="form-label small" for="pl_name{{ place.id if place }}">{{ _("Name") }}</label>
+        <input class="form-control form-control-sm" id="pl_name{{ place.id if place }}" name="name" maxlength="100" required value="{{ place.name if place else '' }}" placeholder="{{ _('z. B. Halle 2 – Kühlung') }}"></div>
+    <div class="col-md-6"><label class="form-label small" for="pl_parent{{ place.id if place }}">{{ _("Gehört zu") }}</label>
+        <select class="form-select form-select-sm" id="pl_parent{{ place.id if place }}" name="parent_id">
+            <option value="">{{ _("– oberste Ebene –") }}</option>
+            {% for pid, label in place_choices %}<option value="{{ pid }}" {% if place and place.parent_id == pid %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+    <div class="col-md-6"><label class="form-label small" for="pl_wh{{ place.id if place }}">{{ _("Kartoffellager (wahlweise)") }}</label>
+        <select class="form-select form-select-sm" id="pl_wh{{ place.id if place }}" name="warehouse_id">
+            <option value="">–</option>
+            {% for w in warehouses %}<option value="{{ w.id }}" {% if place and place.warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+        </select></div>
+    {% if any_sites() %}<div class="col-md-6">{{ site_select(place.site_id if place else (chosen_site().id if chosen_site() else none), id="pl_site" ~ (place.id if place else ""), small=true) }}</div>{% endif %}
+    <div class="col-12"><label class="form-label small" for="pl_note{{ place.id if place }}">{{ _("Notiz") }}</label>
+        <textarea class="form-control form-control-sm" id="pl_note{{ place.id if place }}" name="note" rows="2" maxlength="2000">{{ place.note if place and place.note else '' }}</textarea></div>
+    <div class="col-12 d-flex flex-wrap gap-3">
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="pl_bio{{ place.id if place }}" name="biogas" value="1" {% if place and place.biogas %}checked{% endif %}>
+            <label class="form-check-label" for="pl_bio{{ place.id if place }}">{{ _("Gehört zur Rubrik Biogas") }}</label></div>
+        {% if place %}<div class="form-check"><input class="form-check-input" type="checkbox" id="pl_inactive{{ place.id }}" name="inactive" value="1" {% if not place.active %}checked{% endif %}>
+            <label class="form-check-label" for="pl_inactive{{ place.id }}">{{ _("stillgelegt") }}</label></div>{% endif %}
+    </div>
+    <div class="col-12"><button class="btn btn-primary btn-sm">{{ submit or _("Speichern") }}</button></div>
+</form>
+{% endmacro %}

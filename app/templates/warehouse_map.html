@@ -30,6 +30,23 @@
 </a>
 {% endif %}
 
+{% if tech %}
+<div class="hub-list mb-3">
+    {% for p, info in tech %}
+    <a class="hub-row" href="{{ url_for('machines.place_detail', place_id=p.id) }}">
+        <span class="hub-icon"><i class="bi bi-gear-wide-connected"></i></span>
+        <span class="hub-text"><span class="hub-title">{{ p.name }}</span>
+            <span class="hub-status">{{ ngettext("{n} Gerät", "{n} Geräte", info.machines|length) }}
+                {%- if info.faults %} · <span class="text-danger">{{ ngettext("{n} Störung", "{n} Störungen", info.faults|length) }}</span>{% endif %}
+                {%- if info.overdue %} · <span class="text-danger">{{ ngettext("{n} Wartung überfällig", "{n} Wartungen überfällig", info.overdue) }}</span>
+                {%- elif info.due %} · {{ ngettext("{n} Wartung bald", "{n} Wartungen bald", info.due|length) }}{% endif %}
+                {%- if not info.faults and not info.due %} · {{ _("alles in Ordnung") }}{% endif %}</span></span>
+        <i class="bi bi-chevron-right text-body-tertiary"></i>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
 <nav class="view-switch mb-3" aria-label="{{ _('Ansicht wählen') }}">
     {% for key, label in views.items() %}
     <a href="{{ url_for('main.warehouse_map', warehouse_id=warehouse.id, ansicht=key) }}" class="{% if view == key %}active{% endif %}"

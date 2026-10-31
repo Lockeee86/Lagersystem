@@ -71,6 +71,11 @@ docker compose up --build -d
 - `app/fuel.py`: Tankbuch (Tanken/Lieferung/Peilung, Füllstand `level(tag)`, Verbrauch `consumption()`), committet nicht;
   `app/fuel_views.py` (Blueprint `fuel`). Tanken an der Maschine: `machine_views.machine_refuel`.
   `app/fuel_report.py`: Bericht für einen Zeitraum als Excel/PDF (immer Deutsch)
+- `app/places.py`: Technische Plätze wie in SAP (`TechPlace`, Baum über `parent_id`, Code `TP-001`, optional
+  Kartoffellager `warehouse_id` und Rubrik Biogas `biogas` – vererbt sich, `in_biogas`/`can_see()`); Maschinen = Equipments,
+  eingebaut über `Machine.place_id` (`install()`). `tree()`, `summary()` (Störungen, fällige Wartungen, Kosten über den
+  Unterbaum), `for_warehouse()` (Lagerkarte), `choices()`; committet nicht. Routen in `machine_views.py`
+  (`place_list` `/plaetze`, `place_detail` `/platz/<id>`, `place_install`). Arten `kuehlung`/`lueftung` für Lagertechnik
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
 - `app/aerial.py`: Luftbild-Proxy für die Schlagkarte (Quellen `SOURCES`, Zwischenspeicher, `_download` in Tests

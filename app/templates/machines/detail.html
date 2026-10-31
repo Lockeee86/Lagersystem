@@ -36,6 +36,7 @@
         <h1 class="d-flex flex-wrap align-items-center gap-2">{{ machine.name }}
             {% if not machine.active %}<span class="badge text-bg-secondary fs-6">{{ _("ausgemustert") }}</span>{% endif %}</h1>
         <p class="text-body-secondary mb-0">{{ machine.code }} · {{ machine.category_label }}{% if machine.plate %} · {{ machine.plate }}{% endif %}</p>
+        {% if machine.place %}<p class="small mb-0 place-path"><i class="bi bi-geo me-1"></i>{% for p in machine.place.path %}<a href="{{ url_for('machines.place_detail', place_id=p.id) }}">{{ p.name }}</a> › {% endfor %}<a href="{{ url_for('machines.place_detail', place_id=machine.place_id) }}">{{ machine.place.name }}</a></p>{% endif %}
     </div>
     {% if current_user.can_edit %}
     <div class="d-flex flex-wrap gap-2">
@@ -549,6 +550,12 @@
                         <div class="col-12"><label class="form-label" for="x_serial">{{ _("Seriennummer") }}</label><input class="form-control form-control-sm" id="x_serial" name="serial_no" maxlength="100" value="{{ machine.serial_no or '' }}"></div>
                     </div>
                     {% if any_sites() %}<div class="mb-2">{{ site_select(machine.site_id, id="x_site", small=true, include_inactive=machine.site) }}</div>{% endif %}
+                    <div class="mb-2"><label class="form-label small" for="x_place">{{ _("Eingebaut in") }}</label>
+                        <select class="form-select form-select-sm" id="x_place" name="place_id">
+                            <option value="">{{ _("– kein fester Platz –") }}</option>
+                            {% for pid, label in place_choices %}<option value="{{ pid }}" {% if machine.place_id == pid %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                            {% if machine.place and machine.place_id not in place_choices|map('first')|list %}<option value="{{ machine.place_id }}" selected>{{ machine.place.name }}</option>{% endif %}
+                        </select></div>
                     <label class="form-label" for="x_note">{{ _("Notiz") }}</label>
                     <textarea class="form-control form-control-sm mb-2" id="x_note" name="note" rows="2">{{ machine.note or '' }}</textarea>
                     {% if machine.category == "bhkw" or machine.skve_chp_id %}

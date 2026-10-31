@@ -52,6 +52,8 @@ AREAS = [
         item("fields.irrigation_page", N_("Beregnung"), "bi-droplet", endpoints=("admin.irrigation_preview",)),
         item("fields.protection", N_("Pflanzenschutz"), "bi-shield-plus", endpoints=("fields.protection_product",)),
         item("machines.machine_list", N_("Maschinen"), "bi-gear-wide-connected", prefixes=("machines.",)),
+        item("machines.place_list", N_("Technische Plätze"), "bi-diagram-3",
+             endpoints=("machines.place_detail",)),
         item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
         item("main.weather_page", N_("Wetter"), "bi-cloud-sun"),
     ]},
@@ -148,13 +150,19 @@ def _chicken_area():
     return {**area, "items": area["items"] + [CHICKEN_TASKS]}
 
 
+def _active_item(items, endpoint):
+    """Genau passender Unterpunkt vor dem über den Präfix (Technische Plätze liegen unter „machines.“)."""
+    exact = next((it["endpoint"] for it in items if endpoint in it["endpoints"]), None)
+    return exact or next((it["endpoint"] for it in items if _active(it, endpoint)), None)
+
+
 def current(endpoint, user):
     """{"areas": [...], "area": aktueller Bereich, "items": seine sichtbaren Unterpunkte, "active": Endpunkt}"""
     endpoint = endpoint or ""
     if user.only_chickens:
         area = _chicken_area()
         items = _visible(area["items"], user)
-        active = next((it["endpoint"] for it in items if _active(it, endpoint)), None)
+        active = _active_item(items, endpoint)
         return {"areas": [{**area, "href": url_for("chickens.overview")}], "area": area, "items": items,
                 "active": active}
     area = None
@@ -163,7 +171,7 @@ def current(endpoint, user):
     else:
         area = next((a for a in AREAS if any(_active(it, endpoint) for it in a["items"])), None)
     items = _visible(area["items"], user) if area else []
-    active = next((it["endpoint"] for it in items if _active(it, endpoint)), None)
+    active = _active_item(items, endpoint)
     areas = [{**a, "href": url_for(_visible(a["items"], user)[0]["endpoint"])} for a in AREAS if _area_shown(a, user)]
     return {"areas": areas, "area": area, "items": items, "active": active}
 

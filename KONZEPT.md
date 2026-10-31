@@ -224,6 +224,15 @@ Offene Störungen und fällige Wartungen stehen auf der Übersicht.
 - **QR-Code an der Maschine** (gleiches Etikett-System wie Kisten): scannen → Stunden eintragen,
   Störung melden, Historie ansehen.
 
+**Technische Plätze** (0.67.0, angelehnt an SAP PM): feste Orte als Baum (z. B. Biogasanlage → BHKW-Raum,
+Kartoffelhalle → Kühlung / Lüftung), Code `TP-001`. Maschinen sind die Equipments und optional an einem Platz
+eingebaut; mobile Maschinen (Schlepper, Roder …) bleiben ohne Platz. Ein Platz zeigt alles darunter: offene
+Störungen, fällige Wartungen, Kosten je Jahr (nur Admin). Ein Platz kann zu einem Kartoffellager gehören – dann
+steht sein Stand auf der Lagerkarte – und zur Rubrik Biogas (vererbt sich, für Benutzer ohne Biogas unsichtbar).
+Neue Maschinenarten Kühlung und Lüftung mit Wartungsvorschlägen (Dichtheitsprüfung Kältemittel, Filter …).
+BHKW-Motoren werden generalüberholt, nicht getauscht – SKVE-ID und Zähler bleiben daher an der Maschine.
+Ein-/Ausbau steht im Änderungsprotokoll.
+
 ### Baustein D – Schlagkartei & Ertrag (umgesetzt in 0.13.0)
 Umsetzung: Import der Schlagkartei aus Myfarm24 als KML/KMZ (Verwaltung → Schläge) mit Vorschau. Übernommen
 werden Name, Schlagnummer, Fläche (SchlagHa, 4 Nachkommastellen), Bodenart, Rotes Gebiet, Umriss, Kultur

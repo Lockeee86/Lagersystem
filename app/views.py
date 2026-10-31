@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, biogas, bulk, chickens, climate, fuel, irrigation, machines, navigation, purchases,
+from . import (agenda, backup, biogas, bulk, chickens, climate, fuel, irrigation, machines, navigation, places, purchases,
                rounds, sales, search, sites, storage, tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
@@ -545,6 +545,7 @@ def warehouse_map(warehouse_id=None):
     climate_rows, climate_whole = climate.by_row(warehouse)
     return render_template("warehouse_map.html", warehouse=warehouse, warehouses=warehouses,
                            climate_rows=climate_rows, climate_whole=climate_whole,
+                           tech=places.for_warehouse(warehouse, current_user),
                            stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d,
                            shorts=shorts, varieties=[v for v in varieties if v.id in used], ages=ages,
                            age_limits=limits, any_old=any(ages.values()))
