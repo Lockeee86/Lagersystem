@@ -1,6 +1,7 @@
 """Jahresbudget je Einspeisestelle (Höchstbemessungsleistung).
 
-Die Höchstbemessungsleistung ist ein Jahresmittel: erlaubt sind `max_kw` × Stunden des Jahres. Erzeugt wird je Monat
+Die Höchstbemessungsleistung ist ein Jahresmittel: erlaubt ist die eingetragene Jahresmenge (`annual_kwh`) bzw.
+`max_kw` × Stunden des Jahres. Erzeugt wird je Monat
 entweder die echte Menge aus der Abrechnung (`FeedMonth`) oder – solange es die noch nicht gibt – die Summe aus dem
 SKVE-Fahrplan der zugeordneten BHKW (`ChpDay.kwh`, also geplant, nicht gemessen). Daraus: Stand, Prognose beim
 jetzigen Tempo, Rest bis 31.12. (Ø kW, Volllaststunden) und ab welchem Preis sich eine Stunde noch lohnt.
@@ -53,16 +54,23 @@ def _number(raw, low, high, message):
     return value
 
 
-def save_point(point, name, max_kw, machine_ids):
+def save_point(point, name, amount, machine_ids, unit="kwh"):
+    """Budget als Jahresmenge (`unit` „kwh“) oder als Höchstbemessungsleistung in kW („kw“)."""
     name = (name or "").strip()[:100]
     if not name:
         raise StorageError(N_("Bitte einen Namen für die Einspeisestelle angeben."))
     if point is None:
-        point = FeedPoint(name=name, max_kw=0)
+        point = FeedPoint(name=name)
         db.session.add(point)
     point.name = name
-    point.max_kw = _number(max_kw, Decimal("1"), Decimal("100000"),
-                           N_("Bitte die Höchstbemessungsleistung in kW angeben."))
+    if unit == "kw":
+        point.max_kw = _number(amount, Decimal("1"), Decimal("100000"),
+                               N_("Bitte die Höchstbemessungsleistung in kW angeben."))
+        point.annual_kwh = None
+    else:
+        point.annual_kwh = _number(amount, Decimal("1000"), Decimal("1000000000"),
+                                   N_("Bitte die erlaubte Jahresmenge in kWh angeben."))
+        point.max_kw = None
     db.session.flush()
     wanted = set(machine_ids)
     for machine in candidates():
@@ -141,7 +149,7 @@ def status(point, year=None, today=None):
     today = today or date.today()
     year = year or today.year
     rows = months(point, year, today)
-    budget = float(point.max_kw) * year_days(year) * 24
+    budget = point.budget_kwh(year)
     used = sum(r["kwh"] for r in rows if r["kwh"] is not None)
     elapsed = _elapsed_days(year, rows, today)
     total = year_days(year)

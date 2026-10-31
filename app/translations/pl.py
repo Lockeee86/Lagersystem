@@ -2709,7 +2709,6 @@ MESSAGES = {
     'Monatsmengen aus der Abrechnung {year}': 'Ilości miesięczne z rozliczenia {year}',
     'Leer = Wert aus dem Fahrplan (grau vorgeschlagen).': 'Puste = wartość z harmonogramu (podpowiedź na szaro).',
     'Einspeisestelle bearbeiten': 'Edytuj punkt zasilania',
-    'Höchstbemessungsleistung (kW)': 'Maksymalna moc rozliczeniowa (kW)',
     'Einspeisestelle entfernen? Die eingetragenen Monatsmengen werden mit gelöscht.': 'Usunąć punkt zasilania? Wpisane ilości miesięczne też zostaną usunięte.',
     'Einspeisestelle entfernen': 'Usuń punkt zasilania',
     'Noch keine Einspeisestelle. Mit der Höchstbemessungsleistung (Jahresmittel in kW) rechnet die App, wie viel ihr im Jahr einspeisen dürft, wo ihr steht und wie viel bis 31.12. übrig bleibt.': 'Brak punktu zasilania. Na podstawie maksymalnej mocy rozliczeniowej (średnia roczna w kW) aplikacja liczy, ile wolno wprowadzić w roku, gdzie jesteście i ile zostaje do 31.12.',
@@ -2720,4 +2719,10 @@ MESSAGES = {
     'Für {months} fehlen Werte – hochgerechnet aus den Tagen mit Daten. Genauer wird es mit den Mengen aus den Abrechnungen (unten eintragen).': 'Dla {months} brakuje wartości – ekstrapolowano z dni z danymi. Dokładniej będzie z ilościami z rozliczeń (wpisz poniżej).',
     'Dauerlauf möglich': 'Możliwa praca ciągła',
     'mehr als die Motoren schaffen ({n} kW) – Budget wird nicht ausgeschöpft': 'więcej niż dają silniki ({n} kW) – limit nie zostanie wykorzystany',
+    'Bitte die erlaubte Jahresmenge in kWh angeben.': 'Podaj dozwoloną ilość roczną w kWh.',
+    'Erlaubt laut Höchstbemessungsleistung': 'Dozwolone wg maksymalnej mocy rozliczeniowej',
+    'z. B. 1.752.000': 'np. 1.752.000',
+    'Einheit': 'Jednostka',
+    'kWh im Jahr': 'kWh na rok',
+    'kW (Jahresmittel)': 'kW (średnia roczna)',
 }

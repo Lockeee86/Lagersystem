@@ -1,6 +1,17 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, motor_start %}
 {% block title %}{{ _("Biogas") }}{% endblock %}
+{% macro budget_input(id, value, unit) %}
+<div class="col-12 col-md-5"><label class="form-label small mb-0" for="{{ id }}">{{ _("Erlaubt laut Höchstbemessungsleistung") }}</label>
+    <div class="input-group input-group-sm">
+        <input class="form-control" id="{{ id }}" name="amount" inputmode="decimal" maxlength="20" value="{{ value }}" required placeholder="{{ _('z. B. 1.752.000') }}">
+        <select class="form-select" name="unit" aria-label="{{ _('Einheit') }}" style="max-width: 11rem">
+            <option value="kwh" {% if unit == 'kwh' %}selected{% endif %}>{{ _("kWh im Jahr") }}</option>
+            <option value="kw" {% if unit == 'kw' %}selected{% endif %}>{{ _("kW (Jahresmittel)") }}</option>
+        </select>
+    </div>
+</div>
+{% endmacro %}
 {% block content %}
 {% set motors = {} %}
 {% for m in (live.motors or []) %}{% set ignored = motors.update({m.machine_id: m}) %}{% endfor %}
@@ -73,7 +84,7 @@
         {% for s in budget %}{% set p = s.point %}
         <div class="budget-point {{ 'border-top pt-3 mt-3' if not loop.first }}" id="fp{{ p.id }}">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                <span class="fw-bold fs-5">{{ p.name }} <span class="small fw-normal text-body-secondary">{{ p.max_kw|num(0) }} kW · {{ _("Budget {n} MWh", n=(s.budget / 1000)|num(0)) }}</span></span>
+                <span class="fw-bold fs-5">{{ p.name }} <span class="small fw-normal text-body-secondary">{{ _("Budget {n} MWh", n=(s.budget / 1000)|num(0)) }} · Ø {{ p.mean_kw|num(0) }} kW</span></span>
                 {% if s.level %}<span class="climate-pill climate-pill-{{ 'danger' if s.level == 'over' else 'warning' if s.level == 'tight' else 'ok' }}">{{ _("über dem Budget") if s.level == "over" else _("knapp") if s.level == "tight" else _("im Rahmen") }}</span>{% endif %}
             </div>
             <div class="budget-bar" role="img" aria-label="{{ _('{used} % des Budgets verbraucht, {year} % des Jahres vorbei', used=s.used_pct|num(0), year=s.year_pct|num(0)) }}">
@@ -87,7 +98,7 @@
                 {% if s.projected is not none %}<div><span>{{ _("Prognose 31.12.") }}</span><strong>{{ (s.projected / 1000)|num(0) }} MWh</strong><small class="{{ 'text-danger' if s.diff > 0 else 'text-success' }}">{{ ("+" if s.diff > 0 else "−") ~ ((s.diff|abs) / 1000)|num(0) }} MWh</small></div>{% endif %}
                 {% if budget_year == today.year %}
                 <div><span>{{ _("Rest bis 31.12.") }}</span><strong>{{ ([s.remaining, 0]|max / 1000)|num(0) }} MWh</strong><small>{{ _("in {n} Tagen", n=s.left_days) }}</small></div>
-                {% if s.avg_kw_left is not none %}<div><span>{{ _("Ø Leistung bis 31.12.") }}</span><strong>{{ s.avg_kw_left|num(0) }} kW</strong><small>{% if s.capacity and s.avg_kw_left > s.capacity %}{{ _("mehr als die Motoren schaffen ({n} kW) – Budget wird nicht ausgeschöpft", n=s.capacity) }}{% else %}{{ _("statt {n} kW", n=p.max_kw|num(0)) }}{% endif %}</small></div>{% endif %}
+                {% if s.avg_kw_left is not none %}<div><span>{{ _("Ø Leistung bis 31.12.") }}</span><strong>{{ s.avg_kw_left|num(0) }} kW</strong><small>{% if s.capacity and s.avg_kw_left > s.capacity %}{{ _("mehr als die Motoren schaffen ({n} kW) – Budget wird nicht ausgeschöpft", n=s.capacity) }}{% else %}{{ _("statt {n} kW", n=p.mean_kw|num(0)) }}{% endif %}</small></div>{% endif %}
                 {% if s.full_hours_left is not none %}<div><span>{{ _("Volllaststunden übrig") }}</span><strong>{{ s.full_hours_left|num(0) }} h</strong><small>{% if s.hours_per_day >= 24 %}{{ _("Dauerlauf möglich") }}{% else %}{{ _("≈ {n} h je Tag", n=s.hours_per_day|num(1)) }}{% endif %}</small></div>{% endif %}
                 {% if s.price_from is not none %}<div><span>{{ _("Lohnend ab") }}</span><strong>{{ s.price_from|num(0) }} €/MWh</strong><small>{{ _("teuerste Stunden der nächsten Tage") }}</small></div>{% endif %}
                 {% endif %}
@@ -119,7 +130,7 @@
                 <form method="post" action="{{ url_for('biogas.feed_point_save', point_id=p.id) }}" class="row g-2 mt-1 align-items-end">
                     {{ csrf() }}<input type="hidden" name="jahr" value="{{ budget_year }}">
                     <div class="col-12 col-md-4"><label class="form-label small mb-0" for="fpn{{ p.id }}">{{ _("Name") }}</label><input class="form-control form-control-sm" id="fpn{{ p.id }}" name="name" maxlength="100" value="{{ p.name }}" required></div>
-                    <div class="col-6 col-md-3"><label class="form-label small mb-0" for="fpk{{ p.id }}">{{ _("Höchstbemessungsleistung (kW)") }}</label><input class="form-control form-control-sm" id="fpk{{ p.id }}" name="max_kw" inputmode="decimal" maxlength="20" value="{{ p.max_kw|num(1) }}" required></div>
+                    {{ budget_input("fpk" ~ p.id, p.annual_kwh|round(0)|int if p.annual_kwh is not none else p.max_kw|num(1), "kw" if p.annual_kwh is none else "kwh") }}
                     <div class="col-12">{% for mc in feed_candidates %}<label class="form-check form-check-inline small"><input class="form-check-input" type="checkbox" name="machine" value="{{ mc.id }}" {% if mc.feed_point_id == p.id %}checked{% endif %}> {{ mc.name }}{% if mc.power_kw %} ({{ mc.power_kw }} kW){% endif %}</label>{% endfor %}</div>
                     <div class="col-12 d-flex gap-2"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
                 </form>
@@ -136,7 +147,7 @@
             <form method="post" action="{{ url_for('biogas.feed_point_add') }}" class="row g-2 mt-1 align-items-end">
                 {{ csrf() }}<input type="hidden" name="jahr" value="{{ budget_year }}">
                 <div class="col-12 col-md-4"><label class="form-label small mb-0" for="fpn_new">{{ _("Name") }}</label><input class="form-control form-control-sm" id="fpn_new" name="name" maxlength="100" required placeholder="{{ _('z. B. Einspeisung Nord') }}"></div>
-                <div class="col-6 col-md-3"><label class="form-label small mb-0" for="fpk_new">{{ _("Höchstbemessungsleistung (kW)") }}</label><input class="form-control form-control-sm" id="fpk_new" name="max_kw" inputmode="decimal" maxlength="20" required></div>
+                {{ budget_input("fpk_new", "", "kwh") }}
                 <div class="col-12">{% for mc in feed_candidates %}<label class="form-check form-check-inline small"><input class="form-check-input" type="checkbox" name="machine" value="{{ mc.id }}"> {{ mc.name }}{% if mc.power_kw %} ({{ mc.power_kw }} kW){% endif %}</label>{% else %}<span class="text-body-secondary">{{ _("Noch keine BHKW unter Maschinen angelegt.") }}</span>{% endfor %}</div>
                 <div class="col-12"><button class="btn btn-sm btn-primary">{{ _("Anlegen") }}</button></div>
             </form>

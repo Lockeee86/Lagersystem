@@ -1711,10 +1711,23 @@ class FeedPoint(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    max_kw = db.Column(db.Numeric(10, 1), nullable=False)
+    max_kw = db.Column(db.Numeric(10, 1))                 # Höchstbemessungsleistung in kW (Jahresmittel) …
+    annual_kwh = db.Column(db.Numeric(14, 1))             # … oder direkt die erlaubte Jahresmenge in kWh
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     machines = db.relationship("Machine", backref="feed_point", lazy="dynamic")
+
+    def budget_kwh(self, year):
+        """Erlaubte Menge im Jahr: eingetragene kWh, sonst kW × Stunden des Jahres."""
+        import calendar
+        if self.annual_kwh is not None:
+            return float(self.annual_kwh)
+        return float(self.max_kw or 0) * (366 if calendar.isleap(year) else 365) * 24
+
+    @property
+    def mean_kw(self):
+        """Erlaubte Leistung im Jahresmittel (kW)."""
+        return float(self.annual_kwh) / 8760 if self.annual_kwh is not None else float(self.max_kw or 0)
 
     @property
     def label(self):

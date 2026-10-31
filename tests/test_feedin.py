@@ -18,7 +18,7 @@ def bhkw(db, seed, chp_id, name, kw):
 def plant(db, seed):
     """Zwei Motoren (250 + 500 kW) an einer Einspeisestelle mit 300 kW; erstes Halbjahr 2025 je Tag 8000 kWh."""
     a, b = bhkw(db, seed, 21, "Motor A", 250), bhkw(db, seed, 22, "Motor B", 500)
-    point = feedin.save_point(None, "Einspeisung Test", "300", [a.id, b.id])
+    point = feedin.save_point(None, "Einspeisung Test", "300", [a.id, b.id], unit="kw")
     day = date(2025, 1, 1)
     while day < date(2025, 7, 1):
         db.session.add(ChpDay(machine_id=a.id, day=day, hours=Decimal("24"), kwh=Decimal("6000")))
@@ -56,7 +56,7 @@ def test_billed_months_replace_schedule(plant):
 
 def test_tight_and_ok(db, seed):
     m = bhkw(db, seed, 31, "Motor C", 400)
-    point = feedin.save_point(None, "Einspeisung Klein", "400", [m.id])
+    point = feedin.save_point(None, "Einspeisung Klein", "400", [m.id], unit="kw")
     for i in range(10):
         db.session.add(ChpDay(machine_id=m.id, day=date(2025, 1, 1) + timedelta(days=i), hours=Decimal("20"),
                               kwh=Decimal("8000")))
@@ -83,12 +83,16 @@ def test_pages_and_push(app, as_admin, as_worker, db, seed, plant):
     assert as_worker.post(f"/biogas/einspeisestelle/{plant.id}/monate", data={"jahr": "2025"}).status_code == 403
     as_admin.post(f"/biogas/einspeisestelle/{plant.id}/monate", data={"jahr": "2025", "m2": "123456"})
     assert feedin.months(plant, 2025, date(2025, 7, 1))[1]["kwh"] == 123456.0
-    r = as_admin.post("/biogas/einspeisestelle", data={"name": "", "max_kw": "100"}, follow_redirects=True)
+    r = as_admin.post("/biogas/einspeisestelle", data={"name": "", "amount": "100000"}, follow_redirects=True)
     assert "Namen für die Einspeisestelle" in r.get_data(as_text=True)
-    as_admin.post(f"/biogas/einspeisestelle/{plant.id}", data={"name": "Einspeisung Neu", "max_kw": "1.000,5"})
+    as_admin.post(f"/biogas/einspeisestelle/{plant.id}", data={"name": "Einspeisung Neu", "amount": "1.000,5", "unit": "kw"})
     assert plant.name == "Einspeisung Neu" and plant.max_kw == Decimal("1000.5") and plant.machines.count() == 0
+    as_admin.post(f"/biogas/einspeisestelle/{plant.id}", data={"name": "Einspeisung Neu", "amount": "2.628.000"})
+    assert plant.annual_kwh == Decimal("2628000") and plant.max_kw is None
+    assert plant.budget_kwh(2024) == 2628000 and plant.mean_kw == pytest.approx(300)       # kWh gelten jedes Jahr gleich
+    r = as_admin.post(f"/biogas/einspeisestelle/{plant.id}", data={"name": "X", "amount": "12"}, follow_redirects=True)
+    assert "Jahresmenge in kWh" in r.get_data(as_text=True)
 
-    plant.max_kw = Decimal("300")
     for m in feedin.candidates():
         m.feed_point_id = plant.id
     db.session.add(PushSubscription(user_id=seed["admin"].id, endpoint="https://push.example/f", p256dh="k", auth="a"))
@@ -107,7 +111,7 @@ def test_pages_and_push(app, as_admin, as_worker, db, seed, plant):
 def test_missing_months_are_extrapolated(db, seed):
     """Fahrplan erst ab Mai (wie nach dem ersten SKVE-Abruf): Jan–Apr fehlen, hochgerechnet wird aus den Tagen mit Werten."""
     m = bhkw(db, seed, 41, "Motor D", 500)
-    point = feedin.save_point(None, "Einspeisung Lücke", "300", [m.id])
+    point = feedin.save_point(None, "Einspeisung Lücke", "2.628.000", [m.id])           # 300 kW × 8760 h
     day = date(2025, 5, 1)
     while day < date(2025, 7, 1):
         db.session.add(ChpDay(machine_id=m.id, day=day, hours=Decimal("14"), kwh=Decimal("6800")))

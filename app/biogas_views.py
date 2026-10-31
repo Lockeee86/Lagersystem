@@ -68,8 +68,8 @@ def _feed_save(action, message):
 @bp.route("/biogas/einspeisestelle", methods=["POST"])
 @admin_required
 def feed_point_add():
-    return _feed_save(lambda: feedin.save_point(None, form_str("name", 100), form_str("max_kw", 20),
-                                                request.form.getlist("machine", type=int)),
+    return _feed_save(lambda: feedin.save_point(None, form_str("name", 100), form_str("amount", 20),
+                                                request.form.getlist("machine", type=int), form_str("unit", 5)),
                       _("Einspeisestelle angelegt."))
 
 
@@ -77,8 +77,8 @@ def feed_point_add():
 @admin_required
 def feed_point_save(point_id):
     point = _feed_point(point_id)
-    return _feed_save(lambda: feedin.save_point(point, form_str("name", 100), form_str("max_kw", 20),
-                                                request.form.getlist("machine", type=int)), _("Gespeichert."))
+    return _feed_save(lambda: feedin.save_point(point, form_str("name", 100), form_str("amount", 20),
+                                                request.form.getlist("machine", type=int), form_str("unit", 5)), _("Gespeichert."))
 
 
 @bp.route("/biogas/einspeisestelle/<int:point_id>/loeschen", methods=["POST"])

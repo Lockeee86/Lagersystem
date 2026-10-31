@@ -109,7 +109,8 @@ Portainer-Stack (docker-compose)
   **Untere Leiste wählbar** (0.46.0, `tabbar.py`): Heute · [frei] · Scannen · [frei] · Mehr; Voreinstellung je Rolle
   (Verwaltung → Startseite, `settings` `tabbar_<rolle>`), eigene Wahl unter Mein Konto (`User.tabbar`). Jede Rubrik
   hat eine Bereichsseite (`/bereich/<key>`); was in der Leiste steht, fehlt unter „Mehr“.
-  **Jahresbudget je Einspeisestelle** (0.62.0, `feedin.py`): `FeedPoint` mit Höchstbemessungsleistung (Jahresmittel kW),
+  **Jahresbudget je Einspeisestelle** (0.62.0, `feedin.py`): `FeedPoint` mit erlaubter Jahresmenge in kWh (`annual_kwh`, 0.62.1) oder
+  Höchstbemessungsleistung in kW (`max_kw` × Stunden des Jahres),
   BHKW über `Machine.feed_point_id`; je Monat echte Menge aus der Abrechnung (`FeedMonth`) oder SKVE-Fahrplan.
   Hochrechnung nur aus Tagen mit Werten (fehlende Monate werden gemeldet), Prognose 31.12., Rest, Ø kW, Volllaststunden,
   „lohnend ab“ aus dem Preis-Ausblick; Push montags bei Prognose über Budget (Thema `feed_budget`).
