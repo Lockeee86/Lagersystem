@@ -106,6 +106,7 @@ def day_plan():
         open_count=len(team.carry_candidates(open_day, day)) if open_day else 0,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_planner else [],
         plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.is_planner else [],
+        suggestions=team.suggestions(day, current_user) if current_user.is_planner else [],
     )
 
 
@@ -123,6 +124,20 @@ def plan_add():
         db.session.rollback()
         flash_error(str(e))
     return _to_plan(day, f"p{user.id}" if user else None)
+
+
+@bp.route("/tagesplan/vorschlag", methods=["POST"])
+@planner_required
+def plan_suggestion():
+    day = _form_day()
+    user = db.session.get(User, form_int("user_id", 0))
+    try:
+        team.add_suggestion(day, user, request.form.get("key", ""), current_user)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _to_plan(day, "vorschlaege")
 
 
 @bp.route("/tagesplan/eintrag/<int:entry_id>/loeschen", methods=["POST"])

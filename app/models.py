@@ -1587,11 +1587,24 @@ class PlanEntry(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     done_at = db.Column(db.DateTime(timezone=True))
     done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    # aus einem Vorschlag eingeteilt: Aufgabe, Wartung bzw. Störung, die damit erledigt wird
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"), index=True)
+    maintenance_task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"), index=True)
+    machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"), index=True)
 
     user = db.relationship("User", foreign_keys=[user_id])
     done_by = db.relationship("User", foreign_keys=[done_by_id])
     machine = db.relationship("Machine")
     plots = db.relationship("Plot", secondary=plan_entry_plots, order_by="Plot.name")
+    task = db.relationship("Task")
+    maintenance_task = db.relationship("MaintenanceTask")
+    machine_event = db.relationship("MachineEvent")
+
+    @property
+    def maintenance_pending(self):
+        """Eingeplante Wartung ist abgehakt, aber an der Maschine noch nicht eingetragen."""
+        mt = self.maintenance_task
+        return bool(mt and self.done_at and (mt.last_done_on is None or mt.last_done_on < self.day))
 
     def can_check(self, user):
         """Abhaken darf die eingeteilte Person und wer den Tagesplan pflegt."""

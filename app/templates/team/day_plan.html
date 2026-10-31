@@ -41,6 +41,47 @@
 </div>
 {% endif %}
 
+{% if suggestions %}
+{% set icons = {"task": "bi-check2-square", "wartung": "bi-wrench-adjustable", "stoerung": "bi-exclamation-triangle"} %}
+<div class="card shadow-sm mb-3" id="vorschlaege">
+    <button class="card-header d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
+            type="button" data-bs-toggle="collapse" data-bs-target="#suggestList" aria-expanded="true" aria-controls="suggestList">
+        <span class="fw-semibold"><i class="bi bi-lightbulb me-1"></i>{{ _("Vorschläge") }} <span class="badge text-bg-secondary ms-1">{{ suggestions|length }}</span></span>
+        <span class="small text-body-secondary text-nowrap"><span class="d-none d-md-inline">{{ _("fällige Aufgaben, Wartungen und Störungen") }}</span> <i class="bi bi-chevron-down ms-1"></i></span>
+    </button>
+    <div class="collapse show" id="suggestList">
+        <ul class="list-group list-group-flush suggest-list">
+            {% for s in suggestions %}
+            <li class="list-group-item">
+                <form method="post" action="{{ url_for('team.plan_suggestion') }}" class="suggest-row">
+                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="key" value="{{ s.key }}">
+                    <div class="suggest-text">
+                        <i class="bi {{ icons[s.kind] }} me-1 {{ 'text-danger' if s.late else 'text-body-secondary' }}"></i>
+                        {% if s.kind == "task" %}<a href="{{ url_for('tasks.task_detail', task_id=s.item.id) }}">{{ s.text }}</a>
+                        {% else %}<a href="{{ url_for('machines.machine_detail', machine_id=s.machine.id) }}">{{ s.text }}</a>{% endif %}
+                        {% if s.machine %}<span class="badge text-bg-secondary"><i class="bi {{ s.machine.icon }} me-1"></i>{{ s.machine.name }}</span>{% endif %}
+                        {% for p in s.plots %}<span class="badge text-bg-light"><i class="bi bi-map me-1"></i>{{ p.name }}</span>{% endfor %}
+                        <span class="small {{ 'text-danger' if s.late else 'text-body-secondary' }} text-nowrap">
+                            {%- if s.kind == "stoerung" %}{{ _("Störung seit {date}", date=s.due_on|date) }}{% if not s.item.still_running %} · {{ _("steht") }}{% endif %}
+                            {%- elif s.kind == "wartung" %}{{ _("Wartung") }}{% if s.due_on %} · {{ _("fällig {date}", date=s.due_on|date) }}{% elif s.left_counter is not none %} · {% if s.left_counter <= 0 %}{{ _("überfällig") }}{% else %}{{ _("noch {n} {unit}", n=s.left_counter, unit=s.machine.counter_unit) }}{% endif %}{% elif s.late %} · {{ _("überfällig") }}{% endif %}
+                            {%- elif s.due_on %}{{ _("fällig {date}", date=s.due_on|date) }}{% else %}{{ _("ohne Termin") }}{% endif -%}
+                        </span>
+                    </div>
+                    <div class="input-group input-group-sm suggest-pick">
+                        <select class="form-select" name="user_id" aria-label="{{ _('Wer?') }}" required>
+                            <option value="">{{ _("Wer?") }}</option>
+                            {% for u in members %}<option value="{{ u.id }}" {% if u.id == s.assignee_id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-outline-primary" title="{{ _('Einplanen') }}"><i class="bi bi-calendar-plus"></i><span class="d-none d-sm-inline ms-1">{{ _("Einplanen") }}</span></button>
+                    </div>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
 {% if not plan and not current_user.is_planner %}
 <div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Für diesen Tag ist noch niemand eingeteilt.") }}</div></div>
 {% endif %}

@@ -2791,4 +2791,13 @@ MESSAGES = {
     'Datei (PDF oder Foto)': 'Plik (PDF lub zdjęcie)',
     'Rechnung an {name} übergeben': 'Faktura przekazana do {name}',
     '„Erledigt“ geht erst mit übergebener Rechnung.': '„Zakończone” jest możliwe dopiero po przekazaniu faktury.',
+    'Dieser Vorschlag ist schon eingeplant oder erledigt.': 'Ta propozycja jest już zaplanowana lub wykonana.',
+    'Vorschläge': 'Propozycje',
+    'fällige Aufgaben, Wartungen und Störungen': 'zaległe zadania, przeglądy i awarie',
+    'Störung seit {date}': 'Awaria od {date}',
+    'ohne Termin': 'bez terminu',
+    'Wer?': 'Kto?',
+    'Einplanen': 'Zaplanuj',
+    'Wartung eintragen': 'Wpisz przegląd',
+    'noch {n} {unit}': 'jeszcze {n} {unit}',
 }

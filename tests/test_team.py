@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pytest
 from PIL import Image, ImageDraw
 
-from app import push, team
+from app import machines, push, team
 from app.models import Handover, InstructionRecord, Machine, PlanEntry, Plot, PushSubscription
 from app.storage import StorageError
 
@@ -304,3 +304,57 @@ def test_instruction_documents(app, as_admin, as_worker, db, seed):
     other = os.path.join(uploads.document_dir(), pptx.filename)
     as_admin.post(f"/unterweisung/{topic.id}/loeschen")
     assert not os.path.exists(other) and InstructionDocument.query.count() == 0
+
+
+def test_plan_suggestions(as_admin, as_worker, db, seed):
+    from app import tasks
+    from app.models import MachineEvent, MaintenanceTask, Task
+    admin, worker = seed["admin"], seed["worker"]
+    today = date.today()
+    tractor = Machine(code="M-07", name="Schlepper 7", category="schlepper", counter_unit="h", counter=1000)
+    db.session.add(tractor)
+    db.session.flush()
+    oil = MaintenanceTask(machine=tractor, name="Ölwechsel", interval_months=12,
+                          last_done_on=today - timedelta(days=400))
+    later = MaintenanceTask(machine=tractor, name="Bremsen prüfen", interval_months=12,
+                            last_done_on=today - timedelta(days=200))      # erst in Monaten fällig
+    db.session.add_all([oil, later])
+    fault = machines.add_event(tractor, "stoerung", admin, text="Hydraulik leckt")
+    fence = tasks.create_task(admin, title="Zaun flicken", due_on=today - timedelta(days=1), assignees=[worker])
+    tasks.create_task(admin, title="Später", due_on=today + timedelta(days=5))
+    tasks.create_task(admin, title="Eier zählen").area = "huehner"
+    db.session.commit()
+
+    keys = [s["key"] for s in team.suggestions(today, admin)]
+    assert keys == [f"stoerung-{fault.id}", f"wartung-{oil.id}", f"task-{fence.id}"]
+    assert next(s for s in team.suggestions(today, admin) if s["kind"] == "task")["assignee_id"] == worker.id
+    html = as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert "Vorschläge" in html and "Hydraulik leckt" in html and "Ölwechsel" in html and "Zaun flicken" in html
+    assert "Vorschläge" not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+
+    # einplanen → verschwindet aus den Vorschlägen
+    for key in keys:
+        r = as_admin.post("/tagesplan/vorschlag", data={"datum": today.isoformat(), "user_id": worker.id, "key": key})
+        assert r.status_code == 302
+    assert team.suggestions(today, admin) == []
+    as_admin.post("/tagesplan/vorschlag", data={"datum": today.isoformat(), "user_id": worker.id, "key": keys[0]})
+    entries = team.plan_for(today)[worker.id]
+    assert len(entries) == 3 and entries[0].machine == tractor
+    by_kind = {("task" if e.task_id else "wartung" if e.maintenance_task_id else "stoerung"): e for e in entries}
+
+    # abhaken erledigt Aufgabe und Störung mit, wieder öffnen nimmt es zurück
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['task'].id}/erledigt")
+    assert db.session.get(Task, fence.id).is_done
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['task'].id}/erledigt")
+    assert not db.session.get(Task, fence.id).is_done
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['stoerung'].id}/erledigt")
+    assert db.session.get(MachineEvent, fault.id).resolved_at is not None
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['stoerung'].id}/erledigt")
+    assert db.session.get(MachineEvent, fault.id).resolved_at is None
+
+    # Wartung: abgehakt → Hinweis, sie an der Maschine einzutragen
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['wartung'].id}/erledigt")
+    assert "Wartung eintragen" in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    machines.complete_task(oil, worker)
+    db.session.commit()
+    assert "Wartung eintragen" not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)

@@ -483,6 +483,12 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **Tagesplan pflegen** (0.41.1): in der Benutzerverwaltung „Darf den Tagesplan pflegen“ (`User.can_plan`,
    `is_planner`, `team_views.planner_required`) – wie der Admin einteilen, abhaken, löschen, übernehmen, verschicken.
    **Mehrere Schläge je Eintrag** (0.41.2): gleiche Auswahl wie bei Aufgaben (`macros.plot_pick`, `PlanEntry.plots`).
+   **Vorschläge** (0.66.0): oben im Tagesplan stehen für die Planer, was ansteht – offene Störungen, Wartungen
+   (überfällig, in 7 Tagen oder kurz vor dem Zählerstand) und Aufgaben, die bis zum Tag fällig sind oder keinen
+   Termin haben (ohne Hühner-Aufgaben). Person wählen (bei genau einem Zuständigen vorgewählt) → „Einplanen“.
+   Was eingeplant ist, verschwindet aus den Vorschlägen. Abhaken im Plan erledigt die Aufgabe bzw. Störung mit
+   (wieder öffnen nimmt das zurück); eine Wartung trägt man an der Maschine ein (Zählerstand, Kosten) – der Plan
+   zeigt dafür „Wartung eintragen“.
    *Übergabe* (`/uebergabe`): Notiz zum Feierabend („Was der Nächste wissen muss“), steht oben auf der Startseite,
    bis jemand sie abhakt oder sie älter als 3 Tage ist; Push-Thema „Neue Übergabe-Notiz“ ist von sich aus aus
    (`Handover`).

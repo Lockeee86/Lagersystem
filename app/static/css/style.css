@@ -1060,3 +1060,10 @@ body:not(.has-tabbar) {
 
 /* Offene Auswahl (Dropdown) liegt über den folgenden Karten – Glas-Karten bilden eigene Ebenen */
 :is(.card, .list-group-item, .modal-content):has(.dropdown-menu.show) { position: relative; z-index: 1030; }
+
+/* Tagesplan: Vorschläge */
+.suggest-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; }
+.suggest-text { flex: 1 1 16rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .45rem; }
+.suggest-pick { flex: 0 0 auto; width: auto; }
+.suggest-pick .form-select { min-width: 8rem; }
+@media (max-width: 575.98px) { .suggest-pick { flex: 1 1 100%; } .suggest-pick .form-select { flex: 1 1 auto; } }
