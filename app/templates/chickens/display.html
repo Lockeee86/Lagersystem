@@ -49,6 +49,11 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
 .feed span.yes { background: rgba(159,220,138,.18); border-color: rgba(159,220,138,.5); color: #c9f0bb; }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .facts .v { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.turn { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 14px; }
+.turn .who { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.turn .when { color: #a59c88; white-space: nowrap; font-size: 12px; }
+.turn.first { margin-top: 4px; padding: 6px 10px; border-radius: 10px; background: rgba(255,204,102,.18); border: 1px solid rgba(255,204,102,.5); font-size: 17px; }
+.turn.first .when { color: #e8dcc4; }
 .tasks { margin: 10px 0 0; padding: 0; list-style: none; font-size: 15px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
 .tasks li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tasks li i { color: #e8b04f; margin-right: 6px; }
@@ -119,6 +124,13 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
                 <div><div class="label">{{ _("Herde") }}</div><div class="v">{{ d.flock }}</div></div>
                 <div><div class="label">{{ _("Vorrat") }}</div><div class="v">{{ d.stock }}</div></div>
             </div>
+            {% if d.order %}
+            <div class="label" style="margin-top: 10px">{{ _("Wer ist dran?") }}</div>
+            {% for row in d.order %}
+            <div class="turn {{ 'first' if loop.first }}"><span class="who">{{ row.household.name }}</span>
+                <span class="when">{% if row.last_day %}{{ ngettext("zuletzt {date}: {n} Ei", "zuletzt {date}: {n} Eier", row.last_eggs, date=row.last_day|date) }}{% else %}{{ _("hat noch keine Eier bekommen") }}{% endif %}</span></div>
+            {% endfor %}
+            {% endif %}
             {% if d.blocked %}<div class="blocked"><i class="bi bi-exclamation-octagon"></i> {{ _("Eier gesperrt bis {date}", date=d.blocked.blocked_until|date) }}</div>{% endif %}
             {% if d.tasks %}
             <ul class="tasks">{% for t in d.tasks %}<li><i class="bi bi-circle"></i>{{ t.title }}</li>{% endfor %}</ul>

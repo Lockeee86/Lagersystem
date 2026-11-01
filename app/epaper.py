@@ -46,6 +46,15 @@ def _check(draw, x, y, s, color):
     draw.line([(x, y + s * .55), (x + s * .38, y + s * .9), (x + s, y + s * .1)], fill=color, width=max(3, s // 6))
 
 
+def _last_share(row, short=False):
+    if row["last_day"] is None:
+        return _("noch nie") if short else _("hat noch keine Eier bekommen")
+    day = row["last_day"].strftime("%d.%m.")
+    if short:
+        return ngettext("{date} · {n} Ei", "{date} · {n} Eier", row["last_eggs"], date=day)
+    return ngettext("zuletzt {date}: {n} Ei", "zuletzt {date}: {n} Eier", row["last_eggs"], date=day)
+
+
 def render(d):
     img = Image.new("RGB", (W, H), WHITE)
     dr = ImageDraw.Draw(img)
@@ -63,7 +72,7 @@ def render(d):
         sun.append("↓ " + d["sunset"].strftime("%H:%M"))
     if sun:
         dr.text((350, 26), "   ".join(sun), font=font(19, False), fill=YELLOW, anchor="lm")
-    dr.text((W - 16, 26), _("Stand {time}", time=tz_now.strftime("%H:%M")), font=font(20), fill=WHITE, anchor="rm")
+    dr.text((W - 70, 26), _("Stand {time}", time=tz_now.strftime("%H:%M")), font=font(20), fill=WHITE, anchor="rm")
 
     alerts = d["alerts"][:2]
     bottom = H - 8 - 40 * len(alerts)
@@ -156,6 +165,22 @@ def render(d):
     dr.text((x0 + 14, y + 18), str(d["flock"]), font=font(34), fill=BLACK)
     dr.text((x0 + 134, y + 18), str(d["stock"]), font=font(34), fill=BLACK)
     y += 66
+    # Wer bekommt als Nächstes Eier?
+    if d["order"]:
+        dr.text((x0 + 14, y), _("WER IST DRAN?"), font=font(15), fill=BLACK)
+        y += 22
+        first = d["order"][0]
+        dr.rounded_rectangle([x0 + 14, y, x1 - 14, y + 50], radius=10, fill=YELLOW)
+        dr.text((x0 + 24, y + 5), _fit(dr, first["household"].name, 20, x1 - x0 - 48), font=font(20), fill=BLACK)
+        dr.text((x0 + 24, y + 30), _fit(dr, _last_share(first), 13, x1 - x0 - 44, False), font=font(13, False), fill=BLACK)
+        y += 58
+        for row in d["order"][1:]:
+            when = _last_share(row, short=True)
+            room = dr.textlength(when, font=font(13, False))
+            dr.text((x0 + 16, y), _fit(dr, row["household"].name, 16, x1 - x0 - 40 - room), font=font(16), fill=BLACK)
+            dr.text((x1 - 16, y + 2), when, font=font(13, False), fill=BLACK, anchor="ra")
+            y += 22
+        y += 8
     if d["blocked"]:
         dr.rounded_rectangle([x0 + 14, y, x1 - 14, y + 34], radius=8, fill=RED)
         dr.text(((x0 + x1) / 2, y + 17), _fit(dr, _("Eier gesperrt bis {date}", date=d["blocked"].blocked_until.strftime("%d.%m.")),

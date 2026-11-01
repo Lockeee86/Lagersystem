@@ -2894,4 +2894,6 @@ MESSAGES = {
     'VORRAT': 'ZAPAS',
     'Als Bild für Farb-E-Paper (reTerminal E1002, sechs Farben) – in ESPHome bei online_image eintragen:': 'Jako obraz dla kolorowego e-papieru (reTerminal E1002, sześć kolorów) – wpisać w ESPHome przy online_image:',
     'Bild': 'Obraz',
+    '{date} · {n} Eier': ('{date} · {n} jajo', '{date} · {n} jaja', '{date} · {n} jaj'),
+    'WER IST DRAN?': 'CZYJA KOLEJ?',
 }

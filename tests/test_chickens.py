@@ -469,6 +469,12 @@ def test_coop_display(app, as_admin, as_worker, db, seed):
     html = r.get_data(as_text=True)
     assert r.status_code == 200 and 'http-equiv="refresh"' in html and ">9<" in html and "Bruch" in html
     assert "Weizen" in html and "Legemehl" in html
+    # Wer ist als Nächstes dran?
+    chickens.save_household(None, "Familie Muster")
+    db.session.commit()
+    html = anon.get(f"/huehner/anzeige/{token}").get_data(as_text=True)
+    assert "Wer ist dran?" in html and "Familie Muster" in html
+    assert anon.get(f"/huehner/anzeige/{token}/bild.png").status_code == 200
     # neuer Link: der alte gilt nicht mehr
     as_admin.post("/huehner/anzeige")
     assert anon.get(f"/huehner/anzeige/{token}").status_code == 404

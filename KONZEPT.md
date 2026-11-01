@@ -151,6 +151,8 @@ Portainer-Stack (docker-compose)
   **Farb-E-Paper** (0.72.0): Für den reTerminal E1002 (7,3", 800×480, Spectra 6, ESPHome ohne Browser) dieselbe Anzeige
   als PNG (`…/bild.png`): nur Schwarz, Weiß, Rot, Gelb, Grün, Blau, Text ohne Kantenglättung, weißer Grund, „Stand hh:mm“
   statt laufender Uhr. ESPHome holt das Bild mit `online_image` alle 10–15 Minuten (`docs/reterminal-e1002.md`).
+  „Wer ist dran?“ (0.72.1): die nächsten drei Haushalte für die Eier (`fair_order`), der erste gelb hervorgehoben;
+  oben rechts bleibt Platz für ein Symbol des Geräts (z. B. WLAN aus ESPHome).
   **CO₂ im Hühnerstall** (0.54.0): SCD41 am Stall-Knoten → `CoopReading.co2`, Anzeige mit Kurve (Grenze
   3000 ppm laut Tierschutz-Nutztierhaltungsverordnung für Legehennen, ab 2000 „erhöht“), Push „CO₂ zu hoch“ einmal am
   Tag (nur bei frischem Wert, `coop.co2_info`).

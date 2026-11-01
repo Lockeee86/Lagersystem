@@ -969,5 +969,5 @@ def display(now=None):
         "sunrise": rise.astimezone(tz) if rise else None, "sunset": set_.astimezone(tz) if set_ else None,
         "sensor": sensor, "since": sensor["state_since"].astimezone(tz) if sensor and sensor["state_since"] else None,
         "wheat": bool(feeding and feeding.wheat), "mash": bool(feeding and feeding.mash),
-        "tasks": tasks, "alerts": alerts, "refresh": DISPLAY_REFRESH,
+        "tasks": tasks, "alerts": alerts, "refresh": DISPLAY_REFRESH, "order": fair_order(today)[:3],
     }
