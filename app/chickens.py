@@ -184,11 +184,27 @@ def add_flock_event(day, reason, count, user, breed=None, hatched_on=None, note=
     return event
 
 
+def _req_cache():
+    """Zwischenspeicher für einen Seitenaufruf (nur GET – dabei ändert sich nichts): Herden-Einträge und
+    Eier-Tagessummen werden sonst für jeden Zeitraum neu abgefragt."""
+    from .utils import request_cache
+    cache = request_cache()
+    return None if cache is None else cache.setdefault("chickens", {})
+
+
+def _all_events():
+    """Alle Herden-Einträge nach Tag und Reihenfolge."""
+    cache = _req_cache()
+    if cache is not None and "events" in cache:
+        return cache["events"]
+    events = FlockEvent.query.order_by(FlockEvent.day, FlockEvent.id).all()
+    if cache is not None:
+        cache["events"] = events
+    return events
+
+
 def flock_size(day=None):
-    query = db.session.query(func.coalesce(func.sum(FlockEvent.change), 0))
-    if day is not None:
-        query = query.filter(FlockEvent.day <= day)
-    return int(query.scalar())
+    return sum(e.change for e in _all_events() if day is None or e.day <= day)
 
 
 def groups():
@@ -207,8 +223,7 @@ def cohorts(day=None):
     Ist eine Gruppe weg, gilt ihr Alter am letzten Tag (`until`), es zählt nicht weiter.
     Abgänge hängen an keiner Gruppe – sie werden grob den ältesten Hühnern abgezogen (Gruppen ohne Alter zuerst)."""
     day = day or date.today()
-    events = (FlockEvent.query.filter(FlockEvent.day <= day)
-              .order_by(FlockEvent.day, FlockEvent.id).all())
+    events = [e for e in _all_events() if e.day <= day]
     groups_, left, until = [], {}, {}
     for e in events:
         if e.change > 0:
@@ -273,7 +288,7 @@ def flock_age(day=None):
 
 def _daily_sizes(start, end):
     """{Tag: Hühner} für jeden Tag im Zeitraum."""
-    events = FlockEvent.query.filter(FlockEvent.day <= end).order_by(FlockEvent.day).all()
+    events = [e for e in _all_events() if e.day <= end]
     size = sum(e.change for e in events if e.day < start)
     by_day = {}
     for e in events:
@@ -581,6 +596,11 @@ DROP_SETTLE_DAYS = 70     # nicht in den ersten 10 Wochen eines Durchgangs (Lege
 
 
 def _eggs_between(start, end):
+    cache = _req_cache()
+    if cache is not None:
+        if "daily" not in cache:
+            cache["daily"] = _daily_totals()
+        return sum(n for d, n in cache["daily"].items() if start <= d <= end)
     return int(db.session.query(func.coalesce(func.sum(EggEntry.eggs), 0))
                .filter(EggEntry.day >= start, EggEntry.day <= end).scalar())
 
@@ -594,7 +614,7 @@ def batches(today=None):
     losses {Grund: n} (ohne das Leeren am Ende), lost, lost_pct, eggs, hen_days, rate, per_hen, per_hen_year,
     best_month, days, expected}."""
     today = today or date.today()
-    events = FlockEvent.query.order_by(FlockEvent.day, FlockEvent.id).all()
+    events = _all_events()
     result, size, current = [], 0, None
     for e in events:
         if size <= 0 and e.change > 0:

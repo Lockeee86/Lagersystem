@@ -215,8 +215,8 @@
 </div>
 {% endblock %}
 {% block scripts %}
-{% if view == "3d" %}<script src="{{ url_for('static', filename='js/lager3d.js') }}?v={{ app_version }}"></script>{% endif %}
-{% if view == "karte" %}<script src="{{ url_for('static', filename='js/mapzoom.js') }}?v={{ app_version }}"></script>{% endif %}
+{% if view == "3d" %}<script src="{{ url_for('static', filename='js/lager3d.js') }}"></script>{% endif %}
+{% if view == "karte" %}<script src="{{ url_for('static', filename='js/mapzoom.js') }}"></script>{% endif %}
 <script>
 (function () {
     var modalEl = document.getElementById("stackModal");

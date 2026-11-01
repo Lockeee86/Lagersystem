@@ -222,6 +222,9 @@ def create_app(config=None):
             abort(404)
         return None
 
+    from . import speed
+    speed.init_app(app)
+
     @app.after_request
     def security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")

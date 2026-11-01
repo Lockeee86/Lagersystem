@@ -5,6 +5,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, jsonify, redi
                    url_for)
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import selectinload
 
 from . import aerial, fielddoc, fields, irrigation, sites, tasks, uploads, weather
 from .extensions import db
@@ -37,7 +38,8 @@ def aerial_options(on=True):
 def field_map():
     year, years = _year_arg()
     only_potatoes = request.args.get("kartoffeln") == "1"
-    plots = sites.apply(Plot.query.filter_by(active=True), Plot).order_by(Plot.name).all()
+    plots = (sites.apply(Plot.query.filter_by(active=True), Plot).options(selectinload(Plot.years))
+             .order_by(Plot.name).all())
     if only_potatoes:
         plots = [p for p in plots if (y := p.year(year)) and "kartoffel" in (y.shown_crop or "").lower()]
     yields = fields.yields(year)
@@ -253,7 +255,8 @@ def rotation_page():
     first = request.args.get("von", type=int) or max(min([this_year, *data_years]), this_year - 3, last - 9)
     first = max(2000, min(first, last))
     years = list(range(first, last + 1))
-    plots = Plot.query.filter_by(active=True).order_by(Plot.name).all()
+    plots = (Plot.query.filter_by(active=True).options(selectinload(Plot.years))
+             .order_by(Plot.name).all())
     if request.args.get("kartoffeln") == "1":
         plots = [p for p in plots if any("kartoffel" in (py.shown_crop or "").lower() for py in p.years)]
     breaks = fielddoc.rotation_breaks()

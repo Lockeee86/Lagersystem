@@ -1,3 +1,4 @@
+from collections import Counter
 import io
 from datetime import date, datetime, timedelta
 
@@ -145,13 +146,16 @@ def _stock_overview(recent_limit=12, site=None):
     Kennzahlen, letzte Bewegungen. Mit `site` nur die Lager dieser Betriebsstätte und die Kisten darin."""
     query = Warehouse.query if site is None else Warehouse.query.filter_by(site_id=site.id)
     warehouses = query.order_by(Warehouse.name).all()
-    boxes = Box.query.all() if site is None else \
-        Box.query.filter(Box.warehouse_id.in_([w.id for w in warehouses])).all()
+    from sqlalchemy.orm import joinedload
+    loads = (joinedload(Box.variety), joinedload(Box.box_type))
+    boxes = Box.query.options(*loads).all() if site is None else \
+        Box.query.filter(Box.warehouse_id.in_([w.id for w in warehouses])).options(*loads).all()
 
     occupancy = []
     for wh in warehouses:
         stored = [b for b in boxes if b.warehouse_id == wh.id]
-        stacks = {(b.row, b.slot) for b in stored}
+        heights = Counter((b.row, b.slot) for b in stored)          # Kisten je Stapel
+        stacks = set(heights)
         occupancy.append({
             "warehouse": wh,
             "stored": len(stored),
@@ -159,8 +163,7 @@ def _stock_overview(recent_limit=12, site=None):
             "percent": round(100 * len(stored) / wh.capacity) if wh.capacity else 0,
             "stacks": len(stacks),
             "stack_capacity": wh.rows * wh.slots,
-            "full_stacks": sum(1 for s in stacks
-                               if sum(1 for b in stored if (b.row, b.slot) == s) >= wh.max_levels),
+            "full_stacks": sum(1 for n in heights.values() if n >= wh.max_levels),
         })
 
     per_variety = {}

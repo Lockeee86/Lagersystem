@@ -19,7 +19,7 @@ def test_default_logo(app, as_admin, db, seed):
     html = as_admin.get("/").get_data(as_text=True)
     assert "/static/img/icon.svg?v=" in html and "/static/img/icon-180.png?v=" in html
     r = app.test_client().get("/logo/icon-192.png")
-    assert r.status_code == 302 and r.headers["Location"].endswith("/static/img/icon-192.png")
+    assert r.status_code == 302 and "/static/img/icon-192.png?v=" in r.headers["Location"]
     assert app.test_client().get("/logo/irgendwas.png").status_code == 404
 
 

@@ -162,7 +162,19 @@ def last_seen():
 
 
 def status(now=None):
-    """Für Karte und Übersicht: None (noch nie Werte) oder {latest, door, door_since, seen, offline, min24, max24}."""
+    """Für Karte und Übersicht: None (noch nie Werte) oder {latest, door, door_since, seen, offline, min24, max24}.
+    Je Seitenaufruf (GET) nur einmal berechnet – mehrere Bausteine zeigen den Stall-Sensor."""
+    from .utils import request_cache
+    cache = request_cache() if now is None else None
+    if cache is not None and "coop_status" in cache:
+        return cache["coop_status"]
+    result = _status(now)
+    if cache is not None:
+        cache["coop_status"] = result
+    return result
+
+
+def _status(now=None):
     now = now or utcnow()
     seen = last_seen()
     if seen is None:

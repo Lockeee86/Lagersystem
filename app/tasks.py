@@ -171,7 +171,9 @@ def buckets(tasks, today=None):
 
 
 def open_tasks(user=None):
-    return visible_query(user).filter(Task.done_at.is_(None)).all()
+    from sqlalchemy.orm import joinedload, selectinload
+    return (visible_query(user).filter(Task.done_at.is_(None))
+            .options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine)).all())
 
 
 def due_now(user=None, today=None):

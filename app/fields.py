@@ -6,13 +6,19 @@ Myfarm24 schreibt die Schlagdaten als „Schlüssel: Wert;“ in die <descriptio
 SchlagBez, SchlagNr, SchlagHa, KulturBez, KulturEPPO, VorfruchtBez, VorfruchtEPPO, Bodenart, RotesGebiet.
 Andere KML-Dateien gehen auch – dann kommt der Name aus <name> und die Fläche aus dem Umriss.
 """
+import copy
 import io
 import json
 import math
 import re
+import threading
+import time
 import zipfile
 import xml.etree.ElementTree as ET
 from decimal import Decimal, InvalidOperation
+
+from flask import current_app
+from sqlalchemy import func
 
 from .extensions import db
 from .i18n import gettext as _
@@ -272,11 +278,23 @@ def crop_color(crop, eppo):
     return FALLBACK_COLORS[sum(map(ord, crop)) % len(FALLBACK_COLORS)]
 
 
-def yields(year):
-    """{plot_id: {"kg": Ernte, "boxes": n, "varieties": {Sorte: kg}, "bulk_kg": kg}} – Kartoffeln aus den Kisten
-    (Momentaufnahmen, geschätzt), Getreide u. Ä. aus den Schüttgut-Fuhren (gewogen)."""
-    from .bulk import yields as bulk_yields
+_box_yields = {}                 # (Jahr, letzte Bewegung, Anzahl) → Ergebnis; Bewegungen kommen nur hinzu
+_box_yields_lock = threading.Lock()
+BOX_YIELDS_TTL = 600             # Sekunden – fängt seltene Änderungen ohne neue Bewegung ab (z. B. Kistengewicht)
+
+
+def _potato_yields(year):
+    """Ernte aus den Kisten je Schlag – die Auswertung aller Bewegungen ist teuer, darum zwischengespeichert,
+    bis eine neue Bewegung dazukommt (höchstens 10 Minuten)."""
+    from .models import Movement
     from .transfer import season_summary
+    last, count = db.session.query(func.max(Movement.id), func.count(Movement.id)).one()
+    key = (year, last, count)
+    use_cache = not current_app.config.get("TESTING")     # in Tests wechselt die Datenbank ständig
+    with _box_yields_lock:
+        hit = _box_yields.get(key) if use_cache else None
+        if hit and time.monotonic() - hit[0] < BOX_YIELDS_TTL:
+            return copy.deepcopy(hit[1])
     result = {}
     for (y, variety, _usage, plot), g in season_summary(year).items():
         if y != year or not plot:
@@ -285,6 +303,20 @@ def yields(year):
         entry["kg"] += g["harvest_kg"]
         entry["boxes"] += g["boxes"]
         entry["varieties"][variety.name] = entry["varieties"].get(variety.name, 0) + g["harvest_kg"]
+    with _box_yields_lock:
+        if not use_cache:
+            return result
+        if len(_box_yields) > 20:
+            _box_yields.clear()
+        _box_yields[key] = (time.monotonic(), copy.deepcopy(result))
+    return result
+
+
+def yields(year):
+    """{plot_id: {"kg": Ernte, "boxes": n, "varieties": {Sorte: kg}, "bulk_kg": kg}} – Kartoffeln aus den Kisten
+    (Momentaufnahmen, geschätzt), Getreide u. Ä. aus den Schüttgut-Fuhren (gewogen)."""
+    from .bulk import yields as bulk_yields
+    result = _potato_yields(year)
     for plot_id, kg in bulk_yields(year).items():
         entry = result.setdefault(plot_id, {"kg": 0, "boxes": 0, "varieties": {}})
         entry["kg"] += kg

@@ -66,8 +66,15 @@ class Setting(db.Model):
 
     @classmethod
     def all(cls):
+        # je Seitenaufruf (GET) nur einmal lesen – viele Bausteine fragen danach
+        from .utils import request_cache
+        cache = request_cache()
+        if cache is not None and "settings_all" in cache:
+            return dict(cache["settings_all"])
         values = {key: cls.DEFAULTS.get(key, "") for key in cls.FIELDS}
         values.update({s.key: s.value for s in cls.query.filter(cls.key.in_(cls.FIELDS)) if s.value})
+        if cache is not None:
+            cache["settings_all"] = dict(values)
         return values
 
     @classmethod

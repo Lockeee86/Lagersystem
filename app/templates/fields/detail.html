@@ -219,7 +219,7 @@
 })();
 </script>
 {% if map_data %}
-<script src="{{ url_for('static', filename='js/schlagkarte.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
 <script>
 Schlagkarte.create(document.getElementById("fieldMap"), {{ map_data|tojson }}, { labels: false, aerial: {{ aerial|tojson }} });</script>
 {% endif %}

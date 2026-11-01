@@ -255,7 +255,9 @@ def can_see(machine, user):
 def due_tasks(states=("overdue", "soon"), user=None):
     """Fällige Wartungen aller aktiven Maschinen, überfällige zuerst (mit `user`: nur, was er sehen darf)."""
     rows = []
-    for task in visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)), user):
+    from sqlalchemy.orm import contains_eager
+    for task in visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True))
+                        .options(contains_eager(MaintenanceTask.machine)), user):
         status = task_status(task)
         if status["state"] in states:
             rows.append((task, status))

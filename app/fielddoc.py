@@ -377,9 +377,12 @@ def protection(entry, known, today=None):
 def protection_overview(year, today=None):
     """Alle Schläge mit Pflanzenschutz im Erntejahr und die eingesetzten Mittel (Anzahl, Fläche, Menge)."""
     known = products()
+    from sqlalchemy.orm import joinedload, selectinload
     entries = (PlotYear.query.filter_by(year=year)
                .join(FieldMeasure, FieldMeasure.plot_year_id == PlotYear.id)
-               .filter(FieldMeasure.kind == "pflanzenschutz").distinct().all())
+               .filter(FieldMeasure.kind == "pflanzenschutz").distinct()
+               .options(selectinload(PlotYear.measures.and_(FieldMeasure.kind == "pflanzenschutz")),
+                        joinedload(PlotYear.plot)).all())
     rows = []
     for entry in entries:
         info = protection(entry, known, today)

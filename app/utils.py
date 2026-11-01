@@ -249,3 +249,12 @@ def text_color_for(hex_color):
     except (ValueError, AttributeError):
         return "#000"
     return "#000" if (0.299 * r + 0.587 * g + 0.114 * b) > 150 else "#fff"
+
+
+def request_cache():
+    """Zwischenspeicher für genau einen Seitenaufruf (nur GET – dabei ändert sich nichts) oder None.
+    Hängt an der Anfrage selbst, nicht an `g` (das kann über mehrere Anfragen leben, z. B. in Tests)."""
+    from flask import has_request_context, request
+    if not has_request_context() or request.method != "GET":
+        return None
+    return request.environ.setdefault("lager.cache", {})

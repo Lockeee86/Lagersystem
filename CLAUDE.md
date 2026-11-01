@@ -177,6 +177,9 @@ docker compose up --build -d
   (`views._important`, ohne Aufgaben – die haben einen eigenen Block) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
   `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).
   Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)
+- `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
+  Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
+  `selectinload`/`joinedload` laden statt in Schleifen nachzufragen
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,

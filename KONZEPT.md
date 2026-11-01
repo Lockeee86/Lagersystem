@@ -230,6 +230,15 @@ nicht löschen, Kunden mit Lieferscheinen nur deaktivieren.
 ### Baustein B – Lagerklima (= Phase 2)
 Siehe Phase 2. 3–6 Messpunkte, Warnungen nur in der App, DWD-Außentemperatur als Vergleich möglich.
 
+### Geschwindigkeit (0.73.0)
+Statische Dateien tragen die App-Version (`?v=`, automatisch über `url_for`) und werden ein Jahr zwischengespeichert;
+Text-Antworten werden mit gzip gepackt (`app/speed.py`). Abfragen in Schleifen gebündelt (Wartezeiten, Wartungsampel,
+Aufgaben, Lagerbestand, Fruchtfolge, Schlagkarte); Herde, Eier-Tagessummen, Stall-Sensor und Einstellungen je
+Seitenaufruf nur einmal gelesen (`utils.request_cache`, nur GET); Kistenerträge je Jahr zwischengespeichert, bis eine
+neue Bewegung dazukommt (`fields._potato_yields`). Gemessen mit Testdaten: Startseite 440 → 150 ms (315 → 122
+Abfragen), Schlagkarte 590 → 50 ms (744 → 20), Kalender 190 → 60 ms. Langsame Seiten ins Log schreiben: erst, wenn
+es im Betrieb noch hakt.
+
 ### Baustein C – Maschinen & Wartung (umgesetzt in 0.10.0)
 Umsetzung: Maschinen mit QR-Code `M-001` (der normale Scanner erkennt ihn), Arten mit Vorschlägen für
 Wartungsintervalle (nach Zähler und/oder Monaten, „was zuerst kommt“), Ampel überfällig / bald fällig

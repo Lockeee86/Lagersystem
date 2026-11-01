@@ -127,5 +127,5 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
-{% if topic.active %}<script src="{{ url_for('static', filename='js/signpad.js') }}?v={{ app_version }}"></script>{% endif %}
+{% if topic.active %}<script src="{{ url_for('static', filename='js/signpad.js') }}"></script>{% endif %}
 {% endblock %}

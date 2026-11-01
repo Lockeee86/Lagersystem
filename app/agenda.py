@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from flask import url_for
+from sqlalchemy.orm import contains_eager
 
 from . import machines, tasks
 from .i18n import N_, gettext as _
@@ -113,7 +114,8 @@ def overdue(today=None, user=None):
     """Überfällige Wartungen mit Datum – sie sollen auch im aktuellen Monat sichtbar sein, nicht nur am Fälligkeitstag."""
     today = today or date.today()
     rows = []
-    for task in machines.visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)), user):
+    for task in machines.visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True))
+                                     .options(contains_eager(MaintenanceTask.machine)), user):
         status = machines.task_status(task, today)
         if status["state"] == "overdue" and status["due_on"] is not None:
             rows.append({"task": task, "status": status,
@@ -123,7 +125,8 @@ def overdue(today=None, user=None):
 
 def _maintenance(start, end, today, user=None):
     events, undated = [], []
-    for task in machines.visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True)), user):
+    for task in machines.visible(MaintenanceTask.query.join(Machine).filter(Machine.active.is_(True))
+                                     .options(contains_eager(MaintenanceTask.machine)), user):
         status = machines.task_status(task, today)
         url = url_for("machines.machine_detail", machine_id=task.machine_id) + "#wartungen"
         if status["due_on"] is None:
@@ -170,9 +173,12 @@ def _waiting(start, end, today):
     from . import fielddoc
     from .models import FieldMeasure, PlotYear
     years = {today.year, start.year, end.year}
+    from sqlalchemy.orm import joinedload, selectinload
     entries = (PlotYear.query.filter(PlotYear.year.in_(years))
                .join(FieldMeasure, FieldMeasure.plot_year_id == PlotYear.id)
-               .filter(FieldMeasure.kind == "pflanzenschutz").distinct().all())
+               .filter(FieldMeasure.kind == "pflanzenschutz").distinct()
+               .options(selectinload(PlotYear.measures.and_(FieldMeasure.kind == "pflanzenschutz")),
+                        joinedload(PlotYear.plot)).all())
     known = fielddoc.products() if entries else {}
     events = []
     for entry in entries:

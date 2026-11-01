@@ -540,6 +540,9 @@ def season_summary(year=None):
     query = Movement.query.filter(Movement.harvest_date.isnot(None), Movement.variety_id.isnot(None))
     if year:
         query = query.filter(extract("year", Movement.harvest_date) == year)
+    from sqlalchemy.orm import joinedload
+    query = query.options(joinedload(Movement.box).joinedload(Box.box_type), joinedload(Movement.variety),
+                          joinedload(Movement.plot))
     seasons = {}   # (box_id, erntejahr) → Angaben
     for m in query.order_by(Movement.created_at, Movement.id):
         key = (m.box_id, m.harvest_date.year)
