@@ -15,7 +15,7 @@ from .utils import local_tz
 
 TOKEN_KEY = "display_workshop_token"
 REFRESH = 60                 # Sekunden
-LIMITS = {"faults": 7, "due": 8, "tasks": 6, "handovers": 2, "per_person": 6}
+LIMITS = {"faults": 6, "due": 7, "tasks": 5, "handovers": 2, "per_person": 6}
 
 
 def token():
@@ -66,4 +66,5 @@ def data(now=None):
         w = None
     return {"now": now, "today": today, "people": people, "faults": faults, "faults_more": faults_more,
             "due": due, "due_more": due_more, "tasks": open_tasks, "tasks_more": tasks_more,
-            "handovers": handovers, "weather": w, "refresh": REFRESH, "biogas": plant}
+            "handovers": handovers, "weather": w, "refresh": REFRESH, "biogas": plant,
+            "price": biogas.price_strip(cached.get("price_series")) if cached.get("price_series") else None}

@@ -386,3 +386,15 @@ def test_workshop_screen(app, as_admin, as_worker, db, seed):
         assert text in html, text
     as_admin.post("/admin/einstellungen/werkstatt-anzeige")                  # neuer Link: alter ungültig
     assert app.test_client().get(f"/werkstatt/anzeige/{token}").status_code == 404
+
+
+def test_workshop_screen_price(app, as_admin, db, seed, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from app import biogas, screen
+    start = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=6)
+    series = [(start + timedelta(minutes=15 * i), 80.0 + (i % 40) * 5) for i in range(96)]
+    monkeypatch.setattr(biogas, "live", lambda now=None, cached_only=False: {"price_series": series, "gas": None,
+                                                                              "price_now": series[24][1]})
+    as_admin.post("/admin/einstellungen/werkstatt-anzeige")
+    html = app.test_client().get(f"/werkstatt/anzeige/{screen.token()}").get_data(as_text=True)
+    assert "Strompreis" in html and 'class="price-bar"' in html and "price-mark" in html and "€/MWh" in html

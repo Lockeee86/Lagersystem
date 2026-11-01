@@ -33,6 +33,20 @@ html, body { margin: 0; height: 100%; background: #0e1116; overflow: hidden; cur
 .top .clock { font-size: 72px; font-weight: 800; font-variant-numeric: tabular-nums; margin-left: 26px; }
 .frost { margin: 14px 24px 0; padding: 12px 20px; border-radius: 16px; background: rgba(120,170,255,.16); border: 1px solid rgba(140,185,255,.45);
     font-size: 26px; font-weight: 800; color: #cfe0ff; display: flex; align-items: center; gap: 12px; }
+.price { margin: 14px 24px 0; padding: 12px 20px 8px; border-radius: 18px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); }
+.price-head { display: flex; align-items: baseline; gap: 18px; margin-bottom: 8px; font-size: 20px; color: #aeb8c6; font-weight: 600; }
+.price-title { font-size: 22px; font-weight: 800; color: #eef1f5; display: flex; gap: 8px; align-items: center; }
+.price-title i { color: #ffd27a; }
+.price-now-val { font-size: 26px; font-weight: 800; color: #eef1f5; }
+.price-level { font-size: 17px; font-weight: 800; padding: 2px 10px; border-radius: 8px; }
+.price-good { background: #2e9e5b; color: #fff; } .price-mid { background: #e8b13a; color: #222; } .price-bad { background: #c9403a; color: #fff; }
+.price-best { margin-left: auto; }
+.price-bar { position: relative; display: flex; height: 34px; border-radius: 8px; overflow: hidden; }
+.price-bar span { display: block; height: 100%; }
+.price-mark { position: absolute; top: 0; bottom: 0; width: 5px; margin-left: -2px; background: #fff; box-shadow: 0 0 0 2px #11151b; }
+.price-day { position: absolute; top: 0; bottom: 0; width: 0; border-left: 3px dashed rgba(255,255,255,.75); }
+.price-scale { position: relative; height: 24px; font-size: 17px; color: #8a96a8; font-weight: 600; }
+.price-scale span { position: absolute; top: 3px; white-space: nowrap; }
 .grid { flex: 1; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 20px 24px 24px; min-height: 0; }
 .col { display: flex; flex-direction: column; gap: 20px; min-height: 0; }
 .card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 18px 22px; min-height: 0; overflow: hidden; }
@@ -95,6 +109,26 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
     <div class="frost"><i class="bi bi-snow2"></i>{{ _("Frost") if w.frost.level == "frost" else _("Bodenfrost") }} {{ w.frost.at|weekday }}: {{ _("bis {t} °C – Tränke, Leitungen und Lager prüfen", t=w.frost.min|num(1)) }}</div>
     {% endif %}
 
+    {% set ps = d.price %}
+    {% if ps %}
+    <div class="price">
+        <div class="price-head">
+            <span class="price-title"><i class="bi bi-lightning-charge"></i>{{ _("Strompreis") }}</span>
+            {% if ps.now_price is not none %}<span class="price-now-val">{{ ps.now_price|num(0) }} €/MWh</span>
+            <span class="price-level price-{{ ps.good }}">{{ _("günstig") if ps.level == "low" else _("teuer") if ps.level == "high" else _("mittel") }}</span>{% endif %}
+            <span class="price-range">{{ _("{min}–{max} €/MWh", min=ps.min|num(0), max=ps.max|num(0)) }}</span>
+            {% if ps.best %}{% set day = _("heute") if ps.best[0].date() == d.today else _("morgen") %}
+            <span class="price-best">{% if ps.view == "erzeuger" %}{{ _("Teuerste Stunde: {day} {hour} Uhr ({price} €/MWh)", day=day, hour=ps.best[0].strftime("%H"), price=ps.best[1]|num(0)) }}{% else %}{{ _("Günstigste Stunde: {day} {hour} Uhr ({price} €/MWh)", day=day, hour=ps.best[0].strftime("%H"), price=ps.best[1]|num(0)) }}{% endif %}</span>{% endif %}
+        </div>
+        <div class="price-bar">
+            {% for seg in ps.segments %}<span style="width: {{ seg.width|round(3) }}%; background: {{ seg.color }}"></span>{% endfor %}
+            {% if ps.now_pct is not none %}<i class="price-mark" style="left: {{ ps.now_pct|round(2) }}%"></i>{% endif %}
+            {% for day in ps.days[1:] %}<i class="price-day" style="left: {{ day.pct|round(2) }}%"></i>{% endfor %}
+        </div>
+        <div class="price-scale">{% for day in ps.days %}<span style="left: {{ day.pct|round(2) }}%">{{ _("heute") if loop.first else _("morgen") if loop.index == 2 else day.date|weekday }}</span>{% endfor %}</div>
+    </div>
+    {% endif %}
+
     <div class="grid">
         <!-- Tagesplan -->
         <section class="card grow">
@@ -155,10 +189,10 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
                         <span class="info">{% if f and f.left is not none %}<span class="{{ 'warn-text' if f.status.state in ('overdue', 'soon') }}">{{ f.task.name }}: {% if f.left <= 0 %}{{ _("fällig") }}{% else %}{{ _("in {h} h", h=f.left|num(0)) }}{% endif %}</span>{% elif r.yesterday %}{{ _("gestern {h} h", h=r.yesterday.hours|num(1)) }}{% endif %}</span></span>
                     <span class="kw">{% if r.now and r.now.running and r.now.kw_now is not none %}{{ r.now.kw_now|num(0) }} kW{% elif r.start %}{{ motor_start(r.start) }}{% elif r.now %}{{ _("steht") }}{% endif %}</span></div>
                 {% endfor %}
-                {% if b.gas or b.price_now is not none %}
+                {% if (b.gas and b.gas.now is not none) or (b.price_now is not none and not d.price) %}
                 <div class="plant-facts">
                     {% if b.gas and b.gas.now is not none %}<span><i class="bi bi-cloud-haze2"></i> {{ _("Gasspeicher") }} <b class="{{ 'warn-text' if b.gas.now >= 90 or b.gas.now <= 10 }}">{{ b.gas.now|num(0) }} %</b></span>{% endif %}
-                    {% if b.price_now is not none %}<span><i class="bi bi-currency-euro"></i> {{ _("Strompreis") }} <b>{{ b.price_now|num(0) }} €/MWh</b></span>{% endif %}
+                    {% if b.price_now is not none and not d.price %}<span><i class="bi bi-currency-euro"></i> {{ _("Strompreis") }} <b>{{ b.price_now|num(0) }} €/MWh</b></span>{% endif %}
                 </div>
                 {% endif %}
             </section>
