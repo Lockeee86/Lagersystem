@@ -527,6 +527,11 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    **Tagesplan pflegen** (0.41.1): in der Benutzerverwaltung „Darf den Tagesplan pflegen“ (`User.can_plan`,
    `is_planner`, `team_views.planner_required`) – wie der Admin einteilen, abhaken, löschen, übernehmen, verschicken.
    **Mehrere Schläge je Eintrag** (0.41.2): gleiche Auswahl wie bei Aufgaben (`macros.plot_pick`, `PlanEntry.plots`).
+   **Aufgabenpool** (0.74.0): kurz notierte Arbeit ohne Person und Tag (`PoolItem`), oben im Tagesplan – notieren
+   dürfen alle Mitarbeiter, optional mit Maschine und „wichtig“. Planer teilen einen Eintrag einer Person zu, Mitarbeiter
+   nehmen ihn sich selbst („Mach ich“, nur für sich). Im Plan abgehakt = erledigt; liegen geblieben = am nächsten Tag
+   wieder im Pool (außer „Unerledigtes übernehmen“ hat ihn schon eingeplant). „Hat sich erledigt“/Löschen: Planer oder
+   wer ihn notiert hat.
    **Vorschläge** (0.66.0): oben im Tagesplan stehen für die Planer, was ansteht – offene Störungen, Wartungen
    (überfällig, in 7 Tagen oder kurz vor dem Zählerstand) und Aufgaben, die bis zum Tag fällig sind oder keinen
    Termin haben (ohne Hühner-Aufgaben). Person wählen (bei genau einem Zuständigen vorgewählt) → „Einplanen“.

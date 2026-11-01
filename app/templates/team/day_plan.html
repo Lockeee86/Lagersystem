@@ -41,6 +41,75 @@
 </div>
 {% endif %}
 
+{% if current_user.can_edit %}
+<div class="card shadow-sm mb-3" id="pool">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-inbox me-1"></i>{{ _("Aufgabenpool") }} {% if pool %}<span class="badge text-bg-secondary ms-1">{{ pool|length }}</span>{% endif %}</span>
+        <span class="small text-body-secondary d-none d-md-inline">{{ _("kurz notieren, später verteilen") }}</span>
+    </div>
+    <div class="card-body pb-2">
+        <form method="post" action="{{ url_for('team.pool_add') }}" class="pool-add">
+            {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+            <div class="input-group">
+                <input class="form-control" name="text" maxlength="200" required placeholder="{{ _('Was ist irgendwann zu tun?') }}" aria-label="{{ _('Neue Aufgabe für den Pool') }}">
+                <button class="btn btn-primary" aria-label="{{ _('In den Pool') }}"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline ms-1">{{ _("In den Pool") }}</span></button>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                <select class="form-select form-select-sm w-auto" name="machine_id" aria-label="{{ _('Maschine') }}">
+                    <option value="">{{ _("Maschine …") }}</option>
+                    {{ machine_options(pool_machines) }}
+                </select>
+                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="pool_important" name="important" value="1">
+                    <label class="form-check-label small" for="pool_important">{{ _("wichtig") }}</label></div>
+            </div>
+        </form>
+    </div>
+    {% if pool %}
+    <ul class="list-group list-group-flush">
+        {% for item in pool %}
+        <li class="list-group-item pool-row">
+            <div class="pool-text">
+                {% if item.important %}<i class="bi bi-exclamation-circle-fill text-danger me-1" title="{{ _('wichtig') }}"></i>{% endif %}
+                <span class="fw-semibold">{{ item.text }}</span>
+                {% if item.machine %}<span class="badge text-bg-secondary ms-1"><i class="bi {{ item.machine.icon }} me-1"></i>{{ item.machine.name }}</span>{% endif %}
+                <span class="small text-body-secondary d-block">{{ item.created_by.name if item.created_by else "–" }} · {{ item.created_at|date }}</span>
+            </div>
+            <div class="pool-actions">
+                {% if current_user.is_planner %}
+                <form method="post" action="{{ url_for('team.pool_plan', item_id=item.id) }}" class="input-group input-group-sm">
+                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+                    <select class="form-select" name="user_id" required aria-label="{{ _('Wer?') }}">
+                        <option value="">{{ _("Wer?") }}</option>
+                        {% for u in members %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-outline-primary" title="{{ _('Einplanen') }}"><i class="bi bi-calendar-plus"></i></button>
+                </form>
+                {% elif day >= today %}
+                <form method="post" action="{{ url_for('team.pool_plan', item_id=item.id) }}">
+                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ current_user.id }}">
+                    <button class="btn btn-sm btn-outline-primary text-nowrap"><i class="bi bi-hand-index me-1"></i>{{ _("Mach ich") }}</button>
+                </form>
+                {% endif %}
+                {% if current_user.is_planner or item.created_by_id == current_user.id %}
+                <form method="post" action="{{ url_for('team.pool_done', item_id=item.id) }}">
+                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+                    <button class="btn btn-sm btn-link text-success p-1" title="{{ _('Hat sich erledigt') }}" aria-label="{{ _('Hat sich erledigt') }}"><i class="bi bi-check2-circle"></i></button>
+                </form>
+                <form method="post" action="{{ url_for('team.pool_delete', item_id=item.id) }}">
+                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
+                    <button class="btn btn-sm btn-link text-body-secondary p-1" title="{{ _('Löschen') }}" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('„{entry}“ aus dem Pool löschen?', entry=item.text) }}"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="card-body pt-0 small text-body-secondary">{{ _("Der Pool ist leer.") }}</div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if suggestions %}
 {% set icons = {"task": "bi-check2-square", "wartung": "bi-wrench-adjustable", "stoerung": "bi-exclamation-triangle"} %}
 <div class="card shadow-sm mb-3" id="vorschlaege">

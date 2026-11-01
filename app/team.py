@@ -13,7 +13,7 @@ from .extensions import db
 from .i18n import N_, gettext as _
 from .machines import add_months
 from .models import (Handover, InstructionRecord, InstructionTopic, Machine, MachineEvent, MaintenanceTask, PlanEntry,
-                     Plot, Task, User, utcnow)
+                     Plot, PoolItem, Task, User, utcnow)
 from .push import Msg
 from .storage import StorageError
 
@@ -119,6 +119,7 @@ def copy_plan(source_day, target_day, actor):
             continue
         for e in entries:
             db.session.add(PlanEntry(day=target_day, user_id=user_id, text=e.text, machine_id=e.machine_id,
+                                     pool_item_id=e.pool_item_id if e.pool_item_id and not e.done_at else None,
                                      plots=list(e.plots), position=e.position,
                                      created_by_id=actor.id if actor else None))
             copied += 1
@@ -174,6 +175,7 @@ def carry_over(source_day, target_day, actor):
         position = (db.session.query(func.max(PlanEntry.position))
                     .filter_by(day=target_day, user_id=e.user_id).scalar() or 0) + 1
         db.session.add(PlanEntry(day=target_day, user_id=e.user_id, text=e.text, machine_id=e.machine_id,
+                                 pool_item_id=e.pool_item_id,
                                  plots=list(e.plots), position=position, created_by_id=actor.id if actor else None))
         db.session.flush()
     return len(candidates)
@@ -255,6 +257,8 @@ def _finish_linked(entry, user):
     elif entry.machine_event and entry.machine_event.is_open_fault:
         machines.resolve_fault(entry.machine_event, user)
         tasks.close_linked(user, event=entry.machine_event)
+    elif entry.pool_item and not entry.pool_item.done_at:
+        entry.pool_item.done_at, entry.pool_item.done_by_id = utcnow(), user.id
 
 
 def _reopen_linked(entry):
@@ -264,6 +268,48 @@ def _reopen_linked(entry):
         tasks.reopen_task(entry.task)
     elif entry.machine_event and entry.machine_event.resolved_at == entry.done_at:
         entry.machine_event.resolved_at = entry.machine_event.resolved_by_id = None
+    elif entry.pool_item and entry.pool_item.done_at:
+        entry.pool_item.done_at = entry.pool_item.done_by_id = None
+
+
+# --- Aufgabenpool ----------------------------------------------------------------------------
+# Kurz notierte Arbeit ohne Person und Tag. Im Pool steht, was nicht erledigt und für `day` oder später noch nicht
+# eingeplant ist – was an einem früheren Tag liegen blieb, ist also wieder da.
+
+def pool(day):
+    planned = {pid for (pid,) in db.session.query(PlanEntry.pool_item_id)
+               .filter(PlanEntry.pool_item_id.isnot(None), PlanEntry.day >= day)}
+    items = PoolItem.query.filter(PoolItem.done_at.is_(None)).order_by(PoolItem.important.desc(), PoolItem.created_at).all()
+    return [i for i in items if i.id not in planned]
+
+
+def add_pool_item(text, user, machine_id=None, important=False):
+    text = _text(text, 200)
+    if not text:
+        raise StorageError(_("Bitte eintragen, was zu tun ist."))
+    machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
+    item = PoolItem(text=text, machine_id=machine_id, important=bool(important), created_by_id=user.id if user else None)
+    db.session.add(item)
+    db.session.flush()
+    return item
+
+
+def plan_pool_item(item, day, user, actor):
+    """Pool-Eintrag für `user` an `day` einplanen (Planer für alle, Mitarbeiter nur für sich selbst)."""
+    if item.done_at:
+        raise StorageError(_("Das ist schon erledigt."))
+    if not (actor.is_planner or actor.id == user.id):
+        raise StorageError(_("Einplanen kann nur, wer den Tagesplan pflegt – oder du nimmst es dir selbst."))
+    if item.id not in {i.id for i in pool(day)}:
+        raise StorageError(_("Das ist schon eingeplant."))
+    entry = add_plan_entry(day, user, item.text, actor, machine_id=item.machine_id)
+    entry.pool_item_id = item.id
+    db.session.flush()
+    return entry
+
+
+def can_change_pool_item(item, user):
+    return bool(user.is_planner or item.created_by_id == user.id)
 
 
 def send_plan(day, actor):

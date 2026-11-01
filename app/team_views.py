@@ -9,7 +9,8 @@ from . import team, uploads
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .instruction_pdf import render_instruction_record
-from .models import Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, PlanEntry, Plot, Setting, User
+from .models import (Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, PlanEntry, Plot,
+                     PoolItem, Setting, User, utcnow)
 from .storage import StorageError
 from .utils import admin_required, back, editor_required, flash_error, form_date, form_int, form_str, local_tz
 
@@ -107,6 +108,8 @@ def day_plan():
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_planner else [],
         plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.is_planner else [],
         suggestions=team.suggestions(day, current_user) if current_user.is_planner else [],
+        pool=team.pool(day) if current_user.can_edit else [],
+        pool_machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.can_edit else [],
     )
 
 
@@ -124,6 +127,62 @@ def plan_add():
         db.session.rollback()
         flash_error(str(e))
     return _to_plan(day, f"p{user.id}" if user else None)
+
+
+# --- Aufgabenpool -------------------------------------------------------------------------------
+
+@bp.route("/tagesplan/pool", methods=["POST"])
+@editor_required
+def pool_add():
+    day = _form_day()
+    try:
+        team.add_pool_item(request.form.get("text"), current_user, machine_id=form_int("machine_id"),
+                           important=bool(request.form.get("important")))
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _to_plan(day, "pool")
+
+
+@bp.route("/tagesplan/pool/<int:item_id>/einplanen", methods=["POST"])
+@editor_required
+def pool_plan(item_id):
+    """Einplanen: Planer wählt die Person, ein Mitarbeiter nimmt es sich selbst („Mach ich“)."""
+    item = _get(PoolItem, item_id)
+    day = _form_day()
+    user = db.session.get(User, form_int("user_id", 0)) or current_user
+    try:
+        team.plan_pool_item(item, day, user, current_user)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+        return _to_plan(day, "pool")
+    return _to_plan(day, f"p{user.id}")
+
+
+@bp.route("/tagesplan/pool/<int:item_id>/erledigt", methods=["POST"])
+@editor_required
+def pool_done(item_id):
+    """Ohne Einplanen erledigt (hat sich erledigt)."""
+    item = _get(PoolItem, item_id)
+    if not team.can_change_pool_item(item, current_user):
+        abort(403)
+    item.done_at, item.done_by_id = utcnow(), current_user.id
+    db.session.commit()
+    return _to_plan(_form_day(), "pool")
+
+
+@bp.route("/tagesplan/pool/<int:item_id>/loeschen", methods=["POST"])
+@editor_required
+def pool_delete(item_id):
+    item = _get(PoolItem, item_id)
+    if not team.can_change_pool_item(item, current_user):
+        abort(403)
+    db.session.delete(item)
+    db.session.commit()
+    return _to_plan(_form_day(), "pool")
 
 
 @bp.route("/tagesplan/vorschlag", methods=["POST"])

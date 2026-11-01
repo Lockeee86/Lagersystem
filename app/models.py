@@ -1625,6 +1625,29 @@ plan_entry_plots = db.Table(
 )
 
 
+class PoolItem(db.Model):
+    """Aufgabenpool: kurz notierte Arbeit ohne Person und Tag – wird später in den Tagesplan eingeplant
+    (`PlanEntry.pool_item_id`). Abgehakt im Plan = erledigt; nicht geschafft = wieder im Pool."""
+    __tablename__ = "pool_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.String(200), nullable=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"))
+    important = db.Column(db.Boolean, nullable=False, default=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    done_at = db.Column(db.DateTime(timezone=True), index=True)
+    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+
+    machine = db.relationship("Machine")
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+    done_by = db.relationship("User", foreign_keys=[done_by_id])
+
+    @property
+    def label(self):                             # fürs Änderungsprotokoll
+        return self.text
+
+
 class PlanEntry(db.Model):
     """Eintrag im Tagesplan: wer macht an einem Tag was (optional mit Maschine und Schlägen)."""
     __tablename__ = "plan_entries"
@@ -1643,9 +1666,11 @@ class PlanEntry(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"), index=True)
     maintenance_task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"), index=True)
     machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"), index=True)
+    pool_item_id = db.Column(db.Integer, db.ForeignKey("pool_items.id", ondelete="SET NULL"), index=True)
 
     user = db.relationship("User", foreign_keys=[user_id])
     done_by = db.relationship("User", foreign_keys=[done_by_id])
+    pool_item = db.relationship("PoolItem")
     machine = db.relationship("Machine")
     plots = db.relationship("Plot", secondary=plan_entry_plots, order_by="Plot.name")
     task = db.relationship("Task")

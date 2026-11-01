@@ -104,7 +104,7 @@ def test_plan_pages_and_push(as_admin, as_worker, as_viewer, db, seed):
                                                   "text": "Sortieren Halle 2", "plot_ids": [seed["plot"].id]})
     assert r.headers["Location"].endswith(f"/tagesplan?datum={today.isoformat()}#p{worker.id}")
     html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert "Sortieren Halle 2" in html and "Acker Nord" in html and 'name="text"' not in html
+    assert "Sortieren Halle 2" in html and "Acker Nord" in html and 'action="/tagesplan/eintrag"' not in html
     assert "Sortieren Halle 2" in as_viewer.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
     # Startseite: eigener Plan; andere sehen den Hinweis
     assert "Dein Plan für heute" in as_worker.get("/").get_data(as_text=True)
@@ -168,7 +168,7 @@ def test_plan_editor(as_admin, as_worker, db, seed):
     today = date.today()
     data = {"datum": today.isoformat(), "user_id": admin.id, "text": "Büro aufräumen"}
     assert as_worker.post("/tagesplan/eintrag", data=data).status_code == 403
-    assert 'name="text"' not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert 'action="/tagesplan/eintrag"' not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
     as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter", "active": "1",
                                            "can_plan": "1"})
     assert worker.can_plan and worker.is_planner
@@ -398,3 +398,47 @@ def test_workshop_screen_price(app, as_admin, db, seed, monkeypatch):
     as_admin.post("/admin/einstellungen/werkstatt-anzeige")
     html = app.test_client().get(f"/werkstatt/anzeige/{screen.token()}").get_data(as_text=True)
     assert "Strompreis" in html and 'class="price-bar"' in html and "price-mark" in html and "€/MWh" in html
+
+
+def test_task_pool(app, as_admin, as_worker, as_viewer, db, seed):
+    from datetime import date, timedelta
+    from app.models import PoolItem
+    admin, worker = seed["admin"], seed["worker"]
+    today, tomorrow = date.today(), date.today() + timedelta(days=1)
+    day = {"datum": today.isoformat()}
+    # notieren: Admin und Mitarbeiter, Betrachter nicht
+    as_admin.post("/tagesplan/pool", data=day | {"text": "Hoftor ölen", "important": "1"})
+    as_worker.post("/tagesplan/pool", data=day | {"text": "Werkzeugwand aufräumen"})
+    assert as_viewer.post("/tagesplan/pool", data=day | {"text": "x"}).status_code == 403
+    gate = PoolItem.query.filter_by(text="Hoftor ölen").one()
+    wall = PoolItem.query.filter_by(text="Werkzeugwand aufräumen").one()
+    assert [i.text for i in team.pool(today)] == ["Hoftor ölen", "Werkzeugwand aufräumen"]     # wichtig zuerst
+    html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert "Aufgabenpool" in html and "Hoftor ölen" in html and "Mach ich" in html
+
+    # Mitarbeiter nimmt sich selbst etwas – für andere einplanen darf er nicht
+    as_worker.post(f"/tagesplan/pool/{gate.id}/einplanen", data=day | {"user_id": worker.id})
+    assert [e.text for e in team.plan_for(today)[worker.id]] == ["Hoftor ölen"]
+    assert [i.text for i in team.pool(today)] == ["Werkzeugwand aufräumen"]
+    as_worker.post(f"/tagesplan/pool/{wall.id}/einplanen", data=day | {"user_id": admin.id})
+    assert admin.id not in team.plan_for(today)
+    # Planer teilt zu
+    as_admin.post(f"/tagesplan/pool/{wall.id}/einplanen", data=day | {"user_id": worker.id})
+    assert team.pool(today) == []
+
+    # abhaken erledigt den Pool-Eintrag; liegen gebliebenes ist am nächsten Tag wieder im Pool
+    entry = next(e for e in team.plan_for(today)[worker.id] if e.pool_item_id == gate.id)
+    as_worker.post(f"/tagesplan/eintrag/{entry.id}/erledigt")
+    assert db.session.get(PoolItem, gate.id).done_at is not None
+    assert [i.text for i in team.pool(tomorrow)] == ["Werkzeugwand aufräumen"]
+    # Unerledigtes übernehmen behält die Verknüpfung – dann ist es nicht doppelt im Pool
+    team.carry_over(today, tomorrow, admin)
+    db.session.commit()
+    assert team.pool(tomorrow) == []
+
+    # erledigt ohne Einplanen / löschen: nur Planer oder wer es notiert hat
+    extra = team.add_pool_item("Kaffee kaufen", admin)
+    db.session.commit()
+    assert as_worker.post(f"/tagesplan/pool/{extra.id}/loeschen", data=day).status_code == 403
+    as_admin.post(f"/tagesplan/pool/{extra.id}/erledigt", data=day)
+    assert db.session.get(PoolItem, extra.id).done_at is not None
