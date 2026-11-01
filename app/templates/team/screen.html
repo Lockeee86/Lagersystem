@@ -1,4 +1,5 @@
 {% from "machines/_macros.html" import due_text %}
+{% from "macros.html" import motor_start %}
 <!DOCTYPE html>
 <html lang="{{ get_locale() }}">
 <head>
@@ -54,6 +55,12 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
 .row .stack { display: flex; flex-direction: column; min-width: 0; }
 .row .stack > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; align-self: center; }
+.green { background: #6fdc5a; } .grey { background: #6b7685; }
+.row .kw { margin-left: auto; font-size: 21px; font-weight: 800; white-space: nowrap; color: #e6ebf1; }
+.row .kw .bi { display: none; }
+.warn-text { color: #ffbe55; font-weight: 800; }
+.plant-facts { display: flex; gap: 22px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); font-size: 20px; color: #aeb8c6; font-weight: 600; }
+.plant-facts b { color: #eef1f5; }
 .red { background: #ff6b5b; } .amber { background: #ffbe55; } .blue { background: #7fb2ff; }
 .more { margin-top: 8px; font-size: 18px; color: #aeb8c6; font-weight: 700; }
 .empty { font-size: 22px; color: #8fd17a; font-weight: 700; display: flex; align-items: center; gap: 10px; }
@@ -137,6 +144,25 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
 
         <!-- Aufgaben und Übergabe -->
         <div class="col">
+            {% set b = d.biogas %}
+            {% if b %}
+            <section class="card">
+                <h2><i class="bi bi-lightning-charge" style="color: #ffd27a"></i>{{ _("Biogasanlage") }}
+                    {% if b.live %}<span class="count">{{ ngettext("{n} läuft", "{n} laufen", b.running) }} · {{ b.kw|num(0) }} kW</span>{% endif %}</h2>
+                {% for r in b.rows %}{% set m = r.machine %}{% set f = r.next %}
+                <div class="row"><span class="dot {{ 'green' if r.now and r.now.running else 'grey' }}"></span>
+                    <span class="stack" style="flex: 1"><span class="what">{{ m.name }}</span>
+                        <span class="info">{% if f and f.left is not none %}<span class="{{ 'warn-text' if f.status.state in ('overdue', 'soon') }}">{{ f.task.name }}: {% if f.left <= 0 %}{{ _("fällig") }}{% else %}{{ _("in {h} h", h=f.left|num(0)) }}{% endif %}</span>{% elif r.yesterday %}{{ _("gestern {h} h", h=r.yesterday.hours|num(1)) }}{% endif %}</span></span>
+                    <span class="kw">{% if r.now and r.now.running and r.now.kw_now is not none %}{{ r.now.kw_now|num(0) }} kW{% elif r.start %}{{ motor_start(r.start) }}{% elif r.now %}{{ _("steht") }}{% endif %}</span></div>
+                {% endfor %}
+                {% if b.gas or b.price_now is not none %}
+                <div class="plant-facts">
+                    {% if b.gas and b.gas.now is not none %}<span><i class="bi bi-cloud-haze2"></i> {{ _("Gasspeicher") }} <b class="{{ 'warn-text' if b.gas.now >= 90 or b.gas.now <= 10 }}">{{ b.gas.now|num(0) }} %</b></span>{% endif %}
+                    {% if b.price_now is not none %}<span><i class="bi bi-currency-euro"></i> {{ _("Strompreis") }} <b>{{ b.price_now|num(0) }} €/MWh</b></span>{% endif %}
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
             <section class="card grow">
                 <h2><i class="bi bi-list-check"></i>{{ _("Aufgaben") }}{% if d.tasks %}<span class="count">{{ d.tasks|length + d.tasks_more }}</span>{% endif %}</h2>
                 {% for t in d.tasks %}

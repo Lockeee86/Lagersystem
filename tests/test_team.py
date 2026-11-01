@@ -375,11 +375,14 @@ def test_workshop_screen(app, as_admin, as_worker, db, seed):
     team.add_plan_entry(date.today(), seed["worker"], "Kartoffeln sortieren", seed["admin"], machine_id=tractor.id)
     tasks.create_task(seed["admin"], title="Werkstatt aufräumen", due_on=date.today())
     team.add_handover(seed["admin"], "Hoftor klemmt")
+    motor = Machine(code="M-22", name="Gasmotor 9", category="bhkw", counter_unit="h", counter=1200, power_kw=250)
+    db.session.add(motor)
     db.session.commit()
     r = app.test_client().get(f"/werkstatt/anzeige/{token}")           # ohne Anmeldung
     html = r.get_data(as_text=True)
     assert r.status_code == 200 and 'http-equiv="refresh"' in html
-    for text in ("Kartoffeln sortieren", "Schlepper 21", "Licht defekt", "Werkstatt aufräumen", "Hoftor klemmt"):
+    for text in ("Kartoffeln sortieren", "Schlepper 21", "Licht defekt", "Werkstatt aufräumen", "Hoftor klemmt",
+                 "Biogasanlage", "Gasmotor 9"):
         assert text in html, text
     as_admin.post("/admin/einstellungen/werkstatt-anzeige")                  # neuer Link: alter ungültig
     assert app.test_client().get(f"/werkstatt/anzeige/{token}").status_code == 404

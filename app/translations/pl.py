@@ -2896,4 +2896,5 @@ MESSAGES = {
     'Bild': 'Obraz',
     '{date} · {n} Eier': ('{date} · {n} jajo', '{date} · {n} jaja', '{date} · {n} jaj'),
     'WER IST DRAN?': 'CZYJA KOLEJ?',
+    'Biogasanlage': 'Biogazownia',
 }

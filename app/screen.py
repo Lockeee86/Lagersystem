@@ -8,7 +8,7 @@ import hmac
 import secrets
 from datetime import datetime
 
-from . import machines, tasks, team, weather
+from . import biogas, machines, tasks, team, weather
 from .extensions import db
 from .models import Setting
 from .utils import local_tz
@@ -54,9 +54,16 @@ def data(now=None):
     due, due_more = _cut(machines.due_tasks(("overdue", "soon")), LIMITS["due"])
     open_tasks, tasks_more = _cut([t for t in tasks.due_now() if t.area != "huehner"], LIMITS["tasks"])
     handovers, _more = _cut(team.open_handovers(), LIMITS["handovers"])
+    plant = biogas.dashboard(today)           # BHKW: läuft/steht, Leistung, nächster Start, nächste Wartung
+    cached = biogas.live(cached_only=True) or {}    # nie auf die API warten – der Zeitplan hält ihn frisch
+    if cached.get("error"):
+        cached = {}
+    if plant is not None:
+        plant["gas"] = cached.get("gas")
+        plant["price_now"] = cached.get("price_now")
     w = weather.get_weather()
     if not w or w.get("error"):
         w = None
     return {"now": now, "today": today, "people": people, "faults": faults, "faults_more": faults_more,
             "due": due, "due_more": due_more, "tasks": open_tasks, "tasks_more": tasks_more,
-            "handovers": handovers, "weather": w, "refresh": REFRESH}
+            "handovers": handovers, "weather": w, "refresh": REFRESH, "biogas": plant}

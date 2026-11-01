@@ -143,6 +143,8 @@ Portainer-Stack (docker-compose)
   **Werkstatt-Bildschirm** (0.71.0): Vollbild für einen Fernseher (1920×1080, sonst skaliert) – Tagesplan je Person mit
   Haken, offene Störungen (steht/läuft), fällige Wartungen, Aufgaben (ohne Hühner), Übergabe-Notizen, Wetter mit
   3 Tagen und Frost-Hinweis. Ohne Anmeldung über geheimen Link (Verwaltung → Hof), lädt jede Minute neu.
+  Biogasanlage (0.72.2): je BHKW läuft/steht, Leistung bzw. nächster Start, nächste Wartung in h; Gasspeicher und
+  Strompreis jetzt (aus dem Zwischenspeicher von `biogas.live`, keine Erlöse).
   **Stall-Display** (0.70.0): Vollbild-Anzeige für ein kleines Display (800×480, auf anderen Größen skaliert), z. B.
   Raspberry Pi mit Browser im Kiosk-Modus. Eier heute + 14 Tage, Legeleistung 7 Tage, Klappe (bei stummem Sensor
   gedämpft), Stallklima, Sonnenauf-/-untergang, Fütterung, Herde, Vorrat, Wartezeit, Aufgaben, Warnbalken (Klappe
