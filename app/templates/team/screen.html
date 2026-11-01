@@ -1,0 +1,167 @@
+{% from "machines/_macros.html" import due_text %}
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1">
+<meta http-equiv="refresh" content="{{ d.refresh }}">
+<meta name="robots" content="noindex">
+<title>{{ _("Werkstatt-Bildschirm") }} · {{ app_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+<style>
+@font-face { font-family: Figtree; src: url("{{ url_for('static', filename='vendor/figtree/figtree-latin.woff2') }}") format("woff2"); font-weight: 300 900; }
+@font-face { font-family: Figtree; src: url("{{ url_for('static', filename='vendor/figtree/figtree-latin-ext.woff2') }}") format("woff2"); font-weight: 300 900;
+    unicode-range: U+0100-024F, U+1E00-1EFF; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0e1116; overflow: hidden; cursor: none; }
+/* Full HD; auf anderen Fernsehern passend skaliert */
+.screen { width: 1920px; height: 1080px; position: absolute; left: 50%; top: 50%; transform-origin: center;
+    transform: translate(-50%, -50%) scale(var(--scale, 1)); color: #eef1f5; font-family: Figtree, system-ui, sans-serif;
+    background: radial-gradient(ellipse at 0% 0%, #1c2633 0%, transparent 50%), #11151b; display: flex; flex-direction: column; }
+.top { height: 116px; display: flex; align-items: center; gap: 28px; padding: 0 36px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.top img { width: 64px; height: 64px; border-radius: 14px; }
+.top .farm { font-size: 36px; font-weight: 800; }
+.top .date { font-size: 26px; color: #aeb8c6; font-weight: 600; }
+.top .weather { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.top .weather .now { display: flex; align-items: center; gap: 12px; font-size: 52px; font-weight: 800; }
+.top .weather .now i { font-size: 52px; color: #ffd27a; }
+.top .weather .lbl { font-size: 20px; color: #aeb8c6; font-weight: 600; line-height: 1.25; }
+.top .days { display: flex; gap: 10px; margin-left: 10px; }
+.top .days div { text-align: center; padding: 6px 12px; border-radius: 14px; background: rgba(255,255,255,.05); font-size: 18px; font-weight: 700; color: #cfd6e0; }
+.top .days i { display: block; font-size: 26px; color: #ffd27a; }
+.top .clock { font-size: 72px; font-weight: 800; font-variant-numeric: tabular-nums; margin-left: 26px; }
+.frost { margin: 14px 24px 0; padding: 12px 20px; border-radius: 16px; background: rgba(120,170,255,.16); border: 1px solid rgba(140,185,255,.45);
+    font-size: 26px; font-weight: 800; color: #cfe0ff; display: flex; align-items: center; gap: 12px; }
+.grid { flex: 1; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 20px 24px 24px; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 20px; min-height: 0; }
+.card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 18px 22px; min-height: 0; overflow: hidden; }
+.card.grow { flex: 1; }
+h2 { margin: 0 0 12px; font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700; }
+.people { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.person { background: rgba(255,255,255,.04); border-radius: 16px; padding: 12px 16px; }
+.person .name { font-size: 24px; font-weight: 800; display: flex; align-items: baseline; gap: 10px; }
+.person .name span { margin-left: auto; font-size: 18px; color: #aeb8c6; font-weight: 700; }
+.entry { display: flex; align-items: baseline; gap: 10px; font-size: 21px; font-weight: 600; padding: 4px 0; }
+.entry i { color: #8a96a8; font-size: 20px; }
+.entry.done { color: #7f8a99; text-decoration: line-through; }
+.entry.done i { color: #8fd17a; }
+.entry .tag { font-size: 16px; font-weight: 700; color: #cfd6e0; background: rgba(255,255,255,.08); border-radius: 8px; padding: 1px 8px; white-space: nowrap; text-decoration: none; }
+.row { display: flex; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid rgba(255,255,255,.07); font-size: 22px; }
+.row:first-of-type { border-top: 0; }
+.row .what { font-weight: 800; }
+.row .info { color: #aeb8c6; font-size: 19px; font-weight: 600; }
+.row .stack { display: flex; flex-direction: column; min-width: 0; }
+.row .stack > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: none; align-self: center; }
+.red { background: #ff6b5b; } .amber { background: #ffbe55; } .blue { background: #7fb2ff; }
+.more { margin-top: 8px; font-size: 18px; color: #aeb8c6; font-weight: 700; }
+.empty { font-size: 22px; color: #8fd17a; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.note { font-size: 21px; line-height: 1.35; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.07); }
+.note:first-of-type { border-top: 0; }
+.note small { display: block; font-size: 17px; color: #aeb8c6; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="screen" id="screen">
+    <div class="top">
+        <img src="{{ logo_url('logo-64') }}" alt="">
+        <div>
+            <div class="farm">{{ app_name }}</div>
+            <div class="date">{{ d.today|weekday }}, {{ d.today|date }}</div>
+        </div>
+        {% set w = d.weather %}
+        {% if w %}
+        <div class="weather">
+            {% if w.current %}{% set day0 = w.forecast[0] if w.forecast else none %}
+            <div class="now"><i class="bi {{ day0.bi if day0 else 'bi-thermometer-half' }}"></i>{{ w.current.temp|num(0) }}°</div>
+            <div class="lbl">{% if day0 and day0.icon %}{{ _(weather_labels.get(day0.icon, "")) }}<br>{% endif %}{% if day0 %}↑ {{ day0.tmax|num(0) }}° ↓ {{ day0.tmin|num(0) }}°{% if day0.rain %} · {{ day0.rain|num(1) }} mm{% endif %}{% endif %}</div>
+            {% endif %}
+            <div class="days">
+                {% for day in w.forecast[1:4] %}<div>{{ day.date|weekday }}<i class="bi {{ day.bi }}"></i>{{ day.tmax|num(0) }}° / {{ day.tmin|num(0) }}°</div>{% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        <div class="clock" id="clock" {% if not w %}style="margin-left: auto"{% endif %}>{{ d.now.strftime("%H:%M") }}</div>
+    </div>
+    {% if w and w.frost %}
+    <div class="frost"><i class="bi bi-snow2"></i>{{ _("Frost") if w.frost.level == "frost" else _("Bodenfrost") }} {{ w.frost.at|weekday }}: {{ _("bis {t} °C – Tränke, Leitungen und Lager prüfen", t=w.frost.min|num(1)) }}</div>
+    {% endif %}
+
+    <div class="grid">
+        <!-- Tagesplan -->
+        <section class="card grow">
+            <h2><i class="bi bi-people"></i>{{ _("Tagesplan heute") }}</h2>
+            {% if d.people %}
+            <div class="people">
+                {% for p in d.people %}
+                <div class="person">
+                    <div class="name">{{ p.user.name }}<span>{{ p.done }}/{{ p.total }}</span></div>
+                    {% for e in p.entries %}
+                    <div class="entry {{ 'done' if e.done_at }}"><i class="bi {{ 'bi-check-square-fill' if e.done_at else 'bi-square' }}"></i>
+                        <span>{{ e.text }}
+                        {% if e.machine %} <span class="tag">{{ e.machine.name }}</span>{% endif %}
+                        {% for pl in e.plots[:2] %} <span class="tag">{{ pl.name }}</span>{% endfor %}</span>
+                    </div>
+                    {% endfor %}
+                    {% if p.more %}<div class="more">{{ ngettext("+ {n} weiterer", "+ {n} weitere", p.more) }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty" style="color: #aeb8c6"><i class="bi bi-calendar-x"></i>{{ _("Für heute ist noch niemand eingeteilt.") }}</div>
+            {% endif %}
+        </section>
+
+        <!-- Störungen und Wartungen -->
+        <div class="col">
+            <section class="card">
+                <h2><i class="bi bi-exclamation-triangle" style="color: #ff8a7a"></i>{{ _("Offene Störungen") }}{% if d.faults %}<span class="count">{{ d.faults|length + d.faults_more }}</span>{% endif %}</h2>
+                {% for e in d.faults %}
+                <div class="row"><span class="dot {{ 'blue' if e.still_running else 'red' }}"></span>
+                    <span class="stack"><span class="what">{{ e.machine.name }}{% if not e.still_running %} · {{ _("steht") }}{% endif %}</span>
+                        <span class="info">{{ e.text or "" }} · {{ _("seit {date}", date=e.date|date) }}</span></span></div>
+                {% else %}<div class="empty"><i class="bi bi-check-circle"></i>{{ _("Keine offenen Störungen") }}</div>{% endfor %}
+                {% if d.faults_more %}<div class="more">{{ ngettext("+ {n} weitere", "+ {n} weitere", d.faults_more) }}</div>{% endif %}
+            </section>
+            <section class="card grow">
+                <h2><i class="bi bi-wrench-adjustable" style="color: #ffc870"></i>{{ _("Fällige Wartungen") }}{% if d.due %}<span class="count">{{ d.due|length + d.due_more }}</span>{% endif %}</h2>
+                {% for task, status in d.due %}
+                <div class="row"><span class="dot {{ 'red' if status.state == 'overdue' else 'amber' }}"></span>
+                    <span class="stack"><span class="what">{{ task.machine.name }}: {{ task.name }}</span>
+                        <span class="info">{{ due_text(task, status, task.machine) }}</span></span></div>
+                {% else %}<div class="empty"><i class="bi bi-check-circle"></i>{{ _("Keine Wartung fällig") }}</div>{% endfor %}
+                {% if d.due_more %}<div class="more">{{ ngettext("+ {n} weitere", "+ {n} weitere", d.due_more) }}</div>{% endif %}
+            </section>
+        </div>
+
+        <!-- Aufgaben und Übergabe -->
+        <div class="col">
+            <section class="card grow">
+                <h2><i class="bi bi-list-check"></i>{{ _("Aufgaben") }}{% if d.tasks %}<span class="count">{{ d.tasks|length + d.tasks_more }}</span>{% endif %}</h2>
+                {% for t in d.tasks %}
+                <div class="row"><span class="dot {{ 'red' if t.due_on and t.due_on < d.today else 'amber' if t.important else 'blue' }}"></span>
+                    <span class="stack"><span class="what">{{ t.title }}</span>
+                        <span class="info">{% if t.due_on %}{{ _("fällig {date}", date=t.due_on|date) }}{% else %}{{ _("ohne Termin") }}{% endif %}{% if t.assignees %} · {{ t.assignees|map(attribute='name')|join(", ") }}{% else %} · {{ _("alle") }}{% endif %}</span></span></div>
+                {% else %}<div class="empty"><i class="bi bi-check-circle"></i>{{ _("Nichts fällig") }}</div>{% endfor %}
+                {% if d.tasks_more %}<div class="more">{{ ngettext("+ {n} weitere", "+ {n} weitere", d.tasks_more) }}</div>{% endif %}
+            </section>
+            {% if d.handovers %}
+            <section class="card">
+                <h2><i class="bi bi-chat-square-text"></i>{{ _("Übergabe") }}</h2>
+                {% for n in d.handovers %}<div class="note">{{ n.text|truncate(180) }}<small>{{ n.user.name if n.user else "–" }} · {{ n.created_at|datetime }}</small></div>{% endfor %}
+            </section>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var screen = document.getElementById("screen"), clock = document.getElementById("clock");
+    function fit() { screen.style.setProperty("--scale", Math.min(window.innerWidth / 1920, window.innerHeight / 1080)); }
+    function tick() { var n = new Date(); clock.textContent = ("0" + n.getHours()).slice(-2) + ":" + ("0" + n.getMinutes()).slice(-2); }
+    fit(); window.addEventListener("resize", fit); setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>

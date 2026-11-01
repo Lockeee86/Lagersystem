@@ -358,3 +358,28 @@ def test_plan_suggestions(as_admin, as_worker, db, seed):
     machines.complete_task(oil, worker)
     db.session.commit()
     assert "Wartung eintragen" not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+
+
+def test_workshop_screen(app, as_admin, as_worker, db, seed):
+    from datetime import date
+    from app import screen, tasks
+    assert app.test_client().get("/werkstatt/anzeige/falsch").status_code == 404
+    assert as_worker.post("/admin/einstellungen/werkstatt-anzeige").status_code == 403
+    as_admin.post("/admin/einstellungen/werkstatt-anzeige")
+    token = screen.token()
+    assert token and f"/werkstatt/anzeige/{token}" in as_admin.get("/admin/einstellungen").get_data(as_text=True)
+    tractor = Machine(code="M-21", name="Schlepper 21", category="schlepper")
+    db.session.add(tractor)
+    db.session.flush()
+    machines.add_event(tractor, "stoerung", seed["admin"], text="Licht defekt")
+    team.add_plan_entry(date.today(), seed["worker"], "Kartoffeln sortieren", seed["admin"], machine_id=tractor.id)
+    tasks.create_task(seed["admin"], title="Werkstatt aufräumen", due_on=date.today())
+    team.add_handover(seed["admin"], "Hoftor klemmt")
+    db.session.commit()
+    r = app.test_client().get(f"/werkstatt/anzeige/{token}")           # ohne Anmeldung
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200 and 'http-equiv="refresh"' in html
+    for text in ("Kartoffeln sortieren", "Schlepper 21", "Licht defekt", "Werkstatt aufräumen", "Hoftor klemmt"):
+        assert text in html, text
+    as_admin.post("/admin/einstellungen/werkstatt-anzeige")                  # neuer Link: alter ungültig
+    assert app.test_client().get(f"/werkstatt/anzeige/{token}").status_code == 404

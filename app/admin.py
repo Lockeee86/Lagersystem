@@ -10,7 +10,7 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, places, sites, storage, tabbar,
+from . import (aerial, agenda, audit, backup, biogas, branding, fielddoc, fields, irrigation, places, screen, sites, storage, tabbar,
                tiles, transfer, weather)
 from .auth import validate_password
 from .extensions import db
@@ -84,9 +84,9 @@ def settings():
             weather.clear_cache()
             flash(_("Einstellungen gespeichert."), "success")
             return redirect(url_for("admin.settings"))
-        return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS,
+        return render_template("admin/settings.html", values=values, fields=Setting.FIELDS, months=weather.MONTHS, screen_token=screen.token(),
                                states=agenda.STATES, aerial_sources=aerial.SOURCES)
-    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS,
+    return render_template("admin/settings.html", values=Setting.all(), fields=Setting.FIELDS, months=weather.MONTHS, screen_token=screen.token(),
                            states=agenda.STATES, aerial_sources=aerial.SOURCES)
 
 
@@ -897,3 +897,13 @@ def backup_download(name):
     if path is None:
         abort(404)
     return send_file(path, as_attachment=True, download_name=name, mimetype="application/octet-stream")
+
+
+@bp.route("/einstellungen/werkstatt-anzeige", methods=["POST"])
+@admin_required
+def screen_link():
+    """Link für den Werkstatt-Bildschirm anlegen bzw. erneuern (der alte gilt danach nicht mehr)."""
+    screen.new_token()
+    db.session.commit()
+    flash(_("Neuer Link für den Werkstatt-Bildschirm erzeugt – der alte funktioniert nicht mehr."), "success")
+    return redirect(url_for("admin.settings") + "#werkstatt")

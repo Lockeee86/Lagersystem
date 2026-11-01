@@ -44,7 +44,9 @@ docker compose up --build -d
   (fällige Aufgaben, Wartungen, offene Störungen; `PlanEntry.task_id`/`maintenance_task_id`/`machine_event_id`, Abhaken
   erledigt Aufgabe/Störung mit, Wartung über `PlanEntry.maintenance_pending` an der Maschine eintragen), Pflegen: Admin oder `User.can_plan` → `is_planner`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
   `overview()`, `sign_instruction()`), committet nicht; `app/team_views.py` (Blueprint `team`), `app/instruction_pdf.py`
-  (Nachweis, immer Deutsch). Unterschriften allgemein: `app/signatures.py` (`to_png`, `pdf_image`),
+  (Nachweis, immer Deutsch). Werkstatt-Bildschirm (Fernseher, Full HD): `app/screen.py` (`data()`, Schlüssel `settings`
+  `display_workshop_token`), Route `team.screen` `/werkstatt/anzeige/<token>` ohne Anmeldung, Vorlage `team/screen.html`,
+  Link unter Verwaltung → Hof (`admin.screen_link`). Unterschriften allgemein: `app/signatures.py` (`to_png`, `pdf_image`),
   `static/js/signpad.js` + `macros.sign_modal`
 - `app/bulk.py`: Schüttgut-Lager (`BulkStore` = Box/Haufen/Big Bags, eine Ware je Lagerort; `BulkEntry` ein/aus mit
   Waage und Qualität; Bestand `stock()`, Qualität `quality()`, Herkunft `plot_shares()`), committet nicht;

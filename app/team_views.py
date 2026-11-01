@@ -375,3 +375,14 @@ def instruction_delete(topic_id):
         uploads.delete_document(name)
     flash(_("{name} gelöscht.", name=topic.name), "success")
     return redirect(url_for("team.instructions"))
+
+
+# --- Werkstatt-Bildschirm (Fernseher, ohne Anmeldung über geheimen Link) ---------------------
+
+@bp.route("/werkstatt/anzeige/<token>")
+def screen(token):
+    from . import screen as screen_data
+    from .weather import LABELS
+    if not screen_data.check_token(token):
+        abort(404)
+    return render_template("team/screen.html", d=screen_data.data(), weather_labels=LABELS)

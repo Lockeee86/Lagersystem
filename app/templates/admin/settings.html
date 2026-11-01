@@ -91,6 +91,24 @@
     <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button>
 </form>
 
+<div class="card shadow-sm mt-4" id="werkstatt" style="max-width: 40rem">
+    <div class="card-header"><i class="bi bi-tv me-1"></i>{{ _("Werkstatt-Bildschirm") }}</div>
+    <div class="card-body">
+        <p class="small text-body-secondary mb-2">{{ _("Vollbild für einen Fernseher in Werkstatt oder Büro: Tagesplan, offene Störungen, fällige Wartungen, Aufgaben, Übergabe und Wetter. Öffnet ohne Anmeldung (z. B. im Browser des Fernsehers oder an einem kleinen Rechner im Kiosk-Modus) und aktualisiert sich jede Minute. Wer den Link kennt, sieht die Anzeige; „Neuer Link“ macht den alten ungültig.") }}</p>
+        {% if screen_token %}
+        {% set link = url_for('team.screen', token=screen_token, _external=True) %}
+        <div class="input-group input-group-sm mb-2">
+            <input class="form-control font-monospace" value="{{ link }}" readonly aria-label="{{ _('Link für den Werkstatt-Bildschirm') }}">
+            <a class="btn btn-outline-primary" href="{{ link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>{{ _("Öffnen") }}</a>
+        </div>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin.screen_link') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-secondary" {% if screen_token %}data-confirm="{{ _('Neuen Link erzeugen? Der Bildschirm braucht dann den neuen Link.') }}"{% endif %}><i class="bi bi-link-45deg me-1"></i>{{ _("Neuer Link") if screen_token else _("Link für den Bildschirm erzeugen") }}</button>
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm mt-4" id="logo" style="max-width: 40rem">
     <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Logo") }}</div>
     <div class="card-body">
