@@ -2885,4 +2885,13 @@ MESSAGES = {
     'Keine offenen Störungen': 'Brak otwartych awarii',
     'Keine Wartung fällig': 'Brak zaległych przeglądów',
     'Nichts fällig': 'Nic zaległego',
+    'EIER HEUTE': 'JAJA DZIŚ',
+    'KLAPPE': 'KLAPA',
+    'Klappe zu ab {time}': 'Zamknąć klapę od {time}',
+    'Temp.': 'Temp.',
+    'GEFÜTTERT HEUTE': 'KARMIENIE DZIŚ',
+    'HERDE': 'STADO',
+    'VORRAT': 'ZAPAS',
+    'Als Bild für Farb-E-Paper (reTerminal E1002, sechs Farben) – in ESPHome bei online_image eintragen:': 'Jako obraz dla kolorowego e-papieru (reTerminal E1002, sześć kolorów) – wpisać w ESPHome przy online_image:',
+    'Bild': 'Obraz',
 }

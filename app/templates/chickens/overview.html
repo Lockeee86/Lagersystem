@@ -180,6 +180,12 @@
                     <input class="form-control font-monospace" id="displayLink" value="{{ link }}" readonly aria-label="{{ _('Link für das Display') }}">
                     <a class="btn btn-outline-primary" href="{{ link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>{{ _("Öffnen") }}</a>
                 </div>
+                {% set image = url_for('chickens.display_image', token=display_token, _external=True) %}
+                <label class="form-label small mb-1 mt-2" for="displayImage">{{ _("Als Bild für Farb-E-Paper (reTerminal E1002, sechs Farben) – in ESPHome bei online_image eintragen:") }}</label>
+                <div class="input-group input-group-sm mb-2">
+                    <input class="form-control font-monospace" id="displayImage" value="{{ image }}" readonly>
+                    <a class="btn btn-outline-primary" href="{{ image }}" target="_blank" rel="noopener"><i class="bi bi-image me-1"></i>{{ _("Bild") }}</a>
+                </div>
                 {% endif %}
                 <form method="post" action="{{ url_for('chickens.display_link') }}">{{ csrf() }}
                     <button class="btn btn-sm btn-outline-secondary" {% if display_token %}data-confirm="{{ _('Neuen Link erzeugen? Das Display braucht dann den neuen Link.') }}"{% endif %}><i class="bi bi-link-45deg me-1"></i>{{ _("Neuer Link") if display_token else _("Link für das Display erzeugen") }}</button>

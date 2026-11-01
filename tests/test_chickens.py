@@ -473,3 +473,22 @@ def test_coop_display(app, as_admin, as_worker, db, seed):
     as_admin.post("/huehner/anzeige")
     assert anon.get(f"/huehner/anzeige/{token}").status_code == 404
     assert as_worker.post("/huehner/anzeige").status_code == 403
+
+
+def test_coop_display_epaper(app, as_admin, db, seed):
+    import io
+    from datetime import date
+    from PIL import Image
+    from app import chickens
+    as_admin.post("/huehner/anzeige")
+    token = chickens.display_token()
+    chickens.add_eggs(date.today(), 7, 0, None, seed["admin"])
+    db.session.commit()
+    assert app.test_client().get("/huehner/anzeige/falsch/bild.png").status_code == 404
+    r = app.test_client().get(f"/huehner/anzeige/{token}/bild.png")
+    assert r.status_code == 200 and r.mimetype == "image/png" and r.headers["Cache-Control"] == "no-store"
+    img = Image.open(io.BytesIO(r.data)).convert("RGB")
+    assert img.size == (800, 480)
+    palette = {(0, 0, 0), (255, 255, 255), (255, 0, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255)}
+    assert {c for _n, c in img.getcolors(1000)} <= palette            # nur die sechs Farben des Panels
+    assert "bild.png" in as_admin.get("/huehner").get_data(as_text=True)

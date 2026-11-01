@@ -9,7 +9,7 @@ WORKDIR /app
 # klappt das nicht, reicht auch der neuere Client aus Debian (kann ältere Server sichern)
 ARG PG_MAJOR=16
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-common ca-certificates \
+    && apt-get install -y --no-install-recommends postgresql-common ca-certificates fonts-dejavu-core \
     && ( /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
          && apt-get install -y --no-install-recommends postgresql-client-${PG_MAJOR} \
          || apt-get install -y --no-install-recommends postgresql-client ) \

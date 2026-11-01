@@ -137,7 +137,9 @@ docker compose up --build -d
 - `app/chickens.py`: Rubrik Hühner (nur `User.chickens`; eintragen `keeps_chickens`) – Eier `EggEntry`, Haushalte
   `Household` + Verteilung `EggShare` (Reihenfolge `fair_order()`), Vorrat `stock()`, Herde `FlockEvent` (`flock_size()`), Futter `FeedEntry`, tägliche Fütterung `Feeding` (`toggle_feeding()`, Auswertung `feeding_effect()`),
   Stallbuch `FlockTreatment` (Wartezeit `blocked()`), Stall-Display 800×480 `display()` (Route `chickens.display`
-  `/huehner/anzeige/<token>` ohne Anmeldung, Schlüssel `settings` `coop_display_token`, Vorlage `chickens/display.html`), Monate `months()`, Auswertung aller Jahre `analysis()`, `summary()` für Startseite; Stallkontrolle =
+  `/huehner/anzeige/<token>` ohne Anmeldung, Schlüssel `settings` `coop_display_token`, Vorlage `chickens/display.html`; als PNG für Farb-E-Paper reTerminal E1002
+  `chickens.display_image` `…/bild.png`, gezeichnet mit Pillow in `app/epaper.py` – nur die 6 Panel-Farben, Schrift DejaVu
+  aus `fonts-dejavu-core` im Dockerfile, ESPHome-Anleitung `docs/reterminal-e1002.md`), Monate `months()`, Auswertung aller Jahre `analysis()`, `summary()` für Startseite; Stallkontrolle =
   Rundgang mit `CheckStation.area == "huehner"`, Aufgaben `Task.area`; Push `evening_check()` aus `push.daily`
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Alte Legedaten aus Excel:
   `app/egg_import.py` (`parse_file` → `plan` → `apply`, `EggEntry.imported` zählt nicht zum Vorrat; echte Listen nie committen). Rubriken mit

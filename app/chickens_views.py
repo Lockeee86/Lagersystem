@@ -6,7 +6,7 @@ from functools import wraps
 import os
 import secrets
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
 from . import chickens, coop, egg_import, tasks
@@ -331,6 +331,17 @@ def display(token):
     if not chickens.check_display_token(token):
         abort(404)
     return render_template("chickens/display.html", d=chickens.display(), feed_kinds=chickens.FEED_KINDS)
+
+
+@bp.route("/huehner/anzeige/<token>/bild.png")
+def display_image(token):
+    """Dasselbe als Bild für Farb-E-Paper (reTerminal E1002, 800×480, sechs Farben) – ESPHome `online_image`."""
+    from . import epaper
+    if not chickens.check_display_token(token):
+        abort(404)
+    response = Response(epaper.render(chickens.display()), mimetype="image/png")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @bp.route("/huehner/anzeige", methods=["POST"])
