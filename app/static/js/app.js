@@ -148,6 +148,18 @@ window.App = (function () {
         if (form) form.dataset.dirty = "1";
     });
 
+    // Handy: beim Tippen in Feldern die untere Leiste ausblenden (sonst springt sie über die Tastatur)
+    var typingFields = "input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=file]):not([type=range]), textarea, select";
+    document.addEventListener("focusin", function (e) {
+        if (e.target.matches && e.target.matches(typingFields)) document.body.classList.add("typing");
+    });
+    document.addEventListener("focusout", function () {
+        setTimeout(function () {
+            var el = document.activeElement;
+            if (!(el && el.matches && el.matches(typingFields))) document.body.classList.remove("typing");
+        }, 50);
+    });
+
     // Flash-Meldungen nach einiger Zeit ausblenden
     setTimeout(function () {
         document.querySelectorAll(".flash-stack .alert-success, .flash-stack .alert-info").forEach(function (el) {

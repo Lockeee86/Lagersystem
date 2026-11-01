@@ -68,8 +68,12 @@ html[data-bg] {
 html[data-bg] body { background: var(--bg); background-color: var(--bg-solid); min-height: 100vh; font-family: var(--bs-font-sans-serif); }
 
 /* --- Hintergrund: Farbflächen (fest hinter allem) ----------------------------------------- */
-.app-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--bg); }
+.app-backdrop { position: fixed; inset: -20vh 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--bg);
+    transform: translate3d(0, 0, 0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 .app-backdrop .blob { position: absolute; border-radius: 50%; opacity: var(--bg-strength); }
+/* die Ebene ragt 20vh nach oben und unten über – Inhalte wieder an den sichtbaren Bereich rücken */
+.app-backdrop > * { translate: 0 20vh; }
+.app-backdrop > .b4 { translate: 0 -20vh; }
 .app-backdrop .b1 { width: 70vmax; height: 70vmax; left: -25vmax; top: -30vmax; background: radial-gradient(closest-side, var(--c1), transparent); }
 .app-backdrop .b2 { width: 60vmax; height: 60vmax; right: -25vmax; top: 5vh; background: radial-gradient(closest-side, var(--c2), transparent); }
 .app-backdrop .b3 { width: 70vmax; height: 70vmax; left: -20vmax; top: 45vh; background: radial-gradient(closest-side, var(--c3), transparent); opacity: calc(var(--bg-strength) * .75); }
