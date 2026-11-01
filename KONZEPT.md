@@ -122,7 +122,7 @@ Portainer-Stack (docker-compose)
   gedeckelt auf die Motorleistung), Ausfallkosten der Störungen (`biogas.loss_per_hour`), Prüffristen der Anlage
   (Maschinenart `anlage` mit Vorlagen, Karte `#pruefungen`, für Benutzer ohne Biogas unsichtbar wie BHKW).
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
-  untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht, Sternenhimmel (0.61.0),
+  untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht, Sternenhimmel (0.61.0), Milchstraße (0.68.0),
   nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,
   großes Wetter oben (`weather.LABELS`), Frost/Krautfäule als Hinweis, „Jetzt wichtig“ farbig (Kennzahlen-Kacheln wieder
   entfernt – doppelt zu den Bereichen; am Handy ist das Wetter eine schmale Zeile). Hühner (0.58.0): Tageskarte mit großem Wert,

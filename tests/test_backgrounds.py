@@ -33,3 +33,10 @@ def test_starry_sky(as_worker, db, seed):
     assert seed["worker"].background == "sterne"
     assert 'data-bg="sterne"' in as_worker.get("/").get_data(as_text=True)
     assert "Sternenhimmel" in as_worker.get("/konto").get_data(as_text=True)
+
+
+def test_milky_way(as_worker, db, seed):
+    as_worker.post("/konto/hintergrund", data={"background": "milchstrasse", "strength": "80"})
+    assert seed["worker"].background == "milchstrasse"
+    assert 'data-bg="milchstrasse"' in as_worker.get("/").get_data(as_text=True)
+    assert "bg-swatch-milchstrasse" in as_worker.get("/konto").get_data(as_text=True)

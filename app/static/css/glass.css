@@ -22,6 +22,8 @@ html[data-bg="felder"] { --bg: linear-gradient(180deg, #e98a6a 0%, #c45f78 22%, 
     --c1: #ffb35c; --c2: #ff8a8a; --c3: #7fc98a; --c4: #ffd08a; --bg-solid: #3a2d33; }
 html[data-bg="sterne"] { --bg: radial-gradient(ellipse at 50% 120%, #0d1330 0%, #05070f 55%, #020308 100%);
     --c1: #1d2a5a; --c2: #2a1d4a; --c3: #102a3a; --c4: #1a1f3f; --bg-solid: #070a14; }
+html[data-bg="milchstrasse"] { --bg: radial-gradient(ellipse at 50% 118%, #0c1230 0%, #050812 55%, #010207 100%);
+    --c1: #1c2350; --c2: #2b2050; --c3: #0f2236; --c4: #1a1d3d; --bg-solid: #05070f; }
 html[data-bg="nacht"] { --bg: linear-gradient(180deg, #0f1424 0%, #161c30 60%, #0d111c 100%);
     --c1: #3b5bdb; --c2: #6f42c1; --c3: #1c7ed6; --c4: #2b8a3e; --bg-solid: #121829; }
 
@@ -425,17 +427,75 @@ html[data-bg="sterne"] .app-backdrop .sun { display: block; width: 7vmin; height
     top: 9vh; border-radius: 50%; background: radial-gradient(circle at 38% 38%, #fffbea, #e9e2c8 60%, #cfc6a6);
     filter: blur(1.5px);
     box-shadow: 0 0 30px 10px rgba(255, 248, 220, .22), 0 0 120px 50px rgba(180, 190, 255, .1); }
-html[data-bg="sterne"] { --glass: rgba(255, 255, 255, .08); --glass-strong: rgba(255, 255, 255, .1); --glass-edge: rgba(255, 255, 255, .09);
+html:is([data-bg="sterne"], [data-bg="milchstrasse"]) { --glass: rgba(255, 255, 255, .08); --glass-strong: rgba(255, 255, 255, .1); --glass-edge: rgba(255, 255, 255, .09);
     --glass-blur: blur(40px) saturate(150%);
     --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 255, 255, .03), 0 14px 40px rgba(0, 0, 0, .35);
     --line: rgba(255, 255, 255, .1); --popup: rgba(14, 18, 34, .88); }
 /* weiche statt harter Kanten: Rand kaum sichtbar, Licht oben nur angedeutet */
-html[data-bg="sterne"] .tabbar { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 14px 34px rgba(0, 0, 0, .45) !important; }
+html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .tabbar { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 14px 34px rgba(0, 0, 0, .45) !important; }
 html[data-bg="sterne"] .app-backdrop::before { filter: blur(.4px); }
 html[data-bg="sterne"] .app-backdrop::after { filter: blur(.5px); }
-html[data-bg="sterne"] .form-select option, html[data-bg="sterne"] .form-select optgroup { background: #0d1224; }
-html[data-bg="sterne"] .home-alert, html[data-bg="sterne"] .alert, html[data-bg="sterne"] .climate-card,
-html[data-bg="sterne"] .stat-warn { border-color: rgba(255, 255, 255, .1) !important; }
+html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .form-select option, html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .form-select optgroup { background: #0d1224; }
+html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .home-alert, html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .alert, html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .climate-card,
+html:is([data-bg="sterne"], [data-bg="milchstrasse"]) .stat-warn { border-color: rgba(255, 255, 255, .1) !important; }
+
+/* --- Milchstraße: schwarzblauer Himmel, weiches schräges Band mit warmem Kern und Staubband, Sterne leicht unscharf --- */
+html[data-bg="milchstrasse"] .app-backdrop .blob { opacity: calc(var(--bg-strength) * .45); }
+html[data-bg="milchstrasse"] .app-backdrop::before,
+html[data-bg="milchstrasse"] .app-backdrop::after { content: ""; position: absolute; pointer-events: none; }
+/* Sterne überall: zwei Kacheln in verschiedener Größe, damit kein Raster auffällt */
+html[data-bg="milchstrasse"] .app-backdrop::before {
+    inset: 0;
+    background-image:
+        radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 37% 8%, #dfe8ff 50%, transparent 51%),
+        radial-gradient(1.6px 1.6px at 64% 22%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 82% 12%, #ffe6c8 50%, transparent 51%),
+        radial-gradient(1px 1px at 21% 46%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 52% 38%, #cfdcff 50%, transparent 51%),
+        radial-gradient(1px 1px at 90% 44%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 8% 72%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 44% 66%, #ffe6c8 50%, transparent 51%),
+        radial-gradient(1px 1px at 71% 78%, #fff 50%, transparent 51%),
+        radial-gradient(2.2px 2.2px at 28% 28%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 58% 88%, #dfe8ff 50%, transparent 51%),
+        radial-gradient(2px 2px at 86% 64%, #fff3dc 50%, transparent 51%),
+        radial-gradient(1px 1px at 4% 34%, #fff 50%, transparent 51%);
+    background-size: 290px 290px, 290px 290px, 290px 290px, 290px 290px, 290px 290px, 290px 290px, 290px 290px,
+        290px 290px, 290px 290px, 290px 290px, 530px 530px, 530px 530px, 530px 530px, 530px 530px;
+    filter: blur(.7px);
+    opacity: .8;
+}
+/* das Band selbst */
+html[data-bg="milchstrasse"] .app-backdrop::after {
+    left: -35%; right: -35%; top: calc(20vh + 26vh); height: 46vh;
+    transform: rotate(-17deg);
+    background:
+        radial-gradient(ellipse 30% 12% at 56% 50%, rgba(2, 3, 10, .75) 0%, rgba(2, 3, 10, .3) 60%, transparent 100%),
+        radial-gradient(ellipse 34% 32% at 58% 50%, rgba(255, 222, 185, .55) 0%, rgba(235, 215, 255, .3) 45%, transparent 75%),
+        linear-gradient(180deg, transparent 0%, rgba(90, 110, 200, .26) 26%, rgba(170, 160, 235, .44) 45%,
+            rgba(225, 215, 255, .52) 52%, rgba(120, 120, 210, .28) 72%, transparent 100%);
+    filter: blur(48px);
+    opacity: calc(.45 + var(--bg-strength) * .55);
+}
+/* dichte, feine Sterne nur im Band */
+html[data-bg="milchstrasse"] .app-backdrop .hill.h1 {
+    display: block; left: -35%; right: -35%; top: 24vh; height: 50vh; border-radius: 0; transform: rotate(-17deg);
+    background: none;
+    background-image:
+        radial-gradient(1px 1px at 10% 20%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 40% 70%, #e6ecff 50%, transparent 51%),
+        radial-gradient(1px 1px at 70% 30%, #fff 50%, transparent 51%), radial-gradient(1.4px 1.4px at 85% 80%, #fff1dc 50%, transparent 51%),
+        radial-gradient(1px 1px at 25% 90%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 55% 10%, #dfe8ff 50%, transparent 51%);
+    background-size: 90px 90px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 10%, #000 42%, #000 58%, transparent 90%);
+    mask-image: linear-gradient(180deg, transparent 10%, #000 42%, #000 58%, transparent 90%);
+    filter: blur(.6px);
+    opacity: .7;
+}
+@media (max-width: 700px) {
+    html[data-bg="milchstrasse"] .app-backdrop::after { transform: rotate(-28deg); top: calc(20vh + 30vh); height: 36vh; filter: blur(40px); }
+    html[data-bg="milchstrasse"] .app-backdrop .hill.h1 { transform: rotate(-28deg); top: 28vh; height: 40vh; }
+}
 
 /* Biogas: Jahresbudget */
 html[data-bg] .budget-bar { background: rgba(255, 255, 255, .16); }

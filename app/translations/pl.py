@@ -2841,4 +2841,5 @@ MESSAGES = {
     'Wird ein technischer Platz gleichen Namens; die Maschinen der Betriebsstätte werden dort eingebaut. Schläge, Lager und Lieferscheine bleiben unverändert – ist danach nichts mehr zugeordnet, wird die Betriebsstätte gelöscht.': 'Powstanie miejsce techniczne o tej samej nazwie; maszyny zakładu zostaną w nim zamontowane. Pola, magazyny i dowody dostawy pozostaną bez zmian – jeśli nic już nie będzie przypisane, zakład zostanie usunięty.',
     '„{name}“ in einen technischen Platz umwandeln?': 'Zamienić „{name}” na miejsce techniczne?',
     'In technischen Platz umwandeln': 'Zamień na miejsce techniczne',
+    'Milchstraße': 'Droga Mleczna',
 }
