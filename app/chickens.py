@@ -905,3 +905,69 @@ def issue_reported(check):
     return push.notify(keepers(), "coop_issue", Msg("Stallkontrolle: {station}", station=check.station.name),
                        items or (check.note or "")[:150], url_for("rounds.station", code=check.station.code),
                        tag=f"check-{check.id}", exclude=check.user)
+
+
+# --- Anzeige im Stall (kleines Display, 800×480) -------------------------------------------
+# Öffnet ohne Anmeldung über einen geheimen Link; der Schlüssel steht im Klartext in `settings` (nur lesende Anzeige,
+# Admins/Halter sehen den Link unter Hühner und können ihn jederzeit erneuern).
+DISPLAY_KEY = "coop_display_token"
+DISPLAY_REFRESH = 60          # Sekunden
+
+
+def display_token(create=False):
+    setting = db.session.get(Setting, DISPLAY_KEY)
+    if (setting is None or not setting.value) and create:
+        return new_display_token()
+    return setting.value if setting else None
+
+
+def new_display_token():
+    import secrets
+    token = secrets.token_urlsafe(18)
+    Setting.put(DISPLAY_KEY, token)
+    return token
+
+
+def check_display_token(token):
+    import hmac
+    current = display_token()
+    return bool(token and current and hmac.compare_digest(current, token))
+
+
+def display(now=None):
+    """Alles für die Stall-Anzeige auf einen Blick."""
+    from . import coop
+    from .utils import local_tz
+    tz = local_tz()
+    now = now or datetime.now(tz)
+    today = now.date()
+    week_start = today - timedelta(days=6)
+    week_eggs = int(db.session.query(func.coalesce(func.sum(EggEntry.eggs), 0))
+                    .filter(EggEntry.day >= week_start).scalar())
+    days = recent_days(today, 14)
+    top = max([n for _d, n in days] + [1])
+    rise, set_ = farm_sunrise(today), farm_sunset(today)
+    sensor = coop.status()
+    feeding = feeding_on(today)
+    alerts = []
+    if sensor and not sensor["offline"]:
+        if set_ and sensor["state"] in ("offen", "halb") and now >= set_ + COOP_DELAY:
+            alerts.append(_("Klappe noch offen – die Sonne ist untergegangen."))
+        if sensor["co2"] and sensor["co2"]["bad"]:
+            alerts.append(_("CO₂ im Stall zu hoch – lüften."))
+    elif sensor and sensor["offline"]:
+        alerts.append(_("Stall-Sensor meldet sich nicht."))
+    eggs = eggs_on(today)
+    if now.hour >= EGG_REMINDER_HOUR and not eggs["eggs"]:
+        alerts.append(_("Heute noch keine Eier eingetragen."))
+    tasks = [t for t in open_tasks() if t.due_on is None or t.due_on <= today][:3]
+    return {
+        "now": now, "today": today, "eggs": eggs, "flock": flock_size(today), "stock": stock(),
+        "week_rate": laying_rate(week_eggs, _hen_days(week_start, today)),
+        "week_expected": expected_laying(week_start, today), "blocked": blocked(today),
+        "days": [{"day": d, "eggs": n, "pct": round(100 * n / top), "today": d == today} for d, n in days],
+        "sunrise": rise.astimezone(tz) if rise else None, "sunset": set_.astimezone(tz) if set_ else None,
+        "sensor": sensor, "since": sensor["state_since"].astimezone(tz) if sensor and sensor["state_since"] else None,
+        "wheat": bool(feeding and feeding.wheat), "mash": bool(feeding and feeding.mash),
+        "tasks": tasks, "alerts": alerts, "refresh": DISPLAY_REFRESH,
+    }

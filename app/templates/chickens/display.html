@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=800, height=480, initial-scale=1">
+<meta http-equiv="refresh" content="{{ d.refresh }}">
+<meta name="robots" content="noindex">
+<title>{{ _("Hühnerstall") }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+<style>
+@font-face { font-family: Figtree; src: url("{{ url_for('static', filename='vendor/figtree/figtree-latin.woff2') }}") format("woff2"); font-weight: 300 900; }
+@font-face { font-family: Figtree; src: url("{{ url_for('static', filename='vendor/figtree/figtree-latin-ext.woff2') }}") format("woff2"); font-weight: 300 900;
+    unicode-range: U+0100-024F, U+1E00-1EFF; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cursor: none; }
+/* genau 800×480; auf anderen Bildschirmen passend skaliert */
+.screen { width: 800px; height: 480px; position: absolute; left: 50%; top: 50%; transform-origin: center;
+    transform: translate(-50%, -50%) scale(var(--scale, 1)); color: #f4efe4; font-family: Figtree, system-ui, sans-serif;
+    background: radial-gradient(ellipse at 15% 0%, #3a2a17 0%, transparent 55%), radial-gradient(ellipse at 100% 100%, #1d2a1c 0%, transparent 55%), #17150f;
+    display: flex; flex-direction: column; }
+.top { height: 46px; display: flex; align-items: center; gap: 14px; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.top .title { font-size: 20px; font-weight: 800; }
+.top .date { color: #c9bfa9; font-size: 15px; font-weight: 600; }
+.top .sun { margin-left: auto; color: #c9bfa9; font-size: 15px; font-weight: 600; display: flex; gap: 14px; }
+.top .clock { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; margin-left: 6px; }
+.grid { flex: 1; display: grid; grid-template-columns: 276px 254px 1fr; gap: 10px; padding: 10px; min-height: 0; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09); border-radius: 18px; padding: 12px 14px;
+    display: flex; flex-direction: column; min-height: 0; }
+.label { font-size: 13px; font-weight: 700; color: #c9bfa9; text-transform: uppercase; letter-spacing: .04em; }
+.big { font-size: 88px; font-weight: 800; line-height: .95; font-variant-numeric: tabular-nums; }
+.mid { font-size: 34px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.sub { font-size: 15px; color: #d8cfbc; font-weight: 600; }
+.muted { color: #a59c88; }
+.bars { margin-top: auto; display: flex; align-items: flex-end; gap: 4px; height: 92px; }
+.bars span { flex: 1; background: #e8b04f; border-radius: 4px 4px 1px 1px; min-height: 3px; opacity: .55; }
+.bars span.today { opacity: 1; background: #ffcc66; }
+.bars-labels { display: flex; justify-content: space-between; font-size: 12px; color: #a59c88; margin-top: 3px; }
+.door { display: flex; align-items: center; gap: 12px; margin: 4px 0 2px; }
+.door i { font-size: 46px; }
+.door .mid { font-size: 40px; }
+.door.offen { color: #9fdc8a; } .door.zu { color: #9cc2ff; } .door.halb { color: #ffcf70; } .door.none { color: #a59c88; }
+.climate { margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.climate .v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.climate .k { font-size: 12px; color: #a59c88; font-weight: 700; }
+.warn { color: #ff9f8a !important; }
+.feed { display: flex; gap: 8px; margin-top: 6px; }
+.feed span { flex: 1; text-align: center; padding: 8px 4px; border-radius: 12px; font-weight: 800; font-size: 16px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: #a59c88; }
+.feed span.yes { background: rgba(159,220,138,.18); border-color: rgba(159,220,138,.5); color: #c9f0bb; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.facts .v { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tasks { margin: 10px 0 0; padding: 0; list-style: none; font-size: 15px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+.tasks li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tasks li i { color: #e8b04f; margin-right: 6px; }
+.blocked { margin-top: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(255,120,90,.18); border: 1px solid rgba(255,140,110,.5);
+    color: #ffc9b8; font-weight: 800; font-size: 15px; }
+.alerts { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.alerts div { background: #b8452e; color: #fff; border-radius: 14px; padding: 8px 14px; font-size: 18px; font-weight: 800;
+    display: flex; align-items: center; gap: 10px; }
+.stale { opacity: .45; }
+.hint { margin-top: 8px; font-size: 14px; color: #d8cfbc; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="screen" id="screen">
+    <div class="top">
+        <span class="title"><i class="bi bi-egg-fried"></i> {{ _("Hühnerstall") }}</span>
+        <span class="date">{{ d.today|weekday }}, {{ d.today|date }}</span>
+        <span class="sun">
+            {% if d.sunrise %}<span><i class="bi bi-sunrise"></i> {{ d.sunrise|time }}</span>{% endif %}
+            {% if d.sunset %}<span><i class="bi bi-sunset"></i> {{ d.sunset|time }}</span>{% endif %}
+        </span>
+        <span class="clock" id="clock">{{ d.now.strftime("%H:%M") }}</span>
+    </div>
+
+    <div class="grid">
+        <!-- Eier -->
+        <section class="card">
+            <span class="label">{{ _("Eier heute") }}</span>
+            <span class="big">{{ d.eggs.eggs }}</span>
+            <span class="sub">{% if d.eggs.cracked %}{{ ngettext("davon {n} Bruch", "davon {n} Bruch", d.eggs.cracked) }}{% else %}&nbsp;{% endif %}</span>
+            <span class="sub" style="margin-top: 6px">
+                {% if d.week_rate is not none %}{{ _("7 Tage: {rate} %", rate=d.week_rate) }}{% if d.week_expected %} <span class="muted">· {{ _("Richtwert {rate} %", rate=d.week_expected) }}</span>{% endif %}{% endif %}
+            </span>
+            <div class="bars" aria-hidden="true">{% for x in d.days %}<span class="{{ 'today' if x.today }}" style="height: {{ [x.pct, 3]|max }}%" title="{{ x.eggs }}"></span>{% endfor %}</div>
+            <div class="bars-labels"><span>{{ d.days[0].day|date }}</span><span>{{ _("heute") }}</span></div>
+        </section>
+
+        <!-- Klappe und Klima -->
+        <section class="card">
+            <span class="label">{{ _("Klappe") }}</span>
+            {% set s = d.sensor %}
+            {% set state = s.state if s and s.state else "none" %}
+            <div class="door {{ state }} {{ 'stale' if s and s.offline }}">
+                <i class="bi {{ {'offen': 'bi-door-open', 'zu': 'bi-door-closed', 'halb': 'bi-door-open'}.get(state, 'bi-question-circle') }}"></i>
+                <span class="mid">{{ {'offen': _("offen"), 'zu': _("zu"), 'halb': _("halb offen")}.get(state, "–") }}</span>
+            </div>
+            <span class="sub">{% if d.since and s.offline %}{{ _("letzter Stand {time}", time=d.since|time) }}{% elif d.since %}{{ _("seit {time}", time=d.since|time) }}{% elif not s %}{{ _("kein Sensor") }}{% endif %}</span>
+            {% if d.sunset and state in ("offen", "halb") and d.now < d.sunset %}<div class="hint"><i class="bi bi-moon"></i> {{ _("Klappe zu nach Sonnenuntergang ({time})", time=d.sunset|time) }}</div>
+            {% elif d.sunrise and state == "zu" and d.now < d.sunrise %}<div class="hint"><i class="bi bi-sunrise"></i> {{ _("Sonnenaufgang {time}", time=d.sunrise|time) }}</div>{% endif %}
+            {% if s %}
+            <div class="climate {{ 'stale' if s.offline }}">
+                <div><div class="v">{{ s.temperature|num(1) if s.temperature is not none else "–" }}°</div><div class="k">{{ _("Temperatur") }}</div></div>
+                <div><div class="v">{{ s.humidity|num(0) if s.humidity is not none else "–" }}%</div><div class="k">{{ _("Feuchte") }}</div></div>
+                <div><div class="v {{ 'warn' if s.co2 and s.co2.level != 'gut' }}">{{ s.co2.value|num(0) if s.co2 else "–" }}</div><div class="k">{{ _("CO₂ ppm") }}</div></div>
+            </div>
+            {% if s.min24 is not none %}<div class="sub muted" style="text-align: center; margin-top: 4px">{{ _("24 h: {low}° bis {high}°", low=s.min24|num(1), high=s.max24|num(1)) }}</div>{% endif %}
+            {% endif %}
+        </section>
+
+        <!-- Fütterung, Herde, Aufgaben -->
+        <section class="card">
+            <span class="label">{{ _("Gefüttert heute") }}</span>
+            <div class="feed">
+                <span class="{{ 'yes' if d.wheat }}">{% if d.wheat %}<i class="bi bi-check-lg"></i> {% endif %}{{ _(feed_kinds.wheat) }}</span>
+                <span class="{{ 'yes' if d.mash }}">{% if d.mash %}<i class="bi bi-check-lg"></i> {% endif %}{{ _(feed_kinds.mash) }}</span>
+            </div>
+            <div class="facts">
+                <div><div class="label">{{ _("Herde") }}</div><div class="v">{{ d.flock }}</div></div>
+                <div><div class="label">{{ _("Vorrat") }}</div><div class="v">{{ d.stock }}</div></div>
+            </div>
+            {% if d.blocked %}<div class="blocked"><i class="bi bi-exclamation-octagon"></i> {{ _("Eier gesperrt bis {date}", date=d.blocked.blocked_until|date) }}</div>{% endif %}
+            {% if d.tasks %}
+            <ul class="tasks">{% for t in d.tasks %}<li><i class="bi bi-circle"></i>{{ t.title }}</li>{% endfor %}</ul>
+            {% endif %}
+        </section>
+    </div>
+
+    {% if d.alerts %}
+    <div class="alerts" role="alert">{% for a in d.alerts %}<div><i class="bi bi-exclamation-triangle-fill"></i>{{ a }}</div>{% endfor %}</div>
+    {% endif %}
+</div>
+<script>
+(function () {
+    var screen = document.getElementById("screen"), clock = document.getElementById("clock");
+    function fit() { screen.style.setProperty("--scale", Math.min(window.innerWidth / 800, window.innerHeight / 480)); }
+    function tick() { var n = new Date(); clock.textContent = ("0" + n.getHours()).slice(-2) + ":" + ("0" + n.getMinutes()).slice(-2); }
+    fit(); window.addEventListener("resize", fit); setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>

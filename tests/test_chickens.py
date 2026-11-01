@@ -450,3 +450,26 @@ def test_cohort_age_stops_when_gone(as_worker, db, seed, keeper):
     assert groups[first.id]["age"] == 30                                             # nicht 45
     html = as_worker.get("/huehner/herde").get_data(as_text=True)
     assert "bis 14.08.2025" in html and "zuletzt 30 Monate alt" in html
+
+
+def test_coop_display(app, as_admin, as_worker, db, seed):
+    from datetime import date
+    from app import chickens
+    assert app.test_client().get("/huehner/anzeige/falsch").status_code == 404
+    as_admin.post("/huehner/anzeige")
+    token = chickens.display_token()
+    assert token
+    html = as_admin.get("/huehner").get_data(as_text=True)
+    assert f"/huehner/anzeige/{token}" in html
+    chickens.add_flock_event(date.today(), "gekauft", 12, seed["admin"], breed="Lohmann Braun")
+    chickens.add_eggs(date.today(), 9, 1, None, seed["admin"])
+    db.session.commit()
+    anon = app.test_client()                                     # ohne Anmeldung
+    r = anon.get(f"/huehner/anzeige/{token}")
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200 and 'http-equiv="refresh"' in html and ">9<" in html and "Bruch" in html
+    assert "Weizen" in html and "Legemehl" in html
+    # neuer Link: der alte gilt nicht mehr
+    as_admin.post("/huehner/anzeige")
+    assert anon.get(f"/huehner/anzeige/{token}").status_code == 404
+    assert as_worker.post("/huehner/anzeige").status_code == 403

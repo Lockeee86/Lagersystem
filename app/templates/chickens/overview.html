@@ -168,5 +168,25 @@
         </div>
         {% endif %}
     </div>
+    {% if can_keep %}
+    <div class="col-12" id="anzeige">
+        <details class="card shadow-sm">
+            <summary class="card-header"><i class="bi bi-display me-1"></i>{{ _("Anzeige im Stall (Display 800×480)") }}</summary>
+            <div class="card-body">
+                <p class="small text-body-secondary mb-2">{{ _("Eier, Klappe, Stallklima, Fütterung und Aufgaben auf einen Blick – für ein kleines Display im Stall (z. B. Raspberry Pi mit Browser im Vollbild). Öffnet ohne Anmeldung, aktualisiert sich jede Minute. Wer den Link kennt, sieht die Anzeige; „Neuer Link“ macht den alten ungültig.") }}</p>
+                {% if display_token %}
+                {% set link = url_for('chickens.display', token=display_token, _external=True) %}
+                <div class="input-group input-group-sm mb-2">
+                    <input class="form-control font-monospace" id="displayLink" value="{{ link }}" readonly aria-label="{{ _('Link für das Display') }}">
+                    <a class="btn btn-outline-primary" href="{{ link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>{{ _("Öffnen") }}</a>
+                </div>
+                {% endif %}
+                <form method="post" action="{{ url_for('chickens.display_link') }}">{{ csrf() }}
+                    <button class="btn btn-sm btn-outline-secondary" {% if display_token %}data-confirm="{{ _('Neuen Link erzeugen? Das Display braucht dann den neuen Link.') }}"{% endif %}><i class="bi bi-link-45deg me-1"></i>{{ _("Neuer Link") if display_token else _("Link für das Display erzeugen") }}</button>
+                </form>
+            </div>
+        </details>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -91,6 +91,7 @@ def overview():
         sensor=coop.status(), sensor_history=coop.history(48), door_times=coop.day_times(local_tz()),
         air_kind=air_kind, air_points=air_points, feeding=chickens.feeding_days(today, 2),
         feed_kinds=chickens.FEED_KINDS, co2_points=coop.co2_history(48), co2_limit=coop.CO2_HIGH,
+        display_token=chickens.display_token() if (current_user.keeps_chickens or current_user.is_admin) else None,
         entries=EggEntry.query.filter(EggEntry.day >= today - timedelta(days=1))
         .order_by(EggEntry.day.desc(), EggEntry.id.desc()).all(),
     )
@@ -321,3 +322,22 @@ def log_add():
 @keeper_required
 def log_delete(entry_id):
     return _delete(FlockTreatment, entry_id, "chickens.log")
+
+
+# --- Anzeige im Stall (Display 800×480, ohne Anmeldung über geheimen Link) -----------------
+
+@bp.route("/huehner/anzeige/<token>")
+def display(token):
+    if not chickens.check_display_token(token):
+        abort(404)
+    return render_template("chickens/display.html", d=chickens.display(), feed_kinds=chickens.FEED_KINDS)
+
+
+@bp.route("/huehner/anzeige", methods=["POST"])
+@keeper_required
+def display_link():
+    """Link für das Display anlegen bzw. erneuern (der alte gilt danach nicht mehr)."""
+    chickens.new_display_token()
+    db.session.commit()
+    flash(_("Neuer Link für das Display erzeugt – der alte funktioniert nicht mehr."), "success")
+    return redirect(url_for("chickens.overview") + "#anzeige")

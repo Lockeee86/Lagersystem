@@ -140,6 +140,11 @@ Portainer-Stack (docker-compose)
   (heute/gestern) und unter Futter (14 Tage); nicht im Änderungsprotokoll. Auswertung `chickens.feeding_effect`:
   Legeleistung je Fütterung gegen den Richtwert fürs Alter, dazu eine Woche später (Futter wirkt verzögert) und
   Zeiträume gleicher Fütterung. Jahreszeit wird nicht herausgerechnet (steht so dabei).
+  **Stall-Display** (0.70.0): Vollbild-Anzeige für ein kleines Display (800×480, auf anderen Größen skaliert), z. B.
+  Raspberry Pi mit Browser im Kiosk-Modus. Eier heute + 14 Tage, Legeleistung 7 Tage, Klappe (bei stummem Sensor
+  gedämpft), Stallklima, Sonnenauf-/-untergang, Fütterung, Herde, Vorrat, Wartezeit, Aufgaben, Warnbalken (Klappe
+  nach Sonnenuntergang offen, CO₂, Sensor stumm, abends keine Eier). Ohne Anmeldung über geheimen Link (unter Hühner,
+  „Neuer Link“ macht den alten ungültig), lädt jede Minute neu.
   **CO₂ im Hühnerstall** (0.54.0): SCD41 am Stall-Knoten → `CoopReading.co2`, Anzeige mit Kurve (Grenze
   3000 ppm laut Tierschutz-Nutztierhaltungsverordnung für Legehennen, ab 2000 „erhöht“), Push „CO₂ zu hoch“ einmal am
   Tag (nur bei frischem Wert, `coop.co2_info`).
