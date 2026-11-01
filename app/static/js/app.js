@@ -5,15 +5,20 @@ window.App = (function () {
     // --- Hell/Dunkel ---------------------------------------------------------
     function setTheme(theme) {
         document.documentElement.setAttribute("data-bs-theme", theme);
-        try { localStorage.setItem("theme", theme); } catch (e) {}
         var icon = document.querySelector("#themeToggle i");
         if (icon) icon.className = theme === "dark" ? "bi bi-sun" : "bi bi-moon-stars";
     }
     var toggle = document.getElementById("themeToggle");
     if (toggle) {
         setTheme(document.documentElement.getAttribute("data-bs-theme") || "light");
+        // Umschalten merkt sich der Server (fest hell bzw. dunkel); „Nach Tageszeit“ wieder unter Mein Konto
         toggle.addEventListener("click", function () {
-            setTheme(document.documentElement.getAttribute("data-bs-theme") === "dark" ? "light" : "dark");
+            var theme = document.documentElement.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
+            setTheme(theme);
+            var body = new FormData();
+            body.append("csrf_token", toggle.dataset.csrf);
+            body.append("theme_mode", theme);
+            fetch(toggle.dataset.url, { method: "POST", body: body, credentials: "same-origin", headers: { "X-Requested-With": "fetch" } });
         });
     }
 

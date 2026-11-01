@@ -126,6 +126,7 @@ def account():
                            tab_choices=tabbar.available(current_user), tab_keys=tabbar.keys_for(current_user),
                            tab_labels=tabbar.labels(), bg_choices=backgrounds.CHOICES, bg_special=backgrounds.SPECIAL,
                            bg_previews=backgrounds.PREVIEWS, bg_current=current_user.background,
+                           theme_modes=backgrounds.THEME_MODES, theme_current=current_user.theme_mode or "auto",
                            bg_strength=backgrounds.strength(current_user))
 
 
@@ -150,8 +151,23 @@ def background_save():
     """Hintergrund der Oberfläche (nur für einen selbst)."""
     from . import backgrounds
     backgrounds.save(current_user, request.form.get("background", ""), form_int("strength", backgrounds.STRENGTH))
+    if "theme_mode" in request.form:
+        backgrounds.save_theme(current_user, request.form["theme_mode"])
     db.session.commit()
     flash(_("Hintergrund gespeichert."), "success")
+    return redirect(url_for("auth.account") + "#hintergrund")
+
+
+@bp.route("/konto/darstellung", methods=["POST"])
+@login_required
+def theme_save():
+    """Klassisches Design: Hell/Dunkel (Nach Tageszeit, Hell, Dunkel, wie das Gerät)."""
+    from . import backgrounds
+    backgrounds.save_theme(current_user, request.form.get("theme_mode", ""))
+    db.session.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return "", 204
+    flash(_("Darstellung gespeichert."), "success")
     return redirect(url_for("auth.account") + "#hintergrund")
 
 

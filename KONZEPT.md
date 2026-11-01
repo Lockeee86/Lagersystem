@@ -121,6 +121,10 @@ Portainer-Stack (docker-compose)
   und Marktwert, entgangene Prämie durch Verringerung), Budget-Fahrplan bis 31.12. (`feedin.plan`, Gewichte `SEASON`,
   gedeckelt auf die Motorleistung), Ausfallkosten der Störungen (`biogas.loss_per_hour`), Prüffristen der Anlage
   (Maschinenart `anlage` mit Vorlagen, Karte `#pruefungen`, für Benutzer ohne Biogas unsichtbar wie BHKW).
+  **Klassisch ist Standard für alle** (0.69.0): alle Benutzer wurden umgestellt, jeder kann wieder ein Glas-Design wählen.
+  Hell/Dunkel im klassischen Design je Benutzer (`User.theme_mode`): „Nach Tageszeit“ (Standard – hell zwischen
+  Sonnenauf- und -untergang am Hof, ohne Standort 7–19 Uhr, `backgrounds.theme()`), Hell, Dunkel, wie das Gerät.
+  Der Umschalter im Menü speichert fest hell bzw. dunkel; zurück auf „Nach Tageszeit“ unter Mein Konto.
   **Glas-Design** (0.56.0): neues Aussehen im iOS-Stil – Farbverlauf-Hintergrund mit Milchglas-Karten, schwebende
   untere Leiste, Schrift Figtree (lokal). Hintergrund je Benutzer (Sonnenaufgang, Wiese, Abend, Kühl, Felder, Nacht, Sternenhimmel (0.61.0), Milchstraße (0.68.0),
   nach Tageszeit, Klassisch) und Farbstärke unter Mein Konto. Startseite (0.57.0): Begrüßung nach Tageszeit,

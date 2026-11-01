@@ -79,20 +79,30 @@
                 <form method="post" action="{{ url_for('auth.background_save') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="bg-pick mb-3">
-                        {% for key, label in bg_choices.items() %}{% set p = bg_previews[key] %}
-                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
-                        <label for="bg_{{ key }}"><span class="bg-swatch {{ 'bg-swatch-' ~ key if key in ('sterne', 'milchstrasse') }}" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
-                        {% endfor %}
                         {% for key, label in bg_special.items() %}
                         <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
                         <label for="bg_{{ key }}"><span class="bg-swatch bg-swatch-{{ key }}"><i class="bi {{ 'bi-clock' if key == 'auto' else 'bi-layout-text-window' }}"></i></span>{{ _(label) }}</label>
+                        {% endfor %}
+                        {% for key, label in bg_choices.items() %}{% set p = bg_previews[key] %}
+                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
+                        <label for="bg_{{ key }}"><span class="bg-swatch {{ 'bg-swatch-' ~ key if key in ('sterne', 'milchstrasse') }}" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
                         {% endfor %}
                     </div>
                     <div class="row g-2 align-items-center mb-3" style="max-width: 32rem">
                         <div class="col-auto"><label class="form-label mb-0" for="bgStrength">{{ _("Farbstärke") }}</label></div>
                         <div class="col"><input type="range" class="form-range" id="bgStrength" name="strength" min="20" max="100" step="5" value="{{ bg_strength }}"></div>
                     </div>
-                    <p class="small text-body-secondary">{{ _("Gilt nur für dich. „Nach Tageszeit“: morgens Sonnenaufgang, tagsüber Wiese, abends Abend, nachts Nacht. „Klassisch“ ist das bisherige Aussehen mit Hell/Dunkel.") }}</p>
+                    <div class="mb-3">
+                        <div class="form-label mb-1">{{ _("Klassisch: hell oder dunkel") }}</div>
+                        <div class="d-flex flex-wrap gap-2" role="group" aria-label="{{ _('Klassisch: hell oder dunkel') }}">
+                            {% for key, label in theme_modes.items() %}
+                            <input type="radio" class="btn-check" name="theme_mode" id="tm_{{ key }}" value="{{ key }}" {% if theme_current == key %}checked{% endif %}>
+                            <label class="btn btn-outline-secondary btn-sm" for="tm_{{ key }}"><i class="bi {{ {'auto': 'bi-clock', 'light': 'bi-sun', 'dark': 'bi-moon-stars', 'system': 'bi-phone'}[key] }} me-1"></i>{{ _(label) }}</label>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">{{ _("„Nach Tageszeit“: hell zwischen Sonnenaufgang und Sonnenuntergang am Hof, sonst dunkel.") }}</div>
+                    </div>
+                    <p class="small text-body-secondary">{{ _("Gilt nur für dich. „Klassisch“ ist das Standard-Aussehen. Die Glas-Hintergründe sind immer dunkel; „Glas nach Tageszeit“: morgens Sonnenaufgang, tagsüber Wiese, abends Abend, nachts Nacht.") }}</p>
                     <button class="btn btn-primary">{{ _("Speichern") }}</button>
                 </form>
             </div>

@@ -187,6 +187,7 @@ def create_app(config=None):
             "tabbar": tabbar.entries(current_user) if current_user.is_authenticated else [],
             "glass_bg": backgrounds.effective(current_user),
             "glass_strength": backgrounds.strength(current_user),
+            "classic_theme": backgrounds.theme(current_user if current_user.is_authenticated else None),
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
             "FILL_LEVELS": FILL_LEVELS,
             "ROLES": ROLES,

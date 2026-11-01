@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ get_locale() }}"{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% endif %}>
+<html lang="{{ get_locale() }}"{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% elif classic_theme %} data-bs-theme="{{ classic_theme }}" data-theme-fixed="1"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -8,11 +8,9 @@
     <script>
         // Theme vor dem ersten Zeichnen setzen (kein Aufblitzen)
         (function () {
-            if (document.documentElement.hasAttribute("data-bg")) return;   // Glas-Design ist immer dunkel
-            var t = null;
-            try { t = localStorage.getItem("theme"); } catch (e) {}
-            if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-            document.documentElement.setAttribute("data-bs-theme", t);
+            var root = document.documentElement;
+            if (root.hasAttribute("data-bg") || root.hasAttribute("data-theme-fixed")) return;   // Glas immer dunkel, sonst vom Server
+            root.setAttribute("data-bs-theme", window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
         })();
     </script>
     {% if custom_logo %}<link rel="icon" href="{{ logo_url('logo-64') }}" type="image/png">
@@ -68,7 +66,7 @@
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}"><i class="bi bi-person-gear me-2"></i>{{ _("Einstellungen") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}#push"><i class="bi bi-bell me-2"></i>{{ _("Benachrichtigungen") }}</a></li>
                     <li><a class="dropdown-item" href="{{ url_for('auth.account') }}#hintergrund"><i class="bi bi-image me-2"></i>{{ _("Hintergrund") }}</a></li>
-                    {% if not glass_bg %}<li><button class="dropdown-item" type="button" id="themeToggle"><i class="bi bi-moon-stars"></i>{{ _("Hell/Dunkel umschalten") }}</button></li>{% endif %}
+                    {% if not glass_bg %}<li><button class="dropdown-item" type="button" id="themeToggle" data-url="{{ url_for('auth.theme_save') }}" data-csrf="{{ csrf_token() }}"><i class="bi bi-moon-stars"></i>{{ _("Hell/Dunkel umschalten") }}</button></li>{% endif %}
                     <li>
                         <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-switch-menu px-3 py-1">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
