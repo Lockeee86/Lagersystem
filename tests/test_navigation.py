@@ -22,9 +22,10 @@ def test_area_and_subnav(as_admin, as_worker, seed):
 
 def test_mobile_start_and_tabbar(as_worker, as_admin, db, seed):
     html = as_worker.get("/").get_data(as_text=True)
-    # untere Leiste: Heute · Lager · Scannen · Feld & Hof · Mehr
-    for href in ('href="/lager/uebersicht"', 'href="/scan"', 'href="/bereich/feld"', 'href="/bereich/mehr"'):
+    # untere Leiste: Heute · Lager · Einlagern · Feld & Hof · Mehr
+    for href in ('href="/lager/uebersicht"', 'href="/einlagern"', 'href="/bereich/feld"', 'href="/bereich/mehr"'):
         assert href in html, href
+    assert "tabbar-einlagern" in html and "bi-box-arrow-in-down" in html
     assert 'class="quick-row d-lg-none"' in html and "Jetzt wichtig" in html
     assert "Alles erledigt" in html                           # noch nichts Dringendes
     tasks.create_task(seed["admin"], title="Zaun reparieren", assignees=[seed["worker"]], important=True)
@@ -169,3 +170,18 @@ def test_bhkw_hidden_without_biogas(app, as_admin, as_worker, db, seed):
         push.fault_reported(event, seed["admin"])
     assert not [m for m in push.outbox if m["user_id"] == worker.id]
     assert as_admin.get(f"/maschine/{bhkw.id}").status_code == 200
+
+
+def test_center_button_choice(as_worker, as_viewer, db, seed):
+    """Knopf in der Mitte: Standard Einlagern, unter Mein Konto auf Scannen umstellbar; Betrachter nur Scannen."""
+    worker = seed["worker"]
+    assert 'name="mitte"' in as_worker.get("/konto").get_data(as_text=True)
+    as_worker.post("/konto/leiste", data={"mitte": "scan", "tab": ["lager", "feld"]})
+    assert worker.tab_center == "scan"
+    html = as_worker.get("/").get_data(as_text=True)
+    assert "tabbar-scan tabbar-scan" in html and 'href="/scan"' in html and "tabbar-einlagern" not in html
+    as_worker.post("/konto/leiste", data={"mitte": "einlagern", "tab": ["lager", "feld"]})
+    assert worker.tab_center == ""                                      # Standard → nichts Eigenes gespeichert
+    html = as_viewer.get("/").get_data(as_text=True)
+    assert "tabbar-scan tabbar-scan" in html and 'name="mitte"' not in as_viewer.get("/konto").get_data(as_text=True)
+

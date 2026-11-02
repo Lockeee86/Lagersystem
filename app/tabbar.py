@@ -84,5 +84,33 @@ def entries(user):
             for k in keys_for(user)]
 
 
+# Knopf in der Mitte: Einlagern (Standard) oder Scannen – je Benutzer unter Mein Konto
+CENTER = {
+    "einlagern": {"label": N_("Einlagern"), "icon": "bi-box-arrow-in-down", "endpoint": "main.batch_store"},
+    "scan": {"label": N_("Scannen"), "icon": "bi-qr-code-scan", "endpoint": "main.scan"},
+}
+CENTER_DEFAULT = "einlagern"
+
+
+def center_choices(user):
+    """Wer nicht einlagern darf (Betrachter, nur Hühner), hat nur Scannen."""
+    return ["scan"] if user.only_chickens or not user.can_edit else list(CENTER)
+
+
+def center_key(user):
+    choices = center_choices(user)
+    return user.tab_center if user.tab_center in choices else (CENTER_DEFAULT if CENTER_DEFAULT in choices else "scan")
+
+
+def center(user):
+    key = center_key(user)
+    item = CENTER[key]
+    return {"key": key, "label": item["label"], "icon": item["icon"], "url": url_for(item["endpoint"])}
+
+
+def save_center(user, key):
+    user.tab_center = key if key in CENTER and key != CENTER_DEFAULT else ""
+
+
 def labels():
     return {k: _area(k)["label"] for k in CHOICES}

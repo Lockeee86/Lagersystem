@@ -218,6 +218,8 @@ def tab_for(endpoint, view_args=None, user=None):
         return "heute"
     if endpoint == "main.scan":
         return "scan"
+    if endpoint == "main.batch_store":
+        return "einlagern"
     if "aufgaben" in tabs and (endpoint in ("team.day_plan", "team.open_page") or endpoint.startswith("tasks.")):
         return "aufgaben"
     key = (view_args or {}).get("key") if endpoint == "main.area" else area_of(endpoint)

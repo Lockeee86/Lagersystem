@@ -2422,7 +2422,6 @@ MESSAGES = {
     'Untere Leiste am Handy': 'Dolny pasek w telefonie',
     'Heute · [Platz 1] · Scannen · [Platz 2] · Mehr. Jeder kann das unter „Mein Konto“ für sich ändern. Wer eine Rubrik nicht sieht (z. B. Hühner), bekommt dort eine andere.': 'Dziś · [Miejsce 1] · Skanuj · [Miejsce 2] · Więcej. Każdy może to zmienić dla siebie w „Moje konto”. Kto nie widzi działu (np. Kury), dostanie tam inny.',
     'Platz {n}': 'Miejsce {n}',
-    'Heute · [Platz 1] · Scannen · [Platz 2] · Mehr. Was nicht in der Leiste steht, findest du unter „Mehr“.': 'Dziś · [Miejsce 1] · Skanuj · [Miejsce 2] · Więcej. Czego nie ma na pasku, znajdziesz w „Więcej”.',
     'Noch keine Werte. Temperatur, Luftfeuchte und Klappe kommen per Meshtastic vom Stall.': 'Brak wartości. Temperatura, wilgotność i klapa przychodzą z kurnika przez Meshtastic.',
     'Sensoren einrichten': 'Skonfiguruj czujniki',
     '{n} Knoten nicht verwendet': ('{n} węzeł nieużywany', '{n} węzły nieużywane', '{n} węzłów nieużywanych'),
@@ -2950,4 +2949,6 @@ MESSAGES = {
     'Gestrichelt = neue Kisten. Anderen Stapel antippen, um dort anzufangen.': 'Przerywane = nowe skrzynie. Stuknij inny stos, aby zacząć tam.',
     'Stapel antippen = Reihe und Startplatz wählen.': 'Stuknij stos = wybierz rząd i miejsce startowe.',
     'Die App stellt gleiche Ware zusammen und füllt sonst die Reihe von vorne auf. Wo ihr anfangt, wählt ihr auf der Karte.': 'Aplikacja układa ten sam towar razem, a poza tym zapełnia rząd od przodu. Miejsce startu wybierasz na mapie.',
+    'Heute · [Platz 1] · [Mitte] · [Platz 2] · Mehr. Was nicht in der Leiste steht, findest du unter „Mehr“.': 'Dziś · [Miejsce 1] · [Środek] · [Miejsce 2] · Więcej. Czego nie ma na pasku, znajdziesz w „Więcej”.',
+    'Runder Knopf in der Mitte': 'Okrągły przycisk na środku',
 }

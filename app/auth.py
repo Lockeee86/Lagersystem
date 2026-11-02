@@ -124,7 +124,8 @@ def account():
     from . import backgrounds, tabbar
     return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS,
                            tab_choices=tabbar.available(current_user), tab_keys=tabbar.keys_for(current_user),
-                           tab_labels=tabbar.labels(), bg_choices=backgrounds.CHOICES, bg_special=backgrounds.SPECIAL,
+                           tab_labels=tabbar.labels(), center_choices=tabbar.center_choices(current_user),
+                           center_key=tabbar.center_key(current_user), center_items=tabbar.CENTER, bg_choices=backgrounds.CHOICES, bg_special=backgrounds.SPECIAL,
                            bg_previews=backgrounds.PREVIEWS, bg_current=current_user.background,
                            theme_modes=backgrounds.THEME_MODES, theme_current=current_user.theme_mode or "auto",
                            bg_strength=backgrounds.strength(current_user))
@@ -136,6 +137,8 @@ def tabbar_save():
     """Eigene Wahl für die zwei freien Plätze der unteren Leiste."""
     from . import tabbar
     keys = [] if request.form.get("reset") else request.form.getlist("tab")
+    if request.form.get("mitte") or request.form.get("reset"):
+        tabbar.save_center(current_user, request.form.get("mitte", ""))
     if len(set(keys)) < len(keys):
         flash_error(_("Bitte zwei verschiedene Rubriken wählen."))
     else:

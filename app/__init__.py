@@ -185,6 +185,7 @@ def create_app(config=None):
             "mobile_crumb": navigation.crumb(endpoint, request.view_args, current_user)
             if current_user.is_authenticated else None,
             "tabbar": tabbar.entries(current_user) if current_user.is_authenticated else [],
+            "tab_center": tabbar.center(current_user) if current_user.is_authenticated else None,
             "glass_bg": backgrounds.effective(current_user),
             "glass_strength": backgrounds.strength(current_user),
             "classic_theme": backgrounds.theme(current_user if current_user.is_authenticated else None),

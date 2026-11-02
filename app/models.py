@@ -121,6 +121,7 @@ class User(UserMixin, db.Model):
     home_order = db.Column(db.String(300), nullable=False, default="", server_default="")   # eigene Reihenfolge
     # Untere Leiste am Handy: die zwei freien Plätze („lager,feld“), leer = Voreinstellung der Rolle (tabbar.py)
     tabbar = db.Column(db.String(60), nullable=False, default="", server_default="")
+    tab_center = db.Column(db.String(12), nullable=False, default="", server_default="")    # Mitte: einlagern | scan
     background = db.Column(db.String(20), nullable=False, default="klassisch", server_default="klassisch")
     theme_mode = db.Column(db.String(10), nullable=False, default="auto", server_default="auto")   # klassisch: Hell/Dunkel
     bg_strength = db.Column(db.Integer, nullable=False, default=80, server_default="80")

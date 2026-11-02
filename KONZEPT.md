@@ -185,6 +185,8 @@ Portainer-Stack (docker-compose)
   werden angelegt. Im Formular steht die **Lagerkarte**: Stapel antippen = Reihe und Startplatz (0.76.2); ab dort
   geht es der Reihe nach weiter (nur leere Stapel oder gleiche Ware oben). Die Vorschau zeigt die neuen Kisten
   gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
+- Der runde Knopf in der Mitte der unteren Leiste ist jetzt **Einlagern** (Symbol Kiste mit Pfeil); unter Mein Konto
+  → Untere Leiste auf **Scannen** umstellbar (`User.tab_center`, 0.77.0). Betrachter und „nur Hühner“ behalten Scannen.
 - **Partie** = gleiche Ware in derselben Reihe; in einer Reihe können mehrere Partien stehen (`/partien`).
   Auslagern aus einer Partie mit Anzahl: genommen werden die am leichtesten erreichbaren Kisten (wenig fremde
   Ware darüber, kleine Stapel zuerst, von oben). „Verbraucht“ = Kisten danach leer und wieder frei, sonst bleibt
