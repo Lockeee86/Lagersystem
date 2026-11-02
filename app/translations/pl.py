@@ -2953,4 +2953,11 @@ MESSAGES = {
     'Runder Knopf in der Mitte': 'Okrągły przycisk na środku',
     'angebrochen': 'niepełna',
     'nur {part}': 'tylko {part}',
+    'Stapel antippen = eine Kiste von oben verladen, nochmal antippen = eine mehr.': 'Stuknij stos = załaduj jedną skrzynię z góry, stuknij ponownie = jedną więcej.',
+    'Auf {stack} stehen nur {n} Kisten.': 'Na {stack} stoi tylko {n} skrzyń.',
+    'Bitte auf der Karte Kisten antippen.': 'Stuknij skrzynie na mapie.',
+    'Aus der Lagerkarte verladen': 'Załaduj z mapy magazynu',
+    'Noch nichts ausgewählt.': 'Jeszcze nic nie wybrano.',
+    'Zurücksetzen': 'Resetuj',
+    '{n} Kisten verladen.': ('Załadowano {n} skrzynię.', 'Załadowano {n} skrzynie.', 'Załadowano {n} skrzyń.'),
 }

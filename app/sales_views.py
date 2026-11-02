@@ -11,7 +11,7 @@ from .delivery_note import render_delivery_note
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .models import (DELIVERY_STATUSES, SORT_USAGES, Box, BulkStore, Certification, Customer, Delivery,
-                     DeliveryItem, SeedClass, Setting, Variety)
+                     DeliveryItem, SeedClass, Setting, Variety, Warehouse)
 from .storage import StorageError
 from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
 
@@ -77,8 +77,16 @@ def delivery_create():
 @login_required
 def delivery_detail(delivery_id):
     delivery = _get(Delivery, delivery_id)
+    map_warehouses, map_warehouse = [], None
+    if delivery.is_open and current_user.can_edit:
+        query = Warehouse.query if not delivery.site_id else Warehouse.query.filter(
+            or_(Warehouse.site_id == delivery.site_id, Warehouse.site_id.is_(None)))
+        map_warehouses = query.order_by(Warehouse.name).all()
+        chosen = request.args.get("lager", type=int)
+        map_warehouse = next((w for w in map_warehouses if w.id == chosen), map_warehouses[0] if map_warehouses else None)
     return render_template(
-        "sales/delivery.html", delivery=delivery, lines=sales.summarize(delivery),
+        "sales/delivery.html", map_warehouses=map_warehouses, map_warehouse=map_warehouse,
+        map_stacks=storage.stacks_overview(map_warehouse) if map_warehouse else {}, delivery=delivery, lines=sales.summarize(delivery),
         open_tasks=tasks.for_delivery(delivery.id), today=date.today(),
         customers=_active_customers(delivery.customer_id),
         varieties=Variety.query.filter_by(active=True).order_by(Variety.name).all(),
@@ -196,6 +204,33 @@ def delivery_add_lot(delivery_id):
         flash_error(str(e) if isinstance(e, StorageError) else _(
             "Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen."))
     return _to_delivery(delivery, "positionen")
+
+
+@bp.route("/lieferschein/<int:delivery_id>/karte", methods=["POST"])
+@editor_required
+def delivery_add_map(delivery_id):
+    """Auf der Lagerkarte angetippte Kisten verladen (`stapel` = „Reihe-Platz-Anzahl“, mehrfach)."""
+    delivery = _get(Delivery, delivery_id)
+    warehouse = db.session.get(Warehouse, form_int("lager", 0))
+    picks = []
+    for raw in request.form.getlist("stapel"):
+        try:
+            row, slot, count = (int(x) for x in raw.split("-"))
+        except ValueError:
+            continue
+        picks.append((row, slot, count))
+    try:
+        if warehouse is None:
+            raise StorageError(_("Lager nicht gefunden."))
+        items = sales.add_from_stacks(delivery, warehouse, picks, current_user)
+        db.session.commit()
+        flash(ngettext("{n} Kiste verladen.", "{n} Kisten verladen.", len(items)), "success")
+    except (StorageError, IntegrityError) as e:
+        db.session.rollback()
+        flash_error(str(e) if isinstance(e, StorageError) else _(
+            "Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen."))
+    return redirect(url_for("sales.delivery_detail", delivery_id=delivery.id, lager=warehouse.id if warehouse else None)
+                    + "#karte")
 
 
 @bp.route("/lieferschein/<int:delivery_id>/kiste", methods=["POST"])

@@ -1106,3 +1106,10 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 .part-badge { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 1rem; font-weight: 700; font-size: .9rem;
     background: #f0b429; color: #2a2208; white-space: nowrap; }
 
+/* Lieferschein: auf der Karte gewählte Kisten (von oben) */
+.pick-map.is-load .stack-cell.is-picked { border-color: #c8553d; box-shadow: 0 0 0 2px #c8553d; }
+.pick-map.is-load .stack-levels .lvl.is-taken { background: repeating-linear-gradient(135deg, #c8553d 0 3px, transparent 3px 6px) !important;
+    border: 1.5px solid #c8553d; }
+.pick-map.is-load .stack-cell.is-picked .stack-count { color: #c8553d; opacity: 1; }
+.pick-map.is-load .stack-cell:disabled { cursor: default; opacity: .6; }
+

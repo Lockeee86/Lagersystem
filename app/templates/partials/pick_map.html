@@ -1,0 +1,36 @@
+{# Lagerkarte zum Antippen: Einlagern (Reihe/Startplatz, Vorschau mit neuen Kisten) und Lieferschein (Kisten von oben verladen) #}
+{% macro pick_map(wh, stacks, planned={}, sel_row=none, sel_slot=none, color=none, resubmit=false, load=false) %}
+<div class="pick-map{{ ' is-preview' if resubmit }}{{ ' is-load' if load }}" data-resubmit="{{ '1' if resubmit else '' }}">
+    <p class="small text-body-secondary mb-1">{% if load %}{{ _("Stapel antippen = eine Kiste von oben verladen, nochmal antippen = eine mehr.") }}{% elif resubmit %}{{ _("Gestrichelt = neue Kisten. Anderen Stapel antippen, um dort anzufangen.") }}{% else %}{{ _("Stapel antippen = Reihe und Startplatz wählen.") }}{% endif %}</p>
+    <div class="map-scroll">
+    <table class="lager-map" style="--levels: {{ wh.max_levels }}; --slots: {{ wh.slots }}">
+        <thead><tr><th></th>{% for sl in range(1, wh.slots + 1) %}<th class="slot-head">{{ sl }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for r, label in wh.display_rows() %}
+        <tr>
+            <th class="row-head">{{ label }}</th>
+            {% for sl in range(1, wh.slots + 1) %}
+            {% set boxes = stacks.get((r, sl), []) %}{% set new = planned.get((r, sl), 0) %}
+            <td>
+                <button type="button" class="stack-cell {% if not boxes and not new %}is-empty{% elif boxes|length + new >= wh.max_levels %}is-full{% endif %}{% if new %} has-new{% endif %}{% if sel_row == r and (sel_slot == sl or (not sel_slot and sl == 1)) %} is-selected{% endif %}"
+                        data-row="{{ r }}" data-slot="{{ sl }}" data-height="{{ boxes|length }}"{% if load and boxes %} data-boxes='{{ boxes|map(attribute="variety.name", default="")|list|tojson }}' data-fills='{{ boxes|map(attribute="fill")|list|tojson }}'{% endif %}{% if load and not boxes %} disabled{% endif %} title="{{ wh.location_label(r, sl) }}: {{ boxes|length }} / {{ wh.max_levels }}{% if new %} (+{{ new }}){% endif %}"
+                        aria-label="{{ wh.location_label(r, sl) }}">
+                    <span class="stack-levels">
+                        {% for lvl in range(wh.max_levels, 0, -1) %}
+                        {% set b = boxes[lvl - 1] if boxes|length >= lvl else none %}
+                        {% if b %}<span class="lvl has-box{% if not b.color %} is-blank{% endif %}{% if 0 < b.fill < 100 %} is-part{% endif %}" {% if b.color %}style="--c: {{ b.color }}; --f: {{ b.fill }}%"{% endif %}></span>
+                        {% elif lvl <= boxes|length + new %}<span class="lvl is-new" style="--c: {{ color or 'var(--brand)' }}"></span>
+                        {% else %}<span class="lvl"></span>{% endif %}
+                        {% endfor %}
+                    </span>
+                    <span class="stack-count">{% if new %}+{{ new }}{% else %}{{ boxes|length or '' }}{% endif %}</span>
+                </button>
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endmacro %}

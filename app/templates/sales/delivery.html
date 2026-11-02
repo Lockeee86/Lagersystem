@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, variety_chip, site_select, size_select, sign_modal %}
 {% from "macros.html" import photo_strip with context %}
+{% from "partials/pick_map.html" import pick_map %}
 {% block title %}{{ delivery.number }}{% endblock %}
 {% block content %}
 {% set editable = delivery.is_open and current_user.is_admin %}
@@ -91,6 +92,29 @@
                 </li>
                 {% endfor %}
             </ul>
+        </div>
+        {% endif %}
+
+        {% if map_warehouse %}
+        <div class="card shadow-sm mb-4" id="karte">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Aus der Lagerkarte verladen") }}</span>
+                {% if map_warehouses|length > 1 %}
+                <span class="d-flex flex-wrap gap-1">{% for w in map_warehouses %}<a class="chip chip-filter {{ 'active' if w.id == map_warehouse.id }}" href="{{ url_for('sales.delivery_detail', delivery_id=delivery.id, lager=w.id) }}#karte">{{ w.name }}</a>{% endfor %}</span>
+                {% endif %}
+            </div>
+            <form method="post" action="{{ url_for('sales.delivery_add_map', delivery_id=delivery.id) }}" class="card-body" id="loadMapForm">
+                {{ csrf() }}<input type="hidden" name="lager" value="{{ map_warehouse.id }}">
+                {{ pick_map(map_warehouse, map_stacks, load=true) }}
+                <div id="loadPicks"></div>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                    <div class="small" id="loadSummary" data-empty="{{ _('Noch nichts ausgewählt.') }}" data-boxes="{{ _('Kisten') }}">{{ _("Noch nichts ausgewählt.") }}</div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" id="loadReset" disabled>{{ _("Zurücksetzen") }}</button>
+                        <button class="btn btn-primary" id="loadSubmit" disabled><i class="bi bi-truck me-1"></i>{{ _("Verladen") }}</button>
+                    </div>
+                </div>
+            </form>
         </div>
         {% endif %}
 
@@ -354,5 +378,56 @@
 {% block scripts %}
 {% if delivery.items and current_user.can_edit and not delivery.fully_signed %}
 <script src="{{ url_for('static', filename='js/signpad.js') }}"></script>
+{% endif %}
+{% if map_warehouse %}
+<script>
+(function () {
+    // Lagerkarte: jedes Antippen nimmt eine Kiste mehr von oben; bei der letzten wieder auf 0
+    var form = document.getElementById("loadMapForm");
+    var picks = {};                                       // "r-s" → Anzahl
+    var holder = document.getElementById("loadPicks"), summary = document.getElementById("loadSummary");
+    var submit = document.getElementById("loadSubmit"), reset = document.getElementById("loadReset");
+    function cells() { return form.querySelectorAll(".stack-cell[data-boxes]"); }
+    function draw() {
+        holder.innerHTML = "";
+        var total = 0, kinds = {};
+        cells().forEach(function (cell) {
+            var key = cell.dataset.row + "-" + cell.dataset.slot, n = picks[key] || 0;
+            var levels = cell.querySelectorAll(".lvl"), height = parseInt(cell.dataset.height, 10);
+            var maxLevels = levels.length;
+            levels.forEach(function (lvl, i) {               // i = 0 ist ganz oben
+                var level = maxLevels - i;                    // 1 = unten
+                lvl.classList.toggle("is-taken", level > height - n && level <= height);
+            });
+            cell.classList.toggle("is-picked", n > 0);
+            var count = cell.querySelector(".stack-count");
+            count.textContent = n ? "−" + n : (height || "");
+            if (!n) return;
+            total += n;
+            var input = document.createElement("input");
+            input.type = "hidden"; input.name = "stapel"; input.value = key + "-" + n;
+            holder.appendChild(input);
+            var names = JSON.parse(cell.dataset.boxes), fills = JSON.parse(cell.dataset.fills);
+            for (var k = 0; k < n; k++) {
+                var idx = height - 1 - k, name = names[idx] || "–";
+                kinds[name] = (kinds[name] || 0) + fills[idx] / 100;
+            }
+        });
+        summary.textContent = total ? total + " " + summary.dataset.boxes + ": " + Object.keys(kinds).map(function (k) {
+            return k + " " + (Math.round(kinds[k] * 100) / 100).toString().replace(".", ",");
+        }).join(" · ") : summary.dataset.empty;
+        submit.disabled = reset.disabled = !total;
+    }
+    cells().forEach(function (cell) {
+        cell.addEventListener("click", function () {
+            var key = cell.dataset.row + "-" + cell.dataset.slot;
+            var n = (picks[key] || 0) + 1;
+            picks[key] = n > parseInt(cell.dataset.height, 10) ? 0 : n;
+            draw();
+        });
+    });
+    reset.addEventListener("click", function () { picks = {}; draw(); });
+})();
+</script>
 {% endif %}
 {% endblock %}

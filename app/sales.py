@@ -63,6 +63,25 @@ def add_lot(delivery, lot, count, user):
     return [add_box(delivery, box, user)[0] for box in storage.pick_from_lot(lot, count)]
 
 
+def add_from_stacks(delivery, warehouse, picks, user):
+    """Auf der Lagerkarte gewählt: je Stapel (row, slot, n) die obersten n Kisten verladen – von oben nach unten,
+    so wie sie heruntergenommen werden. Liefert die Positionen."""
+    _require_open(delivery)
+    items = []
+    for row, slot, count in picks:
+        boxes = storage.stack(warehouse.id, row, slot)
+        if count < 1:
+            continue
+        if count > len(boxes):
+            raise StorageError(_("Auf {stack} stehen nur {n} Kisten.", stack=warehouse.location_label(row, slot),
+                                 n=len(boxes)))
+        for box in reversed(boxes[-count:]):
+            items.append(add_box(delivery, box, user)[0])
+    if not items:
+        raise StorageError(_("Bitte auf der Karte Kisten antippen."))
+    return items
+
+
 def add_quantity(delivery, user, variety_id, usage, seed_class_id, grade, packaging, quantity, unit_kg):
     """Abgepackte Ware (Säcke, Big Bags …): Anzahl × Gewicht je Gebinde."""
     _require_open(delivery)

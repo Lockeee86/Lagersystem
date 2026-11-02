@@ -130,3 +130,25 @@ def test_pages(as_admin, as_worker, as_viewer, db, seed):
     loaded = {i.box_id for i in delivery.items}
     again = store(seed, 3)
     assert not loaded & {b.id for b in again}
+
+
+def test_delivery_load_from_map(as_admin, as_viewer, db, seed):
+    boxes = store(seed, 4, rest=50, slot=2)                              # C-02: 4 volle + ½ oben
+    customer = Customer(name="Saatzucht Nord")
+    db.session.add(customer)
+    db.session.commit()
+    delivery = sales.create_delivery(customer, date.today(), seed["admin"])
+    db.session.commit()
+    html = as_admin.get(f"/lieferschein/{delivery.id}").get_data(as_text=True)
+    assert "Aus der Lagerkarte verladen" in html and 'class="pick-map is-load"' in html and "data-boxes=" in html
+    assert "Aus der Lagerkarte" not in as_viewer.get(f"/lieferschein/{delivery.id}").get_data(as_text=True)
+    url = f"/lieferschein/{delivery.id}/karte"
+    r = as_admin.post(url, data={"lager": seed["wh"].id, "stapel": ["3-2-2", "3-5-0", "kaputt"]})
+    assert r.headers["Location"].endswith(f"?lager={seed['wh'].id}#karte")
+    delivery = db.session.get(Delivery, delivery.id)
+    assert [i.box_id for i in delivery.items] == [boxes[-1].id, boxes[-2].id]          # von oben: ½, dann volle
+    assert [i.fill for i in delivery.items] == [50, 100]
+    assert len(storage.stack(seed["wh"].id, 3, 2)) == 3
+    as_admin.post(url, data={"lager": seed["wh"].id, "stapel": "3-2-9"})            # zu viele: nichts passiert
+    assert db.session.get(Delivery, delivery.id).box_count == 2
+    assert as_viewer.post(url, data={"lager": seed["wh"].id, "stapel": "3-2-1"}).status_code == 403
