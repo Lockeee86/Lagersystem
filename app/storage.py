@@ -399,10 +399,12 @@ def amount_label(full, rests):
     return " + ".join(([str(full)] if full else []) + rests)
 
 
-def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class_id=None, grade=None, slot=None):
+def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class_id=None, grade=None, slot=None,
+               avoid_partial=False):
     """Wohin die Kisten kommen: Liste von ((row, slot), fill) in Einlager-Reihenfolge, die angebrochene zuletzt.
     Wie der Ernte-Modus: erst auf Stapel mit derselben Ware, sonst der nächste freie Platz in der Reihe;
-    mit `slot` ab diesem Stapel der Reihe nach (nur leere oder mit gleicher Ware oben). Ändert nichts."""
+    mit `slot` ab diesem Stapel der Reihe nach (nur leere oder mit gleicher Ware oben). `avoid_partial`: nichts auf
+    eine angebrochene Kiste stellen (siehe `partial_conflicts`). Ändert nichts."""
     if not 1 <= row <= warehouse.rows:
         raise StorageError(_("Bitte eine Reihe wählen."))
     fills = [100] * max(count or 0, 0) + ([rest_fill] if rest_fill in REST_FILLS else [])
@@ -419,6 +421,11 @@ def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class
     usage = usage or variety.usage
     ware = SimpleNamespace(variety_id=variety.id, effective_usage=usage, seed_class_id=seed_class_id,
                            grade=grade or None)
+    if avoid_partial:                              # Stapel mit angebrochener Kiste oben gelten als „andere Ware“
+        blocker = SimpleNamespace(variety_id=None, effective_usage=None, seed_class_id=None, grade=None)
+        for boxes in stacks.values():
+            if boxes and 0 < boxes[-1].fill < 100:
+                boxes[-1] = blocker
     plan = []
     order = None
     if slot and 1 <= slot <= warehouse.slots:      # ab diesem Platz nach hinten weiter, dann von vorne
@@ -435,6 +442,18 @@ def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class
         stacks.setdefault(place, []).append(ware)
         plan.append((place, fill))
     return plan
+
+
+def partial_conflicts(warehouse, plan):
+    """Stapel, auf denen laut Plan neue Kisten auf eine angebrochene Kiste kämen: [{"label", "fill_label"}]."""
+    stacks = stacks_overview(warehouse)
+    result, seen = [], set()
+    for place, _fill in plan:
+        boxes = stacks.get(place)
+        if place not in seen and boxes and 0 < boxes[-1].fill < 100:
+            seen.add(place)
+            result.append({"label": warehouse.location_label(*place), "fill_label": boxes[-1].fill_label})
+    return result
 
 
 def plan_summary(warehouse, plan):
@@ -462,12 +481,12 @@ def _free_boxes(box_type_id, count):
 
 
 def store_batch(warehouse, row, count, rest_fill, variety, user, box_type_id, plot_id=None, harvest_date=None,
-                usage=None, seed_class_id=None, grade=None, slot=None):
+                usage=None, seed_class_id=None, grade=None, slot=None, avoid_partial=False):
     """Mehrere Kisten auf einmal einlagern, ohne zu scannen. Nimmt leere Kisten aus dem Bestand und legt fehlende
     neu an. Liefert die eingelagerten Kisten."""
     _lock_warehouse(warehouse.id)
     usage = usage if usage and usage != variety.usage else None      # wie bei der Sorte → leer lassen
-    plan = plan_batch(warehouse, row, count, rest_fill, variety, usage, seed_class_id, grade, slot)
+    plan = plan_batch(warehouse, row, count, rest_fill, variety, usage, seed_class_id, grade, slot, avoid_partial)
     boxes = _free_boxes(box_type_id, len(plan))
     if len(boxes) < len(plan):
         boxes += create_boxes(len(plan) - len(boxes), box_type_id, user)

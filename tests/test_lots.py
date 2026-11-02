@@ -152,3 +152,29 @@ def test_delivery_load_from_map(as_admin, as_viewer, db, seed):
     as_admin.post(url, data={"lager": seed["wh"].id, "stapel": "3-2-9"})            # zu viele: nichts passiert
     assert db.session.get(Delivery, delivery.id).box_count == 2
     assert as_viewer.post(url, data={"lager": seed["wh"].id, "stapel": "3-2-1"}).status_code == 403
+
+
+def test_partial_box_warning(as_worker, db, seed):
+    """Oben auf einem Stapel liegt eine angebrochene Kiste: Warnung, Einlagern erst nach der Entscheidung."""
+    store(seed, 2, rest=75, slot=1)                                      # C-01: 2 volle + ¾ oben
+    db.session.commit()
+    plan = storage.plan_batch(seed["wh"], ROW_C, 2, None, seed["belana"], "pflanzgut")
+    assert [p for p, _f in plan] == [(3, 1), (3, 1)]
+    assert storage.partial_conflicts(seed["wh"], plan) == [{"label": "C-01", "fill_label": "¾"}]
+    plan = storage.plan_batch(seed["wh"], ROW_C, 2, None, seed["belana"], "pflanzgut", avoid_partial=True)
+    assert [p for p, _f in plan] == [(3, 2), (3, 2)] and not storage.partial_conflicts(seed["wh"], plan)
+
+    form = {"sorte": seed["belana"].id, "schlag": seed["plot"].id, "verwendung": "pflanzgut", "lager": seed["wh"].id,
+            "reihe": ROW_C, "anzahl": "2", "datum": "2026-09-20"}
+    html = as_worker.post("/einlagern", data=form).get_data(as_text=True)
+    assert "Auf C-01 liegt oben eine angebrochene Kiste (¾)." in html and "Erst oben entscheiden." in html
+    assert "Daneben anfangen" in html and "Trotzdem draufstellen" in html
+    before = Box.query.count()
+    as_worker.post("/einlagern", data=form | {"bestaetigt": "1"})       # ohne Entscheidung: nichts gebucht
+    assert Box.query.count() == before
+    html = as_worker.post("/einlagern", data=form | {"angebrochen": "daneben"}).get_data(as_text=True)
+    assert "C-02" in html and "Erst oben entscheiden." not in html and "es wird daneben angefangen" in html
+    as_worker.post("/einlagern", data=form | {"angebrochen": "daneben", "bestaetigt": "1"})
+    assert len(storage.stack(seed["wh"].id, 3, 1)) == 3 and len(storage.stack(seed["wh"].id, 3, 2)) == 2
+    as_worker.post("/einlagern", data=form | {"angebrochen": "drauf", "bestaetigt": "1"})
+    assert len(storage.stack(seed["wh"].id, 3, 1)) == 5                # bewusst draufgestellt

@@ -2960,4 +2960,11 @@ MESSAGES = {
     'Noch nichts ausgewählt.': 'Jeszcze nic nie wybrano.',
     'Zurücksetzen': 'Resetuj',
     '{n} Kisten verladen.': ('Załadowano {n} skrzynię.', 'Załadowano {n} skrzynie.', 'Załadowano {n} skrzyń.'),
+    'Auf {stacks} liegen oben angebrochene Kisten.': ('Na {stacks} leży na górze niepełna skrzynia.', 'Na {stacks} leżą na górze niepełne skrzynie.', 'Na {stacks} leżą na górze niepełne skrzynie.'),
+    'Neue Kisten kämen darauf – die angebrochene steckt dann mitten im Stapel.': 'Nowe skrzynie trafiłyby na nią – niepełna znalazłaby się w środku stosu.',
+    'Entschieden: trotzdem draufstellen.': 'Zdecydowano: mimo to postawić na niej.',
+    'Daneben anfangen': 'Zacznij obok',
+    'Trotzdem draufstellen': 'Mimo to postaw na niej',
+    'Angebrochene Kisten bleiben oben – es wird daneben angefangen.': 'Niepełne skrzynie zostają na górze – zaczynamy obok.',
+    'Erst oben entscheiden.': 'Najpierw zdecyduj powyżej.',
 }

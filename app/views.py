@@ -1126,7 +1126,8 @@ def harvest_box():
 
 # --- Partien: Einlagern ohne Scannen, Auslagern aus einer Partie ---------------------
 
-BATCH_KEYS = HARVEST_KEYS + ("anzahl", "rest", "platz", "kistentyp")
+BATCH_KEYS = HARVEST_KEYS + ("anzahl", "rest", "platz", "kistentyp", "angebrochen")
+PARTIAL_CHOICES = ("daneben", "drauf")       # Warnung „angebrochene Kiste oben“: daneben anfangen / trotzdem drauf
 
 
 def _amount_text(full, rest):
@@ -1152,6 +1153,8 @@ def batch_store():
     rest = int(values.get("rest") or 0) if values.get("rest") in ("25", "50", "75") else None
     slot = int(values.get("platz")) if (values.get("platz") or "").isdigit() else None
     plan = planned = None
+    conflicts = []
+    choice = values.get("angebrochen") if values.get("angebrochen") in PARTIAL_CHOICES else ""
     if request.method == "POST":
         try:
             if settings["variety"] is None:
@@ -1161,9 +1164,10 @@ def batch_store():
             if box_type is None:
                 raise StorageError(_("Bitte zuerst unter Verwaltung einen Kistentyp anlegen."))
             args = dict(usage=settings["usage"], seed_class_id=settings["seed_class"].id if settings["seed_class"] else None,
-                        grade=settings["grade"], slot=slot)
-            if request.form.get("bestaetigt") != "1":
-                raw = storage.plan_batch(settings["warehouse"], settings["row"], count, rest, settings["variety"], **args)
+                        grade=settings["grade"], slot=slot, avoid_partial=choice == "daneben")
+            raw = storage.plan_batch(settings["warehouse"], settings["row"], count, rest, settings["variety"], **args)
+            conflicts = storage.partial_conflicts(settings["warehouse"], raw)
+            if request.form.get("bestaetigt") != "1" or (conflicts and not choice):    # ohne Entscheidung nur Vorschau
                 plan = storage.plan_summary(settings["warehouse"], raw)
                 planned = {}
                 for place, _fill in raw:
@@ -1194,6 +1198,7 @@ def batch_store():
     map_warehouse = settings["chosen_warehouse"] or (choices["warehouses"][0] if choices["warehouses"] else None)
     return render_template("batch_store.html", s=settings, values=values, count=count, rest=rest, slot=slot,
                            box_types=box_types, box_type=box_type, plan=plan, planned=planned or {},
+                           conflicts=conflicts, partial_choice=choice,
                            amount=_amount_text(count, rest), map_warehouse=map_warehouse,
                            map_stacks=storage.stacks_overview(map_warehouse) if map_warehouse else {}, **choices)
 

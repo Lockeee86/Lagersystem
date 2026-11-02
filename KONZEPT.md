@@ -187,6 +187,9 @@ Portainer-Stack (docker-compose)
   gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
 - Der runde Knopf in der Mitte der unteren Leiste ist jetzt **Einlagern** (Symbol Kiste mit Pfeil); unter Mein Konto
   → Untere Leiste auf **Scannen** umstellbar (`User.tab_center`, 0.77.0). Betrachter und „nur Hühner“ behalten Scannen.
+- **Warnung angebrochene Kiste** (0.78.1): Kämen neue Kisten auf einen Stapel mit angebrochener Kiste oben
+  (`storage.partial_conflicts`), zeigt die Vorschau eine Warnung; eingelagert wird erst nach der Entscheidung
+  „Daneben anfangen“ (`plan_batch(avoid_partial=True)`) oder „Trotzdem draufstellen“ (Feld `angebrochen`).
 - Lieferschein **„Aus der Lagerkarte verladen“** (0.78.0): Stapel antippen = eine Kiste von oben, nochmal = eine
   mehr (bis der Stapel leer ist, dann wieder 0); gewählte Kisten rot gestreift, darunter Anzahl je Sorte, dann
   „Verladen“ (`sales.add_from_stacks`, von oben nach unten). Lager-Auswahl, wenn es mehrere gibt.
