@@ -2951,4 +2951,6 @@ MESSAGES = {
     'Die App stellt gleiche Ware zusammen und füllt sonst die Reihe von vorne auf. Wo ihr anfangt, wählt ihr auf der Karte.': 'Aplikacja układa ten sam towar razem, a poza tym zapełnia rząd od przodu. Miejsce startu wybierasz na mapie.',
     'Heute · [Platz 1] · [Mitte] · [Platz 2] · Mehr. Was nicht in der Leiste steht, findest du unter „Mehr“.': 'Dziś · [Miejsce 1] · [Środek] · [Miejsce 2] · Więcej. Czego nie ma na pasku, znajdziesz w „Więcej”.',
     'Runder Knopf in der Mitte': 'Okrągły przycisk na środku',
+    'angebrochen': 'niepełna',
+    'nur {part}': 'tylko {part}',
 }

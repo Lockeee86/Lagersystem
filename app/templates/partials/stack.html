@@ -13,7 +13,7 @@
         {% for lvl in range(warehouse.max_levels, 0, -1) %}
         {% set b = boxes[lvl - 1] if boxes|length >= lvl else none %}
         {% if b %}
-        <a class="tower-box" href="{{ url_for('main.box_detail', code=b.code) }}"
+        <a class="tower-box{% if 0 < b.fill < 100 %} is-part{% endif %}" href="{{ url_for('main.box_detail', code=b.code) }}"
            style="--c: {{ b.color or 'var(--box-blank)' }}">
             <span class="tower-level">{{ lvl }}</span>
             <span class="tower-main">
@@ -21,7 +21,8 @@
                 {{ variety_chip(b.variety, b.is_empty) }}
                 {% if b.harvest_date %}<span class="small text-body-secondary">{{ _("Ernte {date}", date=b.harvest_date|date) }}{% set age = ages.get(b.id) if ages else none %}{% if age %} <i class="bi bi-hourglass-split age-icon-{{ age }}" title="{{ _('lange gelagert') }}"></i>{% endif %}</span>{% endif %}
             </span>
-            <span class="tower-fill">{{ fill_bar(b.fill) }}<span class="small">{{ b.fill_label }}</span></span>
+            {% if 0 < b.fill < 100 %}<span class="tower-fill"><span class="part-badge" title="{{ _('angebrochen') }}"><i class="bi bi-pie-chart-fill me-1"></i>{{ _("nur {part}", part=b.fill_label) }}</span></span>
+            {% else %}<span class="tower-fill">{{ fill_bar(b.fill) }}<span class="small">{{ b.fill_label }}</span></span>{% endif %}
             <i class="bi bi-chevron-right text-body-tertiary"></i>
         </a>
         {% else %}

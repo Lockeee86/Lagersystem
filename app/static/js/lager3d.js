@@ -13,7 +13,7 @@ window.Lager3D = (function () {
     function shade(hex, f) {
         var n = parseInt(hex.slice(1), 16);
         return "rgb(" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
-            return Math.round(v * f);
+            return Math.min(255, Math.round(v * f));
         }).join(",") + ")";
     }
 
@@ -89,14 +89,25 @@ window.Lager3D = (function () {
                     var x0 = c.gx + inset, x1 = c.gx + 1 - inset, y0 = c.gy + inset, y1 = c.gy + 1 - inset;
                     var z0 = l + 0.05, z1 = l + 0.95;
                     var attrs = dim ? { opacity: "0.15" } : {};
-                    [
-                        [[iso(x0, y1, z1), iso(x1, y1, z1), iso(x1, y1, z0), iso(x0, y1, z0)], shade(color, 0.72)],
-                        [[iso(x1, y0, z1), iso(x1, y1, z1), iso(x1, y1, z0), iso(x1, y0, z0)], shade(color, 0.52)],
-                        [[iso(x0, y0, z1), iso(x1, y0, z1), iso(x1, y1, z1), iso(x0, y1, z1)], color]
-                    ].forEach(function (face) {
-                        var poly = el("polygon", Object.assign({ points: face[0].join(" "), fill: face[1] }, attrs));
-                        g.appendChild(poly);
-                    });
+                    var fill = b[2] == null ? 100 : b[2];
+                    var prism = function (top, extra) {
+                        [
+                            [[iso(x0, y1, top), iso(x1, y1, top), iso(x1, y1, z0), iso(x0, y1, z0)], shade(color, 0.72)],
+                            [[iso(x1, y0, top), iso(x1, y1, top), iso(x1, y1, z0), iso(x1, y0, z0)], shade(color, 0.52)],
+                            [[iso(x0, y0, top), iso(x1, y0, top), iso(x1, y1, top), iso(x0, y1, top)], color]
+                        ].forEach(function (face) {
+                            var poly = el("polygon", Object.assign({ points: face[0].join(" "), fill: face[1] }, attrs, extra || {}));
+                            g.appendChild(poly);
+                        });
+                    };
+                    if (fill > 0 && fill < 100) {
+                        // angebrochen: durchsichtige Kiste mit gestricheltem Rand, Ware nur so hoch wie der Füllstand
+                        prism(z0 + (z1 - z0) * fill / 100);
+                        prism(z1, { "fill-opacity": dim ? "0" : "0.16", stroke: shade(color, 1.15), "stroke-width": "1.2",
+                                    "stroke-dasharray": "3 2", "class": "iso-part" });
+                    } else {
+                        prism(z1);
+                    }
                 });
                 svg.appendChild(g);
             });

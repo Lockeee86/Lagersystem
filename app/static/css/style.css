@@ -1097,3 +1097,12 @@ button.stack-cell { font: inherit; cursor: pointer; color: inherit; }
 .pick-map .stack-cell.has-new { border-color: var(--brand); }
 .pick-map .stack-cell.has-new .stack-count { color: var(--brand); opacity: 1; }
 
+/* Angebrochene Kisten deutlich zeigen: Karte (nur teilweise gefüllt, gestrichelt), Stapel-Liste (Hinweis), 3D */
+.stack-levels .lvl.has-box.is-part { background: linear-gradient(to right, var(--c) var(--f), color-mix(in srgb, var(--c) 18%, transparent) var(--f));
+    border: 1.5px dashed var(--c); }
+.tower-box.is-part { border-style: dashed; border-left-style: solid;
+    background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 14%, transparent) 0 8px, transparent 8px 16px); }
+html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, transparent) 0 8px, transparent 8px 16px); }
+.part-badge { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 1rem; font-weight: 700; font-size: .9rem;
+    background: #f0b429; color: #2a2208; white-space: nowrap; }
+

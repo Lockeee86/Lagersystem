@@ -21,7 +21,7 @@
                     <span class="stack-levels">
                         {% for lvl in range(wh.max_levels, 0, -1) %}
                         {% set b = boxes[lvl - 1] if boxes|length >= lvl else none %}
-                        {% if b %}<span class="lvl has-box{% if not b.color %} is-blank{% endif %}" {% if b.color %}style="--c: {{ b.color }}"{% endif %}></span>
+                        {% if b %}<span class="lvl has-box{% if not b.color %} is-blank{% endif %}{% if 0 < b.fill < 100 %} is-part{% endif %}" {% if b.color %}style="--c: {{ b.color }}; --f: {{ b.fill }}%"{% endif %}></span>
                         {% elif lvl <= boxes|length + new %}<span class="lvl is-new" style="--c: {{ color or 'var(--brand)' }}"></span>
                         {% else %}<span class="lvl"></span>{% endif %}
                         {% endfor %}

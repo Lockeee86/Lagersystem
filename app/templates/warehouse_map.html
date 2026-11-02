@@ -100,8 +100,8 @@
                                 <span class="stack-levels">
                                     {% for lvl in range(warehouse.max_levels, 0, -1) %}
                                     {% set b = boxes[lvl - 1] if boxes|length >= lvl else none %}
-                                    <span class="lvl {% if b %}{% if b.color %}has-box{% else %}has-box is-blank{% endif %}{% endif %}"
-                                          {% if b and b.color %}style="--c: {{ b.color }}"{% endif %}></span>
+                                    <span class="lvl {% if b %}{% if b.color %}has-box{% else %}has-box is-blank{% endif %}{% if 0 < b.fill < 100 %} is-part{% endif %}{% endif %}"
+                                          {% if b and b.color %}style="--c: {{ b.color }}; --f: {{ b.fill }}%"{% endif %}></span>
                                     {% endfor %}
                                 </span>
                                 <span class="stack-count">{{ boxes|length or '' }}</span>

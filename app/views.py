@@ -543,7 +543,7 @@ def warehouse_map(warehouse_id=None):
             "rowLabels": [label for _r, label in warehouse.row_labels()],
             "bottomUp": warehouse.rows_bottom_up,      # wie in Karte und Liste: erste Reihe vorne statt hinten
             "stackUrl": url_for("main.stack_view", warehouse_id=warehouse.id, row=0, slot=0, partial=1),
-            "stacks": [[r, s, [[b.color or "", b.variety_id if b.variety_id and not b.is_empty else 0] for b in boxes],
+            "stacks": [[r, s, [[b.color or "", b.variety_id if b.variety_id and not b.is_empty else 0, b.fill] for b in boxes],
                         1 if ages.get((r, s)) else 0]
                        for (r, s), boxes in stacks.items()],
         }
