@@ -1151,7 +1151,7 @@ def batch_store():
     count = max(int(values.get("anzahl") or 0), 0) if (values.get("anzahl") or "0").isdigit() else 0
     rest = int(values.get("rest") or 0) if values.get("rest") in ("25", "50", "75") else None
     slot = int(values.get("platz")) if (values.get("platz") or "").isdigit() else None
-    plan = None
+    plan = planned = None
     if request.method == "POST":
         try:
             if settings["variety"] is None:
@@ -1163,8 +1163,11 @@ def batch_store():
             args = dict(usage=settings["usage"], seed_class_id=settings["seed_class"].id if settings["seed_class"] else None,
                         grade=settings["grade"], slot=slot)
             if request.form.get("bestaetigt") != "1":
-                plan = storage.plan_summary(settings["warehouse"], storage.plan_batch(
-                    settings["warehouse"], settings["row"], count, rest, settings["variety"], **args))
+                raw = storage.plan_batch(settings["warehouse"], settings["row"], count, rest, settings["variety"], **args)
+                plan = storage.plan_summary(settings["warehouse"], raw)
+                planned = {}
+                for place, _fill in raw:
+                    planned[place] = planned.get(place, 0) + 1
             else:
                 boxes = storage.store_batch(settings["warehouse"], settings["row"], count, rest, settings["variety"],
                                             current_user, box_type.id,
@@ -1187,9 +1190,12 @@ def batch_store():
             plan = None
             flash_error(str(e) if isinstance(e, StorageError) else _(
                 "Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen."))
+    choices = _harvest_choices()
+    map_warehouse = settings["chosen_warehouse"] or (choices["warehouses"][0] if choices["warehouses"] else None)
     return render_template("batch_store.html", s=settings, values=values, count=count, rest=rest, slot=slot,
-                           box_types=box_types, box_type=box_type, plan=plan, amount=_amount_text(count, rest),
-                           **_harvest_choices())
+                           box_types=box_types, box_type=box_type, plan=plan, planned=planned or {},
+                           amount=_amount_text(count, rest), map_warehouse=map_warehouse,
+                           map_stacks=storage.stacks_overview(map_warehouse) if map_warehouse else {}, **choices)
 
 
 @bp.route("/partien")

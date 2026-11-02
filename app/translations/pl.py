@@ -2936,7 +2936,6 @@ MESSAGES = {
     'freier Platz': 'wolne miejsce',
     'ändern': 'zmień',
     "So geht's: Ware, Anzahl und Reihe angeben, dann zeigt die Vorschau, auf welche Stapel die Kisten kommen.": 'Jak to działa: podaj towar, liczbę i rząd – podgląd pokaże, na które stosy trafią skrzynie.',
-    'Die App stellt gleiche Ware zusammen und füllt sonst die Reihe von vorne auf. Steht ihr woanders, „Ab Platz“ angeben.': 'Aplikacja układa ten sam towar razem, a poza tym zapełnia rząd od przodu. Jeśli stawiacie gdzie indziej, podaj „Od miejsca”.',
     '{n} Partien': ('{n} partia', '{n} partie', '{n} partii'),
     'Gleiche Ware je Reihe': 'Ten sam towar w rzędzie',
     '{amount} Kisten': '{amount} skrzyń',
@@ -2948,4 +2947,7 @@ MESSAGES = {
     'Aus Partie verladen': 'Załaduj z partii',
     'ohne Scannen': 'bez skanowania',
     'Partie': 'Partia',
+    'Gestrichelt = neue Kisten. Anderen Stapel antippen, um dort anzufangen.': 'Przerywane = nowe skrzynie. Stuknij inny stos, aby zacząć tam.',
+    'Stapel antippen = Reihe und Startplatz wählen.': 'Stuknij stos = wybierz rząd i miejsce startowe.',
+    'Die App stellt gleiche Ware zusammen und füllt sonst die Reihe von vorne auf. Wo ihr anfangt, wählt ihr auf der Karte.': 'Aplikacja układa ten sam towar razem, a poza tym zapełnia rząd od przodu. Miejsce startu wybierasz na mapie.',
 }

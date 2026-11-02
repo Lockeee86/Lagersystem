@@ -402,7 +402,7 @@ def amount_label(full, rests):
 def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class_id=None, grade=None, slot=None):
     """Wohin die Kisten kommen: Liste von ((row, slot), fill) in Einlager-Reihenfolge, die angebrochene zuletzt.
     Wie der Ernte-Modus: erst auf Stapel mit derselben Ware, sonst der nächste freie Platz in der Reihe;
-    mit `slot` zuerst auf diesen Stapel. Ändert nichts."""
+    mit `slot` ab diesem Stapel der Reihe nach (nur leere oder mit gleicher Ware oben). Ändert nichts."""
     if not 1 <= row <= warehouse.rows:
         raise StorageError(_("Bitte eine Reihe wählen."))
     fills = [100] * max(count or 0, 0) + ([rest_fill] if rest_fill in REST_FILLS else [])
@@ -420,10 +420,17 @@ def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class
     ware = SimpleNamespace(variety_id=variety.id, effective_usage=usage, seed_class_id=seed_class_id,
                            grade=grade or None)
     plan = []
+    order = None
+    if slot and 1 <= slot <= warehouse.slots:      # ab diesem Platz nach hinten weiter, dann von vorne
+        order = list(range(slot, warehouse.slots + 1)) + list(range(1, slot))
     for fill in fills:
-        if slot and 1 <= slot <= warehouse.slots and len(stacks.get((row, slot), [])) < warehouse.max_levels:
-            place = (row, slot)
-        else:
+        place = None
+        if order:
+            place = next(((row, sl) for sl in order
+                          if len(stacks.get((row, sl), [])) < warehouse.max_levels
+                          and (not stacks.get((row, sl)) or _same_contents(stacks[(row, sl)][-1], variety.id, usage,
+                                                                           seed_class_id, grade))), None)
+        if place is None:
             place = suggest_place(warehouse, variety.id, usage, seed_class_id, row=row, grade=grade, stacks=stacks)
         stacks.setdefault(place, []).append(ware)
         plan.append((place, fill))

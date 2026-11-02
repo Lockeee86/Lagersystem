@@ -25,7 +25,7 @@ def test_plan_fills_row_and_puts_half_box_on_top(db, seed):
     assert [(r["label"], r["full"], r["rest"]) for r in summary] == [("C-01", 5, None), ("C-02", 5, None),
                                                                       ("C-03", 0, 50)]
     # mit „ab Platz“ zuerst dorthin
-    assert storage.plan_batch(wh, ROW_C, 2, None, seed["belana"], slot=7)[0][0] == (3, 7)
+    assert [p for p, _f in storage.plan_batch(wh, ROW_C, 7, None, seed["belana"], slot=7)] == [(3, 7)] * 5 + [(3, 8)] * 2
     with pytest.raises(StorageError, match="Reihe"):
         storage.plan_batch(wh, ROW_C, 76, None, seed["belana"])            # 75 passen
     with pytest.raises(StorageError):
@@ -86,15 +86,23 @@ def test_foreign_box_on_top_is_avoided(db, seed):
     assert [b.location for b in storage.pick_from_lot(lot, 2)] == ["C-05-1", "C-01-2"]
 
 
+def test_start_slot_skips_foreign_stacks(db, seed):
+    store(seed, 1, usage="speise", slot=8)                               # C-08: andere Ware
+    db.session.commit()
+    plan = storage.plan_batch(seed["wh"], ROW_C, 6, None, seed["belana"], "pflanzgut", slot=7)
+    assert [p for p, _f in plan] == [(3, 7)] * 5 + [(3, 9)]
+
+
 def test_pages(as_admin, as_worker, as_viewer, db, seed):
     form = {"sorte": seed["belana"].id, "schlag": seed["plot"].id, "verwendung": "pflanzgut", "lager": seed["wh"].id,
             "reihe": ROW_C, "anzahl": "10", "rest": "50", "datum": "2026-09-20"}
     assert as_viewer.get("/einlagern").status_code == 403
     html = as_worker.get("/einlagern").get_data(as_text=True)
-    assert "Volle Kisten" in html and "Weiter zur Vorschau" in html
+    assert "Volle Kisten" in html and "Weiter zur Vorschau" in html and 'class="pick-map' in html
+    assert 'data-row="3" data-slot="15"' in html
     html = as_worker.post("/einlagern", data=form).get_data(as_text=True)          # Vorschau, noch nichts gebucht
     assert "Vorschau" in html and "C-01" in html and "C-03" in html and "10½ Kisten Belana" in html
-    assert Box.query.count() == 0
+    assert Box.query.count() == 0 and "+5" in html and "is-new" in html     # Karte mit den neuen Kisten
     r = as_worker.post("/einlagern", data=form | {"bestaetigt": "1"})
     assert r.status_code == 302 and "/einlagern" in r.headers["Location"]
     assert Box.query.filter(Box.warehouse_id.isnot(None)).count() == 11

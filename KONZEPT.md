@@ -182,7 +182,9 @@ Portainer-Stack (docker-compose)
   plus eine angebrochene (¼ ½ ¾), Lager und **Reihe** → Vorschau je Stapel → einlagern. Platz wie im Ernte-Modus
   (`suggest_place`: erst Stapel mit gleicher Ware, sonst der nächste freie in der Reihe), optional „ab Platz“.
   Genommen werden leere Kisten, die nirgends stehen (nicht defekt, nicht auf offenem Lieferschein), fehlende
-  werden angelegt.
+  werden angelegt. Im Formular steht die **Lagerkarte**: Stapel antippen = Reihe und Startplatz (0.76.2); ab dort
+  geht es der Reihe nach weiter (nur leere Stapel oder gleiche Ware oben). Die Vorschau zeigt die neuen Kisten
+  gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
 - **Partie** = gleiche Ware in derselben Reihe; in einer Reihe können mehrere Partien stehen (`/partien`).
   Auslagern aus einer Partie mit Anzahl: genommen werden die am leichtesten erreichbaren Kisten (wenig fremde
   Ware darüber, kleine Stapel zuerst, von oben). „Verbraucht“ = Kisten danach leer und wieder frei, sonst bleibt

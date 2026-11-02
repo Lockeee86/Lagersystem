@@ -1090,3 +1090,10 @@ body.typing .tabbar { display: none; }
 .open-actions { display: flex; align-items: center; gap: .25rem; flex: 0 0 auto; }
 .open-actions .form-select { min-width: 7rem; }
 @media (max-width: 575.98px) { .open-actions { flex: 1 1 100%; } .open-actions form.input-group, form.open-actions { flex: 1 1 auto; } }
+
+/* Einlagern: Karte zum Wählen der Reihe, neue Kisten gestrichelt */
+button.stack-cell { font: inherit; cursor: pointer; color: inherit; }
+.pick-map .stack-levels .lvl.is-new { background: color-mix(in srgb, var(--c) 45%, transparent); border: 1.5px dashed var(--brand); }
+.pick-map .stack-cell.has-new { border-color: var(--brand); }
+.pick-map .stack-cell.has-new .stack-count { color: var(--brand); opacity: 1; }
+
