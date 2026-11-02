@@ -1110,6 +1110,7 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 .pick-map.is-load .stack-cell.is-picked { border-color: #c8553d; box-shadow: 0 0 0 2px #c8553d; }
 .pick-map.is-load .stack-levels .lvl.is-taken { background: repeating-linear-gradient(135deg, #c8553d 0 3px, transparent 3px 6px) !important;
     border: 1.5px solid #c8553d; }
-.pick-map.is-load .stack-cell.is-picked .stack-count { color: #c8553d; opacity: 1; }
+.pick-map.is-load .stack-cell.is-picked .stack-count { color: #fff; background: #c8553d; opacity: 1; text-shadow: none;
+    right: 2px; bottom: 2px; padding: 0 .3rem; border-radius: 1rem; font-size: .68rem; line-height: 1.15rem; z-index: 1; }
 .pick-map.is-load .stack-cell:disabled { cursor: default; opacity: .6; }
 
