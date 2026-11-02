@@ -1080,7 +1080,7 @@ body:not(.has-tabbar) {
 /* iOS: fest stehende Leiste und Hintergrund auf eigene Grafikebene, damit sie beim schnellen Scrollen nicht
    hinterherhinken („springen“); nichts darf seitlich überstehen */
 html, body { overflow-x: clip; }
-.tabbar { transform: translate3d(0, 0, 0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.tabbar { transform: translate3d(0, var(--vv-shift, 0px), 0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 /* Beim Tippen (Tastatur offen) stört die Leiste nur – ausblenden */
 body.typing .tabbar { display: none; }
 

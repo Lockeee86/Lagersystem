@@ -165,6 +165,33 @@ window.App = (function () {
         }, 50);
     });
 
+    // iOS: Nach dem Schließen der Tastatur (und beim Ein-/Ausblenden der Adressleiste) bleibt die fest stehende
+    // Leiste manchmal mitten auf dem Bildschirm hängen und wandert beim Scrollen. Darum an den sichtbaren
+    // Bildschirmrand (visualViewport) heften.
+    var tabbar = document.querySelector(".tabbar");
+    var vv = window.visualViewport;
+    if (tabbar && vv) {
+        var pending = false;
+        var pin = function () {
+            pending = false;
+            // wo die Leiste ohne Korrektur stünde vs. wo der sichtbare Bereich endet (beides in Seitenkoordinaten)
+            var current = parseFloat(tabbar.style.getPropertyValue("--vv-shift")) || 0;
+            var base = tabbar.getBoundingClientRect().bottom - current;
+            var shift = Math.round(vv.offsetTop + vv.height - base);
+            if (document.body.classList.contains("typing") || Math.abs(shift) > window.innerHeight / 2) shift = 0;
+            tabbar.style.setProperty("--vv-shift", shift + "px");
+        };
+        var schedule = function () {
+            if (!pending) { pending = true; requestAnimationFrame(pin); }
+        };
+        vv.addEventListener("resize", schedule);
+        vv.addEventListener("scroll", schedule);
+        window.addEventListener("scroll", schedule, { passive: true });
+        window.addEventListener("orientationchange", schedule);
+        document.addEventListener("focusout", function () { setTimeout(schedule, 300); });
+        schedule();
+    }
+
     // Flash-Meldungen nach einiger Zeit ausblenden
     setTimeout(function () {
         document.querySelectorAll(".flash-stack .alert-success, .flash-stack .alert-info").forEach(function (el) {
