@@ -34,6 +34,8 @@ AREAS = [
         # Übersicht mit den zwei Teilen Kartoffellager und Schüttlager, danach die Kartoffel-Seiten, dann Schüttlager
         item("main.storage_home", N_("Übersicht"), "bi-grid-1x2"),
         item("main.warehouse_map", N_("Lagerkarte"), "bi-grid-3x3-gap", endpoints=("main.stack_view",)),
+        item("main.batch_store", N_("Einlagern"), "bi-box-arrow-in-down", role=ROLE_MITARBEITER),
+        item("main.lots_page", N_("Partien"), "bi-stack"),
         item("main.boxes", N_("Kisten"), "bi-boxes", endpoints=("main.box_detail",)),
         item("main.history", N_("Verlauf"), "bi-clock-history"),
         item("main.harvest", N_("Ernte"), "bi-basket", role=ROLE_MITARBEITER),

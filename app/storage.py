@@ -6,11 +6,12 @@ Regeln:
 - Wird eine Kiste aus der Mitte genommen, rutschen die darüber liegenden nach.
 """
 import re
+from types import SimpleNamespace
 
 from sqlalchemy import func
 
 from .extensions import db
-from .i18n import gettext as _
+from .i18n import gettext as _, ngettext
 from .models import BOX_DEFECT, BOX_RETIRED, Box, Movement, Warehouse, utcnow
 
 CODE_PREFIX = "K-"
@@ -329,12 +330,12 @@ def _same_contents(box, variety_id, usage, seed_class_id, grade=None):
             and box.seed_class_id == seed_class_id and (box.grade or None) == (grade or None))
 
 
-def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=None, grade=None):
+def suggest_place(warehouse, variety_id, usage=None, seed_class_id=None, row=None, grade=None, stacks=None):
     """Platzvorschlag „gleiche Sorte zusammen“: ein Stapel, auf dem oben dieselbe Ware steht und noch Platz ist
     (der höchste zuerst, damit Stapel voll werden), sonst der freie Stellplatz, der am nächsten an dieser Ware
     liegt – bevorzugt in derselben Reihe (ohne solche Stapel: der erste freie). Mit `row` nur in dieser Reihe.
-    (row, slot) oder None, wenn das Lager (bzw. die Reihe) voll ist."""
-    stacks = stacks_overview(warehouse)
+    (row, slot) oder None, wenn das Lager (bzw. die Reihe) voll ist. `stacks` = eigene Belegung (für Vorschauen)."""
+    stacks = stacks_overview(warehouse) if stacks is None else stacks
     if row is not None:
         stacks = {pos: boxes for pos, boxes in stacks.items() if pos[0] == row}
     same = [(pos, boxes) for pos, boxes in stacks.items()
@@ -379,6 +380,177 @@ def harvest_box(box, user, variety, plot_id, harvest_date, usage=None, seed_clas
         raise StorageError(_("{name} ist voll.", name=warehouse.name))
     store_box(box, warehouse.id, *place, user)
     return box.location
+
+
+# --- Partien: Einlagern und Auslagern ohne Etikett ---------------------------------
+# Die Kisten bleiben einzeln im System (interne Nummer, wird nicht gedruckt). Eine Partie = gleiche Ware
+# (Sorte, Verwendung, Stufe, Größe, Schlag) in derselben Reihe eines Lagers.
+
+REST_FILLS = (25, 50, 75)
+FRACTIONS = {25: "¼", 50: "½", 75: "¾"}
+
+
+def amount_label(full, rests):
+    """10 volle + [½] → „10½“, mehrere angebrochene → „10 + ½ + ¼“, nur angebrochen → „½“."""
+    if not rests:
+        return str(full)
+    if len(rests) == 1:
+        return f"{full or ''}{rests[0]}"
+    return " + ".join(([str(full)] if full else []) + rests)
+
+
+def plan_batch(warehouse, row, count, rest_fill, variety, usage=None, seed_class_id=None, grade=None, slot=None):
+    """Wohin die Kisten kommen: Liste von ((row, slot), fill) in Einlager-Reihenfolge, die angebrochene zuletzt.
+    Wie der Ernte-Modus: erst auf Stapel mit derselben Ware, sonst der nächste freie Platz in der Reihe;
+    mit `slot` zuerst auf diesen Stapel. Ändert nichts."""
+    if not 1 <= row <= warehouse.rows:
+        raise StorageError(_("Bitte eine Reihe wählen."))
+    fills = [100] * max(count or 0, 0) + ([rest_fill] if rest_fill in REST_FILLS else [])
+    if not fills:
+        raise StorageError(_("Bitte angeben, wie viele Kisten eingelagert werden."))
+    if len(fills) > 500:
+        raise StorageError(_("Höchstens 500 Kisten auf einmal."))
+    stacks = {pos: list(boxes) for pos, boxes in stacks_overview(warehouse).items() if pos[0] == row}
+    room = warehouse.slots * warehouse.max_levels - sum(len(b) for b in stacks.values())
+    if len(fills) > room:
+        raise StorageError(ngettext("In Reihe {row} ist nur noch Platz für {n} Kiste.",
+                                    "In Reihe {row} ist nur noch Platz für {n} Kisten.", room,
+                                    row=warehouse.row_label(row)))
+    usage = usage or variety.usage
+    ware = SimpleNamespace(variety_id=variety.id, effective_usage=usage, seed_class_id=seed_class_id,
+                           grade=grade or None)
+    plan = []
+    for fill in fills:
+        if slot and 1 <= slot <= warehouse.slots and len(stacks.get((row, slot), [])) < warehouse.max_levels:
+            place = (row, slot)
+        else:
+            place = suggest_place(warehouse, variety.id, usage, seed_class_id, row=row, grade=grade, stacks=stacks)
+        stacks.setdefault(place, []).append(ware)
+        plan.append((place, fill))
+    return plan
+
+
+def plan_summary(warehouse, plan):
+    """Für die Vorschau: [{"label": "C-01", "full": 5, "rest": 50 | None, "below": schon da}] je Stapel."""
+    heights = {pos: len(b) for pos, b in stacks_overview(warehouse).items()}
+    rows = {}
+    for place, fill in plan:
+        entry = rows.setdefault(place, {"label": warehouse.location_label(*place), "full": 0, "rest": None,
+                                        "below": heights.get(place, 0)})
+        if fill == 100:
+            entry["full"] += 1
+        else:
+            entry["rest"] = fill
+    return list(rows.values())
+
+
+def _free_boxes(box_type_id, count):
+    """Leere Kisten, die gerade nirgends stehen (nicht defekt/ausgemustert, nicht auf einem offenen Lieferschein)."""
+    from .models import DELIVERY_OPEN, Delivery, DeliveryItem
+    loading = (db.session.query(DeliveryItem.box_id).join(Delivery)
+               .filter(Delivery.status == DELIVERY_OPEN, DeliveryItem.box_id.isnot(None)))
+    return (Box.query.filter(Box.box_type_id == box_type_id, Box.fill == 0, Box.warehouse_id.is_(None),
+                             Box.condition.is_(None), Box.id.notin_(loading))
+            .order_by(Box.id).limit(count).all())
+
+
+def store_batch(warehouse, row, count, rest_fill, variety, user, box_type_id, plot_id=None, harvest_date=None,
+                usage=None, seed_class_id=None, grade=None, slot=None):
+    """Mehrere Kisten auf einmal einlagern, ohne zu scannen. Nimmt leere Kisten aus dem Bestand und legt fehlende
+    neu an. Liefert die eingelagerten Kisten."""
+    _lock_warehouse(warehouse.id)
+    usage = usage if usage and usage != variety.usage else None      # wie bei der Sorte → leer lassen
+    plan = plan_batch(warehouse, row, count, rest_fill, variety, usage, seed_class_id, grade, slot)
+    boxes = _free_boxes(box_type_id, len(plan))
+    if len(boxes) < len(plan):
+        boxes += create_boxes(len(plan) - len(boxes), box_type_id, user)
+    for box, (place, fill) in zip(boxes, plan):
+        update_contents(box, user, variety_id=variety.id, harvest_date=harvest_date, plot_id=plot_id,
+                        grade=grade or None, fill=fill, note=None, box_type_id=box_type_id, usage=usage,
+                        seed_class_id=seed_class_id)
+        store_box(box, warehouse.id, *place, user)
+    return boxes
+
+
+def _lot_key(box):
+    return "|".join(str(v if v is not None else "") for v in (
+        box.warehouse_id, box.row, box.variety_id, box.effective_usage, box.seed_class_id, box.plot_id, box.grade))
+
+
+def lots(warehouse=None, site_id=None):
+    """Partien im Lager: gleiche Ware in derselben Reihe. Liste von Dicts, sortiert nach Lager, Reihe, Sorte."""
+    from sqlalchemy.orm import joinedload
+    query = (Box.query.options(joinedload(Box.variety), joinedload(Box.plot), joinedload(Box.seed_class),
+                               joinedload(Box.warehouse), joinedload(Box.box_type))
+             .filter(Box.warehouse_id.isnot(None), Box.fill > 0))
+    if warehouse is not None:
+        query = query.filter(Box.warehouse_id == warehouse.id)
+    elif site_id:
+        query = query.join(Warehouse, Box.warehouse_id == Warehouse.id).filter(Warehouse.site_id == site_id)
+    result = {}
+    for box in query.order_by(Box.slot, Box.level):
+        lot = result.get(_lot_key(box))
+        if lot is None:
+            lot = result[_lot_key(box)] = {
+                "key": _lot_key(box), "warehouse": box.warehouse, "row": box.row,
+                "row_label": box.warehouse.row_label(box.row), "variety": box.variety, "usage": box.effective_usage,
+                "usage_label": box.usage_label, "seed_class": box.seed_class, "plot": box.plot, "grade": box.grade,
+                "boxes": [], "stacks": [], "harvest": box.harvest_date, "kg": 0}
+        lot["boxes"].append(box)
+        label = box.warehouse.location_label(box.row, box.slot)
+        if label not in lot["stacks"]:
+            lot["stacks"].append(label)
+        if box.harvest_date and (lot["harvest"] is None or box.harvest_date < lot["harvest"]):
+            lot["harvest"] = box.harvest_date
+        lot["kg"] += box.weight_kg
+    for lot in result.values():
+        lot["count"] = len(lot["boxes"])
+        lot["amount"] = sum(b.fill for b in lot["boxes"]) / 100          # in vollen Kisten
+        lot["full"] = sum(1 for b in lot["boxes"] if b.fill == 100)
+        rests = [FRACTIONS.get(b.fill, f"{b.fill} %") for b in lot["boxes"] if b.fill != 100]
+        lot["rests"] = rests
+        lot["label"] = amount_label(lot["full"], rests)
+    return sorted(result.values(), key=lambda l: (l["warehouse"].name, l["row"],
+                                                  l["variety"].name if l["variety"] else "", l["key"]))
+
+
+def find_lot(key):
+    """Partie zu einem Schlüssel aus `lots()` (oder None, wenn es sie nicht mehr gibt)."""
+    try:
+        warehouse_id = int((key or "").split("|", 1)[0])
+    except ValueError:
+        return None
+    warehouse = db.session.get(Warehouse, warehouse_id)
+    if warehouse is None:
+        return None
+    return next((lot for lot in lots(warehouse) if lot["key"] == key), None)
+
+
+def pick_from_lot(lot, count):
+    """Welche Kisten aus der Partie genommen werden: die, die am leichtesten zu erreichen sind – wenig fremde Ware
+    darüber, kleine Stapel zuerst, von oben nach unten (die angebrochene oben kommt zuerst)."""
+    if not count or count < 1:
+        raise StorageError(_("Bitte angeben, wie viele Kisten."))
+    if count > lot["count"]:
+        raise StorageError(ngettext("In dieser Partie ist nur {n} Kiste.", "In dieser Partie sind nur {n} Kisten.",
+                                    lot["count"]))
+    mine = {b.id for b in lot["boxes"]}
+    stacks = stacks_overview(lot["warehouse"])
+
+    def order(box):
+        stack_boxes = stacks[(box.row, box.slot)]
+        foreign_above = sum(1 for b in stack_boxes if b.level > box.level and b.id not in mine)
+        return (foreign_above, len(stack_boxes), box.slot, -box.level)
+    return sorted(lot["boxes"], key=order)[:count]
+
+
+def take_from_lot(lot, count, user, empty=True, note=None):
+    """Kisten aus einer Partie auslagern. `empty`: Inhalt verbraucht (gepflanzt, abgegeben) – die Kisten sind danach
+    leer und wieder frei. Liefert die ausgelagerten Kisten."""
+    boxes = pick_from_lot(lot, count)
+    for box in boxes:
+        remove_box(box, user, empty=empty, note=note)
+    return boxes
 
 
 # --- Zustand der Kiste (defekt, ausgemustert) ----------------------------------

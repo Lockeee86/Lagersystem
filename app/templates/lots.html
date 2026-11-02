@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, variety_chip, site_filter %}
+{% block title %}{{ _("Partien") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Partien") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Gleiche Ware je Reihe") }} · {{ ngettext("{n} Partie", "{n} Partien", lot_count) }} · {{ _("{amount} Kisten", amount=total|qty(2)) }}</p>
+    </div>
+    {% if current_user.can_edit %}
+    <a class="btn btn-primary" href="{{ url_for('main.batch_store') }}"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Einlagern") }}</a>
+    {% endif %}
+</div>
+{{ site_filter() }}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% if warehouses|length > 1 %}
+    <a class="chip chip-filter {{ 'active' if not warehouse }}" href="{{ url_set('lager', '') }}">{{ _("Alle Lager") }}</a>
+    {% for w in warehouses %}<a class="chip chip-filter {{ 'active' if warehouse and warehouse.id == w.id }}" href="{{ url_set('lager', w.id) }}">{{ w.name }}</a>{% endfor %}
+    <span class="vr mx-1"></span>
+    {% endif %}
+    <a class="chip chip-filter {{ 'active' if not variety_id }}" href="{{ url_set('sorte', '') }}">{{ _("Alle Sorten") }}</a>
+    {% for v in varieties %}<a class="chip chip-filter {{ 'active' if variety_id == v.id }}" href="{{ url_set('sorte', v.id) }}">{{ v.name }}</a>{% endfor %}
+</div>
+
+{% for (wh, row_label), lots in groups.items() %}
+<section class="mb-4">
+    <h2 class="hub-heading mt-0">{% if warehouses|length > 1 %}{{ wh.name }} · {% endif %}{{ _("Reihe {row}", row=row_label) }}</h2>
+    <div class="hub-list">
+    {% for lot in lots %}
+        <div class="hub-row d-block lot-row" id="partie-{{ loop.index }}-{{ row_label }}">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                {{ variety_chip(lot.variety) }}
+                <span class="fw-semibold">{{ [lot.usage_label, lot.seed_class.name if lot.seed_class, lot.grade]|select|join(" · ") }}</span>
+                {% if lot.plot %}<span class="badge text-bg-light border"><i class="bi bi-map me-1"></i>{{ lot.plot.name }}</span>{% endif %}
+                <span class="ms-auto fs-5 fw-bold text-nowrap">{{ ngettext("{n} Kiste", "{n} Kisten", lot.count) if not lot.rests else _("{amount} Kisten", amount=lot.label) }}</span>
+            </div>
+            <div class="small text-body-secondary mt-1">
+                <i class="bi bi-geo-alt"></i> {{ lot.stacks|join(", ") }}
+                {% if lot.harvest %} · {{ _("Ernte {date}", date=lot.harvest|date) }}{% endif %}
+                {% if lot.kg %} · {{ _("ca. {kg}", kg=lot.kg|kg) }}{% endif %}
+            </div>
+            {% if current_user.can_edit %}
+            <details class="mt-2 lot-take">
+                <summary class="small text-primary">{{ _("Auslagern") }}</summary>
+                <form method="post" action="{{ url_for('main.lot_take') }}" class="row g-2 mt-1 align-items-end">
+                    {{ csrf() }}<input type="hidden" name="partie" value="{{ lot.key }}"><input type="hidden" name="back" value="{{ request.full_path }}">
+                    <div class="col-5 col-sm-3">
+                        <label class="form-label small" for="t{{ loop.index }}{{ row_label }}">{{ _("Kisten") }}</label>
+                        <input class="form-control" type="number" inputmode="numeric" min="1" max="{{ lot.count }}" id="t{{ loop.index }}{{ row_label }}" name="anzahl" value="1" required>
+                    </div>
+                    <div class="col-7 col-sm-5">
+                        <label class="form-label small" for="i{{ loop.index }}{{ row_label }}">{{ _("Inhalt") }}</label>
+                        <select class="form-select" id="i{{ loop.index }}{{ row_label }}" name="inhalt">
+                            <option value="weg">{{ _("verbraucht – Kisten sind danach leer") }}</option>
+                            <option value="bleibt">{{ _("bleibt drin – nur aus dem Lager") }}</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4"><button class="btn btn-outline-primary w-100"><i class="bi bi-box-arrow-up me-1"></i>{{ _("Auslagern") }}</button></div>
+                    <div class="col-12 small text-body-secondary">{{ _("Genommen werden die Kisten, an die man am leichtesten kommt – die angebrochene oben zuerst. Zum Verkaufen über den Lieferschein verladen.") }}</div>
+                </form>
+            </details>
+            {% endif %}
+        </div>
+    {% endfor %}
+    </div>
+</section>
+{% else %}
+<div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-inbox"></i>{{ _("Im Lager steht noch keine Ware.") }}</div></div>
+{% endfor %}
+{% endblock %}

@@ -94,6 +94,29 @@
         </div>
         {% endif %}
 
+        {% if delivery.is_open and current_user.can_edit and lots %}
+        <div class="card shadow-sm mb-4" id="partie">
+            <div class="card-header"><i class="bi bi-stack me-1"></i>{{ _("Aus Partie verladen") }} <span class="small text-body-secondary">· {{ _("ohne Scannen") }}</span></div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('sales.delivery_add_lot', delivery_id=delivery.id) }}" class="row g-2 align-items-end">
+                    {{ csrf() }}
+                    <div class="col-md-9">
+                        <label class="form-label" for="l_lot">{{ _("Partie") }}</label>
+                        <select class="form-select" id="l_lot" name="partie" required>
+                            <option value=""></option>
+                            {% for lot in lots %}<option value="{{ lot.key }}">{{ _("Reihe {row}", row=lot.row_label) }} – {{ [lot.variety.name if lot.variety, lot.usage_label, lot.seed_class.name if lot.seed_class, lot.grade, lot.plot.name if lot.plot]|select|join(" · ") }} ({{ ngettext("{n} Kiste", "{n} Kisten", lot.count) if not lot.rests else _("{amount} Kisten", amount=lot.label) }})</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label" for="l_count">{{ _("Kisten") }}</label>
+                        <input class="form-control" type="number" inputmode="numeric" id="l_count" name="anzahl" min="1" value="1" required>
+                    </div>
+                    <div class="col-6 col-md-1"><button class="btn btn-primary w-100" aria-label="{{ _('Verladen') }}"><i class="bi bi-truck"></i></button></div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
         {% if delivery.is_open and current_user.can_edit and bulk_stores %}
         <div class="card shadow-sm mb-4" id="schuettgut">
             <div class="card-header"><i class="bi bi-minecart-loaded me-1"></i>{{ _("Schüttgut verladen") }}</div>

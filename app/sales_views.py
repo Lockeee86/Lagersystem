@@ -86,6 +86,7 @@ def delivery_detail(delivery_id):
         usages=SORT_USAGES, sign_required=sales.sign_required(),
         signatures={who: sales.signature(delivery, who) for who in sales.SIGNERS},
         bulk_stores=[r for r in bulk.overview()[0] if r["stock"]["kg"] > 0] if delivery.is_open else [],
+        lots=storage.lots(site_id=delivery.site_id) if delivery.is_open and current_user.can_edit else [],
     )
 
 
@@ -175,6 +176,26 @@ def delivery_add_quantity(delivery_id):
 
 def _wants_json():
     return request.accept_mimetypes.best == "application/json"
+
+
+@bp.route("/lieferschein/<int:delivery_id>/partie", methods=["POST"])
+@editor_required
+def delivery_add_lot(delivery_id):
+    """Kisten aus einer Partie verladen (ohne Scannen)."""
+    delivery = _get(Delivery, delivery_id)
+    lot = storage.find_lot(request.form.get("partie"))
+    try:
+        if lot is None:
+            raise StorageError(_("Diese Partie gibt es nicht mehr – bitte die Seite neu laden."))
+        items = sales.add_lot(delivery, lot, form_int("anzahl", 0), current_user)
+        db.session.commit()
+        flash(ngettext("{n} Kiste {variety} verladen.", "{n} Kisten {variety} verladen.", len(items),
+                       variety=lot["variety"].name if lot["variety"] else ""), "success")
+    except (StorageError, IntegrityError) as e:
+        db.session.rollback()
+        flash_error(str(e) if isinstance(e, StorageError) else _(
+            "Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen."))
+    return _to_delivery(delivery, "positionen")
 
 
 @bp.route("/lieferschein/<int:delivery_id>/kiste", methods=["POST"])

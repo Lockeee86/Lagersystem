@@ -1124,6 +1124,116 @@ def harvest_box():
     return back("main.scan")
 
 
+# --- Partien: Einlagern ohne Scannen, Auslagern aus einer Partie ---------------------
+
+BATCH_KEYS = HARVEST_KEYS + ("anzahl", "rest", "platz", "kistentyp")
+
+
+def _amount_text(full, rest):
+    """10 und 50 → „10½“ (Kisten)."""
+    return storage.amount_label(full, [storage.FRACTIONS[rest]] if rest else [])
+
+
+@bp.route("/einlagern", methods=["GET", "POST"])
+@editor_required
+def batch_store():
+    """Mehrere Kisten auf einmal einlagern, ohne Etikett: Ware, Anzahl, Reihe → Vorschau → einlagern."""
+    if request.method == "GET":
+        values = {k: v for k, v in _harvest_cookie().items() if k in HARVEST_KEYS}
+        values.update({k: request.args[k] for k in BATCH_KEYS if request.args.get(k)})
+    else:
+        values = {k: request.form.get(k, "") for k in BATCH_KEYS}
+    values["modus"] = "einlagern"
+    settings = _harvest_settings(values)
+    box_types = BoxType.query.order_by(BoxType.name).all()
+    box_type = db.session.get(BoxType, int(values["kistentyp"])) if (values.get("kistentyp") or "").isdigit() else None
+    box_type = box_type or (box_types[0] if box_types else None)
+    count = max(int(values.get("anzahl") or 0), 0) if (values.get("anzahl") or "0").isdigit() else 0
+    rest = int(values.get("rest") or 0) if values.get("rest") in ("25", "50", "75") else None
+    slot = int(values.get("platz")) if (values.get("platz") or "").isdigit() else None
+    plan = None
+    if request.method == "POST":
+        try:
+            if settings["variety"] is None:
+                raise StorageError(_("Bitte die Sorte wählen."))
+            if settings["warehouse"] is None or settings["row"] is None:
+                raise StorageError(_("Bitte Lager und Reihe wählen."))
+            if box_type is None:
+                raise StorageError(_("Bitte zuerst unter Verwaltung einen Kistentyp anlegen."))
+            args = dict(usage=settings["usage"], seed_class_id=settings["seed_class"].id if settings["seed_class"] else None,
+                        grade=settings["grade"], slot=slot)
+            if request.form.get("bestaetigt") != "1":
+                plan = storage.plan_summary(settings["warehouse"], storage.plan_batch(
+                    settings["warehouse"], settings["row"], count, rest, settings["variety"], **args))
+            else:
+                boxes = storage.store_batch(settings["warehouse"], settings["row"], count, rest, settings["variety"],
+                                            current_user, box_type.id,
+                                            plot_id=settings["plot"].id if settings["plot"] else None,
+                                            harvest_date=settings["date"], **args)
+                db.session.commit()
+                stacks = []
+                for box in boxes:
+                    label = settings["warehouse"].location_label(box.row, box.slot)
+                    if label not in stacks:
+                        stacks.append(label)
+                flash(_("{amount} Kisten {variety} in Reihe {row} eingelagert ({stacks}).",
+                        amount=_amount_text(count, rest), variety=settings["variety"].name,
+                        row=settings["warehouse"].row_label(settings["row"]), stacks=", ".join(stacks)), "success")
+                keep = {k: v for k, v in values.items() if k in BATCH_KEYS and k not in ("anzahl", "rest", "platz") and v}
+                response = redirect(url_for("main.batch_store", **keep))
+                return _harvest_store(response, {**_harvest_cookie(), **{k: v for k, v in keep.items() if k in HARVEST_KEYS}})
+        except (StorageError, IntegrityError) as e:
+            db.session.rollback()
+            plan = None
+            flash_error(str(e) if isinstance(e, StorageError) else _(
+                "Der Platz wurde gerade von jemand anderem belegt. Bitte erneut versuchen."))
+    return render_template("batch_store.html", s=settings, values=values, count=count, rest=rest, slot=slot,
+                           box_types=box_types, box_type=box_type, plan=plan, amount=_amount_text(count, rest),
+                           **_harvest_choices())
+
+
+@bp.route("/partien")
+@login_required
+def lots_page():
+    """Partien im Kartoffellager: gleiche Ware je Reihe, mit Auslagern (ohne Scannen)."""
+    site = sites.chosen()
+    warehouses = (Warehouse.query if site is None else Warehouse.query.filter_by(site_id=site.id)) \
+        .order_by(Warehouse.name).all()
+    warehouse = db.session.get(Warehouse, request.args.get("lager", 0, type=int)) if request.args.get("lager") else None
+    rows = storage.lots(warehouse, site.id if site else None)
+    variety_id = request.args.get("sorte", type=int)
+    if variety_id:
+        rows = [r for r in rows if r["variety"] and r["variety"].id == variety_id]
+    groups = {}
+    for lot in rows:
+        groups.setdefault((lot["warehouse"], lot["row_label"]), []).append(lot)
+    varieties = sorted({r["variety"] for r in storage.lots(warehouse, site.id if site else None) if r["variety"]},
+                       key=lambda v: v.name)
+    return render_template("lots.html", groups=groups, warehouses=warehouses, warehouse=warehouse,
+                           varieties=varieties, variety_id=variety_id,
+                           total=sum(r["amount"] for r in rows), lot_count=len(rows))
+
+
+@bp.route("/partie/auslagern", methods=["POST"])
+@editor_required
+def lot_take():
+    lot = storage.find_lot(request.form.get("partie"))
+    count = form_int("anzahl", 0)
+    empty = request.form.get("inhalt") != "bleibt"
+    try:
+        if lot is None:
+            raise StorageError(_("Diese Partie gibt es nicht mehr – bitte die Seite neu laden."))
+        boxes = storage.take_from_lot(lot, count, current_user, empty=empty, note=form_str("note", 200) or None)
+        db.session.commit()
+        flash(ngettext("{n} Kiste {variety} aus Reihe {row} ausgelagert.", "{n} Kisten {variety} aus Reihe {row} ausgelagert.",
+                       len(boxes), variety=lot["variety"].name if lot["variety"] else "", row=lot["row_label"]),
+              "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return back("main.lots_page")
+
+
 # --- Fotos an Kisten, Anbaujahren, Schüttlagern, Lieferscheinen ----------------
 
 def _photo_owner(kind, owner_id):

@@ -57,6 +57,12 @@ def add_box(delivery, box, user):
     return item, shifted
 
 
+def add_lot(delivery, lot, count, user):
+    """Kisten aus einer Partie verladen (ohne Scannen): nimmt die am leichtesten erreichbaren. Liefert die Positionen."""
+    _require_open(delivery)
+    return [add_box(delivery, box, user)[0] for box in storage.pick_from_lot(lot, count)]
+
+
 def add_quantity(delivery, user, variety_id, usage, seed_class_id, grade, packaging, quantity, unit_kg):
     """Abgepackte Ware (Säcke, Big Bags …): Anzahl × Gewicht je Gebinde."""
     _require_open(delivery)

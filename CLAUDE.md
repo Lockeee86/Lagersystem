@@ -32,7 +32,10 @@ docker compose up --build -d
   `save_sizes()` in `settings` `potato_sizes`, Auswahl über `macros.size_select`; Nachsortieren `main.sort_box`;
   Lagerdauer `age_level()` / `oldest_boxes()` (Schwellen `age_warn_months`/`age_old_months`); Ernte-Tagesbericht
   `harvest_report()` + Push `harvest_report`; Kistenzustand `report_defect()` / `repair_box()` / `retire_box()`,
-  `Box.condition`, Seite `main.repairs`). Views rufen nur diese Funktionen auf,
+  `Box.condition`, Seite `main.repairs`; Partien ohne Etikett: `plan_batch()` / `plan_summary()` / `store_batch()` – leere
+  Kisten wiederverwenden, fehlende anlegen, Reihe + Platzvorschlag –, `lots()` = gleiche Ware je Reihe, `find_lot()`,
+  `pick_from_lot()` (am leichtesten erreichbar zuerst), `take_from_lot()`; Seiten `main.batch_store` `/einlagern`,
+  `main.lots_page` `/partien`, Lieferschein `sales.add_lot` / `sales.delivery_add_lot`). Views rufen nur diese Funktionen auf,
   die Funktionen committen nicht selbst. Jede Änderung an einer Kiste erzeugt eine `Movement`.
 - `app/sales.py`: Lieferscheinlogik (anlegen, Kisten verladen über `storage.ship_box`, Mengen, Waage,
   Unterschriften `sign()` / `remove_signature()` / `sign_required()` – unterschrieben = gesperrt,

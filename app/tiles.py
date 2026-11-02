@@ -20,6 +20,8 @@ CATALOG = {
     "tanken": tile(N_("Tanken"), "bi-fuel-pump", "fuel.tank", ROLE_MITARBEITER, tanken=1),
     "aufgaben": tile(N_("Aufgaben"), "bi-list-check", "team.day_plan"),
     "lager": tile(N_("Lager"), "bi-grid-3x3-gap", "main.warehouse_map"),
+    "einlagern": tile(N_("Einlagern"), "bi-box-arrow-in-down", "main.batch_store", ROLE_MITARBEITER),
+    "partien": tile(N_("Partien"), "bi-stack", "main.lots_page"),
     "kisten": tile(N_("Kisten"), "bi-boxes", "main.boxes"),
     "ernte": tile(N_("Ernte"), "bi-basket", "main.harvest", ROLE_MITARBEITER),
     "verkauf": tile(N_("Verkauf"), "bi-truck", "sales.deliveries"),

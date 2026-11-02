@@ -175,6 +175,19 @@ Portainer-Stack (docker-compose)
   Blöcke links → rechts, je Platz max. 5 Kisten, jeder Block auf einem neuen Platz, angebrochene
   Kiste oben) und kann über den Kisten-Import übernommen werden.
 
+### Einlagern ohne Etikett, Partien (0.76.0)
+- Die Kisten werden vorerst nicht beschriftet. Intern bleibt es bei **Einzelkisten** (Nummer wird nicht gedruckt,
+  später nachträglich zuordenbar) – Bestand, Lagerkarte, Lagerdauer, Klima und Lieferschein funktionieren weiter.
+- **Einlagern** (`/einlagern`): Ware (Sorte, Schlag, Verwendung, Stufe, Größe, Erntedatum), Anzahl voller Kisten
+  plus eine angebrochene (¼ ½ ¾), Lager und **Reihe** → Vorschau je Stapel → einlagern. Platz wie im Ernte-Modus
+  (`suggest_place`: erst Stapel mit gleicher Ware, sonst der nächste freie in der Reihe), optional „ab Platz“.
+  Genommen werden leere Kisten, die nirgends stehen (nicht defekt, nicht auf offenem Lieferschein), fehlende
+  werden angelegt.
+- **Partie** = gleiche Ware in derselben Reihe; in einer Reihe können mehrere Partien stehen (`/partien`).
+  Auslagern aus einer Partie mit Anzahl: genommen werden die am leichtesten erreichbaren Kisten (wenig fremde
+  Ware darüber, kleine Stapel zuerst, von oben). „Verbraucht“ = Kisten danach leer und wieder frei, sonst bleibt
+  der Inhalt drin. Lieferschein: „Aus Partie verladen“ (Partie + Anzahl) statt scannen.
+
 ### Zwischendurch umgesetzt
 - Import aus einer Excel-Vorlage (Zettel → Lagersystem) mit Vorschau, alles-oder-nichts
 - Export je Kartoffeljahr (= Erntejahr) als Excel: Auswertung je Sorte/Schlag, Kisten, Bewegungen

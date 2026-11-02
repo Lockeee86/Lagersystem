@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, size_select %}
+{% block title %}{{ _("Einlagern") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Einlagern") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Mehrere Kisten auf einmal, ohne Scannen. Die Plätze schlägt die App vor.") }}</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.lots_page') }}"><i class="bi bi-stack me-1"></i>{{ _("Partien") }}</a>
+</div>
+
+<div class="row g-3">
+<div class="col-lg-7">
+<form method="post" action="{{ url_for('main.batch_store') }}" class="card shadow-sm" id="batchForm">
+    {{ csrf() }}
+    <div class="card-body row g-3">
+        <div class="col-12"><h2 class="hub-heading mt-0 mb-0">{{ _("Was?") }}</h2></div>
+        <div class="col-md-6">
+            <label class="form-label small" for="b_variety">{{ _("Sorte") }}</label>
+            <select class="form-select" id="b_variety" name="sorte" required>
+                <option value="">–</option>
+                {% for v in varieties %}<option value="{{ v.id }}" {% if s.variety and s.variety.id == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small" for="b_plot">{{ _("Schlag") }}</label>
+            <select class="form-select" id="b_plot" name="schlag">
+                <option value="">–</option>
+                {% for p in plots %}<option value="{{ p.id }}" {% if s.plot and s.plot.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-4">
+            <label class="form-label small" for="b_usage">{{ _("Verwendung") }}</label>
+            <select class="form-select" id="b_usage" name="verwendung">
+                <option value="">{{ _("wie bei der Sorte") }}</option>
+                {% for key, label in usages.items() %}<option value="{{ key }}" {% if s.usage == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-4">
+            <label class="form-label small" for="b_class">{{ _("Stufe") }}</label>
+            <select class="form-select" id="b_class" name="stufe">
+                <option value="">–</option>
+                {% for c in seed_classes %}<option value="{{ c.id }}" {% if s.seed_class and s.seed_class.id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">{{ size_select(s.grade, name="groesse", id="b_size", small=true, label=_("Größe (optional)")) }}</div>
+        <div class="col-6 col-md-4">
+            <label class="form-label small" for="b_date">{{ _("Erntedatum") }}</label>
+            <input class="form-control" type="date" id="b_date" name="datum" value="{{ s.date.isoformat() }}">
+        </div>
+        {% if box_types|length > 1 %}
+        <div class="col-6 col-md-4">
+            <label class="form-label small" for="b_type">{{ _("Kistentyp") }}</label>
+            <select class="form-select" id="b_type" name="kistentyp">
+                {% for t in box_types %}<option value="{{ t.id }}" {% if box_type and box_type.id == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+            </select>
+        </div>
+        {% elif box_type %}<input type="hidden" name="kistentyp" value="{{ box_type.id }}">{% endif %}
+
+        <div class="col-12"><h2 class="hub-heading mt-2 mb-0">{{ _("Wie viel?") }}</h2></div>
+        <div class="col-sm-6">
+            <label class="form-label small" for="b_count">{{ _("Volle Kisten") }}</label>
+            <div class="input-group input-group-lg stepper">
+                <button class="btn btn-outline-secondary" type="button" data-step="-1" aria-label="{{ _('Eine weniger') }}"><i class="bi bi-dash-lg"></i></button>
+                <input class="form-control text-center" type="number" inputmode="numeric" min="0" max="500" id="b_count" name="anzahl" value="{{ count or '' }}" placeholder="0">
+                <button class="btn btn-outline-secondary" type="button" data-step="1" aria-label="{{ _('Eine mehr') }}"><i class="bi bi-plus-lg"></i></button>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <span class="form-label small d-block">{{ _("Dazu eine angebrochene Kiste") }}</span>
+            <div class="btn-group w-100" role="group" aria-label="{{ _('Angebrochene Kiste') }}">
+                {% for value, label in ((0, _("keine")), (25, "¼"), (50, "½"), (75, "¾")) %}
+                <input type="radio" class="btn-check" name="rest" id="b_rest{{ value }}" value="{{ value or '' }}" {% if (rest or 0) == value %}checked{% endif %}>
+                <label class="btn btn-outline-primary btn-lg" for="b_rest{{ value }}">{{ label }}</label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-12"><h2 class="hub-heading mt-2 mb-0">{{ _("Wohin?") }}</h2></div>
+        <div class="col-md-5">
+            <label class="form-label small" for="b_wh">{{ _("Lager") }}</label>
+            <select class="form-select" id="b_wh" name="lager" required>
+                {% for w in warehouses %}<option value="{{ w.id }}" data-rows='{{ w.row_labels()|tojson }}' {% if s.chosen_warehouse and s.chosen_warehouse.id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-4">
+            <label class="form-label small" for="b_row">{{ _("Reihe") }}</label>
+            <select class="form-select" id="b_row" name="reihe" required data-selected="{{ s.chosen_row or '' }}">
+                <option value="">–</option>
+                {% set wh = s.chosen_warehouse or (warehouses[0] if warehouses else none) %}
+                {% if wh %}{% for r, label in wh.row_labels() %}<option value="{{ r }}" {% if s.chosen_row == r %}selected{% endif %}>{{ label }}</option>{% endfor %}{% endif %}
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small" for="b_slot">{{ _("Ab Platz (optional)") }}</label>
+            <input class="form-control" type="number" inputmode="numeric" min="1" id="b_slot" name="platz" value="{{ slot or '' }}" placeholder="{{ _('automatisch') }}">
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+        <button class="btn btn-primary btn-lg"><i class="bi bi-eye me-1"></i>{{ _("Weiter zur Vorschau") }}</button>
+    </div>
+</form>
+</div>
+
+<div class="col-lg-5 {{ 'order-first order-lg-last' if plan }}">
+{% if plan %}
+<form method="post" action="{{ url_for('main.batch_store') }}" class="card shadow-sm border-primary" id="vorschau">
+    {{ csrf() }}<input type="hidden" name="bestaetigt" value="1">
+    {% for k, v in values.items() %}{% if v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+    <div class="card-header fw-semibold"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</div>
+    <div class="card-body">
+        <p class="mb-2"><strong>{{ _("{amount} Kisten {variety}", amount=amount, variety=s.variety.name) }}</strong>{% if s.plot %} · {{ s.plot.name }}{% endif %}{% if s.seed_class %} · {{ s.seed_class.name }}{% endif %}{% if s.grade %} · {{ s.grade }}{% endif %}</p>
+        <div class="hub-list">
+            {% for p in plan %}
+            <div class="hub-row">
+                <span class="badge text-bg-secondary fs-6">{{ p.label }}</span>
+                <span class="hub-text"><span class="hub-title">{{ ngettext("{n} volle Kiste", "{n} volle Kisten", p.full) if p.full }}{% if p.full and p.rest %} + {% endif %}{% if p.rest %}{{ _("eine {part} Kiste oben", part={25: "¼", 50: "½", 75: "¾"}[p.rest]) }}{% endif %}</span>
+                <span class="hub-status">{% if p.below %}{{ ngettext("oben auf {n} vorhandene Kiste", "oben auf {n} vorhandene Kisten", p.below) }}{% else %}{{ _("freier Platz") }}{% endif %}</span></span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center gap-2">
+        <a class="small" href="#batchForm">{{ _("ändern") }}</a>
+        <button class="btn btn-primary btn-lg"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Einlagern") }}</button>
+    </div>
+</form>
+{% else %}
+<div class="card shadow-sm"><div class="card-body small text-body-secondary">
+    <p class="mb-2"><i class="bi bi-info-circle me-1"></i>{{ _("So geht's: Ware, Anzahl und Reihe angeben, dann zeigt die Vorschau, auf welche Stapel die Kisten kommen.") }}</p>
+    <p class="mb-0">{{ _("Die App stellt gleiche Ware zusammen und füllt sonst die Reihe von vorne auf. Steht ihr woanders, „Ab Platz“ angeben.") }}</p>
+</div></div>
+{% endif %}
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll(".stepper [data-step]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+        var input = btn.parentElement.querySelector("input");
+        input.value = Math.max(0, (parseInt(input.value, 10) || 0) + parseInt(btn.dataset.step, 10));
+    });
+});
+(function () {
+    var wh = document.getElementById("b_wh"), row = document.getElementById("b_row");
+    if (!wh || !row) return;
+    wh.addEventListener("change", function () {
+        var rows = JSON.parse(wh.selectedOptions[0].dataset.rows || "[]");
+        row.innerHTML = '<option value="">–</option>' + rows.map(function (r) {
+            return '<option value="' + r[0] + '">' + r[1] + '</option>';
+        }).join("");
+    });
+})();
+</script>
+{% endblock %}
