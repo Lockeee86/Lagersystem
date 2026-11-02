@@ -103,14 +103,14 @@
 {% endif %}
 {% endset %}
 {% set sec_plan %}
-{% if "plan" in show and (my_plan or (plan_today and current_user.can_edit)) %}
+{% if "plan" in show and current_user.can_edit %}
 <section class="mb-4" id="meinplan">
     <div class="d-flex justify-content-between align-items-baseline">
-        <h2 class="hub-heading mt-0">{{ _("Dein Plan für heute") }}</h2>
-        <a class="small" href="{{ url_for('team.day_plan', datum=today.isoformat()) }}">{{ _("Ganzer Tagesplan") }}</a>
+        <h2 class="hub-heading mt-0">{{ _("Meine Aufgaben heute") }}{% set left = my_today|rejectattr("done_at")|list|length %}{% if left %} <span class="badge rounded-pill text-bg-secondary">{{ left }}</span>{% endif %}</h2>
+        <a class="small" href="{{ url_for('team.day_plan') }}">{{ _("Alle Aufgaben") }}</a>
     </div>
     <div class="hub-list"><div class="hub-row d-block">
-        {% if my_plan %}{{ plan_lines(my_plan, url_for('main.dashboard') ~ '#meinplan') }}{% else %}<span class="text-body-secondary">{{ _("Für dich ist heute nichts eingeteilt.") }}</span>{% endif %}
+        {% if my_today %}{{ plan_lines(my_today, url_for('main.dashboard') ~ '#meinplan', today) }}{% else %}<span class="text-body-secondary"><i class="bi bi-check2-circle text-success me-1"></i>{{ _("Für dich ist heute nichts eingeteilt.") }}</span>{% endif %}
     </div></div>
 </section>
 {% endif %}
@@ -161,32 +161,26 @@
 {% endif %}
 {% endset %}
 {% set sec_aufgaben %}
-{% if "aufgaben" in show %}
-<section class="mb-4">
+{% if "aufgaben" in show and current_user.can_edit and open_for_all %}
+<section class="mb-4" id="offenfueralle">
     <div class="d-flex justify-content-between align-items-baseline">
-        <h2 class="hub-heading mt-0">{{ _("Aufgaben") }}{% if due_tasks_now %} <span class="badge rounded-pill text-bg-secondary">{{ due_tasks_now|length }}</span>{% endif %}</h2>
-        <span class="small d-flex gap-3">
-            {% if current_user.can_edit %}<a href="{{ url_for('tasks.task_list', neu=1) }}"><i class="bi bi-plus-lg"></i> {{ _("Neue Aufgabe") }}</a>{% endif %}
-            <a href="{{ url_for('tasks.task_list') }}">{{ _("Alle Aufgaben") }}</a>
-        </span>
+        <h2 class="hub-heading mt-0">{{ _("Offen für alle") }} <span class="badge rounded-pill text-bg-secondary">{{ open_for_all|length }}</span></h2>
+        <a class="small" href="{{ url_for('team.open_page') }}">{{ _("Alle offenen") }}</a>
     </div>
-    {% if due_tasks_now %}
     <div class="hub-list">
-        <ul class="list-group list-group-flush dashboard-tasks">
-            {% for task in due_tasks_now %}
-            {{ task_item(task, today, url_for('main.dashboard'), ('collapse more-tasks' ~ (' d-lg-flex' if loop.index <= 8 else '')) if loop.index > 5 else '') }}
-            {% endfor %}
-        </ul>
+        {% for t in open_for_all[:5] %}
+        <div class="hub-row">
+            <span class="hub-text">
+                <a class="hub-title text-reset text-decoration-none" href="{{ url_for('tasks.task_detail', task_id=t.id) }}">{% if t.important %}<i class="bi bi-exclamation-circle-fill text-danger me-1"></i>{% endif %}{{ t.title }}</a>
+                <span class="hub-status">{% if t.machine %}{{ t.machine.name }}{% endif %}{% if t.machine and t.due_on %} · {% endif %}{% if t.due_on %}<span class="{{ 'text-danger' if t.due_on < today }}">{{ _("fällig {date}", date=t.due_on.strftime("%d.%m.")) }}</span>{% endif %}</span>
+            </span>
+            <form method="post" action="{{ url_for('team.task_plan', task_id=t.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="datum" value="{{ today.isoformat() }}"><input type="hidden" name="user_id" value="{{ current_user.id }}"><input type="hidden" name="back" value="{{ url_for('main.dashboard') }}#meinplan">
+                <button class="btn btn-sm btn-outline-primary text-nowrap"><i class="bi bi-hand-index me-1"></i>{{ _("Mach ich") }}</button>
+            </form>
+        </div>
+        {% endfor %}
     </div>
-    {% if due_tasks_now|length > 5 %}
-    <button class="btn btn-link btn-sm px-0 {{ 'd-lg-none' if due_tasks_now|length <= 8 }}" type="button" data-bs-toggle="collapse" data-bs-target=".more-tasks" aria-expanded="false">
-        <span class="d-lg-none">{{ ngettext("{n} weitere Aufgabe", "{n} weitere Aufgaben", due_tasks_now|length - 5) }}</span>
-        {% if due_tasks_now|length > 8 %}<span class="d-none d-lg-inline">{{ ngettext("{n} weitere Aufgabe", "{n} weitere Aufgaben", due_tasks_now|length - 8) }}</span>{% endif %}
-    </button>
-    {% endif %}
-    {% else %}
-    <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Für heute keine Aufgaben offen.") }}</div></div>
-    {% endif %}
 </section>
 {% endif %}
 {% endset %}

@@ -52,7 +52,8 @@ def data(now=None):
                            "done": sum(1 for e in entries if e.done_at), "total": len(entries)})
     faults, faults_more = _cut(machines.open_faults(), LIMITS["faults"])
     due, due_more = _cut(machines.due_tasks(("overdue", "soon")), LIMITS["due"])
-    open_tasks, tasks_more = _cut([t for t in tasks.due_now() if t.area != "huehner"], LIMITS["tasks"])
+    # „Offen“: fällig oder ohne Termin und noch nicht eingeplant (Eingeplantes steht beim Tagesplan)
+    open_tasks, tasks_more = _cut([t for t in tasks.due_now() if t.area != "huehner" and not t.plan_day], LIMITS["tasks"])
     handovers, _more = _cut(team.open_handovers(), LIMITS["handovers"])
     plant = biogas.dashboard(today)           # BHKW: läuft/steht, Leistung, nächster Start, nächste Wartung
     cached = biogas.live(cached_only=True) or {}    # nie auf die API warten – der Zeitplan hält ihn frisch

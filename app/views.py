@@ -224,7 +224,6 @@ def dashboard():
                            rounds.overview() if current_user.can_edit and current_user.sees_biogas
                            and rounds.has_stations() else None,
                            climate.important())
-    plan_today = team.plan_for(today)
     show_order = tiles.sections_for(current_user)
     show = set(show_order)
     strip = None
@@ -238,7 +237,10 @@ def dashboard():
         tank=fuel.status() if current_user.can_edit else None,
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
-        handovers=team.open_handovers(), my_plan=plan_today.get(current_user.id, []), plan_today=bool(plan_today),
+        handovers=team.open_handovers(),
+        my_today=team.my_today(current_user, today) if current_user.can_edit else [],
+        open_for_all=[t for t in team.open_tasks(today, current_user, today) if not t.assignees]
+        if current_user.can_edit else [],
         bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show,
         hens=chickens.summary(today) if "huehner" in show else None, show_order=show_order, strip=strip,
         price_configured=biogas.configured(),
@@ -331,10 +333,11 @@ def _status(endpoint):
         return ((_("Eier gesperrt bis {date}", date=treatment.blocked_until.strftime("%d.%m.")), True) if treatment
                 else (_("Behandlungen und Wartezeiten"), False))
     if endpoint == "team.day_plan":
+        mine = sum(1 for t in team.my_today(current_user) if not t.is_done) if current_user.can_edit else 0
+        if mine:
+            return ngettext("heute {n} Aufgabe für dich", "heute {n} Aufgaben für dich", mine), True
         plan = team.plan_for(date.today())
-        mine = len(plan.get(current_user.id, []))
-        return (ngettext("heute {n} Aufgabe für dich", "heute {n} Aufgaben für dich", mine) if mine
-                else ngettext("heute {n} Person eingeteilt", "heute {n} Personen eingeteilt", len(plan)) if plan
+        return (ngettext("heute {n} Person eingeteilt", "heute {n} Personen eingeteilt", len(plan)) if plan
                 else _("Wer macht heute was")), False
     if endpoint == "team.handovers":
         n = len(team.open_handovers())

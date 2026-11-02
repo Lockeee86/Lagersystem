@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, plot_pick, machine_options %}
-{% from "team/_macros.html" import plan_lines with context %}
-{% block title %}{{ _("Tagesplan") }}{% endblock %}
+{% from "team/_macros.html" import plan_lines, task_tabs, note_form, open_list with context %}
+{% block title %}{{ _("Aufgaben") }}{% endblock %}
 {% block content %}
 {% set prev_day, next_day = day - timedelta1, day + timedelta1 %}
+{% set here = url_for('team.day_plan', datum=day.isoformat()) %}
 <div class="page-head">
     <div>
-        <h1>{{ _("Tagesplan") }}</h1>
+        <h1>{{ _("Aufgaben") }}</h1>
         <p class="text-body-secondary mb-0">{{ day|weekday }}, {{ day|date }}{% if day == today %} · {{ _("heute") }}{% elif (day - today).days == 1 %} · {{ _("morgen") }}{% endif %}</p>
     </div>
     <div class="btn-group" role="group" aria-label="{{ _('Tag wählen') }}">
@@ -16,19 +17,14 @@
         <a class="btn btn-outline-secondary" href="{{ url_for('team.day_plan', datum=next_day.isoformat()) }}" aria-label="{{ _('Nächster Tag') }}"><i class="bi bi-chevron-right"></i></a>
     </div>
 </div>
+{{ task_tabs("heute") }}
 
-{% if current_user.is_planner %}
+{% if current_user.is_planner and (previous or plan) %}
 <div class="d-flex flex-wrap gap-2 mb-3">
     {% if previous %}
     <form method="post" action="{{ url_for('team.plan_copy') }}">
         {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
         <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-files me-1"></i>{{ _("Vom {date} übernehmen", date=previous|date) }}</button>
-    </form>
-    {% endif %}
-    {% if open_count %}
-    <form method="post" action="{{ url_for('team.plan_carry_over') }}">
-        {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
-        <button class="btn btn-outline-warning btn-sm"><i class="bi bi-arrow-return-right me-1"></i>{{ _("Unerledigtes vom {date} übernehmen ({n})", date=open_day|date, n=open_count) }}</button>
     </form>
     {% endif %}
     {% if plan %}
@@ -41,159 +37,68 @@
 </div>
 {% endif %}
 
-{% if current_user.can_edit %}
-<div class="card shadow-sm mb-3" id="pool">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="fw-semibold"><i class="bi bi-inbox me-1"></i>{{ _("Aufgabenpool") }} {% if pool %}<span class="badge text-bg-secondary ms-1">{{ pool|length }}</span>{% endif %}</span>
-        <span class="small text-body-secondary d-none d-md-inline">{{ _("kurz notieren, später verteilen") }}</span>
-    </div>
-    <div class="card-body pb-2">
-        <form method="post" action="{{ url_for('team.pool_add') }}" class="pool-add">
-            {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
-            <div class="input-group">
-                <input class="form-control" name="text" maxlength="200" required placeholder="{{ _('Was ist irgendwann zu tun?') }}" aria-label="{{ _('Neue Aufgabe für den Pool') }}">
-                <button class="btn btn-primary" aria-label="{{ _('In den Pool') }}"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline ms-1">{{ _("In den Pool") }}</span></button>
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                <select class="form-select form-select-sm w-auto" name="machine_id" aria-label="{{ _('Maschine') }}">
-                    <option value="">{{ _("Maschine …") }}</option>
-                    {{ machine_options(pool_machines) }}
-                </select>
-                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="pool_important" name="important" value="1">
-                    <label class="form-check-label small" for="pool_important">{{ _("wichtig") }}</label></div>
-            </div>
-        </form>
-    </div>
-    {% if pool %}
-    <ul class="list-group list-group-flush">
-        {% for item in pool %}
-        <li class="list-group-item pool-row">
-            <div class="pool-text">
-                {% if item.important %}<i class="bi bi-exclamation-circle-fill text-danger me-1" title="{{ _('wichtig') }}"></i>{% endif %}
-                <span class="fw-semibold">{{ item.text }}</span>
-                {% if item.machine %}<span class="badge text-bg-secondary ms-1"><i class="bi {{ item.machine.icon }} me-1"></i>{{ item.machine.name }}</span>{% endif %}
-                <span class="small text-body-secondary d-block">{{ item.created_by.name if item.created_by else "–" }} · {{ item.created_at|date }}</span>
-            </div>
-            <div class="pool-actions">
-                {% if current_user.is_planner %}
-                <form method="post" action="{{ url_for('team.pool_plan', item_id=item.id) }}" class="input-group input-group-sm">
-                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
-                    <select class="form-select" name="user_id" required aria-label="{{ _('Wer?') }}">
-                        <option value="">{{ _("Wer?") }}</option>
-                        {% for u in members %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
-                    </select>
-                    <button class="btn btn-outline-primary" title="{{ _('Einplanen') }}"><i class="bi bi-calendar-plus"></i></button>
-                </form>
-                {% elif day >= today %}
-                <form method="post" action="{{ url_for('team.pool_plan', item_id=item.id) }}">
-                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ current_user.id }}">
-                    <button class="btn btn-sm btn-outline-primary text-nowrap"><i class="bi bi-hand-index me-1"></i>{{ _("Mach ich") }}</button>
-                </form>
-                {% endif %}
-                {% if current_user.is_planner or item.created_by_id == current_user.id %}
-                <form method="post" action="{{ url_for('team.pool_done', item_id=item.id) }}">
-                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
-                    <button class="btn btn-sm btn-link text-success p-1" title="{{ _('Hat sich erledigt') }}" aria-label="{{ _('Hat sich erledigt') }}"><i class="bi bi-check2-circle"></i></button>
-                </form>
-                <form method="post" action="{{ url_for('team.pool_delete', item_id=item.id) }}">
-                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}">
-                    <button class="btn btn-sm btn-link text-body-secondary p-1" title="{{ _('Löschen') }}" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('„{entry}“ aus dem Pool löschen?', entry=item.text) }}"><i class="bi bi-trash"></i></button>
-                </form>
-                {% endif %}
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <div class="card-body pt-0 small text-body-secondary">{{ _("Der Pool ist leer.") }}</div>
-    {% endif %}
-</div>
-{% endif %}
-
-{% if suggestions %}
-{% set icons = {"task": "bi-check2-square", "wartung": "bi-wrench-adjustable", "stoerung": "bi-exclamation-triangle"} %}
-<div class="card shadow-sm mb-3" id="vorschlaege">
-    <button class="card-header d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
-            type="button" data-bs-toggle="collapse" data-bs-target="#suggestList" aria-expanded="true" aria-controls="suggestList">
-        <span class="fw-semibold"><i class="bi bi-lightbulb me-1"></i>{{ _("Vorschläge") }} <span class="badge text-bg-secondary ms-1">{{ suggestions|length }}</span></span>
-        <span class="small text-body-secondary text-nowrap"><span class="d-none d-md-inline">{{ _("fällige Aufgaben, Wartungen und Störungen") }}</span> <i class="bi bi-chevron-down ms-1"></i></span>
-    </button>
-    <div class="collapse show" id="suggestList">
-        <ul class="list-group list-group-flush suggest-list">
-            {% for s in suggestions %}
-            <li class="list-group-item">
-                <form method="post" action="{{ url_for('team.plan_suggestion') }}" class="suggest-row">
-                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="key" value="{{ s.key }}">
-                    <div class="suggest-text">
-                        <i class="bi {{ icons[s.kind] }} me-1 {{ 'text-danger' if s.late else 'text-body-secondary' }}"></i>
-                        {% if s.kind == "task" %}<a href="{{ url_for('tasks.task_detail', task_id=s.item.id) }}">{{ s.text }}</a>
-                        {% else %}<a href="{{ url_for('machines.machine_detail', machine_id=s.machine.id) }}">{{ s.text }}</a>{% endif %}
-                        {% if s.machine %}<span class="badge text-bg-secondary"><i class="bi {{ s.machine.icon }} me-1"></i>{{ s.machine.name }}</span>{% endif %}
-                        {% for p in s.plots %}<span class="badge text-bg-light"><i class="bi bi-map me-1"></i>{{ p.name }}</span>{% endfor %}
-                        <span class="small {{ 'text-danger' if s.late else 'text-body-secondary' }} text-nowrap">
-                            {%- if s.kind == "stoerung" %}{{ _("Störung seit {date}", date=s.due_on|date) }}{% if not s.item.still_running %} · {{ _("steht") }}{% endif %}
-                            {%- elif s.kind == "wartung" %}{{ _("Wartung") }}{% if s.due_on %} · {{ _("fällig {date}", date=s.due_on|date) }}{% elif s.left_counter is not none %} · {% if s.left_counter <= 0 %}{{ _("überfällig") }}{% else %}{{ _("noch {n} {unit}", n=s.left_counter, unit=s.machine.counter_unit) }}{% endif %}{% elif s.late %} · {{ _("überfällig") }}{% endif %}
-                            {%- elif s.due_on %}{{ _("fällig {date}", date=s.due_on|date) }}{% else %}{{ _("ohne Termin") }}{% endif -%}
-                        </span>
-                    </div>
-                    <div class="input-group input-group-sm suggest-pick">
-                        <select class="form-select" name="user_id" aria-label="{{ _('Wer?') }}" required>
-                            <option value="">{{ _("Wer?") }}</option>
-                            {% for u in members %}<option value="{{ u.id }}" {% if u.id == s.assignee_id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
-                        </select>
-                        <button class="btn btn-outline-primary" title="{{ _('Einplanen') }}"><i class="bi bi-calendar-plus"></i><span class="d-none d-sm-inline ms-1">{{ _("Einplanen") }}</span></button>
-                    </div>
-                </form>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-</div>
-{% endif %}
-
-{% if not plan and not current_user.is_planner %}
-<div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Für diesen Tag ist noch niemand eingeteilt.") }}</div></div>
-{% endif %}
-
 <div class="row g-3">
-    {% for user in members %}
-    {% set entries = plan.get(user.id, []) %}
-    {% if entries or current_user.is_planner %}
-    <div class="col-md-6 col-xl-4">
-        <div class="card shadow-sm h-100 plan-card {{ 'is-me' if user.id == current_user.id }}" id="p{{ user.id }}">
+    {% if current_user.can_edit %}
+    {# Offen: Notiertes, Fälliges, Wartungen und Störungen – Planer verteilen, Mitarbeiter nehmen sich etwas #}
+    <div class="col-lg-5 col-xl-4 order-2 order-lg-1">
+        <div class="card shadow-sm" id="offen">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold"><i class="bi bi-person me-1"></i>{{ user.name }}</span>
-                {% if not entries %}<span class="small text-body-secondary">{{ _("nicht eingeteilt") }}</span>{% endif %}
+                <span class="fw-semibold"><i class="bi bi-inbox me-1"></i>{{ _("Offen") }} {% if open or suggestions %}<span class="badge text-bg-secondary ms-1">{{ open|length + suggestions|length }}</span>{% endif %}</span>
+                <span class="small text-body-secondary">{{ _("zum Verteilen") if current_user.is_planner else _("für alle") }}</span>
             </div>
-            <div class="card-body py-2">
-                {% call(e) plan_lines(entries) %}
-                {% if current_user.is_planner %}
-                <form method="post" action="{{ url_for('team.plan_delete', entry_id=e.id) }}" class="ms-auto">
-                    {{ csrf() }}<button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Entfernen') }}" title="{{ _('Entfernen') }}" data-confirm="{{ _('„{entry}“ aus dem Plan löschen?', entry=e.text) }}"><i class="bi bi-x-lg"></i></button>
-                </form>
-                {% endif %}
-                {% endcall %}
-                {% if current_user.is_planner %}
-                <form method="post" action="{{ url_for('team.plan_add') }}" class="plan-add mt-2">
-                    {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ user.id }}">
-                    <div class="input-group input-group-sm">
-                        <input class="form-control" name="text" maxlength="200" required placeholder="{{ _('Was ist zu tun?') }}" list="planTexts">
-                        <button class="btn btn-outline-primary" aria-label="{{ _('Hinzufügen') }}"><i class="bi bi-plus-lg"></i></button>
-                    </div>
-                    <div class="row g-1 mt-1">
-                        <div class="col-6"><select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
-                            <option value="">{{ _("Maschine …") }}</option>
-                            {{ machine_options(machines) }}
-                        </select></div>
-                        <div class="col-6">{{ plot_pick(plots, [], _("Schlag …")) }}</div>
-                    </div>
-                </form>
-                {% endif %}
-            </div>
+            <div class="card-body pb-1">{{ note_form(day, note_machines, here ~ '#offen') }}</div>
+            {{ open_list(open, suggestions, day, today, members, here ~ '#offen') }}
         </div>
     </div>
     {% endif %}
-    {% endfor %}
+
+    <div class="{{ 'col-lg-7 col-xl-8 order-1 order-lg-2' if current_user.can_edit else 'col-12' }}">
+        {% if not plan and not current_user.is_planner %}
+        <div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Für diesen Tag ist noch niemand eingeteilt.") }}</div></div>
+        {% endif %}
+        <div class="row g-3">
+            {% for user in members %}
+            {% set entries = plan.get(user.id, []) %}
+            {% if entries or current_user.is_planner %}
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100 plan-card {{ 'is-me' if user.id == current_user.id }}" id="p{{ user.id }}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold"><i class="bi bi-person me-1"></i>{{ user.name }}</span>
+                        {% if entries %}<span class="small text-body-secondary">{{ entries|selectattr("done_at")|list|length }}/{{ entries|length }}</span>
+                        {% else %}<span class="small text-body-secondary">{{ _("nicht eingeteilt") }}</span>{% endif %}
+                    </div>
+                    <div class="card-body py-2">
+                        {% call(e) plan_lines(entries, here ~ '#p' ~ user.id, today) %}
+                        {% if current_user.is_planner and not e.done_at %}
+                        <form method="post" action="{{ url_for('team.task_unplan', task_id=e.id) }}" class="ms-auto">
+                            {{ csrf() }}<input type="hidden" name="back" value="{{ here }}#p{{ user.id }}">
+                            <button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="{{ _('Zurück nach „Offen“') }}" title="{{ _('Zurück nach „Offen“') }}"><i class="bi bi-arrow-return-left"></i></button>
+                        </form>
+                        {% endif %}
+                        {% endcall %}
+                        {% if current_user.is_planner %}
+                        <form method="post" action="{{ url_for('team.plan_add') }}" class="plan-add mt-2">
+                            {{ csrf() }}<input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ user.id }}">
+                            <div class="input-group input-group-sm">
+                                <input class="form-control" name="text" maxlength="200" required placeholder="{{ _('Was ist zu tun?') }}" list="planTexts">
+                                <button class="btn btn-outline-primary" aria-label="{{ _('Hinzufügen') }}"><i class="bi bi-plus-lg"></i></button>
+                            </div>
+                            <div class="row g-1 mt-1">
+                                <div class="col-6"><select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
+                                    <option value="">{{ _("Maschine …") }}</option>
+                                    {{ machine_options(machines) }}
+                                </select></div>
+                                <div class="col-6">{{ plot_pick(plots, [], _("Schlag …")) }}</div>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
 </div>
 {% if current_user.is_planner %}
 <datalist id="planTexts">{% for text in recent_texts %}<option value="{{ text }}">{% endfor %}</datalist>

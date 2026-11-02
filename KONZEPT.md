@@ -520,7 +520,7 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    *Tagesplan* (`/tagesplan`, Übersicht → Tagesplan): der Admin teilt je Mitarbeiter ein, was an einem Tag zu tun
    ist (Text, optional Maschine und Schlag; nachmittags öffnet sich der nächste Tag), „Vom … übernehmen“ kopiert den
    letzten Plan für alle ohne Einträge, „Plan aufs Handy schicken“ sendet jedem seine Einträge (Push-Thema
-   „Mein Tagesplan“). Auf der Startseite steht „Dein Plan für heute“ (`PlanEntry`).
+   „Mein Tagesplan“). Seit 0.75.0 siehe „Aufgaben zusammengeführt“.
    **Abhaken** (0.41.0): die eingeteilte Person (oder der Admin) hakt ihre Einträge ab – durchgestrichen mit Uhrzeit
    (`PlanEntry.done_at/done_by`, `team.toggle_plan_entry`); das ✕ (löschen, nur Admin) fragt nach. „Unerledigtes vom …
    übernehmen“ hängt Offenes des letzten Tages (bis eine Woche zurück) an (`team.carry_over`).
@@ -538,6 +538,18 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    Was eingeplant ist, verschwindet aus den Vorschlägen. Abhaken im Plan erledigt die Aufgabe bzw. Störung mit
    (wieder öffnen nimmt das zurück); eine Wartung trägt man an der Maschine ein (Zählerstand, Kosten) – der Plan
    zeigt dafür „Wartung eintragen“.
+   **Aufgaben zusammengeführt** (0.75.0): Tagesplan, Aufgabenpool und Aufgaben wirkten doppelt – jetzt gibt es nur
+   noch die **Aufgabe** (`Task`), der Tagesplan ist eine Ansicht davon. Eingeplant = `Task.plan_day` + eine Person
+   (`plan_position` = Reihenfolge, `Task.plan_user`). Nur Text = „Offen“; mit Termin/Wiederholung steht sie ab 7 Tage vor
+   Fälligkeit unter „Offen“. Menü: **ein** Punkt „Aufgaben“ mit den Reitern *Heute* (`/tagesplan`: links „Offen“ zum
+   Verteilen bzw. „Mach ich“, rechts je Person der Tag), *Offen* (`/aufgaben/offen`) und *Alle* (`/aufgaben`, mit
+   Termin, wiederkehrend, erledigt). Liegengebliebenes bleibt bei der Person stehen („seit …“, `team.plan_for`), der
+   Pfeil schickt es zurück nach „Offen“ (`unplan_task`). „Vom … übernehmen“ wiederholt nur Erledigtes. Vorschläge =
+   fällige Wartungen und offene Störungen ohne Aufgabe (`team.suggestions`), einplanen legt eine verknüpfte Aufgabe
+   an; abhaken erledigt Störung bzw. trägt die Wartung ein (`tasks.complete_task`), wieder öffnen nimmt die Störung
+   zurück. Startseite für Mitarbeiter: „Meine Aufgaben heute“ (`team.my_today`: heute/liegengeblieben eingeplant und mir
+   zugeteilt ohne Tag, fällig oder ohne Termin) und „Offen für alle“ mit „Mach ich“. Migration `b9d3f7a5c024` macht aus
+   Pool-Einträgen und Tagesplan-Einträgen Aufgaben (verknüpfte Einträge setzen Tag/Person an der Aufgabe).
    *Übergabe* (`/uebergabe`): Notiz zum Feierabend („Was der Nächste wissen muss“), steht oben auf der Startseite,
    bis jemand sie abhakt oder sie älter als 3 Tage ist; Push-Thema „Neue Übergabe-Notiz“ ist von sich aus aus
    (`Handover`).

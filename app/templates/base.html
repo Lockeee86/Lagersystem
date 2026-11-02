@@ -50,7 +50,7 @@
             <a class="btn btn-icon d-none d-lg-inline-flex d-xl-none" href="{{ url_for('main.search') }}" title="{{ _('Suche') }}"><i class="bi bi-search"></i></a>
             {% endif %}
             {% if current_user.can_edit %}
-            <a class="btn btn-icon icon-count d-none d-lg-inline-flex" href="{{ url_for('tasks.task_list') }}" title="{{ _('Aufgaben') }}">
+            <a class="btn btn-icon icon-count d-none d-lg-inline-flex" href="{{ url_for('tasks.task_list' if current_user.only_chickens else 'team.day_plan') }}" title="{{ _('Aufgaben') }}">
                 <i class="bi bi-list-check"></i>{% if my_task_count %}<span class="count">{{ my_task_count }}</span>{% endif %}
             </a>
             {% endif %}

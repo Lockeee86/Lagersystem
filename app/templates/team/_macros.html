@@ -1,3 +1,4 @@
+{% from "macros.html" import machine_options %}
 {# Übergabe-Notiz als Zeile (Startseite und Übergabe-Seite) #}
 {% macro handover_item(note, back_url) %}
 <div class="hub-row handover-row {{ 'is-done' if note.done_at }}">
@@ -24,23 +25,121 @@
 </form>
 {% endmacro %}
 
-{# Einträge einer Person im Tagesplan #}
-{% macro plan_lines(entries, back_url=none) %}
+{# Aufgaben einer Person (Tagesplan bzw. „Meine Aufgaben heute“) – zum Abhaken #}
+{% macro plan_lines(entries, back_url=none, today=none) %}
 {% for e in entries %}
 <div class="plan-line {{ 'is-done' if e.done_at }}">
     {% if e.can_check(current_user) %}
-    <form method="post" action="{{ url_for('team.plan_check', entry_id=e.id) }}" class="plan-check">
+    <form method="post" action="{{ url_for('team.plan_check', task_id=e.id) }}" class="plan-check">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if back_url %}<input type="hidden" name="back" value="{{ back_url }}">{% endif %}
         <button class="btn btn-link p-0" aria-label="{{ _('Wieder öffnen') if e.done_at else _('Erledigt') }}" title="{{ _('Wieder öffnen') if e.done_at else _('Erledigt') }}"><i class="bi {{ 'bi-check-square-fill text-success' if e.done_at else 'bi-square' }}"></i></button>
     </form>
     {% elif e.done_at %}<i class="bi bi-check-square-fill text-success plan-check"></i>{% endif %}
-    <span class="plan-text">{% if e.task_id %}<i class="bi bi-check2-square me-1 text-body-secondary" title="{{ _('Aufgabe') }}"></i>{% elif e.maintenance_task_id %}<i class="bi bi-wrench-adjustable me-1 text-body-secondary" title="{{ _('Wartung') }}"></i>{% elif e.machine_event_id %}<i class="bi bi-exclamation-triangle me-1 text-body-secondary" title="{{ _('Störung') }}"></i>{% elif e.pool_item_id %}<i class="bi bi-inbox me-1 text-body-secondary" title="{{ _('Aus dem Aufgabenpool') }}"></i>{% endif %}{{ e.text }}</span>
+    <a class="plan-text text-reset text-decoration-none" href="{{ url_for('tasks.task_detail', task_id=e.id) }}">{% if e.important and not e.done_at %}<i class="bi bi-exclamation-circle-fill text-danger me-1" title="{{ _('wichtig') }}"></i>{% endif %}{% if e.maintenance_task_id %}<i class="bi bi-wrench-adjustable me-1 text-body-secondary" title="{{ _('Wartung') }}"></i>{% elif e.machine_event_id %}<i class="bi bi-exclamation-triangle me-1 text-body-secondary" title="{{ _('Störung') }}"></i>{% endif %}{{ e.title }}</a>
+    {% if today and not e.done_at and e.plan_day and e.plan_day < today %}<span class="badge text-bg-warning">{{ _("seit {date}", date=e.plan_day.strftime("%d.%m.")) }}</span>
+    {% elif today and not e.done_at and not e.plan_day and e.due_on and e.due_on <= today %}<span class="badge {{ 'text-bg-danger' if e.due_on < today else 'text-bg-primary' }}">{{ _("fällig {date}", date=e.due_on.strftime("%d.%m.")) }}</span>{% endif %}
     {% if e.machine %}<a class="badge text-bg-secondary text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}"><i class="bi {{ e.machine.icon }} me-1"></i>{{ e.machine.name }}</a>{% endif %}
     {% for p in e.plots %}<a class="badge text-bg-light text-decoration-none" href="{{ url_for('fields.field_detail', plot_id=p.id) }}"><i class="bi bi-map me-1"></i>{{ p.name }}</a>{% endfor %}
-    {% if e.done_at %}<span class="small text-body-secondary text-nowrap">{{ _("erledigt {time}", time=e.done_at|time) }}{% if e.done_by and e.done_by_id != e.user_id %} · {{ e.done_by.name }}{% endif %}</span>{% endif %}
-    {% if e.maintenance_pending %}<a class="badge text-bg-warning text-decoration-none" href="{{ url_for('machines.machine_detail', machine_id=e.maintenance_task.machine_id) }}#wartungen"><i class="bi bi-pencil me-1"></i>{{ _("Wartung eintragen") }}</a>{% endif %}
+    {% if e.done_at %}<span class="small text-body-secondary text-nowrap">{{ _("erledigt {time}", time=e.done_at|time) }}{% if e.done_by and e.plan_user and e.done_by_id != e.plan_user.id %} · {{ e.done_by.name }}{% endif %}</span>{% endif %}
     {{ caller(e) if caller }}
 </div>
 {% endfor %}
+{% endmacro %}
+
+{# Reiter oben: Heute · Offen · Alle #}
+{% macro task_tabs(active) %}
+<nav class="view-switch mb-3" aria-label="{{ _('Aufgaben') }}">
+    <a href="{{ url_for('team.day_plan') }}" class="{{ 'active' if active == 'heute' }}" {% if active == 'heute' %}aria-current="page"{% endif %}><i class="bi bi-sun me-1"></i>{{ _("Heute") }}</a>
+    {% if current_user.can_edit %}<a href="{{ url_for('team.open_page') }}" class="{{ 'active' if active == 'offen' }}" {% if active == 'offen' %}aria-current="page"{% endif %}><i class="bi bi-inbox me-1"></i>{{ _("Offen") }}</a>{% endif %}
+    <a href="{{ url_for('tasks.task_list', wer='alle') }}" class="{{ 'active' if active == 'alle' }}" {% if active == 'alle' %}aria-current="page"{% endif %}><i class="bi bi-list-check me-1"></i>{{ _("Alle") }}</a>
+</nav>
+{% endmacro %}
+
+{# Kurz notieren → „Offen“ #}
+{% macro note_form(day, machines, back_url) %}
+<form method="post" action="{{ url_for('team.open_add') }}" class="mb-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="back" value="{{ back_url }}">
+    <div class="input-group">
+        <input class="form-control" name="text" maxlength="200" required placeholder="{{ _('Was ist irgendwann zu tun?') }}" aria-label="{{ _('Kurz notieren') }}">
+        <button class="btn btn-primary" aria-label="{{ _('Notieren') }}"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline ms-1">{{ _("Notieren") }}</span></button>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+        <select class="form-select form-select-sm w-auto" name="machine_id" aria-label="{{ _('Maschine') }}">
+            <option value="">{{ _("Maschine …") }}</option>
+            {{ machine_options(machines) }}
+        </select>
+        <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="note_important" name="important" value="1">
+            <label class="form-check-label small" for="note_important">{{ _("wichtig") }}</label></div>
+    </div>
+</form>
+{% endmacro %}
+
+{# „Offen“: Aufgaben und Vorschläge (Wartungen, Störungen) zum Einplanen #}
+{% macro open_list(open, suggestions, day, today, members, back_url) %}
+{% set icons = {"wartung": "bi-wrench-adjustable", "stoerung": "bi-exclamation-triangle"} %}
+{% if open or suggestions %}
+<ul class="list-group list-group-flush open-list">
+    {% for s in suggestions %}
+    <li class="list-group-item open-row">
+        <div class="open-text">
+            <i class="bi {{ icons[s.kind] }} me-1 {{ 'text-danger' if s.late else 'text-body-secondary' }}"></i>
+            <a class="fw-semibold" href="{{ url_for('machines.machine_detail', machine_id=s.machine.id) }}">{{ s.text }}</a>
+            <span class="badge text-bg-secondary ms-1"><i class="bi {{ s.machine.icon }} me-1"></i>{{ s.machine.name }}</span>
+            <span class="small d-block {{ 'text-danger' if s.late else 'text-body-secondary' }}">
+                {%- if s.kind == "stoerung" %}{{ _("Störung seit {date}", date=s.due_on|date) }}{% if not s.item.still_running %} · {{ _("steht") }}{% endif %}
+                {%- else %}{{ _("Wartung") }}{% if s.due_on %} · {{ _("fällig {date}", date=s.due_on|date) }}{% elif s.left_counter is not none %} · {% if s.left_counter <= 0 %}{{ _("überfällig") }}{% else %}{{ _("noch {n} {unit}", n=s.left_counter, unit=s.machine.counter_unit) }}{% endif %}{% elif s.late %} · {{ _("überfällig") }}{% endif %}{% endif -%}
+            </span>
+        </div>
+        <form method="post" action="{{ url_for('team.plan_suggestion') }}" class="open-actions input-group input-group-sm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="key" value="{{ s.key }}"><input type="hidden" name="back" value="{{ back_url }}">
+            <select class="form-select" name="user_id" required aria-label="{{ _('Wer?') }}"><option value="">{{ _("Wer?") }}</option>{% for u in members %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+            <button class="btn btn-outline-primary" title="{{ _('Einplanen') }}" aria-label="{{ _('Einplanen') }}"><i class="bi bi-calendar-plus"></i></button>
+        </form>
+    </li>
+    {% endfor %}
+    {% for t in open %}
+    <li class="list-group-item open-row">
+        <div class="open-text">
+            {% if t.important %}<i class="bi bi-exclamation-circle-fill text-danger me-1" title="{{ _('wichtig') }}"></i>{% endif %}
+            <a class="fw-semibold text-reset" href="{{ url_for('tasks.task_detail', task_id=t.id) }}">{{ t.title }}</a>
+            {% if t.machine %}<span class="badge text-bg-secondary ms-1"><i class="bi {{ t.machine.icon }} me-1"></i>{{ t.machine.name }}</span>{% endif %}
+            {% for p in t.plots[:2] %}<span class="badge text-bg-light ms-1"><i class="bi bi-map me-1"></i>{{ p.name }}</span>{% endfor %}
+            <span class="small d-block {{ 'text-danger' if t.due_on and t.due_on < today else 'text-body-secondary' }}">
+                {%- if t.due_on %}{{ _("fällig {date}", date=t.due_on|date) }}{% if t.recurrence %} · {{ t.recurrence_label }}{% endif %} · {% endif -%}
+                {%- if t.assignees %}{{ t.assignees|map(attribute='name')|join(", ") }}{% else %}{{ t.created_by.name if t.created_by else "–" }} · {{ t.created_at|date }}{% endif -%}
+            </span>
+        </div>
+        <div class="open-actions">
+            {% if current_user.is_planner %}
+            <form method="post" action="{{ url_for('team.task_plan', task_id=t.id) }}" class="input-group input-group-sm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="back" value="{{ back_url }}">
+                <select class="form-select" name="user_id" required aria-label="{{ _('Wer?') }}"><option value="">{{ _("Wer?") }}</option>{% for u in members %}<option value="{{ u.id }}" {% if t.assignees|length == 1 and t.assignees[0].id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
+                <button class="btn btn-outline-primary" title="{{ _('Einplanen') }}" aria-label="{{ _('Einplanen') }}"><i class="bi bi-calendar-plus"></i></button>
+            </form>
+            {% elif day >= today %}
+            <form method="post" action="{{ url_for('team.task_plan', task_id=t.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="datum" value="{{ day.isoformat() }}"><input type="hidden" name="user_id" value="{{ current_user.id }}"><input type="hidden" name="back" value="{{ back_url }}">
+                <button class="btn btn-sm btn-outline-primary text-nowrap"><i class="bi bi-hand-index me-1"></i>{{ _("Mach ich") }}</button>
+            </form>
+            {% endif %}
+            {% if current_user.is_planner or t.created_by_id == current_user.id %}
+            <form method="post" action="{{ url_for('team.task_settled', task_id=t.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back_url }}">
+                <button class="btn btn-sm btn-link text-success p-1" title="{{ _('Hat sich erledigt') }}" aria-label="{{ _('Hat sich erledigt') }}"><i class="bi bi-check2-circle"></i></button>
+            </form>
+            {% if not t.recurrence and not t.machine_event_id and not t.maintenance_task_id %}
+            <form method="post" action="{{ url_for('team.task_remove', task_id=t.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back_url }}">
+                <button class="btn btn-sm btn-link text-body-secondary p-1" title="{{ _('Löschen') }}" aria-label="{{ _('Löschen') }}" data-confirm="{{ _('„{entry}“ löschen?', entry=t.title) }}"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+            {% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="card-body small text-body-secondary"><i class="bi bi-check2-circle text-success me-1"></i>{{ _("Nichts offen.") }}</div>
+{% endif %}
 {% endmacro %}

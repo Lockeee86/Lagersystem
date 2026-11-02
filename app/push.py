@@ -291,7 +291,7 @@ def _morning_tasks(today):
         title = Msg("Heute {n} Aufgabe", "Heute {n} Aufgaben", len(due))
         names = ", ".join(t.title for t in due[:3]) + (" …" if len(due) > 3 else "")
         body = Msg("{names} ({n} überfällig)", names=names, n=overdue) if overdue else names
-        sent += notify([user], "tasks_due", title, body, url_for("tasks.task_list"), tag="tasks-today")
+        sent += notify([user], "tasks_due", title, body, url_for("team.day_plan"), tag="tasks-today")
     return sent
 
 

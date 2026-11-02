@@ -108,6 +108,7 @@ def complete_task(task, user, note=None, photo_names=None):
     # Verknüpfte Störung bzw. Wartung an der Maschine gleich mit erledigen
     if task.machine_event and task.machine_event.is_open_fault:
         machines.resolve_fault(task.machine_event, user)
+        task.machine_event.resolved_at = task.done_at          # gleicher Zeitpunkt: „Wieder öffnen“ erkennt es
     if task.maintenance_task:
         machines.complete_task(task.maintenance_task, user, text=note or task.title)
     follow_up = None
@@ -129,6 +130,8 @@ def reopen_task(task):
     if not task.is_done:
         return
     Task.query.filter(Task.previous_id == task.id, Task.done_at.is_(None)).delete(synchronize_session="fetch")
+    if task.machine_event and task.machine_event.resolved_at and task.machine_event.resolved_at == task.done_at:
+        task.machine_event.resolved_at = task.machine_event.resolved_by_id = None     # über diese Aufgabe erledigt
     task.done_at = task.done_by_id = task.done_note = None
     db.session.flush()
 

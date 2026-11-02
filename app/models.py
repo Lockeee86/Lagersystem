@@ -1279,6 +1279,9 @@ class Task(db.Model):
     previous_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # Tagesplan: eingeplant für einen Tag und eine Person (die Zuteilung); leer = offen
+    plan_day = db.Column(db.Date, index=True)
+    plan_position = db.Column(db.Integer, nullable=False, default=0, server_default="0")
 
     assignees = db.relationship("User", secondary=task_assignees, order_by="User.username")
     machine = db.relationship("Machine")
@@ -1309,6 +1312,17 @@ class Task(db.Model):
 
     def is_for(self, user):
         return not self.assignees or user in self.assignees
+
+    @property
+    def plan_user(self):
+        """Wer die eingeplante Aufgabe macht (None = nicht eingeplant)."""
+        return self.assignees[0] if self.plan_day and self.assignees else None
+
+    def can_check(self, user):
+        """Abhaken: wer zugeteilt ist, bei „für alle“ jeder Mitarbeiter, und wer den Tagesplan pflegt."""
+        if not (user and user.is_authenticated and user.can_edit):
+            return False
+        return bool(user.is_planner or not self.assignees or user in self.assignees)
 
 
 # --- Bestellungen -----------------------------------------------------------
@@ -1617,80 +1631,6 @@ class Handover(db.Model):
 
     user = db.relationship("User", foreign_keys=[user_id])
     done_by = db.relationship("User", foreign_keys=[done_by_id])
-
-plan_entry_plots = db.Table(
-    "plan_entry_plots",
-    db.Column("entry_id", db.Integer, db.ForeignKey("plan_entries.id", ondelete="CASCADE"), primary_key=True),
-    db.Column("plot_id", db.Integer, db.ForeignKey("plots.id", ondelete="CASCADE"), primary_key=True, index=True),
-)
-
-
-class PoolItem(db.Model):
-    """Aufgabenpool: kurz notierte Arbeit ohne Person und Tag – wird später in den Tagesplan eingeplant
-    (`PlanEntry.pool_item_id`). Abgehakt im Plan = erledigt; nicht geschafft = wieder im Pool."""
-    __tablename__ = "pool_items"
-
-    id = db.Column(db.Integer, primary_key=True)
-    text = db.Column(db.String(200), nullable=False)
-    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"))
-    important = db.Column(db.Boolean, nullable=False, default=False)
-    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
-    done_at = db.Column(db.DateTime(timezone=True), index=True)
-    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-
-    machine = db.relationship("Machine")
-    created_by = db.relationship("User", foreign_keys=[created_by_id])
-    done_by = db.relationship("User", foreign_keys=[done_by_id])
-
-    @property
-    def label(self):                             # fürs Änderungsprotokoll
-        return self.text
-
-
-class PlanEntry(db.Model):
-    """Eintrag im Tagesplan: wer macht an einem Tag was (optional mit Maschine und Schlägen)."""
-    __tablename__ = "plan_entries"
-
-    id = db.Column(db.Integer, primary_key=True)
-    day = db.Column(db.Date, nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    text = db.Column(db.String(200), nullable=False)
-    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="SET NULL"))
-    position = db.Column(db.Integer, nullable=False, default=0)
-    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
-    done_at = db.Column(db.DateTime(timezone=True))
-    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-    # aus einem Vorschlag eingeteilt: Aufgabe, Wartung bzw. Störung, die damit erledigt wird
-    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"), index=True)
-    maintenance_task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id", ondelete="SET NULL"), index=True)
-    machine_event_id = db.Column(db.Integer, db.ForeignKey("machine_events.id", ondelete="SET NULL"), index=True)
-    pool_item_id = db.Column(db.Integer, db.ForeignKey("pool_items.id", ondelete="SET NULL"), index=True)
-
-    user = db.relationship("User", foreign_keys=[user_id])
-    done_by = db.relationship("User", foreign_keys=[done_by_id])
-    pool_item = db.relationship("PoolItem")
-    machine = db.relationship("Machine")
-    plots = db.relationship("Plot", secondary=plan_entry_plots, order_by="Plot.name")
-    task = db.relationship("Task")
-    maintenance_task = db.relationship("MaintenanceTask")
-    machine_event = db.relationship("MachineEvent")
-
-    @property
-    def maintenance_pending(self):
-        """Eingeplante Wartung ist abgehakt, aber an der Maschine noch nicht eingetragen."""
-        mt = self.maintenance_task
-        return bool(mt and self.done_at and (mt.last_done_on is None or mt.last_done_on < self.day))
-
-    def can_check(self, user):
-        """Abhaken darf die eingeteilte Person und wer den Tagesplan pflegt."""
-        return bool(user and user.is_authenticated and (user.id == self.user_id or user.is_planner))
-
-    @property
-    def label(self):                             # fürs Änderungsprotokoll
-        return f"{self.day.strftime('%d.%m.%Y')}: {self.text}"
-
 
 instruction_topic_users = db.Table(
     "instruction_topic_users",

@@ -1083,9 +1083,9 @@ html, body { overflow-x: clip; }
 /* Beim Tippen (Tastatur offen) stört die Leiste nur – ausblenden */
 body.typing .tabbar { display: none; }
 
-/* Tagesplan: Aufgabenpool */
-.pool-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; }
-.pool-text { flex: 1 1 16rem; min-width: 0; }
-.pool-actions { display: flex; align-items: center; gap: .25rem; flex: 0 0 auto; }
-.pool-actions .form-select { min-width: 7.5rem; }
-@media (max-width: 575.98px) { .pool-actions { flex: 1 1 100%; } .pool-actions form.input-group { flex: 1 1 auto; } }
+/* Aufgaben: „Offen“ */
+.open-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; }
+.open-text { flex: 1 1 14rem; min-width: 0; }
+.open-actions { display: flex; align-items: center; gap: .25rem; flex: 0 0 auto; }
+.open-actions .form-select { min-width: 7rem; }
+@media (max-width: 575.98px) { .open-actions { flex: 1 1 100%; } .open-actions form.input-group, form.open-actions { flex: 1 1 auto; } }

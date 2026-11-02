@@ -23,9 +23,9 @@ def _sensors_shown(user):
 AREAS = [
     {"key": "start", "label": N_("Übersicht"), "icon": "bi-speedometer2", "items": [
         item("main.dashboard", N_("Heute"), "bi-sun"),
-        item("team.day_plan", N_("Tagesplan"), "bi-people"),
+        item("team.day_plan", N_("Aufgaben"), "bi-list-check", endpoints=("team.open_page",), prefixes=("tasks.",),
+             badge="tasks"),
         item("team.handovers", N_("Übergabe"), "bi-chat-square-text"),
-        item("tasks.task_list", N_("Aufgaben"), "bi-list-check", prefixes=("tasks.",), badge="tasks"),
         item("purchases.purchase_list", N_("Bestellungen"), "bi-box-seam", prefixes=("purchases.",), badge="purchases"),
         item("agenda.month", N_("Kalender"), "bi-calendar3", prefixes=("agenda.",)),
         item("main.search", N_("Suche"), "bi-search"),
@@ -216,6 +216,8 @@ def tab_for(endpoint, view_args=None, user=None):
         return "heute"
     if endpoint == "main.scan":
         return "scan"
+    if "aufgaben" in tabs and (endpoint in ("team.day_plan", "team.open_page") or endpoint.startswith("tasks.")):
+        return "aufgaben"
     key = (view_args or {}).get("key") if endpoint == "main.area" else area_of(endpoint)
     return key if key in tabs else "mehr"
 

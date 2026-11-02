@@ -1,12 +1,12 @@
 import base64
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from PIL import Image, ImageDraw
 
 from app import machines, push, team
-from app.models import Handover, InstructionRecord, Machine, PlanEntry, Plot, PushSubscription
+from app.models import Handover, InstructionRecord, Machine, Plot, PushSubscription, Task
 from app.storage import StorageError
 
 
@@ -64,127 +64,6 @@ def test_old_handovers_leave_dashboard(db, seed):
 
 
 # --- Tagesplan ---------------------------------------------------------------
-
-def test_plan_logic(db, seed):
-    admin, worker, viewer = seed["admin"], seed["worker"], seed["viewer"]
-    tractor = Machine(code="M-01", name="Schlepper 1", category="schlepper")
-    db.session.add(tractor)
-    db.session.flush()
-    monday, tuesday = date(2026, 10, 26), date(2026, 10, 27)
-    south = Plot(name="Wiese Süd")
-    db.session.add(south)
-    db.session.flush()
-    team.add_plan_entry(monday, worker, "Roden", admin, machine_id=tractor.id, plot_ids=[south.id, seed["plot"].id])
-    team.add_plan_entry(monday, worker, "Kisten fahren", admin)
-    team.add_plan_entry(monday, admin, "Büro", admin)
-    with pytest.raises(StorageError, match="Mitarbeiter"):
-        team.add_plan_entry(monday, viewer, "x", admin)          # Betrachter stehen nicht im Plan
-    with pytest.raises(StorageError):
-        team.add_plan_entry(monday, worker, " ", admin)
-    plan = team.plan_for(monday)
-    assert [e.text for e in plan[worker.id]] == ["Roden", "Kisten fahren"] and plan[worker.id][0].machine == tractor
-    assert [p.name for p in plan[worker.id][0].plots] == ["Acker Nord", "Wiese Süd"]
-
-    # übernehmen: nur für Leute ohne Plan
-    team.add_plan_entry(tuesday, admin, "Lieferung", admin)
-    assert team.last_planned_day(tuesday) == monday
-    assert team.copy_plan(monday, tuesday, admin) == 2
-    assert [p.name for p in team.plan_for(tuesday)[worker.id][0].plots] == ["Acker Nord", "Wiese Süd"]
-    assert [e.text for e in team.plan_for(tuesday)[admin.id]] == ["Lieferung"]
-    with pytest.raises(StorageError):
-        team.copy_plan(None, tuesday, admin)
-
-
-def test_plan_pages_and_push(as_admin, as_worker, as_viewer, db, seed):
-    worker = seed["worker"]
-    today = date.today()
-    assert as_worker.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id,
-                                                      "text": "x"}).status_code == 403
-    r = as_admin.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id,
-                                                  "text": "Sortieren Halle 2", "plot_ids": [seed["plot"].id]})
-    assert r.headers["Location"].endswith(f"/tagesplan?datum={today.isoformat()}#p{worker.id}")
-    html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert "Sortieren Halle 2" in html and "Acker Nord" in html and 'action="/tagesplan/eintrag"' not in html
-    assert "Sortieren Halle 2" in as_viewer.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    # Startseite: eigener Plan; andere sehen den Hinweis
-    assert "Dein Plan für heute" in as_worker.get("/").get_data(as_text=True)
-    assert "Für dich ist heute nichts eingeteilt." in as_admin.get("/").get_data(as_text=True)
-
-    # Admin-Seite mit Formularen, Vorschlägen und „übernehmen“
-    tomorrow = today + timedelta(days=1)
-    html = as_admin.get(f"/tagesplan?datum={tomorrow.isoformat()}").get_data(as_text=True)
-    assert 'name="text"' in html and '<option value="Sortieren Halle 2">' in html and "übernehmen" in html
-    as_admin.post("/tagesplan/uebernehmen", data={"datum": tomorrow.isoformat()})
-    assert len(team.plan_for(tomorrow)[worker.id]) == 1
-
-    # verschicken: nur an Eingeteilte mit Gerät
-    subscribe(db, worker)
-    as_admin.post("/tagesplan/verschicken", data={"datum": tomorrow.isoformat()})
-    assert [(m["user_id"], m["body"]) for m in push.outbox] == [(worker.id, "Sortieren Halle 2")]
-    assert push.outbox[0]["title"] == f"Dein Plan für {tomorrow.strftime('%d.%m.')}"
-    assert "verschickt" in as_admin.get(f"/tagesplan?datum={tomorrow.isoformat()}").get_data(as_text=True)
-
-    entry = PlanEntry.query.filter_by(day=tomorrow).one()
-    as_admin.post(f"/tagesplan/eintrag/{entry.id}/loeschen")
-    assert not team.plan_for(tomorrow)
-
-
-def test_plan_check_and_carry_over(as_admin, as_worker, as_viewer, db, seed):
-    """Eingeteilte Person (oder Admin) hakt ab; Unerledigtes lässt sich am nächsten Tag übernehmen."""
-    worker, admin = seed["worker"], seed["admin"]
-    yesterday, today = date.today() - timedelta(days=1), date.today()
-    sort = team.add_plan_entry(yesterday, worker, "Sortieren Halle 2", admin)
-    sweep = team.add_plan_entry(yesterday, worker, "Hof fegen", admin)
-    own = team.add_plan_entry(today, admin, "Büro", admin)
-    db.session.commit()
-
-    assert as_viewer.post(f"/tagesplan/eintrag/{sort.id}/erledigt").status_code == 403
-    as_worker.post(f"/tagesplan/eintrag/{own.id}/erledigt")                  # nicht seiner
-    assert own.done_at is None
-    r = as_worker.post(f"/tagesplan/eintrag/{sort.id}/erledigt", data={"back": "/#meinplan"})
-    assert r.headers["Location"].endswith("/#meinplan") and sort.done_at and sort.done_by_id == worker.id
-    html = as_worker.get(f"/tagesplan?datum={yesterday.isoformat()}").get_data(as_text=True)
-    assert "is-done" in html and "erledigt" in html and "Wieder öffnen" in html
-    as_worker.post(f"/tagesplan/eintrag/{sort.id}/erledigt")                 # wieder öffnen
-    assert sort.done_at is None
-    as_admin.post(f"/tagesplan/eintrag/{sort.id}/erledigt")                  # Admin hakt für ihn ab
-    assert sort.done_by_id == admin.id
-
-    # heute: „Hof fegen“ ist offen → übernehmen (nur einmal)
-    html = as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert "Unerledigtes vom" in html and "(1)" in html and "data-confirm" in html
-    as_admin.post("/tagesplan/offenes", data={"datum": today.isoformat()})
-    assert [e.text for e in team.plan_for(today)[worker.id]] == ["Hof fegen"]
-    as_admin.post("/tagesplan/offenes", data={"datum": today.isoformat()})
-    assert len(team.plan_for(today)[worker.id]) == 1
-    assert "Unerledigtes vom" not in as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert as_worker.post("/tagesplan/offenes", data={"datum": today.isoformat()}).status_code == 403
-    assert sweep.done_at is None
-
-
-def test_plan_editor(as_admin, as_worker, db, seed):
-    """Admin erlaubt einem Mitarbeiter in der Benutzerverwaltung, den Tagesplan zu pflegen."""
-    worker, admin = seed["worker"], seed["admin"]
-    today = date.today()
-    data = {"datum": today.isoformat(), "user_id": admin.id, "text": "Büro aufräumen"}
-    assert as_worker.post("/tagesplan/eintrag", data=data).status_code == 403
-    assert 'action="/tagesplan/eintrag"' not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter", "active": "1",
-                                           "can_plan": "1"})
-    assert worker.can_plan and worker.is_planner
-    assert "Tagesplan" in as_admin.get("/admin/benutzer").get_data(as_text=True)
-    as_worker.post("/tagesplan/eintrag", data=data)
-    entry = PlanEntry.query.filter_by(text="Büro aufräumen").one()
-    html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert 'name="text"' in html and "Plan aufs Handy schicken" in html
-    as_worker.post(f"/tagesplan/eintrag/{entry.id}/erledigt")               # darf auch für andere abhaken
-    assert entry.done_by_id == worker.id
-    as_worker.post(f"/tagesplan/eintrag/{entry.id}/loeschen")
-    assert PlanEntry.query.count() == 0
-    worker.role = "betrachter"                                               # nur zusammen mit Bearbeiten-Recht
-    db.session.commit()
-    assert not worker.is_planner
-
 
 # --- Unterweisungen ----------------------------------------------------------
 
@@ -306,60 +185,6 @@ def test_instruction_documents(app, as_admin, as_worker, db, seed):
     assert not os.path.exists(other) and InstructionDocument.query.count() == 0
 
 
-def test_plan_suggestions(as_admin, as_worker, db, seed):
-    from app import tasks
-    from app.models import MachineEvent, MaintenanceTask, Task
-    admin, worker = seed["admin"], seed["worker"]
-    today = date.today()
-    tractor = Machine(code="M-07", name="Schlepper 7", category="schlepper", counter_unit="h", counter=1000)
-    db.session.add(tractor)
-    db.session.flush()
-    oil = MaintenanceTask(machine=tractor, name="Ölwechsel", interval_months=12,
-                          last_done_on=today - timedelta(days=400))
-    later = MaintenanceTask(machine=tractor, name="Bremsen prüfen", interval_months=12,
-                            last_done_on=today - timedelta(days=200))      # erst in Monaten fällig
-    db.session.add_all([oil, later])
-    fault = machines.add_event(tractor, "stoerung", admin, text="Hydraulik leckt")
-    fence = tasks.create_task(admin, title="Zaun flicken", due_on=today - timedelta(days=1), assignees=[worker])
-    tasks.create_task(admin, title="Später", due_on=today + timedelta(days=5))
-    tasks.create_task(admin, title="Eier zählen").area = "huehner"
-    db.session.commit()
-
-    keys = [s["key"] for s in team.suggestions(today, admin)]
-    assert keys == [f"stoerung-{fault.id}", f"wartung-{oil.id}", f"task-{fence.id}"]
-    assert next(s for s in team.suggestions(today, admin) if s["kind"] == "task")["assignee_id"] == worker.id
-    html = as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert "Vorschläge" in html and "Hydraulik leckt" in html and "Ölwechsel" in html and "Zaun flicken" in html
-    assert "Vorschläge" not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-
-    # einplanen → verschwindet aus den Vorschlägen
-    for key in keys:
-        r = as_admin.post("/tagesplan/vorschlag", data={"datum": today.isoformat(), "user_id": worker.id, "key": key})
-        assert r.status_code == 302
-    assert team.suggestions(today, admin) == []
-    as_admin.post("/tagesplan/vorschlag", data={"datum": today.isoformat(), "user_id": worker.id, "key": keys[0]})
-    entries = team.plan_for(today)[worker.id]
-    assert len(entries) == 3 and entries[0].machine == tractor
-    by_kind = {("task" if e.task_id else "wartung" if e.maintenance_task_id else "stoerung"): e for e in entries}
-
-    # abhaken erledigt Aufgabe und Störung mit, wieder öffnen nimmt es zurück
-    as_worker.post(f"/tagesplan/eintrag/{by_kind['task'].id}/erledigt")
-    assert db.session.get(Task, fence.id).is_done
-    as_worker.post(f"/tagesplan/eintrag/{by_kind['task'].id}/erledigt")
-    assert not db.session.get(Task, fence.id).is_done
-    as_worker.post(f"/tagesplan/eintrag/{by_kind['stoerung'].id}/erledigt")
-    assert db.session.get(MachineEvent, fault.id).resolved_at is not None
-    as_worker.post(f"/tagesplan/eintrag/{by_kind['stoerung'].id}/erledigt")
-    assert db.session.get(MachineEvent, fault.id).resolved_at is None
-
-    # Wartung: abgehakt → Hinweis, sie an der Maschine einzutragen
-    as_worker.post(f"/tagesplan/eintrag/{by_kind['wartung'].id}/erledigt")
-    assert "Wartung eintragen" in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    machines.complete_task(oil, worker)
-    db.session.commit()
-    assert "Wartung eintragen" not in as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-
-
 def test_workshop_screen(app, as_admin, as_worker, db, seed):
     from datetime import date
     from app import screen, tasks
@@ -400,45 +225,217 @@ def test_workshop_screen_price(app, as_admin, db, seed, monkeypatch):
     assert "Strompreis" in html and 'class="price-bar"' in html and "price-mark" in html and "€/MWh" in html
 
 
-def test_task_pool(app, as_admin, as_worker, as_viewer, db, seed):
-    from datetime import date, timedelta
-    from app.models import PoolItem
+# --- Aufgaben: Tagesplan, Offen, Startseite ------------------------------------
+
+def test_plan_logic(db, seed):
+    admin, worker, viewer = seed["admin"], seed["worker"], seed["viewer"]
+    tractor = Machine(code="M-01", name="Schlepper 1", category="schlepper")
+    db.session.add(tractor)
+    db.session.flush()
+    monday, tuesday = date(2026, 10, 26), date(2026, 10, 27)
+    south = Plot(name="Wiese Süd")
+    db.session.add(south)
+    db.session.flush()
+    team.add_plan_entry(monday, worker, "Roden", admin, machine_id=tractor.id, plot_ids=[south.id, seed["plot"].id])
+    team.add_plan_entry(monday, worker, "Kisten fahren", admin)
+    team.add_plan_entry(monday, admin, "Büro", admin)
+    with pytest.raises(StorageError, match="Mitarbeiter"):
+        team.add_plan_entry(monday, viewer, "x", admin)          # Betrachter stehen nicht im Plan
+    with pytest.raises(StorageError):
+        team.add_plan_entry(monday, worker, " ", admin)
+    plan = team.plan_for(monday, today=tuesday)
+    assert [e.title for e in plan[worker.id]] == ["Roden", "Kisten fahren"] and plan[worker.id][0].machine == tractor
+    assert [p.name for p in plan[worker.id][0].plots] == ["Acker Nord", "Wiese Süd"]
+    assert Task.query.count() == 3                               # ein Tagesplan-Eintrag ist eine Aufgabe
+
+    # übernehmen: Erledigtes als neue Aufgaben, nur für Leute ohne Plan; Unerledigtes wandert von selbst mit
+    for e in plan[worker.id] + plan[admin.id]:
+        e.done_at = e.created_at
+    team.add_plan_entry(monday, worker, "Liegt noch", admin)
+    team.add_plan_entry(tuesday, admin, "Lieferung", admin)
+    assert team.last_planned_day(tuesday) == monday
+    assert team.copy_plan(monday, tuesday, admin) == 2
+    assert [p.name for p in team.plan_for(tuesday, exact=True)[worker.id][0].plots] == ["Acker Nord", "Wiese Süd"]
+    assert [e.title for e in team.plan_for(tuesday, exact=True)[admin.id]] == ["Lieferung"]
+    with pytest.raises(StorageError):
+        team.copy_plan(None, tuesday, admin)
+
+
+def test_left_over_stays_and_open_list(db, seed):
+    """Liegengebliebenes steht heute weiter bei der Person; „Offen“ = nicht eingeplant (ohne Hühner, bis 7 Tage)."""
+    from app import tasks
     admin, worker = seed["admin"], seed["worker"]
-    today, tomorrow = date.today(), date.today() + timedelta(days=1)
-    day = {"datum": today.isoformat()}
-    # notieren: Admin und Mitarbeiter, Betrachter nicht
-    as_admin.post("/tagesplan/pool", data=day | {"text": "Hoftor ölen", "important": "1"})
-    as_worker.post("/tagesplan/pool", data=day | {"text": "Werkzeugwand aufräumen"})
-    assert as_viewer.post("/tagesplan/pool", data=day | {"text": "x"}).status_code == 403
-    gate = PoolItem.query.filter_by(text="Hoftor ölen").one()
-    wall = PoolItem.query.filter_by(text="Werkzeugwand aufräumen").one()
-    assert [i.text for i in team.pool(today)] == ["Hoftor ölen", "Werkzeugwand aufräumen"]     # wichtig zuerst
+    today = date.today()
+    old = team.add_plan_entry(today - timedelta(days=2), worker, "Zaun flicken", admin)
+    done = team.add_plan_entry(today - timedelta(days=1), worker, "Hof fegen", admin)
+    done.done_at = done.created_at
+    note = team.add_open_task("Dachrinne säubern", worker)
+    urgent = tasks.create_task(admin, title="Tor ölen", due_on=today - timedelta(days=1), important=True)
+    tasks.create_task(admin, title="Später", due_on=today + timedelta(days=20))
+    tasks.create_task(admin, title="Eier zählen").area = "huehner"
+    mine = tasks.create_task(admin, title="Für Max", assignees=[worker])
+    db.session.commit()
+    assert [t.title for t in team.plan_for(today)[worker.id]] == ["Zaun flicken"]
+    assert worker.id not in team.plan_for(today, exact=True)
+    assert [t.title for t in team.open_tasks(today, admin)] == ["Tor ölen", "Dachrinne säubern", "Für Max"]
+    assert [t.title for t in team.open_tasks(today, worker)] == ["Tor ölen", "Dachrinne säubern"]   # nur für alle
+    # „Meine Aufgaben heute“: Liegengebliebenes und mir Zugeteiltes, das fällig ist
+    mine.due_on = today
+    db.session.commit()
+    assert [t.title for t in team.my_today(worker)] == ["Zaun flicken", "Für Max"]
+    # einplanen: Mitarbeiter nur für sich, nicht was anderen gehört
+    team.plan_task(note, today, worker, worker)
+    assert note.plan_user == worker and note.plan_day == today
+    with pytest.raises(StorageError):
+        team.plan_task(urgent, today, admin, worker)
+    team.unplan_task(note)
+    assert note.plan_day is None and note.assignees == []
+    assert old.id in {t.id for t in team.my_today(worker)}
+
+
+def test_plan_pages_and_push(as_admin, as_worker, as_viewer, db, seed):
+    worker = seed["worker"]
+    today = date.today()
+    assert as_worker.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id,
+                                                      "text": "x"}).status_code == 403
+    r = as_admin.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id,
+                                                  "text": "Sortieren Halle 2", "plot_ids": [seed["plot"].id]})
+    assert r.headers["Location"].endswith(f"/tagesplan?datum={today.isoformat()}#p{worker.id}")
     html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
-    assert "Aufgabenpool" in html and "Hoftor ölen" in html and "Mach ich" in html
+    assert "Sortieren Halle 2" in html and "Acker Nord" in html and 'action="/tagesplan/eintrag"' not in html
+    assert "Heute" in html and "Offen" in html and "Alle" in html                       # Reiter
+    assert "Sortieren Halle 2" in as_viewer.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    # Startseite: „Meine Aufgaben heute“
+    html = as_worker.get("/").get_data(as_text=True)
+    assert "Meine Aufgaben heute" in html and "Sortieren Halle 2" in html
+    assert "Für dich ist heute nichts eingeteilt." in as_admin.get("/").get_data(as_text=True)
+
+    tomorrow = today + timedelta(days=1)
+    html = as_admin.get(f"/tagesplan?datum={tomorrow.isoformat()}").get_data(as_text=True)
+    assert 'action="/tagesplan/eintrag"' in html and '<option value="Sortieren Halle 2">' in html and "übernehmen" in html
+    Task.query.filter_by(title="Sortieren Halle 2").one().done_at = datetime.now(timezone.utc)
+    db.session.commit()
+    as_admin.post("/tagesplan/uebernehmen", data={"datum": tomorrow.isoformat()})
+    assert len(team.plan_for(tomorrow)[worker.id]) == 1
+
+    subscribe(db, worker)
+    as_admin.post("/tagesplan/verschicken", data={"datum": tomorrow.isoformat()})
+    assert [(m["user_id"], m["body"]) for m in push.outbox] == [(worker.id, "Sortieren Halle 2")]
+    assert push.outbox[0]["title"] == f"Dein Plan für {tomorrow.strftime('%d.%m.')}"
+    assert "verschickt" in as_admin.get(f"/tagesplan?datum={tomorrow.isoformat()}").get_data(as_text=True)
+
+    task = Task.query.filter_by(plan_day=tomorrow).one()
+    as_admin.post(f"/aufgabe/{task.id}/zurueck")                                         # zurück nach „Offen“
+    assert not team.plan_for(tomorrow, exact=True) and task.plan_day is None
+    assert "Sortieren Halle 2" in as_admin.get("/aufgaben/offen").get_data(as_text=True)
+
+
+def test_plan_check(as_admin, as_worker, as_viewer, db, seed):
+    """Eingeteilte Person (oder Planer) hakt ab; wieder öffnen geht."""
+    worker, admin = seed["worker"], seed["admin"]
+    today = date.today()
+    sort = team.add_plan_entry(today, worker, "Sortieren Halle 2", admin)
+    own = team.add_plan_entry(today, admin, "Büro", admin)
+    db.session.commit()
+    assert as_viewer.post(f"/tagesplan/eintrag/{sort.id}/erledigt").status_code == 403
+    as_worker.post(f"/tagesplan/eintrag/{own.id}/erledigt")                  # nicht seiner
+    assert own.done_at is None
+    r = as_worker.post(f"/tagesplan/eintrag/{sort.id}/erledigt", data={"back": "/#meinplan"})
+    assert r.headers["Location"].endswith("/#meinplan") and sort.done_at and sort.done_by_id == worker.id
+    html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert "is-done" in html and "Wieder öffnen" in html
+    as_worker.post(f"/tagesplan/eintrag/{sort.id}/erledigt")                 # wieder öffnen
+    assert sort.done_at is None
+    as_admin.post(f"/tagesplan/eintrag/{sort.id}/erledigt")                  # Admin hakt für ihn ab
+    assert sort.done_by_id == admin.id
+
+
+def test_plan_editor(as_admin, as_worker, db, seed):
+    """Admin erlaubt einem Mitarbeiter in der Benutzerverwaltung, den Tagesplan zu pflegen."""
+    worker, admin = seed["worker"], seed["admin"]
+    today = date.today()
+    data = {"datum": today.isoformat(), "user_id": admin.id, "text": "Büro aufräumen"}
+    assert as_worker.post("/tagesplan/eintrag", data=data).status_code == 403
+    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter", "active": "1",
+                                           "can_plan": "1"})
+    assert worker.can_plan and worker.is_planner
+    as_worker.post("/tagesplan/eintrag", data=data)
+    task = Task.query.filter_by(title="Büro aufräumen").one()
+    html = as_worker.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert 'action="/tagesplan/eintrag"' in html and "Plan aufs Handy schicken" in html
+    as_worker.post(f"/tagesplan/eintrag/{task.id}/erledigt")               # darf auch für andere abhaken
+    assert task.done_by_id == worker.id
+    worker.role = "betrachter"                                               # nur zusammen mit Bearbeiten-Recht
+    db.session.commit()
+    assert not worker.is_planner
+
+
+def test_open_notes_and_claim(app, as_admin, as_worker, as_viewer, db, seed):
+    admin, worker = seed["admin"], seed["worker"]
+    today = date.today()
+    day = {"datum": today.isoformat()}
+    as_admin.post("/aufgaben/notieren", data=day | {"text": "Hoftor ölen", "important": "1"})
+    as_worker.post("/aufgaben/notieren", data=day | {"text": "Werkzeugwand aufräumen"})
+    assert as_viewer.post("/aufgaben/notieren", data=day | {"text": "x"}).status_code == 403
+    gate = Task.query.filter_by(title="Hoftor ölen").one()
+    wall = Task.query.filter_by(title="Werkzeugwand aufräumen").one()
+    assert [t.title for t in team.open_tasks(today, worker)] == ["Hoftor ölen", "Werkzeugwand aufräumen"]
+    html = as_worker.get("/aufgaben/offen").get_data(as_text=True)
+    assert "Hoftor ölen" in html and "Mach ich" in html
+    assert "Offen für alle" in as_worker.get("/").get_data(as_text=True)
 
     # Mitarbeiter nimmt sich selbst etwas – für andere einplanen darf er nicht
-    as_worker.post(f"/tagesplan/pool/{gate.id}/einplanen", data=day | {"user_id": worker.id})
-    assert [e.text for e in team.plan_for(today)[worker.id]] == ["Hoftor ölen"]
-    assert [i.text for i in team.pool(today)] == ["Werkzeugwand aufräumen"]
-    as_worker.post(f"/tagesplan/pool/{wall.id}/einplanen", data=day | {"user_id": admin.id})
+    as_worker.post(f"/aufgabe/{gate.id}/einplanen", data=day | {"user_id": worker.id})
+    assert [t.title for t in team.plan_for(today)[worker.id]] == ["Hoftor ölen"]
+    as_worker.post(f"/aufgabe/{wall.id}/einplanen", data=day | {"user_id": admin.id})
     assert admin.id not in team.plan_for(today)
-    # Planer teilt zu
-    as_admin.post(f"/tagesplan/pool/{wall.id}/einplanen", data=day | {"user_id": worker.id})
-    assert team.pool(today) == []
-
-    # abhaken erledigt den Pool-Eintrag; liegen gebliebenes ist am nächsten Tag wieder im Pool
-    entry = next(e for e in team.plan_for(today)[worker.id] if e.pool_item_id == gate.id)
-    as_worker.post(f"/tagesplan/eintrag/{entry.id}/erledigt")
-    assert db.session.get(PoolItem, gate.id).done_at is not None
-    assert [i.text for i in team.pool(tomorrow)] == ["Werkzeugwand aufräumen"]
-    # Unerledigtes übernehmen behält die Verknüpfung – dann ist es nicht doppelt im Pool
-    team.carry_over(today, tomorrow, admin)
+    as_admin.post(f"/aufgabe/{wall.id}/einplanen", data=day | {"user_id": worker.id})
+    assert team.open_tasks(today, admin) == []
+    # abgehakt = erledigt, auch unter „Alle“
+    as_worker.post(f"/tagesplan/eintrag/{gate.id}/erledigt")
+    assert gate.is_done
+    # „hat sich erledigt“ / löschen: nur Planer oder wer es notiert hat
+    extra = team.add_open_task("Kaffee kaufen", admin)
     db.session.commit()
-    assert team.pool(tomorrow) == []
-
-    # erledigt ohne Einplanen / löschen: nur Planer oder wer es notiert hat
-    extra = team.add_pool_item("Kaffee kaufen", admin)
+    assert as_worker.post(f"/aufgabe/{extra.id}/weg").status_code == 403
+    as_admin.post(f"/aufgabe/{extra.id}/hat-sich-erledigt")
+    assert extra.is_done
+    other = team.add_open_task("Doppelt notiert", worker)
     db.session.commit()
-    assert as_worker.post(f"/tagesplan/pool/{extra.id}/loeschen", data=day).status_code == 403
-    as_admin.post(f"/tagesplan/pool/{extra.id}/erledigt", data=day)
-    assert db.session.get(PoolItem, extra.id).done_at is not None
+    as_worker.post(f"/aufgabe/{other.id}/weg")
+    assert db.session.get(Task, other.id) is None
+
+
+def test_plan_suggestions(as_admin, as_worker, db, seed):
+    from app.models import MachineEvent, MaintenanceTask
+    admin, worker = seed["admin"], seed["worker"]
+    today = date.today()
+    tractor = Machine(code="M-07", name="Schlepper 7", category="schlepper", counter_unit="h", counter=1000)
+    db.session.add(tractor)
+    db.session.flush()
+    oil = MaintenanceTask(machine=tractor, name="Ölwechsel", interval_months=12,
+                          last_done_on=today - timedelta(days=400))
+    later = MaintenanceTask(machine=tractor, name="Bremsen prüfen", interval_months=12,
+                            last_done_on=today - timedelta(days=200))      # erst in Monaten fällig
+    db.session.add_all([oil, later])
+    fault = machines.add_event(tractor, "stoerung", admin, text="Hydraulik leckt")
+    db.session.commit()
+    keys = [s["key"] for s in team.suggestions(today, admin)]
+    assert keys == [f"stoerung-{fault.id}", f"wartung-{oil.id}"]
+    html = as_admin.get(f"/tagesplan?datum={today.isoformat()}").get_data(as_text=True)
+    assert "Hydraulik leckt" in html and "Ölwechsel" in html
+    assert "Hydraulik leckt" not in as_worker.get("/aufgaben/offen").get_data(as_text=True)    # nur für Planer
+    for key in keys:
+        as_admin.post("/tagesplan/vorschlag", data={"datum": today.isoformat(), "user_id": worker.id, "key": key})
+    assert team.suggestions(today, admin) == []
+    entries = team.plan_for(today)[worker.id]
+    assert len(entries) == 2 and all(e.machine == tractor for e in entries)
+    by_kind = {("wartung" if e.maintenance_task_id else "stoerung"): e for e in entries}
+    # abhaken erledigt die Störung mit, wieder öffnen nimmt es zurück; die Wartung wird an der Maschine eingetragen
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['stoerung'].id}/erledigt")
+    assert db.session.get(MachineEvent, fault.id).resolved_at is not None
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['stoerung'].id}/erledigt")
+    assert db.session.get(MachineEvent, fault.id).resolved_at is None
+    as_worker.post(f"/tagesplan/eintrag/{by_kind['wartung'].id}/erledigt")
+    assert oil.last_done_on == today
+

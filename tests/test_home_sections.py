@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from app import biogas, tiles
+from app import biogas, team, tiles
 from app.models import Setting
 
 
@@ -84,6 +84,8 @@ def test_section_order(app, as_worker, db, seed):
     shown = tiles.sections_for(worker)
     assert shown[0] == "aufgaben" and shown.index("wetter") < shown.index("woche")
     assert worker.home_order.startswith("aufgaben,")
+    team.add_open_task("Hof fegen", worker)                  # „Offen für alle“ erscheint nur mit Inhalt
+    db.session.commit()
     html = as_worker.get("/").get_data(as_text=True)
     assert html.index("home-aufgaben") < html.index("home-wichtig") < html.index("home-woche")
     # Reihenfolge wie die Voreinstellung → nichts Eigenes gespeichert; zurücksetzen löscht sie

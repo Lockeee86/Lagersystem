@@ -1,4 +1,4 @@
-"""Team-Alltag: Übergabe-Notizen, Tagesplan, Unterweisungen mit Unterschrift.
+"""Team-Alltag: Übergabe-Notizen, Tagesplan (= Aufgaben mit geplantem Tag), Unterweisungen mit Unterschrift.
 
 Wie `storage.py` ändern die Funktionen nur die Session, committen muss der Aufrufer. Push-Nachrichten
 (`send_plan`, `handover_posted`) erst nach dem Commit aufrufen.
@@ -12,8 +12,8 @@ from . import push, signatures
 from .extensions import db
 from .i18n import N_, gettext as _
 from .machines import add_months
-from .models import (Handover, InstructionRecord, InstructionTopic, Machine, MachineEvent, MaintenanceTask, PlanEntry,
-                     Plot, PoolItem, Task, User, utcnow)
+from .models import (Handover, InstructionRecord, InstructionTopic, Machine, MachineEvent, MaintenanceTask, Plot, Task,
+                     User, utcnow)
 from .push import Msg
 from .storage import StorageError
 
@@ -79,245 +79,212 @@ def team_members():
     return [u for u in User.query.filter_by(active=True).order_by(User.display_name, User.username) if u.can_edit]
 
 
-def plan_for(day):
-    """{user_id: [Einträge]} für einen Tag."""
+OPEN_AHEAD_DAYS = 7      # „Offen“ zeigt Aufgaben mit Termin bis so viele Tage voraus (spätere unter „Alle“)
+SUGGEST_DAYS = 7         # Wartungen, die in so vielen Tagen fällig werden, schon vorschlagen
+
+
+def _loaded(query):
+    from sqlalchemy.orm import joinedload, selectinload
+    return query.options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine))
+
+
+def plan_for(day, today=None, exact=False):
+    """{user_id: [Aufgaben]} eines Tages. Für heute auch, was an früheren Tagen eingeplant und liegen geblieben ist
+    (`exact` = nur genau dieser Tag, z. B. zum Übernehmen)."""
+    today = today or date.today()
+    query = Task.query.filter(Task.plan_day.isnot(None))
+    if day == today and not exact:
+        query = query.filter(db.or_(Task.plan_day == day, db.and_(Task.plan_day < day, Task.done_at.is_(None))))
+    else:
+        query = query.filter(Task.plan_day == day)
     plan = {}
-    for entry in PlanEntry.query.filter_by(day=day).order_by(PlanEntry.position, PlanEntry.id):
-        plan.setdefault(entry.user_id, []).append(entry)
+    for task in _loaded(query).order_by(Task.plan_day, Task.plan_position, Task.id):
+        if task.plan_user:
+            plan.setdefault(task.plan_user.id, []).append(task)
     return plan
 
 
+def _next_position(day):
+    return (db.session.query(func.max(Task.plan_position)).filter(Task.plan_day == day).scalar() or 0) + 1
+
+
+def _check_member(user):
+    if user is None or not user.active or not user.can_edit:
+        raise StorageError(_("Bitte einen Mitarbeiter wählen."))
+
+
 def add_plan_entry(day, user, text, actor, machine_id=None, plot_ids=()):
+    """Neue Aufgabe direkt in den Tagesplan einer Person."""
     text = _text(text, 200)
     if not text:
         raise StorageError(_("Bitte eintragen, was zu tun ist."))
-    if user is None or not user.active or not user.can_edit:
-        raise StorageError(_("Bitte einen Mitarbeiter wählen."))
+    _check_member(user)
     machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
     plots = Plot.query.filter(Plot.id.in_(set(plot_ids))).order_by(Plot.name).all() if plot_ids else []
-    position = (db.session.query(func.max(PlanEntry.position)).filter_by(day=day, user_id=user.id).scalar() or 0) + 1
-    entry = PlanEntry(day=day, user_id=user.id, text=text, machine_id=machine_id, plots=plots,
-                      position=position, created_by_id=actor.id if actor else None)
-    db.session.add(entry)
+    task = Task(title=text, machine_id=machine_id, plots=plots, assignees=[user], plan_day=day,
+                plan_position=_next_position(day), created_by_id=actor.id if actor else None)
+    db.session.add(task)
     db.session.flush()
-    return entry
+    return task
+
+
+def add_open_task(text, user, machine_id=None, important=False):
+    """Kurz notieren: Aufgabe ohne Person und Tag („Offen“)."""
+    text = _text(text, 200)
+    if not text:
+        raise StorageError(_("Bitte eintragen, was zu tun ist."))
+    machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
+    task = Task(title=text, machine_id=machine_id, important=bool(important), created_by_id=user.id if user else None)
+    db.session.add(task)
+    db.session.flush()
+    return task
+
+
+def plan_task(task, day, user, actor):
+    """Aufgabe für `user` an `day` einplanen – Planer für alle, Mitarbeiter nur sich selbst („Mach ich“)."""
+    if task.is_done:
+        raise StorageError(_("Das ist schon erledigt."))
+    _check_member(user)
+    if not actor.is_planner:
+        if actor.id != user.id:
+            raise StorageError(_("Einplanen kann nur, wer den Tagesplan pflegt – oder du nimmst es dir selbst."))
+        if task.assignees and actor not in task.assignees:
+            raise StorageError(_("Das ist schon jemand anderem zugeteilt."))
+    task.plan_day, task.assignees, task.plan_position = day, [user], _next_position(day)
+    db.session.flush()
+    return task
+
+
+def unplan_task(task):
+    """Zurück nach „Offen“ (ohne Tag und Person)."""
+    task.plan_day, task.plan_position, task.assignees = None, 0, []
+    db.session.flush()
+
+
+def can_change(task, user):
+    """Löschen bzw. „hat sich erledigt“: Planer oder wer es notiert hat."""
+    return bool(user.is_planner or task.created_by_id == user.id)
 
 
 def last_planned_day(before):
-    return db.session.query(func.max(PlanEntry.day)).filter(PlanEntry.day < before).scalar()
+    return db.session.query(func.max(Task.plan_day)).filter(Task.plan_day < before).scalar()
 
 
 def copy_plan(source_day, target_day, actor):
-    """Einträge eines Tages übernehmen – nur für Leute, die am Zieltag noch nichts haben. Gibt die Anzahl zurück."""
+    """Den Plan eines Tages als neue Aufgaben übernehmen – nur für Leute, die am Zieltag noch nichts haben.
+
+    Nur Erledigtes wird wiederholt: Unerledigtes wandert ohnehin mit („seit …“) und stünde sonst doppelt da."""
     if source_day is None:
         raise StorageError(_("Es gibt noch keinen früheren Tagesplan."))
-    planned = set(plan_for(target_day))
+    planned = set(plan_for(target_day, exact=True))
     members = {u.id for u in team_members()}
     copied = 0
-    for user_id, entries in plan_for(source_day).items():
+    for user_id, entries in plan_for(source_day, exact=True).items():
         if user_id in planned or user_id not in members:
             continue
         for e in entries:
-            db.session.add(PlanEntry(day=target_day, user_id=user_id, text=e.text, machine_id=e.machine_id,
-                                     pool_item_id=e.pool_item_id if e.pool_item_id and not e.done_at else None,
-                                     plots=list(e.plots), position=e.position,
-                                     created_by_id=actor.id if actor else None))
+            if not e.is_done:
+                continue
+            db.session.add(Task(title=e.title, machine_id=e.machine_id, plots=list(e.plots), assignees=[e.plan_user],
+                                plan_day=target_day, plan_position=e.plan_position,
+                                created_by_id=actor.id if actor else None))
             copied += 1
     db.session.flush()
     return copied
 
 
-def toggle_plan_entry(entry, user):
-    """Abhaken bzw. wieder öffnen (eingeteilte Person oder Admin). Gibt True zurück, wenn jetzt erledigt."""
-    if not entry.can_check(user):
+def toggle_plan_entry(task, user):
+    """Abhaken bzw. wieder öffnen. Gibt True zurück, wenn jetzt erledigt."""
+    from . import tasks
+    if not task.can_check(user):
         raise StorageError(_("Abhaken kann nur, wer eingeteilt ist."))
-    if entry.done_at:
-        _reopen_linked(entry)
-        entry.done_at, entry.done_by_id = None, None
+    if task.is_done:
+        tasks.reopen_task(task)
     else:
-        entry.done_at, entry.done_by_id = utcnow(), user.id
-        _finish_linked(entry, user)
-        # gleicher Zeitpunkt, damit „Wieder öffnen“ erkennt, was dieser Haken miterledigt hat
-        if entry.task and entry.task.done_at:
-            entry.task.done_at = entry.done_at
-        if entry.machine_event and entry.machine_event.resolved_at:
-            entry.machine_event.resolved_at = entry.done_at
-    return entry.done_at is not None
+        tasks.complete_task(task, user)
+    return task.is_done
 
 
-def open_entries(day):
-    """Nicht erledigte Einträge eines Tages."""
-    return [e for entries in plan_for(day).values() for e in entries if not e.done_at]
+def open_tasks(day, user, today=None):
+    """„Offen“: nicht erledigt und nicht eingeplant, ohne Termin oder bis eine Woche voraus (ohne Hühner).
+    Mitarbeiter sehen nur, was für alle ist; überfällig und wichtig zuerst."""
+    from . import machines
+    query = Task.query.filter(Task.done_at.is_(None), Task.plan_day.is_(None),
+                              db.or_(Task.area.is_(None), Task.area != "huehner"),
+                              db.or_(Task.due_on.is_(None), Task.due_on <= day + timedelta(days=OPEN_AHEAD_DAYS)))
+    rows = [t for t in _loaded(query) if (not t.machine or machines.can_see(t.machine, user))
+            and (user.is_planner or not t.assignees)]
+    return sorted(rows, key=lambda t: (not (t.due_on and t.due_on <= day), not t.important,
+                                       t.due_on or date.max, t.created_at))
 
 
-def last_open_day(before):
-    """Letzter Tag vor `before` mit unerledigten Einträgen – höchstens eine Woche zurück."""
-    return (db.session.query(func.max(PlanEntry.day))
-            .filter(PlanEntry.day < before, PlanEntry.day >= before - timedelta(days=7), PlanEntry.done_at.is_(None))
-            .scalar())
-
-
-def carry_candidates(source_day, target_day):
-    """Unerledigtes von `source_day`, das am `target_day` noch fehlt (gleiche Person, gleicher Text nur einmal)."""
-    if source_day is None:
-        return []
-    members = {u.id for u in team_members()}
-    target = {(e.user_id, e.text) for entries in plan_for(target_day).values() for e in entries}
-    return [e for e in open_entries(source_day) if e.user_id in members and (e.user_id, e.text) not in target]
-
-
-def carry_over(source_day, target_day, actor):
-    """Unerledigtes von `source_day` an `target_day` hinten anhängen. Gibt die Anzahl zurück."""
-    if source_day is None:
-        raise StorageError(_("Es gibt nichts Unerledigtes zu übernehmen."))
-    candidates = carry_candidates(source_day, target_day)
-    for e in candidates:
-        position = (db.session.query(func.max(PlanEntry.position))
-                    .filter_by(day=target_day, user_id=e.user_id).scalar() or 0) + 1
-        db.session.add(PlanEntry(day=target_day, user_id=e.user_id, text=e.text, machine_id=e.machine_id,
-                                 pool_item_id=e.pool_item_id,
-                                 plots=list(e.plots), position=position, created_by_id=actor.id if actor else None))
-        db.session.flush()
-    return len(candidates)
-
-
-SUGGEST_DAYS = 7          # Wartungen, die in so vielen Tagen fällig werden, schon vorschlagen
+def my_today(user, today=None):
+    """„Meine Aufgaben heute“: heute eingeplant (auch schon abgehakt), früher eingeplant und liegen geblieben, und
+    mir zugeteilte Aufgaben ohne Tag, die heute fällig sind oder keinen Termin haben."""
+    from .models import task_assignees
+    today = today or date.today()
+    mine = db.session.query(task_assignees.c.task_id).filter(task_assignees.c.user_id == user.id)
+    query = Task.query.filter(Task.id.in_(mine), db.or_(
+        Task.plan_day == today,
+        db.and_(Task.plan_day < today, Task.done_at.is_(None)),
+        db.and_(Task.plan_day.is_(None), Task.done_at.is_(None),
+                db.or_(Task.due_on.is_(None), Task.due_on <= today))))
+    return sorted(_loaded(query), key=lambda t: (t.is_done, t.plan_day or date.max, t.plan_position, t.id))
 
 
 def suggestions(day, user=None):
-    """Was sich für `day` anbietet: fällige Aufgaben, Wartungen und offene Störungen, die noch nicht eingeplant sind.
+    """Was sich für `day` anbietet, aber noch keine Aufgabe ist: fällige Wartungen und offene Störungen.
 
-    Liste von Dicts {key, kind, text, item, machine, plots, assignee_id, due_on, late}; überfällig zuerst.
+    Liste von Dicts {key, kind, text, item, machine, due_on, left_counter, late}; überfällig zuerst.
     `user` (wer plant) filtert Maschinen, die er nicht sehen darf (Biogas).
     """
-    from . import machines, tasks
-    planned = {(kind, ref) for e in PlanEntry.query.filter_by(day=day)
-               for kind, ref in (("task", e.task_id), ("wartung", e.maintenance_task_id), ("stoerung", e.machine_event_id))
-               if ref}
-    members = {u.id for u in team_members()}
+    from . import machines
+    linked = Task.query.filter(Task.done_at.is_(None))
+    linked_maint = {t.maintenance_task_id for t in linked if t.maintenance_task_id}
+    linked_events = {t.machine_event_id for t in linked if t.machine_event_id}
     rows = []
-    linked_maint, linked_events = set(), set()
-    for t in Task.query.filter(Task.done_at.is_(None), db.or_(Task.due_on.is_(None), Task.due_on <= day)):
-        if t.area == "huehner" or (t.machine and not machines.can_see(t.machine, user)):
-            continue
-        if t.maintenance_task_id:
-            linked_maint.add(t.maintenance_task_id)
-        if t.machine_event_id:
-            linked_events.add(t.machine_event_id)
-        if ("task", t.id) in planned:
-            continue
-        assignees = [u.id for u in t.assignees if u.id in members]
-        rows.append({"key": f"task-{t.id}", "kind": "task", "text": t.title, "item": t, "machine": t.machine,
-                     "plots": list(t.plots), "assignee_id": assignees[0] if len(assignees) == 1 else None,
-                     "due_on": t.due_on, "late": bool(t.due_on and t.due_on < day), "important": t.important})
     for mt, status in machines.due_tasks(user=user):
         by_date = status["left_days"] is not None and status["left_days"] <= SUGGEST_DAYS
         by_counter = (status["left_counter"] is not None
                       and status["left_counter"] <= max(10, (mt.interval_hours or 0) // 10))
-        soon = status["state"] == "overdue" or by_date or by_counter
-        if not soon or mt.id in linked_maint or ("wartung", mt.id) in planned:
+        if not (status["state"] == "overdue" or by_date or by_counter) or mt.id in linked_maint:
             continue
         rows.append({"key": f"wartung-{mt.id}", "kind": "wartung", "text": mt.name, "item": mt, "machine": mt.machine,
-                     "plots": [], "assignee_id": None, "due_on": status["due_on"] if by_date or not by_counter else None,
+                     "due_on": status["due_on"] if by_date or not by_counter else None,
                      "left_counter": status["left_counter"] if by_counter else None,
                      "late": status["state"] == "overdue", "important": False})
     for ev in machines.open_faults(user):
-        if ev.id in linked_events or ("stoerung", ev.id) in planned:
+        if ev.id in linked_events:
             continue
         rows.append({"key": f"stoerung-{ev.id}", "kind": "stoerung", "text": (ev.text or "").strip()[:200] or ev.machine.name,
-                     "item": ev, "machine": ev.machine, "plots": [], "assignee_id": None, "due_on": ev.date,
+                     "item": ev, "machine": ev.machine, "due_on": ev.date, "left_counter": None,
                      "late": not ev.still_running, "important": not ev.still_running})
-    order = {"stoerung": 0, "wartung": 1, "task": 2}
+    order = {"stoerung": 0, "wartung": 1}
     return sorted(rows, key=lambda r: (not r["late"], not r["important"], order[r["kind"]], r["due_on"] or date.max))
 
 
 def add_suggestion(day, user, key, actor):
-    """Einen Vorschlag (`task-3`, `wartung-5`, `stoerung-7`) für `user` einplanen."""
+    """Wartung (`wartung-5`) bzw. Störung (`stoerung-7`) als Aufgabe für `user` einplanen – Abhaken erledigt sie mit."""
     match = {s["key"]: s for s in suggestions(day, actor)}.get(key)
     if match is None:
         raise StorageError(_("Dieser Vorschlag ist schon eingeplant oder erledigt."))
-    entry = add_plan_entry(day, user, match["text"], actor, machine_id=match["machine"].id if match["machine"] else None,
-                           plot_ids=[p.id for p in match["plots"]])
-    if match["kind"] == "task":
-        entry.task_id = match["item"].id
-    elif match["kind"] == "wartung":
-        entry.maintenance_task_id = match["item"].id
+    task = add_plan_entry(day, user, match["text"], actor, machine_id=match["machine"].id if match["machine"] else None)
+    if match["kind"] == "wartung":
+        task.maintenance_task_id = match["item"].id
     else:
-        entry.machine_event_id = match["item"].id
+        task.machine_event_id, task.important = match["item"].id, match["important"]
     db.session.flush()
-    return entry
-
-
-def _finish_linked(entry, user):
-    """Abgehakter Eintrag erledigt die verknüpfte Aufgabe bzw. Störung. Wartungen trägt man an der Maschine ein
-    (Zählerstand, Kosten) – dafür zeigt der Plan einen Link."""
-    from . import machines, tasks
-    if entry.task and not entry.task.is_done:
-        tasks.complete_task(entry.task, user)
-    elif entry.machine_event and entry.machine_event.is_open_fault:
-        machines.resolve_fault(entry.machine_event, user)
-        tasks.close_linked(user, event=entry.machine_event)
-    elif entry.pool_item and not entry.pool_item.done_at:
-        entry.pool_item.done_at, entry.pool_item.done_by_id = utcnow(), user.id
-
-
-def _reopen_linked(entry):
-    """Wieder geöffnet: was der Haken miterledigt hat, wieder öffnen (nur wenn es über diesen Eintrag erledigt wurde)."""
-    from . import tasks
-    if entry.task and entry.task.is_done and entry.task.done_at == entry.done_at:
-        tasks.reopen_task(entry.task)
-    elif entry.machine_event and entry.machine_event.resolved_at == entry.done_at:
-        entry.machine_event.resolved_at = entry.machine_event.resolved_by_id = None
-    elif entry.pool_item and entry.pool_item.done_at:
-        entry.pool_item.done_at = entry.pool_item.done_by_id = None
-
-
-# --- Aufgabenpool ----------------------------------------------------------------------------
-# Kurz notierte Arbeit ohne Person und Tag. Im Pool steht, was nicht erledigt und für `day` oder später noch nicht
-# eingeplant ist – was an einem früheren Tag liegen blieb, ist also wieder da.
-
-def pool(day):
-    planned = {pid for (pid,) in db.session.query(PlanEntry.pool_item_id)
-               .filter(PlanEntry.pool_item_id.isnot(None), PlanEntry.day >= day)}
-    items = PoolItem.query.filter(PoolItem.done_at.is_(None)).order_by(PoolItem.important.desc(), PoolItem.created_at).all()
-    return [i for i in items if i.id not in planned]
-
-
-def add_pool_item(text, user, machine_id=None, important=False):
-    text = _text(text, 200)
-    if not text:
-        raise StorageError(_("Bitte eintragen, was zu tun ist."))
-    machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
-    item = PoolItem(text=text, machine_id=machine_id, important=bool(important), created_by_id=user.id if user else None)
-    db.session.add(item)
-    db.session.flush()
-    return item
-
-
-def plan_pool_item(item, day, user, actor):
-    """Pool-Eintrag für `user` an `day` einplanen (Planer für alle, Mitarbeiter nur für sich selbst)."""
-    if item.done_at:
-        raise StorageError(_("Das ist schon erledigt."))
-    if not (actor.is_planner or actor.id == user.id):
-        raise StorageError(_("Einplanen kann nur, wer den Tagesplan pflegt – oder du nimmst es dir selbst."))
-    if item.id not in {i.id for i in pool(day)}:
-        raise StorageError(_("Das ist schon eingeplant."))
-    entry = add_plan_entry(day, user, item.text, actor, machine_id=item.machine_id)
-    entry.pool_item_id = item.id
-    db.session.flush()
-    return entry
-
-
-def can_change_pool_item(item, user):
-    return bool(user.is_planner or item.created_by_id == user.id)
+    return task
 
 
 def send_plan(day, actor):
     """Jedem Eingeteilten seinen Plan aufs Handy schicken (nach dem Commit). Gibt die Zahl der Empfänger zurück."""
     sent = 0
     for user_id, entries in plan_for(day).items():
-        user = entries[0].user
-        lines = [e.text + (f" ({e.machine.name})" if e.machine else "") for e in entries]
+        user = entries[0].plan_user
+        lines = [e.title + (f" ({e.machine.name})" if e.machine else "") for e in entries if not e.is_done]
+        if not lines:
+            continue
         sent += push.notify([user], "day_plan", Msg("Dein Plan für {day}", day=day.strftime("%d.%m.")),
                             " · ".join(lines)[:200], url_for("team.day_plan", datum=day.isoformat()),
                             tag=f"plan-{day.isoformat()}")

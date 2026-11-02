@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "team/_macros.html" import task_tabs, note_form, open_list with context %}
+{% block title %}{{ _("Offene Aufgaben") }}{% endblock %}
+{% block content %}
+{% set here = url_for('team.open_page') %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Aufgaben") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Noch nicht eingeplant – verteilen oder selbst übernehmen.") if current_user.is_planner else _("Noch nicht eingeplant – nimm dir etwas mit „Mach ich“.") }}</p>
+    </div>
+</div>
+{{ task_tabs("offen") }}
+<div class="card shadow-sm" id="offen">
+    <div class="card-body pb-1">{{ note_form(day, note_machines, here) }}</div>
+    {{ open_list(open, suggestions, day, today, members, here) }}
+</div>
+{% endblock %}

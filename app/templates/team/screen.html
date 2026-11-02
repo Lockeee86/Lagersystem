@@ -140,7 +140,7 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
                     <div class="name">{{ p.user.name }}<span>{{ p.done }}/{{ p.total }}</span></div>
                     {% for e in p.entries %}
                     <div class="entry {{ 'done' if e.done_at }}"><i class="bi {{ 'bi-check-square-fill' if e.done_at else 'bi-square' }}"></i>
-                        <span>{{ e.text }}
+                        <span>{{ e.title }}
                         {% if e.machine %} <span class="tag">{{ e.machine.name }}</span>{% endif %}
                         {% for pl in e.plots[:2] %} <span class="tag">{{ pl.name }}</span>{% endfor %}</span>
                     </div>
@@ -198,7 +198,7 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
             </section>
             {% endif %}
             <section class="card grow">
-                <h2><i class="bi bi-list-check"></i>{{ _("Aufgaben") }}{% if d.tasks %}<span class="count">{{ d.tasks|length + d.tasks_more }}</span>{% endif %}</h2>
+                <h2><i class="bi bi-inbox"></i>{{ _("Offen") }}{% if d.tasks %}<span class="count">{{ d.tasks|length + d.tasks_more }}</span>{% endif %}</h2>
                 {% for t in d.tasks %}
                 <div class="row"><span class="dot {{ 'red' if t.due_on and t.due_on < d.today else 'amber' if t.important else 'blue' }}"></span>
                     <span class="stack"><span class="what">{{ t.title }}</span>

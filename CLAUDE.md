@@ -39,11 +39,11 @@ docker compose up --build -d
   abschließen, Zusammenfassung für Anzeige/PDF); committet wie `storage.py` nicht selbst.
   `app/sales_views.py` (Blueprint `sales`: Lieferscheine, Verladen per Dauer-Scanner, Kunden, Anerkennungen),
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
-- `app/team.py`: Team-Alltag – Übergabe-Notizen (`Handover`, `open_handovers()`), Tagesplan (`PlanEntry`, `plan_for()`,
-  `copy_plan()`, Abhaken `toggle_plan_entry()`, Unerledigtes `carry_over()`, Aufgabenpool `PoolItem` (`pool()`, `add_pool_item()`,
-  `plan_pool_item()`, `PlanEntry.pool_item_id`), Vorschläge `suggestions()` / `add_suggestion()`
-  (fällige Aufgaben, Wartungen, offene Störungen; `PlanEntry.task_id`/`maintenance_task_id`/`machine_event_id`, Abhaken
-  erledigt Aufgabe/Störung mit, Wartung über `PlanEntry.maintenance_pending` an der Maschine eintragen), Pflegen: Admin oder `User.can_plan` → `is_planner`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
+- `app/team.py`: Team-Alltag – Übergabe-Notizen (`Handover`, `open_handovers()`), Tagesplan = Ansicht der Aufgaben (es gibt nur `Task`;
+  eingeplant = `Task.plan_day` + eine Person, `plan_position`; `plan_for()` inkl. Liegengebliebenem, `open_tasks()` = „Offen“,
+  `my_today()` = Startseite, `add_plan_entry()` / `add_open_task()` / `plan_task()` / `unplan_task()`, `copy_plan()` nur Erledigtes,
+  Abhaken `toggle_plan_entry()` über `tasks.complete_task`/`reopen_task`, Vorschläge `suggestions()` / `add_suggestion()` =
+  Wartungen und Störungen ohne Aufgabe; Reiter Heute/Offen/Alle `team/_macros.html` `task_tabs`), Pflegen: Admin oder `User.can_plan` → `is_planner`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
   `overview()`, `sign_instruction()`), committet nicht; `app/team_views.py` (Blueprint `team`), `app/instruction_pdf.py`
   (Nachweis, immer Deutsch). Werkstatt-Bildschirm (Fernseher, Full HD): `app/screen.py` (`data()` inkl. `biogas.dashboard()`, Schlüssel `settings`
   `display_workshop_token`), Route `team.screen` `/werkstatt/anzeige/<token>` ohne Anmeldung, Vorlage `team/screen.html`,

@@ -9,8 +9,8 @@ from . import team, uploads
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .instruction_pdf import render_instruction_record
-from .models import (Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, PlanEntry, Plot,
-                     PoolItem, Setting, User, utcnow)
+from .models import (Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, Plot, Setting, Task,
+                     User)
 from .storage import StorageError
 from .utils import admin_required, back, editor_required, flash_error, form_date, form_int, form_str, local_tz
 
@@ -83,34 +83,60 @@ def _to_plan(day, anchor=None):
     return redirect(url_for("team.day_plan", datum=day.isoformat()) + (f"#{anchor}" if anchor else ""))
 
 
+def _day_arg():
+    try:
+        return date.fromisoformat(request.args["datum"]) if request.args.get("datum") else _default_day()
+    except ValueError:
+        return date.today()
+
+
+def _open_context(day):
+    """Gemeinsam für „Heute“ und „Offen“: offene Aufgaben, Vorschläge (Planer), Maschinen fürs Notieren."""
+    return dict(
+        open=team.open_tasks(day, current_user) if current_user.can_edit else [],
+        suggestions=team.suggestions(day, current_user) if current_user.is_planner else [],
+        note_machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.can_edit else [],
+    )
+
+
 @bp.route("/tagesplan")
 @login_required
 def day_plan():
-    try:
-        day = date.fromisoformat(request.args["datum"]) if request.args.get("datum") else _default_day()
-    except ValueError:
-        day = date.today()
-    plan = team.plan_for(day)
+    """Aufgaben → Heute: je Person der Tag; links „Offen“ zum Verteilen (Planer) bzw. „Meine Aufgaben“ (Mitarbeiter)."""
+    day = _day_arg()
+    today = date.today()
+    plan = team.plan_for(day, today)
     members = team.team_members()
     # Leute mit Einträgen zuerst, dann die übrigen; der eigene Plan ganz oben
     members.sort(key=lambda u: (u.id != current_user.id, u.id not in plan))
     recent = []
     if current_user.is_planner:                  # Vorschläge fürs Textfeld: zuletzt verwendete Einträge
-        for (text,) in (db.session.query(PlanEntry.text).filter(PlanEntry.day >= day - timedelta(days=60))
-                        .group_by(PlanEntry.text).order_by(db.func.max(PlanEntry.id).desc()).limit(40)):
+        for (text,) in (db.session.query(Task.title).filter(Task.plan_day >= day - timedelta(days=60))
+                        .group_by(Task.title).order_by(db.func.max(Task.id).desc()).limit(40)):
             recent.append(text)
     return render_template(
-        "team/day_plan.html", day=day, plan=plan, members=members, today=date.today(), timedelta1=timedelta(days=1),
+        "team/day_plan.html", day=day, plan=plan, members=members, today=today, timedelta1=timedelta(days=1),
         recent_texts=recent, sent=db.session.get(Setting, f"push_plan_sent_{day.isoformat()}") is not None,
         previous=team.last_planned_day(day) if current_user.is_planner else None,
-        open_day=(open_day := team.last_open_day(day) if current_user.is_planner else None),
-        open_count=len(team.carry_candidates(open_day, day)) if open_day else 0,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_planner else [],
         plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.is_planner else [],
-        suggestions=team.suggestions(day, current_user) if current_user.is_planner else [],
-        pool=team.pool(day) if current_user.can_edit else [],
-        pool_machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.can_edit else [],
+        **_open_context(day),
     )
+
+
+@bp.route("/aufgaben/offen")
+@editor_required
+def open_page():
+    """Aufgaben → Offen: alles Notierte und Fällige, das noch niemand eingeplant hat."""
+    day = date.today()
+    return render_template("team/open.html", day=day, today=day, members=team.team_members(), **_open_context(day))
+
+
+def _back_or_plan(day, anchor=None):
+    target = request.form.get("back", "")
+    if target.startswith("/") and not target.startswith("//"):
+        return redirect(target)
+    return _to_plan(day, anchor)
 
 
 @bp.route("/tagesplan/eintrag", methods=["POST"])
@@ -129,60 +155,73 @@ def plan_add():
     return _to_plan(day, f"p{user.id}" if user else None)
 
 
-# --- Aufgabenpool -------------------------------------------------------------------------------
-
-@bp.route("/tagesplan/pool", methods=["POST"])
+@bp.route("/aufgaben/notieren", methods=["POST"])
 @editor_required
-def pool_add():
-    day = _form_day()
+def open_add():
+    """Kurz notieren – landet unter „Offen“."""
     try:
-        team.add_pool_item(request.form.get("text"), current_user, machine_id=form_int("machine_id"),
+        team.add_open_task(request.form.get("text"), current_user, machine_id=form_int("machine_id"),
                            important=bool(request.form.get("important")))
         db.session.commit()
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return _to_plan(day, "pool")
+    return _back_or_plan(_form_day(), "offen")
 
 
-@bp.route("/tagesplan/pool/<int:item_id>/einplanen", methods=["POST"])
+@bp.route("/aufgabe/<int:task_id>/einplanen", methods=["POST"])
 @editor_required
-def pool_plan(item_id):
-    """Einplanen: Planer wählt die Person, ein Mitarbeiter nimmt es sich selbst („Mach ich“)."""
-    item = _get(PoolItem, item_id)
+def task_plan(task_id):
+    """Einplanen: Planer wählen die Person, ein Mitarbeiter nimmt es sich selbst („Mach ich“)."""
+    task = _get(Task, task_id)
     day = _form_day()
     user = db.session.get(User, form_int("user_id", 0)) or current_user
     try:
-        team.plan_pool_item(item, day, user, current_user)
+        team.plan_task(task, day, user, current_user)
         db.session.commit()
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-        return _to_plan(day, "pool")
-    return _to_plan(day, f"p{user.id}")
+    return _back_or_plan(day, f"p{user.id}")
 
 
-@bp.route("/tagesplan/pool/<int:item_id>/erledigt", methods=["POST"])
-@editor_required
-def pool_done(item_id):
-    """Ohne Einplanen erledigt (hat sich erledigt)."""
-    item = _get(PoolItem, item_id)
-    if not team.can_change_pool_item(item, current_user):
-        abort(403)
-    item.done_at, item.done_by_id = utcnow(), current_user.id
+@bp.route("/aufgabe/<int:task_id>/zurueck", methods=["POST"])
+@planner_required
+def task_unplan(task_id):
+    """Aus dem Tagesplan zurück nach „Offen“."""
+    task = _get(Task, task_id)
+    day = task.plan_day or _form_day()
+    team.unplan_task(task)
     db.session.commit()
-    return _to_plan(_form_day(), "pool")
+    return _back_or_plan(day, "offen")
 
 
-@bp.route("/tagesplan/pool/<int:item_id>/loeschen", methods=["POST"])
+@bp.route("/aufgabe/<int:task_id>/hat-sich-erledigt", methods=["POST"])
 @editor_required
-def pool_delete(item_id):
-    item = _get(PoolItem, item_id)
-    if not team.can_change_pool_item(item, current_user):
+def task_settled(task_id):
+    """Ohne Einplanen erledigt."""
+    from . import tasks
+    task = _get(Task, task_id)
+    if not team.can_change(task, current_user):
         abort(403)
-    db.session.delete(item)
+    if not task.is_done:
+        tasks.complete_task(task, current_user)
     db.session.commit()
-    return _to_plan(_form_day(), "pool")
+    return _back_or_plan(_form_day(), "offen")
+
+
+@bp.route("/aufgabe/<int:task_id>/weg", methods=["POST"])
+@editor_required
+def task_remove(task_id):
+    """Notiz löschen (Planer oder wer sie notiert hat)."""
+    task = _get(Task, task_id)
+    if not team.can_change(task, current_user):
+        abort(403)
+    names = [ph.filename for ph in task.photos]
+    db.session.delete(task)
+    db.session.commit()
+    uploads.delete_files(names)
+    return _back_or_plan(_form_day(), "offen")
 
 
 @bp.route("/tagesplan/vorschlag", methods=["POST"])
@@ -196,17 +235,7 @@ def plan_suggestion():
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return _to_plan(day, "vorschlaege")
-
-
-@bp.route("/tagesplan/eintrag/<int:entry_id>/loeschen", methods=["POST"])
-@planner_required
-def plan_delete(entry_id):
-    entry = _get(PlanEntry, entry_id)
-    day, user_id = entry.day, entry.user_id
-    db.session.delete(entry)
-    db.session.commit()
-    return _to_plan(day, f"p{user_id}")
+    return _back_or_plan(day, "offen")
 
 
 @bp.route("/tagesplan/uebernehmen", methods=["POST"])
@@ -225,33 +254,19 @@ def plan_copy():
     return _to_plan(day)
 
 
-@bp.route("/tagesplan/offenes", methods=["POST"])
-@planner_required
-def plan_carry_over():
-    day = _form_day()
-    source = team.last_open_day(day)
-    try:
-        n = team.carry_over(source, day, current_user)
-        db.session.commit()
-        flash(ngettext("{n} unerledigter Eintrag übernommen.", "{n} unerledigte Einträge übernommen.", n)
-              if n else _("Das Unerledigte steht schon im Plan."), "success")
-    except StorageError as e:
-        db.session.rollback()
-        flash_error(str(e))
-    return _to_plan(day)
-
-
-@bp.route("/tagesplan/eintrag/<int:entry_id>/erledigt", methods=["POST"])
+@bp.route("/tagesplan/eintrag/<int:task_id>/erledigt", methods=["POST"])
 @editor_required
-def plan_check(entry_id):
-    entry = _get(PlanEntry, entry_id)
+def plan_check(task_id):
+    task = _get(Task, task_id)
     try:
-        team.toggle_plan_entry(entry, current_user)
+        team.toggle_plan_entry(task, current_user)
         db.session.commit()
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return back("team.day_plan", datum=entry.day.isoformat(), _anchor=f"p{entry.user_id}")
+    user = task.plan_user
+    return back("team.day_plan", datum=(task.plan_day or date.today()).isoformat(),
+                _anchor=f"p{user.id}" if user else None)
 
 
 @bp.route("/tagesplan/verschicken", methods=["POST"])
