@@ -1183,7 +1183,7 @@ def batch_store():
                         amount=_amount_text(count, rest), variety=settings["variety"].name,
                         row=settings["warehouse"].row_label(settings["row"]), stacks=", ".join(stacks)), "success")
                 keep = {k: v for k, v in values.items() if k in BATCH_KEYS and k not in ("anzahl", "rest", "platz") and v}
-                response = redirect(url_for("main.batch_store", **keep))
+                response = redirect(url_for("main.storage_home"))          # danach zurück zur Lager-Übersicht
                 return _harvest_store(response, {**_harvest_cookie(), **{k: v for k, v in keep.items() if k in HARVEST_KEYS}})
         except (StorageError, IntegrityError) as e:
             db.session.rollback()

@@ -104,7 +104,7 @@ def test_pages(as_admin, as_worker, as_viewer, db, seed):
     assert "Vorschau" in html and "C-01" in html and "C-03" in html and "10½ Kisten Belana" in html
     assert Box.query.count() == 0 and "+5" in html and "is-new" in html     # Karte mit den neuen Kisten
     r = as_worker.post("/einlagern", data=form | {"bestaetigt": "1"})
-    assert r.status_code == 302 and "/einlagern" in r.headers["Location"]
+    assert r.status_code == 302 and r.headers["Location"].endswith("/lager/uebersicht")
     assert Box.query.filter(Box.warehouse_id.isnot(None)).count() == 11
     assert "10½ Kisten Belana in Reihe C eingelagert (C-01, C-02, C-03)." in as_worker.get(r.headers["Location"]).get_data(as_text=True)
 
