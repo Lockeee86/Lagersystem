@@ -156,6 +156,7 @@ h1, .h1 { font-size: clamp(1.4rem, 1.1rem + 1vw, 1.9rem); font-weight: 700; lett
 button.task-check:hover { border-color: #3f8f4f; color: #3f8f4f; }
 .task-check.checked { background: #3f8f4f; border-color: #3f8f4f; color: #fff; }
 .task-meta > span + span::before { content: " · "; }
+@media (min-width: 992px) { .task-meta > .d-lg-none + span::before { content: none; } }   /* „wichtig“/Wiederholung stehen am PC woanders */
 .task-item.is-done .task-title { text-decoration: line-through; color: var(--bs-secondary-color); }
 .tabbar .tabbar-scan {
     width: 3.6rem; height: 3.6rem; margin: -1.4rem auto 0; border-radius: 50%;
