@@ -3185,4 +3185,9 @@ MESSAGES = {
     'Alle Verträge': 'Wszystkie umowy',
     'keine Plätze': 'brak miejsc',
     'Keine Verträge gefunden.': 'Nie znaleziono umów.',
+    'Wald': 'Las',
+    'nur Bestattungswald': 'tylko las pamięci',
+    'Nur eine Rubrik (nicht für Admins)': 'Tylko jeden dział (nie dla adminów)',
+    'Nein – sieht den Betrieb wie gewohnt': 'Nie – widzi gospodarstwo jak zwykle',
+    'Nur Bestattungswald: sieht ausschließlich den Wald mit Beisetzungen, Aufgaben und Baumkontrolle – keine Verträge, kein Lager, Feld usw.': 'Tylko las pamięci: widzi wyłącznie las z pochówkami, zadaniami i kontrolą drzew – bez umów, magazynu, pól itd.',
 }

@@ -186,6 +186,9 @@ Portainer-Stack (docker-compose)
   am Baum durch Ankreuzen freier Plätze.
 - Verkehrssicherung: Baumkontrolle als Rundgang (`CheckStation.area == "wald"`), Push „Nach Sturm“ bei Böen ab
   70 km/h am Vortag. Beisetzungen im Kalender.
+- **Nur Bestattungswald** (0.84.0, `User.forest_only`): wie „nur Hühner“ – sieht nur den Wald (ohne Verträge),
+  Aufgaben mit `Task.area == "wald"` oder ihm zugeteilt, Baumkontrolle, Push Sturm + eigene Aufgaben; untere Leiste
+  Wald · Beisetzungen · Scannen · Aufgaben · Mehr. Beide Modi teilen sich `area_only.py`.
 - Später denkbar: Vertrags-PDF, Ende der Ruhefrist mit Erinnerung, öffentliche Baumsuche für Angehörige.
 
 ### Einlagern ohne Etikett, Partien (0.76.0)
@@ -522,7 +525,7 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    0.49.3: Maschinen-Art „Wärmenetz“ (Zusatzheizung, Pumpen, Übergabestationen) mit eigenen Wartungsvorlagen –
    nicht an die BHKW gebunden und für alle sichtbar.
    **Benutzer „nur Hühner“** (0.47.0, `User.chickens_only`,
-   `app/chickens_only.py`): sieht nur die Rubrik Hühner, Hühner-Aufgaben (`Task.area` oder ihm zugeteilt), Stallkontrolle
+   `app/area_only.py`, seit 0.84.0 auch „nur Bestattungswald“): sieht nur die Rubrik Hühner, Hühner-Aufgaben (`Task.area` oder ihm zugeteilt), Stallkontrolle
    und sein Konto; alles andere 404 (`before_request`), Startseite = Hühner-Übersicht, eigene untere Leiste,
    Push nur Hühner + eigene Aufgaben, Aufgaben ohne Bezug zu Maschine/Lager/Schlag, Futter (`FeedEntry` kg/€ → g je Huhn und Tag, Kosten je Ei je Monat), Stallbuch
    (`FlockTreatment` mit Wartezeit → „Eier gesperrt bis …“). Stallkontrolle über den Rundgang (`CheckStation.area`

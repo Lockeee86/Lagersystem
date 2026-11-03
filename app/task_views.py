@@ -25,7 +25,7 @@ def _get_task(task_id):
 
 def _choices(task=None):
     """Auswahllisten für das Formular (aktive Maschinen, offene Lieferscheine + der bisherige Bezug)."""
-    if current_user.only_chickens:                     # kein Bezug zu Maschinen, Lieferscheinen, Schlägen, Lager
+    if current_user.restricted:                        # kein Bezug zu Maschinen, Lieferscheinen, Schlägen, Lager
         return dict(users=tasks.request_recipients(), recurrences=RECURRENCES, machines=[], deliveries=[],
                     warehouses=[], plots=[])
     machines = visible_machines(Machine.query, current_user).filter(
@@ -77,8 +77,8 @@ def _back(default):
 def task_list():
     # Wessen Aufgaben? Mitarbeiter/Betrachter standardmäßig die eigenen, der Admin alle
     who = request.args.get("wer") or ("alle" if current_user.is_admin else "ich")
-    if current_user.only_chickens:
-        who = "ich"                                    # sieht nur die Hühner-Aufgaben (chickens_only.py)
+    if current_user.restricted:
+        who = "ich"                                    # sieht nur die Aufgaben seiner Rubrik (area_only.py)
     person = None
     if who == "ich":
         person = current_user
@@ -90,7 +90,8 @@ def task_list():
         "machine_id": request.args.get("maschine", type=int),
         "delivery_id": request.args.get("lieferschein", type=int),
         "plot_ids": request.args.getlist("schlag", type=int),
-        "area": "huehner" if request.args.get("bereich") == "huehner" or current_user.only_chickens else None,
+        "area": current_user.only_area or (request.args.get("bereich")
+                                           if request.args.get("bereich") in ("huehner", "wald") else None),
     }
     if request.args.get("titel"):                      # z. B. „Halle 2 lüften“ aus dem Lagerklima
         prefill.update(title=request.args["titel"].strip()[:200], important=True, due_on=date.today())
@@ -128,8 +129,10 @@ def task_create():
             fields["assignees"] = tasks.allowed_assignees(current_user, fields["assignees"])
             fields["recurrence"] = None
         task = tasks.create_task(current_user, **fields)
-        if request.form.get("area") == "huehner" or current_user.only_chickens:
-            task.area = "huehner"
+        if current_user.restricted:
+            task.area = current_user.only_area
+        elif request.form.get("area") in ("huehner", "wald"):
+            task.area = request.form["area"]
         db.session.commit()
         push.task_assigned(task, current_user)
         flash(_("Aufgabe „{title}“ angelegt.", title=task.title), "success")

@@ -7,7 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
 from .models import FILL_LEVELS, ROLES, SORT_USAGES, Setting, User
-from . import backgrounds, branding, navigation, tabbar, utils
+from . import area_only, backgrounds, branding, navigation, tabbar, utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
 
@@ -189,6 +189,8 @@ def create_app(config=None):
             if current_user.is_authenticated else None,
             "tabbar": tabbar.entries(current_user) if current_user.is_authenticated else [],
             "tab_center": tabbar.center(current_user) if current_user.is_authenticated else None,
+            "only_area": area_only.config(current_user)
+            if current_user.is_authenticated and current_user.restricted else None,
             "glass_bg": backgrounds.effective(current_user),
             "glass_strength": backgrounds.strength(current_user),
             "classic_theme": backgrounds.theme(current_user if current_user.is_authenticated else None),
@@ -215,14 +217,14 @@ def create_app(config=None):
         return None
 
     @app.before_request
-    def chickens_only_guard():
-        """Benutzer „nur Hühner“ sehen nur die Hühner (chickens_only.py) – Startseite = Hühner-Übersicht."""
-        if not current_user.is_authenticated or not current_user.only_chickens:
+    def area_only_guard():
+        """Benutzer „nur Hühner“/„nur Bestattungswald“ sehen nur ihre Rubrik (area_only.py) – Startseite = deren Übersicht."""
+        if not current_user.is_authenticated or not current_user.restricted:
             return None
-        from . import chickens_only
+        from . import area_only
         if request.endpoint == "main.dashboard":
-            return redirect(url_for("chickens.overview"))
-        if not chickens_only.current_allowed(current_user):
+            return redirect(url_for(area_only.config(current_user)["home"]))
+        if not area_only.current_allowed(current_user):
             abort(404)
         return None
 

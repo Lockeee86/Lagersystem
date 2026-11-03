@@ -138,3 +138,53 @@ def test_pages(app, db, woods, as_admin, as_worker, as_viewer):
     assert as_worker.get("/scan?code=W-001", follow_redirects=False).headers["Location"].endswith("/wald/baum/1")
     assert as_admin.post("/wald/baeume/anlegen", data={"first": "6", "last": "8", "places": "12"}).status_code == 302
     assert ForestTree.query.count() == 8
+
+
+def test_forest_only_user(app, db, woods, as_admin, as_worker):
+    """Benutzer „nur Bestattungswald“: sieht ausschließlich den Wald, seine Aufgaben und die Baumkontrolle."""
+    from app import rounds
+    from app.models import CheckStation, PUSH_TOPICS
+    worker = woods["worker"]
+    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter",
+                                           "language": "de", "active": "1", "only": "wald"})
+    assert worker.forest_only and worker.forest and worker.only_forest and not worker.only_chickens
+    assert worker.sees_forest and not worker.sees_biogas and not worker.sees_chickens
+    r = as_worker.get("/")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/wald")
+    for url in ("/lager/uebersicht", "/schlaege", "/maschinen", "/biogas", "/huehner", "/sensoren", "/suche",
+                "/kalender", "/bereich/feld", "/lieferscheine", "/wald/vertraege"):
+        assert as_worker.get(url).status_code in (403, 404), url
+    for url in ("/wald", "/wald/karte", "/wald/baeume", "/wald/baum/1", "/wald/beisetzungen", "/bereich/wald",
+                "/bereich/mehr", "/aufgaben", "/konto"):
+        assert as_worker.get(url).status_code == 200, url
+    html = as_worker.get("/wald").get_data(as_text=True)
+    tabs = html[html.index('class="tabbar'):html.index("</nav>", html.index('class="tabbar'))]
+    assert 'href="/wald/beisetzungen"' in tabs and 'href="/aufgaben"' in tabs and "Lager" not in tabs
+    assert 'action="/suche"' not in html
+
+    # Beisetzung eintragen → die Aufgaben sieht er, fremde nicht
+    other = Task(title="Ölwechsel Schlepper")
+    hens = Task(title="Ausmisten", area="huehner")
+    db.session.add_all([other, hens])
+    db.session.commit()
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "1", "deceased": "Hans Muster",
+                                             "day": (date.today() + timedelta(days=5)).isoformat()})
+    page = as_worker.get("/aufgaben?wer=alle").get_data(as_text=True)
+    assert "Grab ausheben" in page and "Ausmisten" not in page and "Ölwechsel" not in page
+    assert as_worker.get(f"/aufgabe/{other.id}").status_code == 404
+    as_worker.post("/aufgaben/neu", data={"title": "Wege freischneiden"})
+    assert Task.query.filter_by(title="Wege freischneiden").one().area == "wald"
+
+    # Baumkontrolle ja, Stallkontrolle nein
+    db.session.add_all([CheckStation(code="R-07", name="Abschnitt Nord", area="wald"),
+                        CheckStation(code="R-08", name="Stall", area="huehner")])
+    db.session.commit()
+    assert as_worker.get("/station/R-07").status_code == 200
+    assert as_worker.get("/station/R-08").status_code == 404
+    assert set(worker.push_topics()) <= {k for k, t in PUSH_TOPICS.items() if t["group"] == "Bestattungswald"} | \
+        {"tasks_new", "tasks_due"}
+    assert "forest_storm" in worker.push_topics()
+
+    # Admins sind nie „nur Bestattungswald“
+    woods["admin"].forest_only = True
+    assert not woods["admin"].restricted and woods["admin"].sees_biogas

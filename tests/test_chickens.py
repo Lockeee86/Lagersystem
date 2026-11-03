@@ -244,7 +244,7 @@ def test_chickens_only_user(as_admin, as_worker, db, seed):
     from app.models import Task
     worker = seed["worker"]
     as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter",
-                                           "language": "de", "active": "1", "chickens_only": "1"})
+                                           "language": "de", "active": "1", "only": "huehner"})
     assert worker.chickens_only and worker.chickens and worker.only_chickens
     r = as_worker.get("/")
     assert r.status_code == 302 and r.headers["Location"].endswith("/huehner")

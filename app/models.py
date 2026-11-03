@@ -106,8 +106,10 @@ class User(UserMixin, db.Model):
     chickens = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # Rubrik Hühner
     forest = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())     # Rubrik Bestattungswald
     biogas = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())        # Rubrik Biogas
-    # Sieht nur die Hühner (und deren Aufgaben/Stallkontrolle), sonst nichts vom Betrieb – siehe chickens_only.py
+    # Sieht nur die Hühner (und deren Aufgaben/Stallkontrolle), sonst nichts vom Betrieb – siehe area_only.py
     chickens_only = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    # Sieht nur den Bestattungswald (und dessen Aufgaben/Baumkontrolle) – siehe area_only.py
+    forest_only = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Geheimer Schlüssel für den Kalender-Abo-Link (leer = noch nie abonniert)
     calendar_token = db.Column(db.String(64), unique=True)
     # Kacheln auf der Übersicht: Abweichungen von der Voreinstellung der Rolle (kommagetrennt, siehe tiles.py)
@@ -178,24 +180,39 @@ class User(UserMixin, db.Model):
         return self.is_admin or (self.can_plan and self.can_edit)
 
     @property
+    def only_area(self):
+        """Benutzer „nur eine Rubrik“: "huehner" | "wald" | None (für Admins ohne Wirkung) – siehe area_only.py."""
+        if self.is_admin:
+            return None
+        return "huehner" if self.chickens_only else "wald" if self.forest_only else None
+
+    @property
+    def restricted(self):
+        return self.only_area is not None
+
+    @property
     def only_chickens(self):
         """Benutzer „nur Hühner“ (für Admins ohne Wirkung)."""
-        return bool(self.chickens_only) and not self.is_admin
+        return self.only_area == "huehner"
+
+    @property
+    def only_forest(self):
+        return self.only_area == "wald"
 
     @property
     def sees_biogas(self):
         """Rubrik Biogas (BHKW, Rundgang, Strompreis) – in der Benutzerverwaltung abwählbar, auch für Admins."""
-        return bool(self.biogas) and not self.only_chickens
+        return bool(self.biogas) and not self.restricted
 
     @property
     def sees_forest(self):
         """Rubrik Bestattungswald (in der Benutzerverwaltung freigeschaltet)."""
-        return bool(self.forest) and not self.only_chickens
+        return (bool(self.forest) and not self.restricted) or self.only_forest
 
     @property
     def sees_chickens(self):
         """Rubrik Hühner in Navigation und Startseite (in der Benutzerverwaltung freigeschaltet)."""
-        return bool(self.chickens) or self.only_chickens
+        return (bool(self.chickens) and not self.restricted) or self.only_chickens
 
     @property
     def keeps_chickens(self):
@@ -207,8 +224,9 @@ class User(UserMixin, db.Model):
         keys = [key for key, topic in PUSH_TOPICS.items() if topic["who"](self)]
         if not self.sees_biogas:
             keys = [k for k in keys if PUSH_TOPICS[k]["group"] != "Biogas"]
-        if self.only_chickens:                         # nur Hühner und eigene Aufgaben
-            keys = [k for k in keys if PUSH_TOPICS[k]["group"] == "Hühner" or k in ("tasks_new", "tasks_due")]
+        if self.restricted:                            # nur die eigene Rubrik und eigene Aufgaben
+            group = "Hühner" if self.only_chickens else "Bestattungswald"
+            keys = [k for k in keys if PUSH_TOPICS[k]["group"] == group or k in ("tasks_new", "tasks_due")]
         return keys
 
     def push_default(self, topic):

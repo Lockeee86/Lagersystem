@@ -159,8 +159,10 @@ docker compose up --build -d
   (Sonnenuntergang `sunset()`), committet nicht; `app/chickens_views.py` (Blueprint `chickens`). Alte Legedaten aus Excel:
   `app/egg_import.py` (`parse_file` → `plan` → `apply`, `EggEntry.imported` zählt nicht zum Vorrat; echte Listen nie committen). Rubriken mit
   `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer.
-  Benutzer „nur Hühner“ (`User.chickens_only` → `only_chickens`): `app/chickens_only.py` (`allowed()` im
-  `before_request`, `filter_tasks()`); neue Seiten für sie dort freigeben
+  Benutzer „nur eine Rubrik“ (`User.chickens_only` / `forest_only` → `only_area` "huehner"/"wald", `restricted`,
+  `only_chickens`/`only_forest`; im Formular Auswahl `only`): `app/area_only.py` (`AREAS` je Rubrik mit Startseite,
+  Blueprint-Präfix, Leisten-Platz, Push-Gruppe; `allowed()` im `before_request`, `filter_tasks()`); Seiten des
+  Rubrik-Blueprints gehen automatisch, andere dort freigeben. In Templates `current_user.restricted` / `only_area`
 - `app/forest.py`: Rubrik Bestattungswald (nur `User.forest` → `sees_forest`; Name `settings` `forest_name`, `name()`) –
   Bäume `ForestTree` (Code `W-001`, `normalize_code`/`tree_by_code`, `/scan` erkennt ihn) mit Plätzen `ForestPlace`
   (Stand frei/reserviert/belegt), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,

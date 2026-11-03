@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
     <h1>{{ _("Benutzer") }}</h1>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-edit='{"role": "mitarbeiter", "active": true, "language": "de", "biogas": true}'><i class="bi bi-person-plus me-1"></i>{{ _("Neuer Benutzer") }}</button>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-edit='{"role": "mitarbeiter", "active": true, "language": "de", "biogas": true, "only": ""}'><i class="bi bi-person-plus me-1"></i>{{ _("Neuer Benutzer") }}</button>
 </div>
 <div class="row g-3 mb-4 small">
     <div class="col-md-4"><div class="role-card"><strong>{{ _("Admin") }}</strong><br>{{ _("Alles, inkl. Lager, Sorten, Benutzer, Kisten anlegen und Etiketten.") }}</div></div>
@@ -25,12 +25,12 @@
                             <div class="small text-body-secondary">{{ u.username }}</div></div>
                     </div>
                 </td>
-                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if u.forest and not u.chickens_only %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("Bestattungswald") }}</span>{% endif %}{% if not u.biogas and not u.chickens_only %} <span class="badge text-bg-secondary">{{ _("ohne Biogas") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
+                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens and not u.forest_only %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if u.forest_only and not u.is_admin %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("nur Bestattungswald") }}</span>{% elif u.forest and not u.chickens_only %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("Bestattungswald") }}</span>{% endif %}{% if not u.biogas and not u.chickens_only and not u.forest_only %} <span class="badge text-bg-secondary">{{ _("ohne Biogas") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
                 <td title="{{ languages.get(u.language, u.language) }}">{{ LANGUAGE_FLAGS.get(u.language, '') }} {{ u.language|upper }}</td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ u.last_login|datetime }}</td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal"
-                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active, "can_order": u.can_order, "can_plan": u.can_plan, "chickens": u.chickens, "chickens_only": u.chickens_only, "biogas": u.biogas, "forest": u.forest}|tojson }}'><i class="bi bi-pencil"></i></button>
+                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active, "can_order": u.can_order, "can_plan": u.can_plan, "chickens": u.chickens, "only": "huehner" if u.chickens_only else "wald" if u.forest_only else "", "biogas": u.biogas, "forest": u.forest}|tojson }}'><i class="bi bi-pencil"></i></button>
                 </td>
             </tr>
             {% endfor %}
@@ -95,10 +95,21 @@
     <input class="form-check-input" type="checkbox" id="u_chickens" name="chickens" value="1">
     <label class="form-check-label" for="u_chickens">{{ _("Rubrik Hühner (Eier, Herde, Stall – nur für die, die mit den Hühnern zu tun haben)") }}</label>
 </div>
-<div class="form-check mb-2">
-    <input class="form-check-input" type="checkbox" id="u_chickens_only" name="chickens_only" value="1">
-    <label class="form-check-label" for="u_chickens_only">{{ _("Nur Hühner: sieht ausschließlich die Hühner mit ihren Aufgaben und der Stallkontrolle – kein Lager, Feld, Biogas usw. (nicht für Admins)") }}</label>
-</div>
+<fieldset class="mb-2">
+    <legend class="form-label fs-6 mb-1">{{ _("Nur eine Rubrik (nicht für Admins)") }}</legend>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" id="u_only_none" name="only" value="" checked>
+        <label class="form-check-label" for="u_only_none">{{ _("Nein – sieht den Betrieb wie gewohnt") }}</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" id="u_only_huehner" name="only" value="huehner">
+        <label class="form-check-label" for="u_only_huehner">{{ _("Nur Hühner: sieht ausschließlich die Hühner mit ihren Aufgaben und der Stallkontrolle – kein Lager, Feld, Biogas usw. (nicht für Admins)") }}</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" id="u_only_wald" name="only" value="wald">
+        <label class="form-check-label" for="u_only_wald">{{ _("Nur Bestattungswald: sieht ausschließlich den Wald mit Beisetzungen, Aufgaben und Baumkontrolle – keine Verträge, kein Lager, Feld usw.") }}</label>
+    </div>
+</fieldset>
 <div class="form-check mb-3 edit-only">
     <input class="form-check-input" type="checkbox" id="u_active" name="active" value="1">
     <label class="form-check-label" for="u_active">{{ _("Aktiv (gesperrte Benutzer werden sofort abgemeldet)") }}</label>

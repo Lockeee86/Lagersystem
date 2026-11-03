@@ -77,8 +77,10 @@ def url(key, user):
 
 
 def entries(user):
-    if user.only_chickens:                         # eigene Leiste: Hühner · Eier · Scannen · Aufgaben · Mehr
-        return [{"key": "eier", "label": N_("Eier"), "icon": "bi-basket2", "url": url_for("chickens.eggs")},
+    if user.restricted:                            # eigene Leiste, z. B. Hühner · Eier · Scannen · Aufgaben · Mehr
+        from .area_only import config
+        tab = config(user)["tab"]
+        return [{"key": tab["key"], "label": tab["label"], "icon": tab["icon"], "url": url_for(tab["endpoint"])},
                 {"key": "aufgaben", "label": N_("Aufgaben"), "icon": "bi-list-check", "url": url_for("tasks.task_list")}]
     return [{"key": k, "label": _area(k)["label"], "icon": _area(k)["icon"], "url": url(k, user)}
             for k in keys_for(user)]
@@ -94,7 +96,7 @@ CENTER_DEFAULT = "einlagern"
 
 def center_choices(user):
     """Wer nicht einlagern darf (Betrachter, nur Hühner), hat nur Scannen."""
-    return ["scan"] if user.only_chickens or not user.can_edit else list(CENTER)
+    return ["scan"] if user.restricted or not user.can_edit else list(CENTER)
 
 
 def center_key(user):

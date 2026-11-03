@@ -147,23 +147,28 @@ def _area_shown(area, user):
 
 
 def resolve(endpoint, view_args=None):
-    """Station des Hühnerstalls gehört zur Rubrik Hühner (sonst zum Rundgang der Biogasanlage)."""
+    """Station des Hühnerstalls gehört zur Rubrik Hühner, die der Baumkontrolle zum Bestattungswald (sonst Biogas)."""
     if endpoint == "rounds.station" and (view_args or {}).get("code"):
         from .models import CheckStation
         from .rounds import normalize_code
         station = CheckStation.query.filter_by(code=normalize_code(view_args["code"]) or "").first()
-        if station is not None and station.area == "huehner":
-            return "chickens.overview"
+        if station is not None and station.area in ("huehner", "wald"):
+            return "chickens.overview" if station.area == "huehner" else "forest.overview"
     return endpoint
 
 
-# Benutzer „nur Hühner“: eine einzige Rubrik aus Hühnern und Aufgaben (chickens_only.py)
-CHICKEN_TASKS = item("tasks.task_list", N_("Aufgaben"), "bi-list-check", prefixes=("tasks.",), badge="tasks")
+# Benutzer „nur eine Rubrik“ (Hühner bzw. Bestattungswald): die Rubrik plus Aufgaben (area_only.py)
+ONLY_TASKS = item("tasks.task_list", N_("Aufgaben"), "bi-list-check", prefixes=("tasks.",), badge="tasks")
 
 
-def _chicken_area():
-    area = next(a for a in AREAS if a["key"] == "huehner")
-    return {**area, "items": area["items"] + [CHICKEN_TASKS]}
+def _only_area(user):
+    area = next(a for a in AREAS if a["key"] == user.only_area)
+    return {**area, "items": area["items"] + [ONLY_TASKS]}
+
+
+def _only_home(user):
+    from .area_only import config
+    return config(user)["home"]
 
 
 def _active_item(items, endpoint):
@@ -175,11 +180,11 @@ def _active_item(items, endpoint):
 def current(endpoint, user):
     """{"areas": [...], "area": aktueller Bereich, "items": seine sichtbaren Unterpunkte, "active": Endpunkt}"""
     endpoint = endpoint or ""
-    if user.only_chickens:
-        area = _chicken_area()
+    if user.restricted:
+        area = _only_area(user)
         items = _visible(area["items"], user)
         active = _active_item(items, endpoint)
-        return {"areas": [{**area, "href": url_for("chickens.overview")}], "area": area, "items": items,
+        return {"areas": [{**area, "href": url_for(_only_home(user))}], "area": area, "items": items,
                 "active": active}
     area = None
     if endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"]):
@@ -224,8 +229,10 @@ def _tabs(user):
 def tab_for(endpoint, view_args=None, user=None):
     """Welcher Punkt der unteren Leiste zum Endpunkt gehört: heute | scan | mehr | eine Rubrik der Leiste."""
     endpoint = endpoint or ""
-    if user is not None and user.is_authenticated and user.only_chickens:
-        return {"chickens.overview": "heute", "chickens.eggs": "eier", "main.scan": "scan"}.get(
+    if user is not None and user.is_authenticated and user.restricted:
+        from .area_only import config
+        tab = config(user)["tab"]
+        return {_only_home(user): "heute", tab["endpoint"]: tab["key"], "main.scan": "scan"}.get(
             endpoint, "aufgaben" if endpoint.startswith("tasks.") else "mehr")
     tabs = _tabs(user)
     if endpoint == "main.dashboard":
@@ -243,10 +250,10 @@ def tab_for(endpoint, view_args=None, user=None):
 def hub(key, user):
     """Gruppen der Bereichsseite: [{"label", "items": [...]}] – nur, was die Rolle darf."""
     by_key = {a["key"]: a for a in AREAS}
-    if user.only_chickens:
-        if key not in ("mehr", "huehner"):
+    if user.restricted:
+        if key not in ("mehr", user.only_area):
             return []
-        groups = [{"label": None, "items": _visible(_chicken_area()["items"], user)}]
+        groups = [{"label": None, "items": _visible(_only_area(user)["items"], user)}]
         return groups + ([{"label": None, "items": _visible(MORE_EXTRA, user)}] if key == "mehr" else [])
     if key != "mehr":
         area = by_key[key]
@@ -282,12 +289,14 @@ def crumb(endpoint, view_args=None, user=None):
     if (endpoint.startswith("admin.") or any(_active(it, endpoint) for it in ADMIN["items"])) \
             and endpoint != "admin.index":
         return url_for("admin.index"), ADMIN["label"]
-    if user is not None and user.only_chickens:
-        if endpoint in ("chickens.overview", "chickens.eggs", "tasks.task_list", "main.area"):
+    if user is not None and user.restricted:
+        from .area_only import config
+        conf = config(user)
+        if endpoint in (conf["home"], conf["tab"]["endpoint"], "tasks.task_list", "main.area"):
             return None
         if endpoint.startswith("tasks."):
-            return url_for("tasks.task_list"), CHICKEN_TASKS["label"]
-        return url_for("chickens.overview"), N_("Hühner")
+            return url_for("tasks.task_list"), ONLY_TASKS["label"]
+        return url_for(conf["home"]), conf["label"]
     tabs = _tabs(user)
     more = (url_for("main.area", key="mehr"), HUBS["mehr"])
     if endpoint == "main.area":
