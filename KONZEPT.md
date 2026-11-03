@@ -179,7 +179,7 @@ Portainer-Stack (docker-compose)
 - Eigene Rubrik je Benutzer (`User.forest`, Admins eingeschaltet), Name frei unter Verwaltung → Hof (`forest_name`).
 - Verträge machen wir selbst, die Baumauswahl auch; der Bestatter macht nur die Beisetzung. Grab ausheben und schließen
   machen wir → jede Beisetzung legt zwei wichtige Aufgaben an (Werktag davor / am Tag), Änderungen ziehen sie nach.
-- Bäume mit Nummer (Code `W-001`, QR/Scan), Baumart, Abschnitt, Art (Gemeinschafts-/Familienbaum), Lage (GPS am Baum
+- Bäume mit Nummer (Code `W-001`, QR/Scan), Baumart, Abschnitt, Art (Gemeinschafts-, Familien- oder Einzelbaum; CSV-Spalte `art`), Lage (GPS am Baum
   oder CSV) und Plätzen (Start: 12 je Baum, Bestand ~600 Bäume, wächst). Platz = frei / reserviert (Vertrag) / belegt
   (Beisetzung). Anlegen in Nummernbereichen oder per CSV.
 - Verträge nur für Admins (Personendaten): Nummer `V-JJJJ-NNN`, Laufzeit 99 Jahre (änderbar), Reservierung direkt

@@ -119,6 +119,12 @@ def save_tree(tree, number, species, section, kind, places, lat, lon, note, acti
     return tree
 
 
+def _kind_from_text(text):
+    """„Familienbaum“, „familie“, „Einzelbaum“, „einzel“ … → Schlüssel aus FOREST_KINDS (sonst Gemeinschaftsbaum)."""
+    text = (text or "").strip().lower()
+    return "familie" if text.startswith("famil") else "einzel" if text.startswith("einzel") else "gemeinschaft"
+
+
 def parse_trees_csv(data):
     """CSV mit Spalten nummer, baumart, abschnitt, art, plaetze, breite, laenge (nur nummer ist Pflicht)."""
     text = data.decode("utf-8-sig", errors="replace") if isinstance(data, bytes) else data
@@ -141,7 +147,7 @@ def parse_trees_csv(data):
         except ValueError:
             raise StorageError(_("Zeile {line}: „{value}“ ist keine Baumnummer.", line=i, value=get("nummer")[:20]))
         rows.append({"number": number, "species": get("baumart"), "section": get("abschnitt"),
-                     "kind": "familie" if get("art").lower().startswith("famil") else "gemeinschaft",
+                     "kind": _kind_from_text(get("art")),
                      "places": int(get("plaetze") or DEFAULT_PLACES) if get("plaetze").isdigit() or not get("plaetze")
                      else DEFAULT_PLACES, "lat": get("breite"), "lon": get("laenge")})
     if not rows:

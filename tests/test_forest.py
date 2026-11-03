@@ -46,8 +46,10 @@ def test_trees_and_places(db, woods):
     db.session.rollback()
 
     rows = forest.parse_trees_csv("nummer;baumart;abschnitt;art;plaetze;breite;laenge\n"
-                                  "3;Ahorn;Senke;Familie;8;52.1;10.2\n20;Buche;;;;;\n".encode())
-    assert forest.apply_trees(rows) == (1, 1)
+                                  "3;Ahorn;Senke;Familie;8;52.1;10.2\n20;Buche;;;;;\n21;Eiche;;Einzelbaum;1;;\n".encode())
+    assert forest.apply_trees(rows) == (2, 1)
+    assert _tree(21).kind == "einzel" and _tree(21).kind_label == "Einzelbaum" and len(_tree(21).places) == 1
+    assert _tree(3).kind == "familie" and _tree(20).kind == "gemeinschaft"
     assert _tree(3).species == "Ahorn" and len(_tree(3).places) == 8 and _tree(20).places
     with pytest.raises(StorageError):
         forest.parse_trees_csv(b"baum;art\n1;x\n")

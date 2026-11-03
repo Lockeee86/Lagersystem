@@ -2226,7 +2226,7 @@ class ClimateReading(db.Model):
 
 # --- Bestattungswald (forest.py) ---------------------------------------------------
 
-FOREST_KINDS = {"gemeinschaft": N_("Gemeinschaftsbaum"), "familie": N_("Familienbaum")}
+FOREST_KINDS = {"gemeinschaft": N_("Gemeinschaftsbaum"), "familie": N_("Familienbaum"), "einzel": N_("Einzelbaum")}
 FOREST_PLACE_STATES = {"frei": N_("frei"), "reserviert": N_("reserviert"), "belegt": N_("belegt")}
 
 
