@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{# Rahmen der Rubrik Bestattungswald: Kopf und Reiter (am PC übernimmt die Unterleiste) #}
+{% block title %}{{ forest_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ forest_name }}</h1>
+        {% block subtitle %}{% endblock %}
+    </div>
+    <form class="d-flex gap-2" action="{{ url_for('forest.find') }}" role="search">
+        <input class="form-control" style="max-width: 9rem" name="baum" inputmode="numeric" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}">
+        <button class="btn btn-outline-primary" aria-label="{{ _('Baum öffnen') }}"><i class="bi bi-search"></i></button>
+    </form>
+</div>
+<nav class="view-switch view-switch-wide mb-3 d-lg-none" aria-label="{{ forest_name }}">
+    {% for key, endpoint, icon, label in [("uebersicht", "forest.overview", "bi-tree", _("Übersicht")), ("karte", "forest.map_page", "bi-map", _("Karte")), ("baeume", "forest.trees", "bi-list-ol", _("Bäume")), ("beisetzungen", "forest.burial_page", "bi-calendar-event", _("Beisetzungen"))] %}
+    <a href="{{ url_for(endpoint) }}" class="{{ 'active' if tab == key }}" {% if tab == key %}aria-current="page"{% endif %}><i class="bi {{ icon }} me-1"></i>{{ label }}</a>
+    {% endfor %}
+    {% if current_user.is_admin %}<a href="{{ url_for('forest.contracts_page') }}" class="{{ 'active' if tab == 'vertraege' }}" title="{{ _('Verträge') }}" aria-label="{{ _('Verträge') }}"><i class="bi bi-file-earmark-text"></i></a>{% endif %}
+</nav>
+{% block forest %}{% endblock %}
+{% endblock %}

@@ -49,6 +49,7 @@ class Setting(db.Model):
     # Schlüssel: (Bezeichnung, maximale Länge, mehrzeilig)
     FIELDS = {
         "farm_name": (N_("Hofname"), 100, False),
+        "forest_name": (N_("Name des Bestattungswalds"), 100, False),
         "farm_address": (N_("Anschrift"), 500, True),
         "farm_phone": (N_("Telefon"), 50, False),
         "farm_email": (N_("E-Mail"), 120, False),
@@ -103,6 +104,7 @@ class User(UserMixin, db.Model):
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     can_plan = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     chickens = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # Rubrik Hühner
+    forest = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())     # Rubrik Bestattungswald
     biogas = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())        # Rubrik Biogas
     # Sieht nur die Hühner (und deren Aufgaben/Stallkontrolle), sonst nichts vom Betrieb – siehe chickens_only.py
     chickens_only = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
@@ -186,6 +188,11 @@ class User(UserMixin, db.Model):
         return bool(self.biogas) and not self.only_chickens
 
     @property
+    def sees_forest(self):
+        """Rubrik Bestattungswald (in der Benutzerverwaltung freigeschaltet)."""
+        return bool(self.forest) and not self.only_chickens
+
+    @property
     def sees_chickens(self):
         """Rubrik Hühner in Navigation und Startseite (in der Benutzerverwaltung freigeschaltet)."""
         return bool(self.chickens) or self.only_chickens
@@ -242,6 +249,8 @@ PUSH_TOPICS = {
                        "default": lambda u: u.is_admin},
     "round_issue": {"label": N_("Rundgang: Mangel an einer Station"), "group": N_("Biogas"),
                     "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
+    "forest_storm": {"label": N_("Nach Sturm: Baumkontrolle im Bestattungswald"), "group": N_("Bestattungswald"),
+                     "who": lambda u: u.can_edit and u.sees_forest},
     "round_due": {"label": N_("Morgens: Stationen, die nicht kontrolliert wurden"), "group": N_("Biogas"),
                   "who": lambda u: u.can_edit, "default": lambda u: u.is_admin},
     "biogas_week": {"label": N_("Montags: Wochenbericht Biogas"), "group": N_("Biogas"), "who": lambda u: u.can_edit,
@@ -2195,3 +2204,116 @@ class ClimateReading(db.Model):
     sensor = db.relationship("ClimateSensor")
 
     __table_args__ = (db.Index("ix_climate_readings_sensor_at", "sensor_id", "at"),)
+
+
+# --- Bestattungswald (forest.py) ---------------------------------------------------
+
+FOREST_KINDS = {"gemeinschaft": N_("Gemeinschaftsbaum"), "familie": N_("Familienbaum")}
+FOREST_PLACE_STATES = {"frei": N_("frei"), "reserviert": N_("reserviert"), "belegt": N_("belegt")}
+
+
+class ForestTree(db.Model):
+    """Baum im Bestattungswald mit seinen Beisetzungsplätzen (`places`, meist 12). Code „W-047“ (QR am Baum)."""
+    __tablename__ = "forest_trees"
+
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.Integer, nullable=False, unique=True)
+    species = db.Column(db.String(60))                    # Baumart
+    section = db.Column(db.String(60), index=True)        # Waldabschnitt
+    kind = db.Column(db.String(20), nullable=False, default="gemeinschaft", server_default="gemeinschaft")
+    lat = db.Column(db.Float)
+    lon = db.Column(db.Float)
+    note = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    places = db.relationship("ForestPlace", back_populates="tree", order_by="ForestPlace.number",
+                             cascade="all, delete-orphan")
+
+    @property
+    def code(self):
+        return f"W-{self.number:03d}"
+
+    @property
+    def label(self):
+        return _("Baum {n}", n=self.number)
+
+    @property
+    def kind_label(self):
+        return _(FOREST_KINDS.get(self.kind, self.kind))
+
+
+class ForestPlace(db.Model):
+    """Beisetzungsplatz an einem Baum. Stand: belegt (Beisetzung), reserviert (Vertrag), sonst frei."""
+    __tablename__ = "forest_places"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tree_id = db.Column(db.Integer, db.ForeignKey("forest_trees.id", ondelete="CASCADE"), nullable=False, index=True)
+    number = db.Column(db.Integer, nullable=False)
+    contract_id = db.Column(db.Integer, db.ForeignKey("forest_contracts.id", ondelete="SET NULL"), index=True)
+
+    tree = db.relationship("ForestTree", back_populates="places")
+    contract = db.relationship("ForestContract", back_populates="places")
+    burials = db.relationship("ForestBurial", back_populates="place", order_by="ForestBurial.day")
+
+    __table_args__ = (db.UniqueConstraint("tree_id", "number", name="uq_forest_places_tree_number"),)
+
+    @property
+    def state(self):
+        if self.burials:
+            return "belegt"
+        return "reserviert" if self.contract_id else "frei"
+
+    @property
+    def label(self):
+        return _("Baum {n}, Platz {p}", n=self.tree.number, p=self.number)
+
+
+class ForestContract(db.Model):
+    """Vertrag bzw. Reservierung: wer welche Plätze (oder den ganzen Familienbaum) bis wann hat. Personendaten –
+    nur für Admins sichtbar."""
+    __tablename__ = "forest_contracts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.String(20), nullable=False, unique=True)
+    holder = db.Column(db.String(150), nullable=False)
+    address = db.Column(db.Text)
+    phone = db.Column(db.String(60))
+    email = db.Column(db.String(120))
+    signed_on = db.Column(db.Date, nullable=False)
+    ends_on = db.Column(db.Date)                           # Ende der Nutzungszeit (Ruhefrist)
+    price = db.Column(db.Numeric(10, 2))
+    note = db.Column(db.Text)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    places = db.relationship("ForestPlace", back_populates="contract", order_by="ForestPlace.id")
+    burials = db.relationship("ForestBurial", back_populates="contract")
+
+    @property
+    def label(self):
+        return f"{self.number} · {self.holder}"
+
+
+class ForestBurial(db.Model):
+    """Beisetzung an einem Platz. Grab ausheben und schließen werden als Aufgaben angelegt (`dig_task`, `close_task`)."""
+    __tablename__ = "forest_burials"
+
+    id = db.Column(db.Integer, primary_key=True)
+    place_id = db.Column(db.Integer, db.ForeignKey("forest_places.id", ondelete="CASCADE"), nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("forest_contracts.id", ondelete="SET NULL"), index=True)
+    deceased = db.Column(db.String(150), nullable=False)
+    day = db.Column(db.Date, nullable=False, index=True)
+    time = db.Column(db.String(5))                         # „11:00“
+    undertaker = db.Column(db.String(150))                 # Bestatter
+    note = db.Column(db.Text)
+    dig_task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
+    close_task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    place = db.relationship("ForestPlace", back_populates="burials")
+    contract = db.relationship("ForestContract", back_populates="burials")
+    dig_task = db.relationship("Task", foreign_keys=[dig_task_id])
+    close_task = db.relationship("Task", foreign_keys=[close_task_id])
+

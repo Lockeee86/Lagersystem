@@ -1,0 +1,78 @@
+{% extends "forest/_layout.html" %}
+{% from "macros.html" import csrf %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ tree.label }} · {{ tree.code }}{% if tree.species %} · {{ tree.species }}{% endif %}{% if tree.section %} · {{ tree.section }}{% endif %} · {{ tree.kind_label }}{% if not tree.active %} · <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</p>{% endblock %}
+{% block forest %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% if tree.lat is not none %}<a class="btn btn-sm btn-outline-secondary" href="https://www.openstreetmap.org/?mlat={{ tree.lat }}&mlon={{ tree.lon }}#map=19/{{ tree.lat }}/{{ tree.lon }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>{{ _("Lage öffnen") }}</a>{% endif %}
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('forest.map_page') }}"><i class="bi bi-map me-1"></i>{{ _("Karte") }}</a>
+</div>
+{% if tree.note %}<div class="alert alert-light small">{{ tree.note }}</div>{% endif %}
+
+<form method="get" action="{{ url_for('forest.contract_detail') }}">
+<input type="hidden" name="baum" value="{{ tree.number }}">
+<div class="forest-grid mb-3">
+    {% for p in tree.places %}
+    {% set burial = p.burials|first %}
+    <div class="forest-place {{ p.state }}" id="p{{ p.number }}">
+        <div class="d-flex justify-content-between align-items-start">
+            <span class="fw-semibold">{{ _("Platz {n}", n=p.number) }}</span>
+            {% if current_user.is_admin and p.state == "frei" %}<input class="form-check-input" type="checkbox" name="platz" value="{{ p.number }}" aria-label="{{ _('Platz {n} reservieren', n=p.number) }}">{% endif %}
+        </div>
+        <div class="small"><span class="forest-dot {{ p.state }}"></span>{{ _(states[p.state]) }}</div>
+        {% if burial %}<div class="small text-truncate"><a href="{{ url_for('forest.burial_page') }}#b{{ burial.id }}">{{ burial.deceased }}</a></div><div class="small text-body-secondary">{{ burial.day|date }}</div>{% endif %}
+        {% if current_user.is_admin and p.contract %}<div class="small text-truncate"><a href="{{ url_for('forest.contract_detail', contract_id=p.contract.id) }}">{{ p.contract.holder }}</a></div>{% endif %}
+        {% if not burial and current_user.can_edit %}<a class="small" href="{{ url_for('forest.burial_page', baum=tree.number, platz=p.number) }}#neu">{{ _("Beisetzung eintragen") }}</a>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% if current_user.is_admin and tree.places|selectattr("state", "eq", "frei")|list %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <button class="btn btn-primary"><i class="bi bi-file-earmark-plus me-1"></i>{{ _("Gewählte Plätze reservieren") }}</button>
+    {% if tree.places|selectattr("state", "eq", "frei")|list|length == tree.places|length %}<button class="btn btn-outline-primary" name="alle" value="1">{{ _("Ganzen Baum reservieren") }}</button>{% endif %}
+</div>
+{% endif %}
+</form>
+
+{% if current_user.is_admin %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Baum bearbeiten") }}</div>
+    <form class="card-body" method="post" action="{{ url_for('forest.tree_save', number=tree.number) }}">
+        {{ csrf() }}
+        <div class="row g-2">
+            <div class="col-4 col-md-2"><label class="form-label" for="tNumber">{{ _("Nummer") }}</label><input class="form-control" id="tNumber" name="number" type="number" min="1" value="{{ tree.number }}" required></div>
+            <div class="col-4 col-md-2"><label class="form-label" for="tPlaces">{{ _("Plätze") }}</label><input class="form-control" id="tPlaces" name="places" type="number" min="1" max="99" value="{{ tree.places|length }}"></div>
+            <div class="col-4 col-md-3"><label class="form-label" for="tKind">{{ _("Art") }}</label>
+                <select class="form-select" id="tKind" name="kind">{% for key, label in kinds.items() %}<option value="{{ key }}" {{ 'selected' if key == tree.kind }}>{{ _(label) }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="tSpecies">{{ _("Baumart") }}</label><input class="form-control" id="tSpecies" name="species" maxlength="60" value="{{ tree.species or '' }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="tSection">{{ _("Abschnitt") }}</label><input class="form-control" id="tSection" name="section" maxlength="60" value="{{ tree.section or '' }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="tLat">{{ _("Breite") }}</label><input class="form-control" id="tLat" name="lat" inputmode="decimal" value="{{ '%.6f'|format(tree.lat) if tree.lat is not none else '' }}"></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="tLon">{{ _("Länge") }}</label><input class="form-control" id="tLon" name="lon" inputmode="decimal" value="{{ '%.6f'|format(tree.lon) if tree.lon is not none else '' }}"></div>
+            <div class="col-md-6 d-flex align-items-end"><button class="btn btn-outline-secondary" type="button" id="locateBtn"><i class="bi bi-crosshair me-1"></i>{{ _("Standort hier setzen") }}</button></div>
+            <div class="col-12"><label class="form-label" for="tNote">{{ _("Notiz") }}</label><textarea class="form-control" id="tNote" name="note" rows="2">{{ tree.note or '' }}</textarea></div>
+            <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="tActive" name="active" value="1" {{ 'checked' if tree.active }}><label class="form-check-label" for="tActive">{{ _("aktiv") }}</label></div></div>
+        </div>
+        <p class="small text-body-secondary mt-2 mb-2">{{ _("Plätze lassen sich nur verringern, solange die letzten frei sind.") }}</p>
+        <button class="btn btn-primary">{{ _("Speichern") }}</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if current_user.is_admin %}
+<script>
+(function () {
+    var btn = document.getElementById("locateBtn");
+    if (!navigator.geolocation) { btn.disabled = true; return; }
+    btn.addEventListener("click", function () {
+        btn.disabled = true;
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            document.getElementById("tLat").value = pos.coords.latitude.toFixed(6);
+            document.getElementById("tLon").value = pos.coords.longitude.toFixed(6);
+            btn.disabled = false;
+        }, function () { btn.disabled = false; alert({{ _("Der Standort konnte nicht bestimmt werden.")|tojson }}); },
+        { enableHighAccuracy: true, timeout: 20000 });
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -335,6 +335,25 @@ def _status(endpoint):
             return ngettext("{n} Sensor meldet sich nicht", "{n} Sensoren melden sich nicht", silent), True
         return ngettext("{n} Knoten in Betrieb", "{n} Knoten in Betrieb", len(data["coop"]) + len(data["climate"])), \
             False
+    if endpoint == "forest.overview":
+        from . import forest
+        data = forest.overview()
+        return _("{free} von {total} Plätzen frei", free=data["frei"], total=data["places"]), False
+    if endpoint == "forest.map_page":
+        return _("Bäume auf dem Luftbild"), False
+    if endpoint == "forest.trees":
+        from .models import ForestTree
+        return ngettext("{n} Baum", "{n} Bäume", ForestTree.query.filter_by(active=True).count()), False
+    if endpoint == "forest.burial_page":
+        from . import forest
+        n = len(forest.upcoming(days=14))
+        return (ngettext("{n} Beisetzung in 14 Tagen", "{n} Beisetzungen in 14 Tagen", n) if n
+                else _("keine in den nächsten 14 Tagen")), False
+    if endpoint == "forest.contracts_page":
+        from . import forest
+        n = len(forest.ending_contracts())
+        return (ngettext("{n} Nutzungszeit endet bald", "{n} Nutzungszeiten enden bald", n), True) if n \
+            else (_("Verträge und Reservierungen"), False)
     if endpoint == "chickens.overview":
         from . import chickens
         info = chickens.summary()
@@ -900,6 +919,10 @@ def scan():
             # am Lagerort gescannt: gleich das Einlagern öffnen (Betrachter sehen nur den Bestand)
             return redirect(url_for("bulk.store_detail", store_id=store.id,
                                     einlagern=1 if current_user.can_edit else None))
+        from . import forest
+        tree = forest.tree_by_code(raw) if current_user.sees_forest else None
+        if tree:
+            return redirect(url_for("forest.tree_detail", number=tree.number))
         station_code = rounds.normalize_code(raw)
         if station_code and CheckStation.query.filter_by(code=station_code).first():
             return redirect(url_for("rounds.station", code=station_code))       # Rundgang: Checkliste öffnen

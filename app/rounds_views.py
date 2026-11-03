@@ -17,7 +17,7 @@ bp = Blueprint("rounds", __name__)
 def _biogas_rounds_only_with_biogas():
     """Der Rundgang der Biogasanlage gehört zur Rubrik Biogas (je Benutzer abwählbar); Stationen im Hühnerstall
     nicht."""
-    if not current_user.is_authenticated or current_user.sees_biogas:
+    if not current_user.is_authenticated:
         return None
     args = request.view_args or {}
     station = None
@@ -26,6 +26,12 @@ def _biogas_rounds_only_with_biogas():
     elif "check_id" in args:
         check = db.session.get(StationCheck, args["check_id"])
         station = check.station if check else None
+    if station is not None and station.area == "wald":
+        if not current_user.sees_forest:
+            abort(404)
+        return None
+    if current_user.sees_biogas:
+        return None
     if station is None or station.area != "huehner":
         abort(404)
     return None
@@ -35,6 +41,8 @@ def _home(station=None):
     """Übersicht, zu der eine Station gehört (Rundgang Biogas oder Hühnerstall)."""
     if station is not None and station.area == "huehner":
         return url_for("chickens.overview")
+    if station is not None and station.area == "wald":
+        return url_for("forest.overview") + "#kontrolle"
     return url_for("rounds.overview")
 
 
@@ -59,12 +67,16 @@ def overview():
 @bp.route("/rundgang/neu", methods=["POST"])
 @admin_required
 def station_create():
-    area = "huehner" if request.form.get("area") == "huehner" else "biogas"
+    area = request.form.get("area") if request.form.get("area") in ("huehner", "wald") else "biogas"
     try:
         index = form_int("vorschlag")
         if area == "huehner" and request.form.get("vorschlag") == "stall":
             from .chickens import STATION_SUGGESTION
             name, items, days = STATION_SUGGESTION
+            station = rounds.save_station(None, _(name), "\n".join(_(i) for i in items), days, area=area)
+        elif area == "wald" and request.form.get("vorschlag") in ("baeume", "wege"):
+            from .forest_views import STATION_SUGGESTIONS
+            name, items, days = STATION_SUGGESTIONS[request.form["vorschlag"]]
             station = rounds.save_station(None, _(name), "\n".join(_(i) for i in items), days, area=area)
         elif index is not None and 0 <= index < len(rounds.SUGGESTIONS):
             name, items, days = rounds.SUGGESTIONS[index]
@@ -76,7 +88,8 @@ def station_create():
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("chickens.overview") if area == "huehner" else url_for("rounds.overview"))
+        return redirect(url_for("chickens.overview") if area == "huehner" else
+                        url_for("forest.overview") + "#kontrolle" if area == "wald" else url_for("rounds.overview"))
     flash(_("Station {code} „{name}“ angelegt – jetzt das QR-Etikett drucken.", code=station.code, name=station.name),
           "success")
     return redirect(url_for("rounds.station", code=station.code))

@@ -1,0 +1,59 @@
+{% extends "forest/_layout.html" %}
+{% from "macros.html" import csrf %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ contract.label if contract else _("Neuer Vertrag") }}</p>{% endblock %}
+{% block forest %}
+<div class="row g-3">
+<div class="col-lg-7">
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i>{{ _("Vertrag {number}", number=contract.number) if contract else _("Neuer Vertrag") }}</div>
+    <form class="card-body" method="post" action="{{ url_for('forest.contract_save', contract_id=contract.id) if contract else url_for('forest.contract_save') }}">
+        {{ csrf() }}
+        <div class="mb-3">
+            <div class="form-label">{{ _("Plätze") }}</div>
+            {% if places %}
+            <div class="d-flex flex-wrap gap-2">
+                {% for p in places %}
+                <span class="badge text-bg-light border"><input type="hidden" name="place_id" value="{{ p.id }}">{{ p.label }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning small mb-0">{{ _("Keine Plätze gewählt – am Baum freie Plätze ankreuzen und „reservieren“ tippen.") }}</div>
+            {% endif %}
+        </div>
+        <div class="row g-2">
+            <div class="col-12"><label class="form-label" for="cHolder">{{ _("Vertragspartner") }}</label><input class="form-control" id="cHolder" name="holder" maxlength="150" value="{{ contract.holder if contract else '' }}" required></div>
+            <div class="col-12"><label class="form-label" for="cAddress">{{ _("Anschrift") }}</label><textarea class="form-control" id="cAddress" name="address" rows="2">{{ contract.address or '' if contract }}</textarea></div>
+            <div class="col-6"><label class="form-label" for="cPhone">{{ _("Telefon") }}</label><input class="form-control" id="cPhone" name="phone" type="tel" maxlength="60" value="{{ contract.phone or '' if contract }}"></div>
+            <div class="col-6"><label class="form-label" for="cEmail">{{ _("E-Mail") }}</label><input class="form-control" id="cEmail" name="email" type="email" maxlength="120" value="{{ contract.email or '' if contract }}"></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="cSigned">{{ _("Vertrag vom") }}</label><input class="form-control" id="cSigned" name="signed_on" type="date" value="{{ (contract.signed_on if contract else today).isoformat() }}" required></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="cYears">{{ _("Laufzeit (Jahre)") }}</label><input class="form-control" id="cYears" name="years" type="number" min="1" max="150" value="{{ ((contract.ends_on.year - contract.signed_on.year) if contract and contract.ends_on else term_years) }}"></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="cPrice">{{ _("Preis (€)") }}</label><input class="form-control" id="cPrice" name="price" inputmode="decimal" value="{{ contract.price|num(2) if contract and contract.price is not none else '' }}"></div>
+            <div class="col-12"><label class="form-label" for="cNote">{{ _("Notiz") }}</label><textarea class="form-control" id="cNote" name="note" rows="2">{{ contract.note or '' if contract }}</textarea></div>
+        </div>
+        {% if contract and contract.ends_on %}<p class="small text-body-secondary mt-2 mb-0">{{ _("Nutzungszeit bis {date}", date=contract.ends_on|date) }}</p>{% endif %}
+        <button class="btn btn-primary mt-3" {{ 'disabled' if not places }}>{{ _("Speichern") }}</button>
+    </form>
+</div>
+</div>
+{% if contract %}
+<div class="col-lg-5">
+    <h2 class="hub-heading mt-0">{{ _("Beisetzungen") }}</h2>
+    <div class="hub-list mb-4">
+        {% for b in contract.burials %}
+        <a class="hub-row" href="{{ url_for('forest.burial_page', jahr=b.day.year) }}#b{{ b.id }}">
+            <span class="hub-text"><span class="hub-title">{{ b.deceased }}</span><span class="hub-status">{{ b.day|date }} · {{ b.place.label }}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% else %}
+        <div class="hub-row text-body-secondary">{{ _("Noch keine Beisetzung.") }}</div>
+        {% endfor %}
+    </div>
+    {% if not contract.burials %}
+    <form method="post" action="{{ url_for('forest.contract_delete', contract_id=contract.id) }}">
+        {{ csrf() }}<button data-confirm="{{ _('Vertrag löschen? Die Plätze werden wieder frei.') }}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>{{ _("Vertrag löschen") }}</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

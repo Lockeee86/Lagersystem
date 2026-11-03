@@ -69,6 +69,15 @@ AREAS = [
         item("biogas.settings_page", N_("Einstellungen"), "bi-gear", role=ROLE_ADMIN,
              endpoints=("biogas.feed_import_preview",)),
     ]},
+    # Bestattungswald: nur für Benutzer, die in der Benutzerverwaltung dafür freigeschaltet sind
+    {"key": "wald", "label": N_("Bestattungswald"), "icon": "bi-tree", "show": lambda u: u.sees_forest, "items": [
+        item("forest.overview", N_("Übersicht"), "bi-tree", endpoints=("forest.find",)),
+        item("forest.map_page", N_("Karte"), "bi-map"),
+        item("forest.trees", N_("Bäume"), "bi-list-ol", endpoints=("forest.tree_detail",)),
+        item("forest.burial_page", N_("Beisetzungen"), "bi-calendar-event"),
+        item("forest.contracts_page", N_("Verträge"), "bi-file-earmark-text", role=ROLE_ADMIN,
+             endpoints=("forest.contract_detail",)),
+    ]},
     # nur für Benutzer, die in der Benutzerverwaltung für die Hühner freigeschaltet sind
     {"key": "huehner", "label": N_("Hühner"), "icon": "bi-egg", "show": lambda u: u.sees_chickens, "items": [
         item("chickens.overview", N_("Übersicht"), "bi-egg"),
@@ -253,7 +262,7 @@ def hub(key, user):
                  "args": {} if k == "lager" else {"key": k}}
                 for k in ("lager", "feld") if k not in tabs and _visible(by_key[k]["items"], user)]
     groups.append({"label": None, "items": overview})
-    for k in ("verkauf", "biogas", "huehner", "sensoren"):
+    for k in ("verkauf", "biogas", "wald", "huehner", "sensoren"):
         if k in tabs or not _area_shown(by_key[k], user):
             continue
         items = _visible(by_key[k]["items"], user)

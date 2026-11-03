@@ -175,6 +175,19 @@ Portainer-Stack (docker-compose)
   Blöcke links → rechts, je Platz max. 5 Kisten, jeder Block auf einem neuen Platz, angebrochene
   Kiste oben) und kann über den Kisten-Import übernommen werden.
 
+### Bestattungswald (0.83.0)
+- Eigene Rubrik je Benutzer (`User.forest`, Admins eingeschaltet), Name frei unter Verwaltung → Hof (`forest_name`).
+- Verträge machen wir selbst, die Baumauswahl auch; der Bestatter macht nur die Beisetzung. Grab ausheben und schließen
+  machen wir → jede Beisetzung legt zwei wichtige Aufgaben an (Werktag davor / am Tag), Änderungen ziehen sie nach.
+- Bäume mit Nummer (Code `W-001`, QR/Scan), Baumart, Abschnitt, Art (Gemeinschafts-/Familienbaum), Lage (GPS am Baum
+  oder CSV) und Plätzen (Start: 12 je Baum, Bestand ~600 Bäume, wächst). Platz = frei / reserviert (Vertrag) / belegt
+  (Beisetzung). Anlegen in Nummernbereichen oder per CSV.
+- Verträge nur für Admins (Personendaten): Nummer `V-JJJJ-NNN`, Laufzeit 99 Jahre (änderbar), Reservierung direkt
+  am Baum durch Ankreuzen freier Plätze.
+- Verkehrssicherung: Baumkontrolle als Rundgang (`CheckStation.area == "wald"`), Push „Nach Sturm“ bei Böen ab
+  70 km/h am Vortag. Beisetzungen im Kalender.
+- Später denkbar: Vertrags-PDF, Ende der Ruhefrist mit Erinnerung, öffentliche Baumsuche für Angehörige.
+
 ### Einlagern ohne Etikett, Partien (0.76.0)
 - Die Kisten werden vorerst nicht beschriftet. Intern bleibt es bei **Einzelkisten** (Nummer wird nicht gedruckt,
   später nachträglich zuordenbar) – Bestand, Lagerkarte, Lagerdauer, Klima und Lieferschein funktionieren weiter.

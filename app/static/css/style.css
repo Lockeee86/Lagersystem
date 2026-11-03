@@ -1122,3 +1122,14 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
     .view-switch-wide a > i.me-1 { display: none; }
 }
 
+
+/* Bestattungswald: Stand der Plätze */
+.forest-dot { display: inline-block; flex-shrink: 0; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .3rem; vertical-align: -1px; background: #3f8f4f; }
+.forest-dot.reserviert { background: #7a5ea8; }
+.forest-dot.belegt { background: #8a8a8a; }
+.forest-places { display: flex; flex-wrap: wrap; gap: 2px; max-width: 6.5rem; justify-content: flex-end; }
+.forest-places .forest-dot { width: .55rem; height: .55rem; margin: 0; }
+.forest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .5rem; }
+.forest-place { border: 1px solid var(--line, var(--bs-border-color)); border-left: 4px solid #3f8f4f; border-radius: .5rem; padding: .5rem .6rem; background: var(--surface, var(--bs-body-bg)); min-width: 0; }
+.forest-place.reserviert { border-left-color: #7a5ea8; }
+.forest-place.belegt { border-left-color: #8a8a8a; }

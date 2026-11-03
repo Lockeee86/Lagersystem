@@ -1,0 +1,35 @@
+{% extends "forest/_layout.html" %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ _("Verträge") }} · {{ _("nur für Admins sichtbar") }}</p>{% endblock %}
+{% block forest %}
+<form class="d-flex gap-2 mb-3" method="get" role="search">
+    <input class="form-control" name="q" value="{{ q }}" placeholder="{{ _('Name oder Vertragsnummer') }}" aria-label="{{ _('Suchen') }}">
+    <button class="btn btn-outline-primary">{{ _("Suchen") }}</button>
+</form>
+<p class="small text-body-secondary">{{ _("Neue Verträge entstehen am Baum: freie Plätze ankreuzen und „reservieren“ tippen.") }} <a href="{{ url_for('forest.trees', frei=1) }}">{{ _("Bäume mit freien Plätzen") }}</a></p>
+
+{% if ending and not q %}
+<h2 class="hub-heading">{{ _("Nutzungszeit endet bald") }}</h2>
+<div class="hub-list mb-4">
+    {% for c in ending %}
+    <a class="hub-row" href="{{ url_for('forest.contract_detail', contract_id=c.id) }}">
+        <span class="hub-text"><span class="hub-title">{{ c.label }}</span><span class="hub-status {{ 'warn' if c.ends_on < today }}">{{ _("bis {date}", date=c.ends_on|date) }}</span></span>
+        <i class="bi bi-chevron-right hub-chevron"></i>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="hub-heading">{{ _("Alle Verträge") }}</h2>
+<div class="hub-list mb-4">
+    {% for c in contracts %}
+    <a class="hub-row" href="{{ url_for('forest.contract_detail', contract_id=c.id) }}">
+        <span class="hub-icon"><i class="bi bi-file-earmark-text"></i></span>
+        <span class="hub-text"><span class="hub-title">{{ c.label }}</span>
+            <span class="hub-status">{{ c.signed_on|date }} · {{ c.places|map(attribute="label")|join(", ") or _("keine Plätze") }}</span></span>
+        <i class="bi bi-chevron-right hub-chevron"></i>
+    </a>
+    {% else %}
+    <div class="hub-row text-body-secondary">{{ _("Keine Verträge gefunden.") }}</div>
+    {% endfor %}
+</div>
+{% endblock %}

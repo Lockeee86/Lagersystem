@@ -161,6 +161,14 @@ docker compose up --build -d
   `"show"` in `navigation.AREAS` bzw. `tiles.SECTIONS` erscheinen nur für passende Benutzer.
   Benutzer „nur Hühner“ (`User.chickens_only` → `only_chickens`): `app/chickens_only.py` (`allowed()` im
   `before_request`, `filter_tasks()`); neue Seiten für sie dort freigeben
+- `app/forest.py`: Rubrik Bestattungswald (nur `User.forest` → `sees_forest`; Name `settings` `forest_name`, `name()`) –
+  Bäume `ForestTree` (Code `W-001`, `normalize_code`/`tree_by_code`, `/scan` erkennt ihn) mit Plätzen `ForestPlace`
+  (Stand frei/reserviert/belegt), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
+  `tree_rows()`, `overview()`, `map_data()` (Schlagkarte, id = Baumnummer); Verträge `ForestContract` (nur Admin,
+  `save_contract()`, `next_contract_number()`), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
+  „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an), Kalender `calendar_events()`, Push `storm_check()` aus
+  `push.daily`; committet nicht. `app/forest_views.py` (Blueprint `forest`, `/wald…`, Vorlagen `forest/` mit
+  `_layout.html`), Baumkontrolle = Rundgang mit `CheckStation.area == "wald"` (`STATION_SUGGESTIONS`)
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
   leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
   `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, Hof-Kanal `channel()` / `save_channel()`

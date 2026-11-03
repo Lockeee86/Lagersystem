@@ -1,0 +1,71 @@
+{% extends "forest/_layout.html" %}
+{% from "macros.html" import csrf %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ ngettext("{n} Baum", "{n} Bäume", rows|length) }}</p>{% endblock %}
+{% block forest %}
+<form class="d-flex flex-wrap gap-2 align-items-center mb-3" method="get">
+    {% if sections %}
+    <select class="form-select w-auto" name="abschnitt" aria-label="{{ _('Abschnitt') }}" onchange="this.form.submit()">
+        <option value="">{{ _("Alle Abschnitte") }}</option>
+        {% for s in sections %}<option {{ 'selected' if s == section }}>{{ s }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="onlyFree" name="frei" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()">
+        <label class="form-check-label" for="onlyFree">{{ _("nur mit freien Plätzen") }}</label>
+    </div>
+    <noscript><button class="btn btn-sm btn-outline-secondary">{{ _("Filtern") }}</button></noscript>
+</form>
+
+<div class="hub-list mb-4">
+    {% for row in rows %}
+    {% set t = row.tree %}
+    <a class="hub-row" href="{{ url_for('forest.tree_detail', number=t.number) }}">
+        <span class="hub-icon"><i class="bi bi-tree"></i></span>
+        <span class="hub-text"><span class="hub-title">{{ t.label }}{% if t.species %} · {{ t.species }}{% endif %}</span>
+            <span class="hub-status">{% if t.section %}{{ t.section }} · {% endif %}{{ t.kind_label }}{% if t.lat is none %} · {{ _("ohne Lage") }}{% endif %}</span></span>
+        <span class="forest-places" aria-label="{{ _('{free} von {total} frei', free=row.frei, total=row.total) }}">
+            {% for p in t.places %}<span class="forest-dot {{ p.state }}"></span>{% endfor %}
+        </span>
+        <i class="bi bi-chevron-right hub-chevron"></i>
+    </a>
+    {% else %}
+    <div class="hub-row text-body-secondary">{{ _("Keine Bäume gefunden.") }}</div>
+    {% endfor %}
+</div>
+
+{% if current_user.is_admin %}
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Bäume anlegen") }}</div>
+            <form class="card-body" method="post" action="{{ url_for('forest.trees_create') }}">
+                {{ csrf() }}
+                <div class="row g-2">
+                    <div class="col-4"><label class="form-label" for="tFirst">{{ _("von Nr.") }}</label><input class="form-control" id="tFirst" name="first" type="number" min="1" required></div>
+                    <div class="col-4"><label class="form-label" for="tLast">{{ _("bis Nr.") }}</label><input class="form-control" id="tLast" name="last" type="number" min="1" required></div>
+                    <div class="col-4"><label class="form-label" for="tPlaces">{{ _("Plätze je Baum") }}</label><input class="form-control" id="tPlaces" name="places" type="number" min="1" max="99" value="{{ default_places }}"></div>
+                    <div class="col-6"><label class="form-label" for="tSpecies">{{ _("Baumart") }}</label><input class="form-control" id="tSpecies" name="species" maxlength="60" placeholder="{{ _('z. B. Buche') }}"></div>
+                    <div class="col-6"><label class="form-label" for="tSection">{{ _("Abschnitt") }}</label><input class="form-control" id="tSection" name="section" maxlength="60" list="sectionList"></div>
+                    <div class="col-12"><label class="form-label" for="tKind">{{ _("Art") }}</label>
+                        <select class="form-select" id="tKind" name="kind">{% for key, label in kinds.items() %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}</select></div>
+                </div>
+                <datalist id="sectionList">{% for s in sections %}<option value="{{ s }}">{% endfor %}</datalist>
+                <p class="small text-body-secondary mt-2 mb-2">{{ _("Vorhandene Nummern werden übersprungen.") }}</p>
+                <button class="btn btn-primary">{{ _("Anlegen") }}</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-filetype-csv me-1"></i>{{ _("Baumliste importieren") }}</div>
+            <form class="card-body" method="post" enctype="multipart/form-data" action="{{ url_for('forest.trees_import') }}">
+                {{ csrf() }}
+                <p class="small text-body-secondary">{{ _("CSV mit Semikolon und den Spalten nummer;baumart;abschnitt;art;plaetze;breite;laenge. Vorhandene Bäume werden über die Nummer aktualisiert.") }}</p>
+                <input class="form-control mb-2" type="file" name="file" accept=".csv,text/csv" required aria-label="{{ _('CSV-Datei') }}">
+                <button class="btn btn-outline-primary">{{ _("Importieren") }}</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

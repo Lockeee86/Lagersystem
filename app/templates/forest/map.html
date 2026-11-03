@@ -1,0 +1,44 @@
+{% extends "forest/_layout.html" %}
+{% block forest %}
+{% if items %}
+<div class="card shadow-sm mb-3 overflow-hidden">
+    <div class="field-map" id="forestMap">
+        <div class="field-map-tools btn-group-vertical">
+            <button class="btn btn-sm btn-light" type="button" id="zoomIn" aria-label="{{ _('Vergrößern') }}"><i class="bi bi-plus-lg"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="zoomOut" aria-label="{{ _('Verkleinern') }}"><i class="bi bi-dash-lg"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="zoomReset" aria-label="{{ _('Ganze Karte') }}"><i class="bi bi-arrows-fullscreen"></i></button>
+            {% if aerial %}<button class="btn btn-sm btn-light" type="button" id="aerialToggle" aria-pressed="false" title="{{ _('Luftbild') }}" aria-label="{{ _('Luftbild') }}"><i class="bi bi-image"></i></button>{% endif %}
+        </div>
+    </div>
+    <div class="card-body py-2 d-flex flex-wrap gap-3 small">
+        <span><span class="legend-swatch" style="background: #3f8f4f"></span>{{ _("alle Plätze frei") }}</span>
+        <span><span class="legend-swatch" style="background: #e0a800"></span>{{ _("teilweise frei") }}</span>
+        <span><span class="legend-swatch" style="background: #7a5ea8"></span>{{ _("voll, noch nicht alles belegt") }}</span>
+        <span><span class="legend-swatch" style="background: #8a8a8a"></span>{{ _("voll belegt") }}</span>
+        {% if missing %}<span class="text-body-secondary">{{ ngettext("{n} Baum ohne Lage", "{n} Bäume ohne Lage", missing) }}</span>{% endif %}
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">{{ _("Noch keine Bäume mit Lage. Am Baum die Baumseite öffnen und „Standort hier setzen“ tippen – oder die Lage mit der Baumliste (CSV) importieren.") }}</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if items %}
+<script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
+<script>
+(function () {
+    var aerial = {{ aerial|tojson }};
+    if (aerial) aerial.on = true;
+    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_detail', number=0) }}", aerial: aerial });
+    var toggle = document.getElementById("aerialToggle");
+    if (toggle) {
+        toggle.classList.add("active");
+        toggle.addEventListener("click", function () { toggle.classList.toggle("active", map.aerial()); });
+    }
+    document.getElementById("zoomIn").addEventListener("click", map.zoomIn);
+    document.getElementById("zoomOut").addEventListener("click", map.zoomOut);
+    document.getElementById("zoomReset").addEventListener("click", map.reset);
+})();
+</script>
+{% endif %}
+{% endblock %}

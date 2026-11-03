@@ -1,0 +1,98 @@
+{% extends "forest/_layout.html" %}
+{% from "macros.html" import csrf %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ ngettext("{n} Baum", "{n} Bäume", data.trees) }} · {{ ngettext("{n} Platz", "{n} Plätze", data.places) }}</p>{% endblock %}
+{% block forest %}
+<div class="row g-3 mb-4">
+    <div class="col-4"><a class="stat-card d-block text-reset text-decoration-none" href="{{ url_for('forest.trees', frei=1) }}"><div class="stat-label"><span class="forest-dot frei"></span>{{ _("frei") }}</div><div class="stat-value">{{ data.frei }}</div><div class="stat-sub">{{ _("Plätze") }}</div></a></div>
+    <div class="col-4"><div class="stat-card"><div class="stat-label"><span class="forest-dot reserviert"></span>{{ _("reserviert") }}</div><div class="stat-value">{{ data.reserviert }}</div><div class="stat-sub">{{ _("Plätze") }}</div></div></div>
+    <div class="col-4"><div class="stat-card"><div class="stat-label"><span class="forest-dot belegt"></span>{{ _("belegt") }}</div><div class="stat-value">{{ data.belegt }}</div><div class="stat-sub">{{ _("{n} in diesem Jahr", n=data.this_year) }}</div></div></div>
+</div>
+
+<div class="row g-3">
+<div class="col-lg-6">
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Nächste Beisetzungen") }}</h2>
+        <a class="small" href="{{ url_for('forest.burial_page') }}">{{ _("Alle") }}</a>
+    </div>
+    <div class="hub-list">
+        {% for b in data.upcoming %}
+        <a class="hub-row" href="{{ url_for('forest.burial_page') }}#b{{ b.id }}">
+            <span class="hub-icon"><i class="bi bi-calendar-event"></i></span>
+            <span class="hub-text"><span class="hub-title">{{ b.day|weekday }}, {{ b.day|date }}{% if b.time %} · {{ b.time }}{% endif %}</span>
+                <span class="hub-status">{{ b.place.label }}{% if b.undertaker %} · {{ b.undertaker }}{% endif %}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% else %}
+        <div class="hub-row text-body-secondary">{{ _("In den nächsten 30 Tagen ist keine Beisetzung eingetragen.") }}</div>
+        {% endfor %}
+    </div>
+</section>
+
+{% if data.sections|length > 1 or (data.sections and data.sections[0][0]) %}
+<section class="mb-4">
+    <h2 class="hub-heading mt-0">{{ _("Abschnitte") }}</h2>
+    <div class="hub-list">
+        {% for name, s in data.sections %}
+        <a class="hub-row" href="{{ url_for('forest.trees', abschnitt=name) if name else url_for('forest.trees') }}">
+            <span class="hub-text"><span class="hub-title">{{ name or _("ohne Abschnitt") }}</span>
+                <span class="hub-status">{{ ngettext("{n} Baum", "{n} Bäume", s.trees) }} · {{ _("{free} frei, {res} reserviert, {used} belegt", free=s.frei, res=s.reserviert, used=s.belegt) }}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if ending %}
+<section class="mb-4">
+    <h2 class="hub-heading mt-0">{{ _("Nutzungszeit endet bald") }}</h2>
+    <div class="hub-list">
+        {% for c in ending[:5] %}
+        <a class="hub-row" href="{{ url_for('forest.contract_detail', contract_id=c.id) }}">
+            <span class="hub-text"><span class="hub-title">{{ c.label }}</span><span class="hub-status {{ 'warn' if c.ends_on < today }}">{{ _("bis {date}", date=c.ends_on|date) }}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+</div>
+
+<div class="col-lg-6">
+<section class="mb-4" id="kontrolle">
+    <h2 class="hub-heading mt-0">{{ _("Baumkontrolle und Wege") }}</h2>
+    <div class="hub-list">
+        {% for r in stations.rows %}
+        <a class="hub-row" href="{{ url_for('rounds.station', code=r.station.code) }}">
+            <span class="hub-icon"><i class="bi bi-clipboard-check"></i></span>
+            <span class="hub-text"><span class="hub-title">{{ r.station.code }} · {{ r.station.name }}</span>
+                <span class="hub-status {{ 'warn' if r.overdue or r.open }}">{% if r.open %}{{ ngettext("{n} offener Mangel", "{n} offene Mängel", r.open|length) }}{% elif r.overdue %}{{ _("Kontrolle fällig") }}{% else %}{{ _("kontrolliert {date}", date=r.last.created_at|date) }}{% endif %}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% else %}
+        <div class="hub-row text-body-secondary small">{{ _("Noch keine Kontrolle eingerichtet. Mit Stationen (QR-Schild z. B. am Eingang je Abschnitt) wird die Verkehrssicherung nachweisbar: wer wann was kontrolliert hat, mit Fotos bei Mängeln. Nach Sturm kommt eine Erinnerung aufs Handy.") }}</div>
+        {% endfor %}
+    </div>
+    {% if current_user.is_admin %}
+    <details class="small mt-2">
+        <summary class="text-body-secondary"><i class="bi bi-plus-lg me-1"></i>{{ _("Kontrolle einrichten") }}</summary>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+            {% for key, (name, items, days) in suggestions.items() %}
+            <form method="post" action="{{ url_for('rounds.station_create') }}">{{ csrf() }}<input type="hidden" name="area" value="wald"><input type="hidden" name="vorschlag" value="{{ key }}">
+                <button class="btn btn-sm btn-outline-primary">{{ _(name) }} <span class="text-body-secondary">· {{ ngettext("alle {n} Tag", "alle {n} Tage", days) }}</span></button></form>
+            {% endfor %}
+        </div>
+        <form method="post" action="{{ url_for('rounds.station_create') }}" class="row g-2 mt-2">
+            {{ csrf() }}<input type="hidden" name="area" value="wald">
+            <div class="col-8"><input class="form-control form-control-sm" name="name" required maxlength="100" placeholder="{{ _('z. B. Abschnitt Nord') }}" aria-label="{{ _('Name') }}"></div>
+            <div class="col-4"><input class="form-control form-control-sm" type="number" name="interval_days" min="1" value="90" aria-label="{{ _('alle … Tage') }}"></div>
+            <div class="col-12"><textarea class="form-control form-control-sm" name="items" rows="3" required placeholder="{{ _('Prüfpunkte, je Zeile einer') }}" aria-label="{{ _('Prüfpunkte') }}"></textarea></div>
+            <div class="col-12"><button class="btn btn-sm btn-primary">{{ _("Station anlegen") }}</button></div>
+        </form>
+    </details>
+    {% endif %}
+</section>
+</div>
+</div>
+{% endblock %}

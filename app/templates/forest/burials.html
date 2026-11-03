@@ -1,0 +1,60 @@
+{% extends "forest/_layout.html" %}
+{% from "macros.html" import csrf %}
+{% macro burial_row(b) %}
+<div class="hub-row" id="b{{ b.id }}">
+    <span class="hub-icon"><i class="bi bi-flower1"></i></span>
+    <span class="hub-text"><span class="hub-title">{{ b.deceased }}</span>
+        <span class="hub-status">{{ b.day|weekday }}, {{ b.day|date }}{% if b.time %} · {{ b.time }}{% endif %} · <a href="{{ url_for('forest.tree_detail', number=b.place.tree.number) }}#p{{ b.place.number }}">{{ b.place.label }}</a>{% if b.undertaker %} · {{ b.undertaker }}{% endif %}</span>
+        {% if b.note %}<span class="hub-status d-block">{{ b.note }}</span>{% endif %}
+        {% if b.day >= today %}<span class="hub-status d-block">
+            {% for task in (b.dig_task, b.close_task) if task %}<a class="me-2" href="{{ url_for('tasks.task_detail', task_id=task.id) }}"><i class="bi {{ 'bi-check-circle-fill text-success' if task.is_done else 'bi-circle' }} me-1"></i>{{ task.title }}</a>{% endfor %}
+        </span>{% endif %}</span>
+    {% if current_user.is_admin %}
+    <form method="post" action="{{ url_for('forest.burial_delete', burial_id=b.id) }}">
+        {{ csrf() }}<button data-confirm="{{ _('Beisetzung löschen? Offene Aufgaben dazu werden mitgelöscht.') }}" class="btn btn-sm btn-link text-danger" aria-label="{{ _('Löschen') }}"><i class="bi bi-trash"></i></button>
+    </form>
+    {% endif %}
+</div>
+{% endmacro %}
+{% block forest %}
+<div class="row g-3">
+<div class="col-lg-7">
+    <h2 class="hub-heading mt-0">{{ _("Kommende Beisetzungen") }}</h2>
+    <div class="hub-list mb-4">
+        {% for b in upcoming %}{{ burial_row(b) }}{% else %}<div class="hub-row text-body-secondary">{{ _("Keine Beisetzung geplant.") }}</div>{% endfor %}
+    </div>
+
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Beisetzungen {year}", year=year) }}</h2>
+        <span class="small">
+            <a href="{{ url_for('forest.burial_page', jahr=year - 1) }}" aria-label="{{ _('Vorjahr') }}"><i class="bi bi-chevron-left"></i></a>
+            {% if year < today.year %}<a href="{{ url_for('forest.burial_page', jahr=year + 1) }}" aria-label="{{ _('Folgejahr') }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+        </span>
+    </div>
+    <div class="hub-list mb-4">
+        {% for b in past %}{{ burial_row(b) }}{% else %}<div class="hub-row text-body-secondary">{{ _("Keine Beisetzungen in diesem Jahr.") }}</div>{% endfor %}
+    </div>
+</div>
+{% if current_user.can_edit %}
+<div class="col-lg-5">
+    <div class="card shadow-sm mb-4" id="neu">
+        <div class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Beisetzung eintragen") }}</div>
+        <form class="card-body" method="post" action="{{ url_for('forest.burial_save') }}">
+            {{ csrf() }}
+            <div class="row g-2">
+                <div class="col-6"><label class="form-label" for="bTree">{{ _("Baum-Nr.") }}</label><input class="form-control" id="bTree" name="tree" type="number" min="1" value="{{ tree or '' }}" required></div>
+                <div class="col-6"><label class="form-label" for="bPlace">{{ _("Platz") }}</label><input class="form-control" id="bPlace" name="place" type="number" min="1" value="{{ place or '' }}" required></div>
+                <div class="col-12"><label class="form-label" for="bName">{{ _("Verstorbene Person") }}</label><input class="form-control" id="bName" name="deceased" maxlength="150" required></div>
+                <div class="col-7"><label class="form-label" for="bDay">{{ _("Datum") }}</label><input class="form-control" id="bDay" name="day" type="date" required></div>
+                <div class="col-5"><label class="form-label" for="bTime">{{ _("Uhrzeit") }}</label><input class="form-control" id="bTime" name="time" type="time"></div>
+                <div class="col-12"><label class="form-label" for="bUndertaker">{{ _("Bestatter") }}</label><input class="form-control" id="bUndertaker" name="undertaker" maxlength="150"></div>
+                <div class="col-12"><label class="form-label" for="bNote">{{ _("Notiz") }}</label><textarea class="form-control" id="bNote" name="note" rows="2"></textarea></div>
+            </div>
+            <p class="small text-body-secondary mt-2 mb-2">{{ _("Dazu entstehen zwei Aufgaben: „Grab ausheben“ am Werktag davor und „Grab schließen“ am Tag der Beisetzung.") }}</p>
+            <button class="btn btn-primary">{{ _("Eintragen") }}</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

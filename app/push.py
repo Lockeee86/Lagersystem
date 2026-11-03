@@ -385,6 +385,8 @@ def daily(app, now=None):
                 biogas.week_push(today)
             from . import feedin
             feedin.check(now, _job_done, _mark_job)   # montags: Jahresbudget der Einspeisestellen
+            from . import forest
+            forest.storm_check(now, _job_done, _mark_job)     # Sturm gestern → Baumkontrolle im Wald
         if now.hour >= FROST_HOUR and not _job_done("frost", today):
             _mark_job("frost", today)
             _weather_check(now, {"frost"})

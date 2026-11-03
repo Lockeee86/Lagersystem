@@ -98,6 +98,7 @@ def create_app(config=None):
     from .biogas_views import bp as biogas_bp
     from .rounds_views import bp as rounds_bp
     from .chickens_views import bp as chickens_bp
+    from .forest_views import bp as forest_bp
     from .climate_views import bp as climate_bp
     from .sensors_views import bp as sensors_bp
     app.register_blueprint(auth_bp)
@@ -118,6 +119,7 @@ def create_app(config=None):
     app.register_blueprint(biogas_bp)
     app.register_blueprint(rounds_bp)
     app.register_blueprint(chickens_bp)
+    app.register_blueprint(forest_bp)
     app.register_blueprint(climate_bp)
     app.register_blueprint(sensors_bp)
 
