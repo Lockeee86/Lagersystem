@@ -241,6 +241,15 @@ def fmt_money(value):
     return f"{value:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def fmt_euro(value):
+    """10857.4 → "10.857 €" (ganze Euro, für Übersichten)."""
+    if value is None:
+        return "–"
+    from .i18n import get_locale
+    thousands = "\u00a0" if get_locale() == "pl" else "."
+    return f"{value:,.0f} €".replace(",", thousands)
+
+
 def text_color_for(hex_color):
     """Schwarz oder Weiß – je nachdem, was auf der Hintergrundfarbe besser lesbar ist."""
     try:

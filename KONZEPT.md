@@ -187,6 +187,14 @@ Portainer-Stack (docker-compose)
   gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
 - Der runde Knopf in der Mitte der unteren Leiste ist jetzt **Einlagern** (Symbol Kiste mit Pfeil); unter Mein Konto
   → Untere Leiste auf **Scannen** umstellbar (`User.tab_center`, 0.77.0). Betrachter und „nur Hühner“ behalten Scannen.
+- **Mehrstrom-Rechner** (0.81.0): was Strom über der Höchstbemessungsleistung kostet. Vergütet werden höchstens
+  HBL-kWh, die nicht vergütete Menge verteilt sich anteilig auf die Stufen (Clearingstelle EEG|KWKG) – Mehrstrom
+  kostet also die Verschiebung aus der 150-kW-Stufe in die günstigeren (der Marktwert hebt sich auf, + 0,2 ct
+  Managementprämie). Dazu optional die Flexprämie (zusätzliche Leistung = installiert − Faktor × Bemessungsleistung,
+  höchstens die Hälfte), Wartungskosten je kWh aus der App und optional Substrat (€/t, kWh/t). Je Einspeisestelle:
+  erwartete Kürzung in €, Kosten je Mehr-kWh, „Mehrstrom lohnt ab … €/MWh“ (auch auf der Anlagen-Anzeige, wenn das
+  Budget knapp/überschritten ist). Der KWK-Bonus ändert sich gegenüber genau dem Budget nicht (vergütete Menge bleibt
+  gleich) und fehlt deshalb.
 - **Anzeige der Biogasanlage** (0.80.0): wie das Stall-Display (800×480, Webseite und PNG für das Farb-E-Paper
   reTerminal E1002): je BHKW läuft/steht, kW, Stunden heute, nächster Start und nächste Wartung; Gasspeicher mit
   24-h-Spanne; Strompreis jetzt mit Ampel-Streifen; Jahresbudget je Einspeisestelle; Rundgang; fällige Prüfungen;

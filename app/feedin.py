@@ -415,6 +415,121 @@ def price_threshold(hours_per_day, outlook):
     return prices[min(take, len(prices)) - 1]
 
 
+# --- Mehrstrom-Rechner: was kostet Strom über der Höchstbemessungsleistung? ---------------------------
+# Nach dem Hinweis der Clearingstelle EEG|KWKG: Vergütet werden im Jahr höchstens HBL-kWh. Die nicht vergütete Menge
+# wird anteilig auf alle Vergütungsstufen verteilt (Stufen nach Bemessungsleistung = Einspeisung / Stunden des Jahres).
+# Weil die vergütete Menge gleich bleibt, kostet Mehrstrom nur die Verschiebung von der teuren 150-kW-Stufe in die
+# günstigeren – der Marktwert hebt sich auf, der Mehrstrom selbst bringt Marktwert + 0,2 ct Managementprämie.
+# Dazu kann die Flexprämie sinken: zusätzliche Leistung = installiert − Faktor × Bemessungsleistung, höchstens die
+# Hälfte der installierten Leistung. Kosten je kWh aus der App (Logbuch, Bestellungen der BHKW) und optional Substrat.
+
+STAGE_KW = (150, 500)          # Grenzen der Vergütungsstufen
+MANAGEMENT_CT = 0.2            # Managementprämie, die auch Strom über der HBL bekommt
+FLEX_FACTOR = 1.6
+STEP_KWH = 1000.0              # Schritt für „je Mehr-kWh“
+
+
+def save_tariff(point, values):
+    """Werte für den Mehrstrom-Rechner (`values`: Text aus dem Formular, leer = nicht gesetzt)."""
+    fields = {"aw_stage1": (Decimal("0"), Decimal("100")), "aw_stage2": (Decimal("0"), Decimal("100")),
+              "aw_stage3": (Decimal("0"), Decimal("100")), "flex_eur_kw": (Decimal("0"), Decimal("1000")),
+              "flex_factor": (Decimal("0.1"), Decimal("10")), "substrate_eur_t": (Decimal("0"), Decimal("1000")),
+              "substrate_kwh_t": (Decimal("1"), Decimal("10000"))}
+    for name, (low, high) in fields.items():
+        raw = (values.get(name) or "").strip()
+        setattr(point, name, _number(raw, low, high, N_("Bitte die Vergütung als Zahl angeben (z. B. 23,67).")) if raw else None)
+
+
+def _hours(year):
+    return year_days(year) * 24
+
+
+def _stages(kwh, hours):
+    """kWh je Vergütungsstufe bei dieser Jahreseinspeisung."""
+    kw = kwh / hours
+    low, high = STAGE_KW
+    return [min(kw, low) * hours, min(max(kw - low, 0), high - low) * hours, max(kw - high, 0) * hours]
+
+
+def _paid_ct(point, kwh, budget, hours):
+    """Summe anzulegender Wert × vergütete kWh (ct): vergütet wird je Stufe derselbe Anteil budget/kwh."""
+    rates = [float(point.aw_stage1), float(point.aw_stage2),
+             float(point.aw_stage3 if point.aw_stage3 is not None else point.aw_stage2)]
+    share = min(1.0, budget / kwh) if kwh else 1.0
+    return sum(k * share * r for k, r in zip(_stages(kwh, hours), rates))
+
+
+def _claim_eur(point, kwh, budget, hours):
+    """Kürzung gegenüber genau dem Budget: was an Marktprämie fehlt (€)."""
+    if kwh <= budget:
+        return 0.0
+    return (_paid_ct(point, budget, budget, hours) - _paid_ct(point, kwh, budget, hours)) / 100
+
+
+def _flex_eur(point, kwh, hours, installed):
+    if point.flex_eur_kw is None or not installed:
+        return 0.0
+    factor = float(point.flex_factor or FLEX_FACTOR)
+    extra_kw = max(min(installed - factor * kwh / hours, installed / 2), 0.0)
+    return extra_kw * float(point.flex_eur_kw)
+
+
+def _flex_loss_eur(point, kwh, budget, hours, installed):
+    if kwh <= budget:
+        return 0.0
+    return max(_flex_eur(point, budget, hours, installed) - _flex_eur(point, kwh, hours, installed), 0.0)
+
+
+def maintenance_ct(point, today=None):
+    """Kosten der BHKW dieser Einspeisestelle je kWh (ct) aus der App: Logbuch-Beträge, Bestellungen, Diesel – im
+    letzten vollen Jahr mit Laufzeit, sonst im laufenden. None ohne Kosten oder ohne erzeugte kWh."""
+    from .machines import costs
+    today = today or date.today()
+    machines_ = list(point.machines)
+    if not machines_:
+        return None
+    for year in (today.year - 1, today.year):
+        kwh = float(db.session.query(func.coalesce(func.sum(ChpDay.kwh), 0))
+                    .filter(ChpDay.machine_id.in_([m.id for m in machines_]),
+                            extract("year", ChpDay.day) == year).scalar() or 0)
+        if kwh > 0:
+            total = sum(float(costs(m, year)["total"]) for m in machines_)
+            return {"ct": total / kwh * 100, "year": year, "eur": total, "kwh": kwh} if total else None
+    return None
+
+
+def extra(s, today=None):
+    """Mehrstrom-Rechner für den Stand `s` (aus `status`). None, solange die anzulegenden Werte fehlen.
+    {"over_kwh", "claim_eur", "flex_eur", "stage_ct", "flex_ct", "maintenance", "substrate_ct", "min_ct", "min_claim_ct"}
+    – *_ct je Mehr-kWh; min_* = ab diesem Preis (ct/kWh) bringt Mehrstrom mehr, als er kostet."""
+    point = s["point"]
+    if point.aw_stage1 is None or point.aw_stage2 is None:
+        return None
+    year, budget = s["year"], s["budget"]
+    if not budget:
+        return None
+    hours = _hours(year)
+    installed = float(sum(m.power_kw or 0 for m in point.machines))
+    total = s["projected"] if s["projected"] is not None else s["estimated"]
+    over = max(total - budget, 0.0)
+    # „je Mehr-kWh“ an der Stelle, an der der nächste Strom anfällt (frühestens ab dem Budget)
+    at = max(total, budget)
+    stage_ct = (_claim_eur(point, at + STEP_KWH, budget, hours) - _claim_eur(point, at, budget, hours)) * 100 / STEP_KWH
+    flex_ct = (_flex_loss_eur(point, at + STEP_KWH, budget, hours, installed)
+               - _flex_loss_eur(point, at, budget, hours, installed)) * 100 / STEP_KWH
+    maintenance = maintenance_ct(point, today)
+    substrate_ct = (float(point.substrate_eur_t) / float(point.substrate_kwh_t) * 100
+                    if point.substrate_eur_t is not None and point.substrate_kwh_t else None)
+    costs_ct = (maintenance["ct"] if maintenance else 0.0) + (substrate_ct or 0.0)
+    return {
+        "over_kwh": over, "claim_eur": _claim_eur(point, total, budget, hours),
+        "flex_eur": _flex_loss_eur(point, total, budget, hours, installed), "flex": point.flex_eur_kw is not None,
+        "stage_ct": stage_ct, "flex_ct": flex_ct, "maintenance": maintenance, "substrate_ct": substrate_ct,
+        "min_claim_ct": max(stage_ct - MANAGEMENT_CT, 0.0),
+        "min_ct": max(stage_ct + flex_ct + costs_ct - MANAGEMENT_CT, 0.0),
+    }
+
+
 # Budget-Fahrplan: Rest bis 31.12. auf die Monate verteilen – im Winter mehr (höhere Preise), höchstens was die
 # Motoren schaffen. Gewichte je Monat (Jan–Dez), angelehnt an den üblichen Verlauf der Strompreise.
 SEASON = (1.25, 1.2, 1.05, 0.9, 0.8, 0.8, 0.85, 0.9, 1.0, 1.05, 1.15, 1.2)

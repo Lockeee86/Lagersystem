@@ -6,6 +6,7 @@ import pytest
 
 from app import feedin, machines, push
 from app.models import ChpDay, FeedPoint, PushSubscription
+from app.storage import StorageError
 
 
 def bhkw(db, seed, chp_id, name, kw):
@@ -251,3 +252,49 @@ def test_loss_and_plant_checks(app, as_admin, as_worker, db, seed, plant):
     seed["worker"].biogas = False
     db.session.commit()
     assert as_worker.get(f"/maschine/{plant_machine.id}").status_code in (403, 404)  # ohne Rubrik Biogas unsichtbar
+
+
+def test_extra_power_calculator(app, as_admin, db, seed):
+    """Mehrstrom-Rechner am Rechenbeispiel der Clearingstelle: 500 kW HBL = 4.380.000 kWh, eingespeist 4.500.000 kWh."""
+    from datetime import date
+    from decimal import Decimal
+    from app.models import ChpDay, MachineEvent
+    m = machines.create_machine("BHKW Test", "bhkw", seed["admin"], with_templates=False)
+    m.power_kw = 1000
+    point = feedin.save_point(None, "Einspeisung Test", "500", [m.id], unit="kw")
+    db.session.commit()
+    s = {"point": point, "year": 2025, "budget": 4380000.0, "projected": 4500000.0, "estimated": 4500000.0}
+    assert feedin.extra(s) is None                                         # ohne anzulegende Werte kein Rechner
+    assert [round(k) for k in feedin._stages(4500000, 8760)] == [1314000, 3066000, 120000]
+    feedin.save_tariff(point, {"aw_stage1": "20", "aw_stage2": "15", "aw_stage3": "10"})
+    x = feedin.extra(s, today=date(2026, 1, 15))
+    # nicht vergütet je Stufe: 35.040 / 81.760 / 3.200 kWh; gegenüber genau 4.380.000 kWh fehlen
+    # 35.040 × 20 + 81.760 × 15 − 116.800 × 10 ct = 7.592 €
+    assert round(x["over_kwh"]) == 120000 and round(x["claim_eur"]) == 7592
+    assert x["flex"] is False and x["flex_eur"] == 0 and x["flex_ct"] == 0
+    assert 6 < x["stage_ct"] < 7 and x["min_ct"] == x["min_claim_ct"] == x["stage_ct"] - 0.2
+    # Flexprämie: 130 €/kW, Faktor 1,6 → zusätzliche Leistung 200 kW statt 178 kW
+    feedin.save_tariff(point, {"aw_stage1": "20", "aw_stage2": "15", "aw_stage3": "10", "flex_eur_kw": "130"})
+    x = feedin.extra(s, today=date(2026, 1, 15))
+    assert round(x["flex_eur"]) == 2849 and 2.3 < x["flex_ct"] < 2.4
+    # Wartung aus der App (Logbuch des BHKW) und optional Substrat
+    db.session.add(ChpDay(machine_id=m.id, day=date(2025, 6, 1), hours=Decimal(20), kwh=Decimal(20000)))
+    db.session.add(MachineEvent(machine=m, kind="wartung", date=date(2025, 6, 2), cost=Decimal("300"),
+                                user_id=seed["admin"].id))
+    feedin.save_tariff(point, {"aw_stage1": "20", "aw_stage2": "15", "flex_eur_kw": "130",
+                               "substrate_eur_t": "41,50", "substrate_kwh_t": "415"})
+    db.session.commit()
+    x = feedin.extra(s, today=date(2026, 1, 15))
+    assert x["maintenance"]["year"] == 2025 and round(x["maintenance"]["ct"], 1) == 1.5 and x["substrate_ct"] == 10.0
+    assert round(x["min_ct"], 2) == round(x["stage_ct"] + x["flex_ct"] + 1.5 + 10.0 - 0.2, 2)
+    with pytest.raises(StorageError):
+        feedin.save_tariff(point, {"aw_stage1": "viel"})
+
+    # Formular und Anzeige
+    as_admin.post(f"/biogas/einspeisestelle/{point.id}", data={
+        "name": "Einspeisung Test", "amount": "500", "unit": "kw", "machine": m.id, "jahr": "2025",
+        "aw_stage1": "23,67", "aw_stage2": "18,18", "aw_stage3": "", "flex_eur_kw": "", "flex_factor": "",
+        "substrate_eur_t": "", "substrate_kwh_t": ""})
+    assert point.aw_stage1 == Decimal("23.67") and point.aw_stage3 is None and point.flex_eur_kw is None
+    html = as_admin.get("/biogas?jahr=2025").get_data(as_text=True)
+    assert "Mehrstrom lohnt ab" in html and "Kosten je Mehr-kWh" in html and 'value="23,67"' in html

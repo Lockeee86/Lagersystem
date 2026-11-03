@@ -1799,6 +1799,14 @@ class FeedPoint(db.Model):
     name = db.Column(db.String(100), nullable=False)
     max_kw = db.Column(db.Numeric(10, 1))                 # Höchstbemessungsleistung in kW (Jahresmittel) …
     annual_kwh = db.Column(db.Numeric(14, 1))             # … oder direkt die erlaubte Jahresmenge in kWh
+    # Mehrstrom-Rechner (feedin.extra): anzulegende Werte je Vergütungsstufe in ct/kWh, Flexprämie, optional Substrat
+    aw_stage1 = db.Column(db.Numeric(7, 3))               # 0–150 kW
+    aw_stage2 = db.Column(db.Numeric(7, 3))               # 150–500 kW
+    aw_stage3 = db.Column(db.Numeric(7, 3))               # über 500 kW (leer = wie Stufe 2)
+    flex_eur_kw = db.Column(db.Numeric(8, 2))             # Flexprämie €/kW zusätzliche Leistung (leer = keine)
+    flex_factor = db.Column(db.Numeric(4, 2))             # Korrekturfaktor (leer = 1,6)
+    substrate_eur_t = db.Column(db.Numeric(8, 2))         # optional: Substratpreis €/t …
+    substrate_kwh_t = db.Column(db.Numeric(8, 1))         # … und Strom je t (kWh)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     machines = db.relationship("Machine", backref="feed_point", lazy="dynamic")

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, motor_start %}
 {% block title %}{{ _("Biogas") }}{% endblock %}
+{% macro tariff_field(pid, name, label, value, help=none) %}<div class="col-6 col-md-3"><label class="form-label small mb-0" for="{{ name }}{{ pid }}">{{ label }}</label><input class="form-control form-control-sm" id="{{ name }}{{ pid }}" name="{{ name }}" inputmode="decimal" value="{{ value|qty(3) if value is not none else '' }}"{% if help %} placeholder="{{ help }}"{% endif %}></div>{% endmacro %}
 {% macro budget_input(id, value, unit) %}
 <div class="col-12 col-md-5"><label class="form-label small mb-0" for="{{ id }}">{{ _("Erlaubt laut Höchstbemessungsleistung") }}</label>
     <div class="input-group input-group-sm">
@@ -129,6 +130,20 @@
                 </div>
                 {% endfor %}
             </div>
+            {% set x = s.extra %}
+            {% if x %}
+            <div class="budget-extra mt-3 p-3 rounded-3 border {{ 'border-danger' if x.over_kwh else '' }}">
+                <div class="fw-semibold small mb-2"><i class="bi bi-calculator me-1"></i>{{ _("Mehrstrom über der Höchstbemessungsleistung") }}</div>
+                <div class="budget-facts">
+                    {% if x.over_kwh %}<div><span>{{ _("Erwartete Kürzung") }}</span><strong>{{ x.claim_eur|euro }}</strong><small>{{ _("für {n} MWh über dem Budget", n=(x.over_kwh / 1000)|num(0)) }}{% if x.flex and x.flex_eur %} · {{ _("Flexprämie bis zu {eur} weniger", eur=x.flex_eur|euro) }}{% endif %}</small></div>{% endif %}
+                    <div><span>{{ _("Kosten je Mehr-kWh") }}</span><strong>{{ x.stage_ct|num(1) }} ct</strong><small>{{ _("weniger Marktprämie") }}{% if x.flex %} · {{ _("+ {ct} ct Flexprämie", ct=x.flex_ct|num(1)) }}{% endif %}{% if x.maintenance %} · {{ _("+ {ct} ct Wartung ({year})", ct=x.maintenance.ct|num(1), year=x.maintenance.year) }}{% endif %}{% if x.substrate_ct is not none %} · {{ _("+ {ct} ct Substrat", ct=x.substrate_ct|num(1)) }}{% endif %}</small></div>
+                    <div><span>{{ _("Mehrstrom lohnt ab") }}</span><strong>{{ (x.min_ct * 10)|num(0) }} €/MWh</strong><small>{{ _("nur die Kürzung: ab {n} €/MWh", n=(x.min_claim_ct * 10)|num(0)) }}</small></div>
+                </div>
+                <div class="small text-body-secondary mt-2">{{ _("Nach dem Hinweis der Clearingstelle: vergütet werden höchstens so viele kWh wie das Budget, die Kürzung verteilt sich anteilig auf die Vergütungsstufen. Der Mehrstrom bringt den Marktwert plus 0,2 ct Managementprämie.") }}</div>
+            </div>
+            {% elif current_user.is_admin %}
+            <div class="small text-body-secondary mt-2"><i class="bi bi-calculator me-1"></i>{{ _("Was Strom über dem Budget kostet, rechnet die App, sobald unter „Einspeisestelle bearbeiten“ die anzulegenden Werte eingetragen sind.") }}</div>
+            {% endif %}
             {% if s.reduced %}<div class="small mt-2"><i class="bi bi-scissors me-1"></i>{{ _("Davon ohne Marktprämie (über der Höchstbemessungsleistung): {n} MWh", n=(s.reduced / 1000)|num(1)) }}</div>{% endif %}
             {% if s.annual is not none and not s.billed %}<div class="small text-body-secondary mt-1">{{ _("Jahresabrechnung: {n} MWh", n=(s.annual / 1000)|num(0)) }}</div>{% endif %}
             <div class="small text-body-secondary mt-1"><span class="budget-key is-billed"></span>{{ ngettext("{n} Monat aus der Abrechnung", "{n} Monate aus der Abrechnung", s.billed) }} · <span class="budget-key"></span>{{ _("übrige aus dem Fahrplan (geplant)") }}</div>
@@ -151,6 +166,16 @@
                     <div class="col-12 col-md-4"><label class="form-label small mb-0" for="fpn{{ p.id }}">{{ _("Name") }}</label><input class="form-control form-control-sm" id="fpn{{ p.id }}" name="name" maxlength="100" value="{{ p.name }}" required></div>
                     {{ budget_input("fpk" ~ p.id, p.annual_kwh|round(0)|int if p.annual_kwh is not none else p.max_kw|num(1), "kw" if p.annual_kwh is none else "kwh") }}
                     <div class="col-12">{% for mc in feed_candidates %}<label class="form-check form-check-inline small"><input class="form-check-input" type="checkbox" name="machine" value="{{ mc.id }}" {% if mc.feed_point_id == p.id %}checked{% endif %}> {{ mc.name }}{% if mc.power_kw %} ({{ mc.power_kw }} kW){% endif %}</label>{% endfor %}</div>
+                    <div class="col-12 fw-semibold mt-2">{{ _("Mehrstrom-Rechner") }} <span class="fw-normal text-body-secondary">· {{ _("aus der Einspeiseabrechnung, ct/kWh") }}</span></div>
+                    {{ tariff_field(p.id, "aw_stage1", _("Anzulegender Wert 0–150 kW"), p.aw_stage1) }}
+                    {{ tariff_field(p.id, "aw_stage2", _("150–500 kW"), p.aw_stage2) }}
+                    {{ tariff_field(p.id, "aw_stage3", _("über 500 kW"), p.aw_stage3, _("wie 150–500")) }}
+                    <div class="col-12 small text-body-secondary">{{ _("Grund + Boni (NawaRo, Gülle, Immission) zusammen, so wie sie für Strom bis zur Höchstbemessungsleistung gezahlt werden.") }}</div>
+                    {{ tariff_field(p.id, "flex_eur_kw", _("Flexprämie €/kW"), p.flex_eur_kw, _("leer = keine")) }}
+                    {{ tariff_field(p.id, "flex_factor", _("Korrekturfaktor"), p.flex_factor, "1,6") }}
+                    {{ tariff_field(p.id, "substrate_eur_t", _("Substrat €/t (optional)"), p.substrate_eur_t, _("z. B. Mais")) }}
+                    {{ tariff_field(p.id, "substrate_kwh_t", _("Strom je t (kWh)"), p.substrate_kwh_t, "415") }}
+                    <div class="col-12 small text-body-secondary">{{ _("Wartungs- und Reparaturkosten nimmt die App aus dem Logbuch und den Bestellungen der zugeordneten BHKW.") }}</div>
                     <div class="col-12 d-flex gap-2"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button></div>
                 </form>
                 <form method="post" action="{{ url_for('biogas.feed_point_delete', point_id=p.id) }}" class="mt-2">{{ csrf() }}<button class="btn btn-link btn-sm p-0 text-danger" data-confirm="{{ _('Einspeisestelle entfernen? Die eingetragenen Monatsmengen werden mit gelöscht.') }}">{{ _("Einspeisestelle entfernen") }}</button></form>

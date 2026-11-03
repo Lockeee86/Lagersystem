@@ -109,7 +109,8 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
             {% for s in d.budgets %}
             <span class="label">{{ _("Budget {name}", name=s.point.name) }}</span>
             <div class="meter"><span class="{{ 'warn' if s.level == 'over' else 'tight' if s.level == 'tight' else 'ok' }}" style="width: {{ [[s.used_pct or 0, 0]|max, 100]|min }}%"></span><i style="left: {{ [s.year_pct, 100]|min }}%"></i></div>
-            <span class="sub" style="font-size: 13px; margin: 3px 0 10px">{{ _("{used} % verbraucht · Jahr {year} %", used=(s.used_pct or 0)|num(0), year=s.year_pct|num(0)) }}</span>
+            <span class="sub" style="font-size: 13px; margin: 3px 0 {{ 2 if s.extra and s.level in ('over', 'tight') else 10 }}px">{{ _("{used} % verbraucht · Jahr {year} %", used=(s.used_pct or 0)|num(0), year=s.year_pct|num(0)) }}</span>
+            {% if s.extra and s.level in ("over", "tight") %}<span class="sub {{ 'warn' if s.level == 'over' }}" style="font-size: 14px; margin-bottom: 10px">{{ _("Mehrstrom ab {n} €/MWh", n=(s.extra.min_ct * 10)|num(0)) }}</span>{% endif %}
             {% endfor %}
             {% if d.rounds %}
             {% set r = d.rounds %}

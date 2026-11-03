@@ -40,6 +40,7 @@ def overview():
     for s in budget:
         s["plan"] = feedin.plan(s)
         s["revenue"] = feedin.revenue(s["point"], budget_year)
+        s["extra"] = feedin.extra(s)
         s["price_from"] = feedin.price_threshold(s["hours_per_day"], outlook) if budget_year == date.today().year \
             else None
     return render_template("biogas/overview.html", live=live,
@@ -114,8 +115,13 @@ def feed_point_add():
 @admin_required
 def feed_point_save(point_id):
     point = _feed_point(point_id)
-    return _feed_save(lambda: feedin.save_point(point, form_str("name", 100), form_str("amount", 20),
-                                                request.form.getlist("machine", type=int), form_str("unit", 5)), _("Gespeichert."))
+
+    def save():
+        feedin.save_point(point, form_str("name", 100), form_str("amount", 20),
+                          request.form.getlist("machine", type=int), form_str("unit", 5))
+        if "aw_stage1" in request.form:
+            feedin.save_tariff(point, request.form)
+    return _feed_save(save, _("Gespeichert."))
 
 
 @bp.route("/biogas/einspeisestelle/<int:point_id>/loeschen", methods=["POST"])

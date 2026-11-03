@@ -78,6 +78,8 @@ def data(now=None):
     inspections = [(t, s) for t, s in biogas.plant_inspections(today) if s["state"] in ("overdue", "soon")]
     round_overview = rounds.overview() if rounds.has_stations() else None
     budgets = [s for s in feedin.overview(today.year) if s["budget"]]
+    for s in budgets:
+        s["extra"] = feedin.extra(s, today)
     gas = cached.get("gas")
     alerts = []
     for e in faults[:2]:
@@ -237,6 +239,11 @@ def render(d):
         dr.text((x0 + 14, y + 26), _("{used} % verbraucht · Jahr {year} %", used=_num(used), year=_num(s["year_pct"])),
                 font=font(14, False), fill=BLACK)
         y += 52
+        x = s.get("extra")
+        if x and s["level"] in ("over", "tight"):
+            dr.text((x0 + 14, y - 4), _fit(dr, _("Mehrstrom ab {n} €/MWh", n=_num(x["min_ct"] * 10)), 15, x1 - x0 - 28),
+                    font=font(15), fill=RED if s["level"] == "over" else BLACK)
+            y += 24
     if d["rounds"]:
         r = d["rounds"]
         dr.text((x0 + 14, y), _("RUNDGANG"), font=font(15), fill=BLACK)

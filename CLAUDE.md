@@ -130,7 +130,10 @@ docker compose up --build -d
   `MaintenanceTask.downtime_hours`), Fahrplan-Güte `flex_quality()` (`ChpDay.ideal_revenue_eur` = dieselben kWh in den
   teuersten Viertelstunden), Verfügbarkeit laut Logbuch `availability()`. Jahresbudget je Einspeisestelle (Höchstbemessungsleistung): `app/feedin.py`
   (`FeedPoint`, `FeedMonth` = Monatsmenge aus der Abrechnung, sonst Fahrplan; `status()`, `price_threshold()`, Push `check()`;
-  CSV-Import `parse_csv()`/`apply_import()`, Erlöse `FeedRevenue`/`revenue()`, Budget-Fahrplan `plan()`), Ausfallkosten
+  CSV-Import `parse_csv()`/`apply_import()`, Erlöse `FeedRevenue`/`revenue()`, Budget-Fahrplan `plan()`; Mehrstrom-Rechner
+  `extra()` = Kürzung über der HBL nach Clearingstelle (anteilig auf die Stufen `_stages`, Flexprämie, Wartung je kWh
+  `maintenance_ct()` aus Logbuch/Bestellungen der BHKW, Substrat optional; Werte `FeedPoint.aw_stage1-3`, `flex_*`,
+  `substrate_*` über `save_tariff()`)), Ausfallkosten
   `biogas.loss_per_hour()`, Prüffristen der Anlage = Maschinenart `anlage` (`biogas.plant_inspections()`, `machines.BIOGAS_HIDDEN`),
   Karte `#budget` auf der Biogas-Seite. Anzeige an der Anlage (800×480 wie das Stall-Display): `app/plant_display.py`
   (`data()`, `render()` → PNG für Farb-E-Paper mit `epaper`-Helfern, Schlüssel `settings` `biogas_display_token`), Routen
