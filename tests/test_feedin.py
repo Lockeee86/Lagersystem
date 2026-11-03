@@ -77,10 +77,12 @@ def test_price_threshold():
 def test_pages_and_push(app, as_admin, as_worker, db, seed, plant):
     seed["worker"].biogas = True
     db.session.commit()
-    html = as_admin.get("/biogas?jahr=2025").get_data(as_text=True)
+    html = as_admin.get("/biogas/budget?jahr=2025").get_data(as_text=True)
     assert "Jahresbudget 2025" in html and "Einspeisung Test" in html and "über dem Budget" in html
-    assert "Monatsmengen aus der Abrechnung 2025" in html
-    assert "Monatsmengen aus der Abrechnung" not in as_worker.get("/biogas?jahr=2025").get_data(as_text=True)
+    assert "Monatsmengen aus der Abrechnung" not in html                     # Eingaben stehen unter Einstellungen
+    assert "Monatsmengen aus der Abrechnung 2025" in as_admin.get("/biogas/einstellungen?jahr=2025").get_data(as_text=True)
+    assert "Jahresbudget 2025" in as_worker.get("/biogas/budget?jahr=2025").get_data(as_text=True)
+    assert as_worker.get("/biogas/einstellungen").status_code == 403
     assert as_worker.post(f"/biogas/einspeisestelle/{plant.id}/monate", data={"jahr": "2025"}).status_code == 403
     as_admin.post(f"/biogas/einspeisestelle/{plant.id}/monate", data={"jahr": "2025", "m2": "123456"})
     assert feedin.months(plant, 2025, date(2025, 7, 1))[1]["kwh"] == 123456.0
@@ -171,7 +173,7 @@ def test_csv_import(app, as_admin, db, seed, plant):
 def test_csv_import_creates_points(as_admin, db, seed):
     """Ohne Einspeisestellen: Import ist trotzdem da und legt sie aus der Datei an."""
     from io import BytesIO
-    assert "Abrechnungen importieren (CSV)" in as_admin.get("/biogas").get_data(as_text=True)
+    assert "Abrechnungen importieren (CSV)" in as_admin.get("/biogas/einstellungen").get_data(as_text=True)
     html = as_admin.post("/biogas/einspeisestelle/import", data={"file": (BytesIO(CSV.encode()), "p.csv")},
                          content_type="multipart/form-data").get_data(as_text=True)
     assert "neu anlegen: Nord" in html
@@ -247,7 +249,7 @@ def test_loss_and_plant_checks(app, as_admin, as_worker, db, seed, plant):
     assert "Prüfliste angelegt" in r.get_data(as_text=True)
     plant_machine = Machine.query.filter_by(category="anlage").one()
     assert len(plant_machine.tasks) >= 10
-    html = as_admin.get("/biogas").get_data(as_text=True)
+    html = as_admin.get("/biogas/wartung").get_data(as_text=True)
     assert "Prüffristen der Anlage" in html and "Emissionsmessung BHKW" in html and "noch nie eingetragen" in html
     seed["worker"].biogas = False
     db.session.commit()
@@ -296,5 +298,6 @@ def test_extra_power_calculator(app, as_admin, db, seed):
         "aw_stage1": "23,67", "aw_stage2": "18,18", "aw_stage3": "", "flex_eur_kw": "", "flex_factor": "",
         "substrate_eur_t": "", "substrate_kwh_t": ""})
     assert point.aw_stage1 == Decimal("23.67") and point.aw_stage3 is None and point.flex_eur_kw is None
-    html = as_admin.get("/biogas?jahr=2025").get_data(as_text=True)
-    assert "Mehrstrom lohnt ab" in html and "Kosten je Mehr-kWh" in html and 'value="23,67"' in html
+    html = as_admin.get("/biogas/budget?jahr=2025").get_data(as_text=True)
+    assert "Mehrstrom lohnt ab" in html and "Kosten je Mehr-kWh" in html
+    assert 'value="23,67"' in as_admin.get("/biogas/einstellungen?jahr=2025").get_data(as_text=True)

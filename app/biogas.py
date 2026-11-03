@@ -829,7 +829,7 @@ def week_push(today=None):
     body = _Joined(parts)
     return push.notify(push.editors(), "biogas_week",
                        Msg("Biogas letzte Woche: {mwh} MWh", mwh=f"{report['kwh'] / 1000:.1f}".replace(".", ",")),
-                       body, url_for("biogas.overview") + "#woche", tag=f"biogas-week-{report['monday'].isoformat()}")
+                       body, url_for("biogas.analysis_page") + "#woche", tag=f"biogas-week-{report['monday'].isoformat()}")
 
 
 class _Joined(Msg):

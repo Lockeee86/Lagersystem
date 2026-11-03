@@ -137,7 +137,9 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed, fake_api):
     assert "SKVE-Daten abgerufen" in r.get_data(as_text=True) and ChpDay.query.count() > 0
     html = as_viewer.get("/biogas").get_data(as_text=True)
     assert "BHKW Test 1" in html and "Fahrplan nächste 24 Stunden" in html and "Gasspeicher" in html
-    assert "Nächste Wartungen nach Laufzeit" in html and "Ölanalyse" in html and "Erlös" not in html
+    assert "Erlös" not in html and "alle Wartungen" in html                 # Reiter „Jetzt“: nur die nächste Wartung
+    html = as_viewer.get("/biogas/wartung").get_data(as_text=True)
+    assert "Nächste Wartungen nach Laufzeit" in html and "Ölanalyse" in html
     assert "Erlös (Day-Ahead)" in as_admin.get("/biogas").get_data(as_text=True)
     html = as_viewer.get(f"/maschine/{motor.id}").get_data(as_text=True)
     assert 'id="laufzeit"' in html and "Laufzeit (SKVE)" in html
@@ -218,10 +220,10 @@ def test_maintenance_windows_page(app, as_admin, as_viewer, db, seed, fake_api):
     rows, error = biogas.maintenance_windows()
     assert error is None and [r["task"].name for r in rows] == ["Ölwechsel"] and rows[0]["windows"]
     assert all(6 <= w["start"].hour and w["end"].hour <= 18 for w in rows[0]["windows"])
-    html = as_viewer.get("/biogas").get_data(as_text=True)
+    html = as_viewer.get("/biogas/wartung").get_data(as_text=True)
     assert 'id="fenster"' in html and "BHKW Test 1: Ölwechsel" in html and "€/MWh" in html
     assert "Als Aufgabe" not in html and "Erlös" not in html                     # Geld nur für Admins
-    html = as_admin.get("/biogas").get_data(as_text=True)
+    html = as_admin.get("/biogas/wartung").get_data(as_text=True)
     assert "Als Aufgabe" in html and "datum=" in html and "Erlös fehlen" in html
     # Arbeitszeit einstellen
     as_admin.post("/biogas/arbeitszeit", data={"start": "7", "end": "16"})
@@ -313,5 +315,22 @@ def test_availability(app, as_admin, as_viewer, db, seed):
     MachineEvent.query.filter_by(kind="stoerung").one().still_running = True             # lief eingeschränkt weiter
     db.session.commit()
     assert biogas.availability(motor, date(2026, 9, 1), date(2026, 9, 30), now)["fault_h"] == 0
-    html = as_viewer.get("/biogas").get_data(as_text=True)
+    html = as_viewer.get("/biogas/auswertung").get_data(as_text=True)
     assert "Verfügbarkeit laut Logbuch" in html and "BHKW Logbuch" in html
+
+
+def test_tabs_and_hub(as_admin, as_worker, as_viewer, db, seed):
+    """Biogas in Reiter aufgeteilt: Jetzt · Budget · Wartung · Auswertung, Einstellungen nur für Admins."""
+    for url in ("/biogas", "/biogas/budget", "/biogas/wartung", "/biogas/auswertung"):
+        html = as_viewer.get(url).get_data(as_text=True)
+        assert 'class="view-switch view-switch-wide' in html and 'href="/biogas/einstellungen"' not in html, url
+    assert as_worker.get("/biogas/einstellungen").status_code == 403
+    html = as_admin.get("/biogas/einstellungen").get_data(as_text=True)
+    assert "Einspeisestelle anlegen" in html and "Abrechnungen importieren (CSV)" in html and "Anzeige der Biogasanlage" in html
+    hub = as_admin.get("/bereich/biogas").get_data(as_text=True)
+    for href in ("/biogas", "/biogas/budget", "/biogas/wartung", "/biogas/auswertung", "/rundgang", "/biogas/einstellungen"):
+        assert f'href="{href}"' in hub, href
+    assert 'href="/biogas/einstellungen"' not in as_worker.get("/bereich/biogas").get_data(as_text=True)
+    # Formulare leiten zurück in die Einstellungen
+    r = as_admin.post("/biogas/einspeisestelle", data={"name": "Neu", "amount": "1.752.000"})
+    assert "/biogas/einstellungen" in r.headers["Location"]

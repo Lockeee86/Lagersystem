@@ -187,6 +187,11 @@ Portainer-Stack (docker-compose)
   gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
 - Der runde Knopf in der Mitte der unteren Leiste ist jetzt **Einlagern** (Symbol Kiste mit Pfeil); unter Mein Konto
   → Untere Leiste auf **Scannen** umstellbar (`User.tab_center`, 0.77.0). Betrachter und „nur Hühner“ behalten Scannen.
+- **Biogas in Reitern** (0.82.0): die Seite war zu voll – jetzt **Jetzt** (Kennzahlen, Preis-Ampel, BHKW mit Fahrplan
+  und nächster Wartung, Gasspeicher, Kurzfassung Budget und überfällige Prüfungen) · **Budget** (Jahresbudget, Fahrplan,
+  Mehrstrom-Rechner, Erlöse – nur Zahlen) · **Wartung** (nach Laufzeit, Wartungsfenster, Prüffristen) · **Auswertung**
+  (Woche, Fahrplan-Güte, Verfügbarkeit) · **Einstellungen** (nur Admin, alle Eingaben). Alle auch auf der
+  Bereichsseite Biogas mit Stand je Punkt; am PC über die Unterleiste, am Handy als Reiter.
 - **Mehrstrom-Rechner** (0.81.0): was Strom über der Höchstbemessungsleistung kostet. Vergütet werden höchstens
   HBL-kWh, die nicht vergütete Menge verteilt sich anteilig auf die Stufen (Clearingstelle EEG|KWKG) – Mehrstrom
   kostet also die Verschiebung aus der 150-kW-Stufe in die günstigeren (der Marktwert hebt sich auf, + 0,2 ct

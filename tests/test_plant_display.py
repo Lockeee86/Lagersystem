@@ -35,8 +35,8 @@ def test_plant_display(app, monkeypatch, as_admin, as_worker, db, seed):
     assert as_worker.post("/biogas/anzeige").status_code == 403
     as_admin.post("/biogas/anzeige")
     token = plant_display.token()
-    assert token and f"/biogas/anzeige/{token}" in as_admin.get("/biogas").get_data(as_text=True)
-    assert "/biogas/anzeige/" not in as_worker.get("/biogas").get_data(as_text=True)      # Link nur für Admins
+    assert token and f"/biogas/anzeige/{token}" in as_admin.get("/biogas/einstellungen").get_data(as_text=True)
+    assert as_worker.get("/biogas/einstellungen").status_code == 403                  # Link nur für Admins
 
     anon = app.test_client()
     html = anon.get(f"/biogas/anzeige/{token}").get_data(as_text=True)

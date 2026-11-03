@@ -24,15 +24,37 @@ def _only_with_biogas():
         abort(404)
 
 
+def _page(template, tab, **context):
+    return render_template(template, tab=tab, status=biogas.status(), configured=biogas.configured(),
+                           today=date.today(), **context)
+
+
+def _year():
+    return request.args.get("jahr", type=int) or date.today().year
+
+
 @bp.route("/biogas")
 @login_required
 def overview():
-    windows, windows_error = biogas.maintenance_windows()
+    """Reiter „Jetzt“: Leistung, Preis-Ampel, je BHKW Zustand und Fahrplan, Gasspeicher, Kurzfassung Budget."""
     live = biogas.live()
-    budget_year = request.args.get("jahr", type=int) or date.today().year
+    today = date.today()
+    return _page("biogas/overview.html", "jetzt", live=live, plan_only=biogas.PLAN_ONLY,
+                 strip=biogas.price_strip(live.get("price_series")) if not live.get("error") else None,
+                 rows=biogas.overview(), quality=None,
+                 starts={m["machine_id"]: biogas.start_label(m) for m in live.get("motors") or []},
+                 budget_short=[s for s in feedin.overview(today.year) if s["budget"]],
+                 overdue_inspections=[t for t, st in biogas.plant_inspections() if st["state"] == "overdue"])
+
+
+@bp.route("/biogas/budget")
+@login_required
+def budget_page():
+    """Reiter „Budget“: Jahresbudget je Einspeisestelle, Fahrplan bis 31.12., Mehrstrom-Rechner, Erlöse."""
+    budget_year = _year()
     budget = feedin.overview(budget_year)
     outlook = []
-    if budget and biogas.configured():
+    if budget and biogas.configured() and budget_year == date.today().year:
         try:
             outlook = biogas.price_outlook()
         except Exception:                                  # noqa: BLE001 – ohne Preise nur ohne Preis-Hinweis
@@ -43,20 +65,39 @@ def overview():
         s["extra"] = feedin.extra(s)
         s["price_from"] = feedin.price_threshold(s["hours_per_day"], outlook) if budget_year == date.today().year \
             else None
-    return render_template("biogas/overview.html", live=live,
-                           strip=biogas.price_strip(live.get("price_series")) if not live.get("error") else None, rows=biogas.overview(),
-                           status=biogas.status(), configured=biogas.configured(), today=date.today(),
-                           linked=biogas.linked_machines(), windows=windows, windows_error=windows_error,
-                           work=biogas.window_hours(), week=biogas.week_report(), plan_only=biogas.PLAN_ONLY,
-                           quality=biogas.flex_quality(date.today() - timedelta(days=biogas.QUALITY_DAYS),
-                                                       date.today() - timedelta(days=1)),
-                           availability=biogas.availability_overview(),
-                           starts={m["machine_id"]: biogas.start_label(m) for m in live.get("motors") or []},
-                           budget=budget, budget_year=budget_year, feed_candidates=feedin.candidates(),
-                           month_names=feedin.MONTH_NAMES, revenue_groups=feedin.REVENUE_GROUPS,
-                           inspections=biogas.plant_inspections(),
-                           display_token=plant_display.token() if current_user.is_admin else None,
-                           plants=Machine.query.filter_by(category=biogas.PLANT_CATEGORY, active=True).all())
+    return _page("biogas/budget.html", "budget", budget=budget, budget_year=budget_year,
+                 month_names=feedin.MONTH_NAMES, revenue_groups=feedin.REVENUE_GROUPS)
+
+
+@bp.route("/biogas/wartung")
+@login_required
+def maintenance_page():
+    """Reiter „Wartung“: Wartungen nach Laufzeit je BHKW, Wartungsfenster nach Strompreis, Prüffristen der Anlage."""
+    windows, windows_error = biogas.maintenance_windows()
+    return _page("biogas/maintenance.html", "wartung", rows=biogas.overview(), windows=windows,
+                 windows_error=windows_error, work=biogas.window_hours(), linked=biogas.linked_machines(),
+                 inspections=biogas.plant_inspections(),
+                 plants=Machine.query.filter_by(category=biogas.PLANT_CATEGORY, active=True).all())
+
+
+@bp.route("/biogas/auswertung")
+@login_required
+def analysis_page():
+    """Reiter „Auswertung“: Wochenbericht, Fahrplan-Güte, Verfügbarkeit laut Logbuch."""
+    return _page("biogas/analysis.html", "auswertung", week=biogas.week_report(),
+                 quality=biogas.flex_quality(date.today() - timedelta(days=biogas.QUALITY_DAYS),
+                                             date.today() - timedelta(days=1)),
+                 availability=biogas.availability_overview())
+
+
+@bp.route("/biogas/einstellungen")
+@admin_required
+def settings_page():
+    """Reiter „Einstellungen“ (Admin): Einspeisestellen mit Monatsmengen und Vergütung, CSV-Import, Display-Link."""
+    budget_year = _year()
+    return _page("biogas/settings.html", "einstellungen", budget=feedin.overview(budget_year),
+                 budget_year=budget_year, feed_candidates=feedin.candidates(), month_names=feedin.MONTH_NAMES,
+                 display_token=plant_display.token())
 
 
 # --- Anzeige an der Anlage (Display 800×480 bzw. Farb-E-Paper) – ohne Anmeldung über geheimen Link ---------------
@@ -85,7 +126,7 @@ def display_link():
     plant_display.new_token()
     db.session.commit()
     flash(_("Neuer Link für das Display erzeugt – der alte funktioniert nicht mehr."), "success")
-    return redirect(url_for("biogas.overview") + "#anzeige")
+    return redirect(url_for("biogas.settings_page") + "#anzeige")
 
 
 def _feed_point(point_id):
@@ -100,7 +141,7 @@ def _feed_save(action, message):
     except StorageError as e:
         db.session.rollback()
         flash_error(_(str(e)))
-    return redirect(url_for("biogas.overview", jahr=request.form.get("jahr") or None) + "#budget")
+    return redirect(url_for("biogas.settings_page", jahr=request.form.get("jahr") or None) + "#budget")
 
 
 @bp.route("/biogas/einspeisestelle", methods=["POST"])
@@ -150,7 +191,7 @@ def window_settings():
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return redirect(url_for("biogas.overview") + "#fenster")
+    return redirect(url_for("biogas.maintenance_page") + "#fenster")
 
 
 @bp.route("/biogas/abrufen", methods=["POST"])
@@ -176,13 +217,13 @@ def feed_import_preview():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("biogas.overview") + "#budget")
+        return redirect(url_for("biogas.settings_page") + "#budget")
     data = upload.read()
     try:
         parsed = feedin.parse_csv(data)
     except feedin.FeedImportError as e:
         flash_error(_(str(e)))
-        return redirect(url_for("biogas.overview") + "#budget")
+        return redirect(url_for("biogas.settings_page") + "#budget")
     _cleanup_imports()
     token = secrets.token_hex(16)
     with open(os.path.join(_import_dir(), token), "wb") as f:
@@ -201,7 +242,7 @@ def feed_import_apply():
     path = os.path.join(_import_dir(), token) if token and token.isalnum() else ""
     if not path or not os.path.exists(path):
         flash_error(_("Die Vorschau ist abgelaufen – bitte die Datei noch einmal hochladen."))
-        return redirect(url_for("biogas.overview") + "#budget")
+        return redirect(url_for("biogas.settings_page") + "#budget")
     with open(path, "rb") as f:
         parsed = feedin.parse_csv(f.read())
     os.remove(path)
@@ -218,9 +259,9 @@ def feed_import_apply():
     except StorageError as e:
         db.session.rollback()
         flash_error(_(str(e)))
-        return redirect(url_for("biogas.overview") + "#budget")
+        return redirect(url_for("biogas.settings_page") + "#budget")
     flash(ngettext("{n} Abrechnungswert übernommen.", "{n} Abrechnungswerte übernommen.", count), "success")
-    return redirect(url_for("biogas.overview") + "#budget")
+    return redirect(url_for("biogas.settings_page") + "#budget")
 
 
 @bp.route("/biogas/pruefliste", methods=["POST"])

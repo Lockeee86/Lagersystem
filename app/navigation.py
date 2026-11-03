@@ -61,8 +61,13 @@ AREAS = [
     ]},
     # Biogas: in der Benutzerverwaltung je Benutzer abwählbar (User.biogas)
     {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge", "show": lambda u: u.sees_biogas, "items": [
-        item("biogas.overview", N_("Übersicht"), "bi-lightning-charge", endpoints=("biogas.sync_now", "biogas.window_settings")),
+        item("biogas.overview", N_("Jetzt"), "bi-lightning-charge", endpoints=("biogas.sync_now",)),
+        item("biogas.budget_page", N_("Budget"), "bi-speedometer2"),
+        item("biogas.maintenance_page", N_("Wartung"), "bi-wrench-adjustable", endpoints=("biogas.window_settings",)),
+        item("biogas.analysis_page", N_("Auswertung"), "bi-graph-up"),
         item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",)),
+        item("biogas.settings_page", N_("Einstellungen"), "bi-gear", role=ROLE_ADMIN,
+             endpoints=("biogas.feed_import_preview",)),
     ]},
     # nur für Benutzer, die in der Benutzerverwaltung für die Hühner freigeschaltet sind
     {"key": "huehner", "label": N_("Hühner"), "icon": "bi-egg", "show": lambda u: u.sees_chickens, "items": [

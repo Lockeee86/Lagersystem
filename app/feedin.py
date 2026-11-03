@@ -587,4 +587,4 @@ def check(now, done, mark):
                     Msg("{name}: Jahresbudget wird überschritten", name=s["point"].name),
                     Msg("Prognose {mwh} MWh über der Höchstbemessungsleistung – bis 31.12. im Schnitt höchstens {kw} kW.",
                         mwh=f"{over:.0f}", kw=f"{s['avg_kw_left'] or 0:.0f}"),
-                    url_for("biogas.overview") + "#budget", tag=f"feed-budget-{s['point'].id}-{today.isoformat()}")
+                    url_for("biogas.budget_page"), tag=f"feed-budget-{s['point'].id}-{today.isoformat()}")

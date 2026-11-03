@@ -135,7 +135,10 @@ docker compose up --build -d
   `maintenance_ct()` aus Logbuch/Bestellungen der BHKW, Substrat optional; Werte `FeedPoint.aw_stage1-3`, `flex_*`,
   `substrate_*` über `save_tariff()`)), Ausfallkosten
   `biogas.loss_per_hour()`, Prüffristen der Anlage = Maschinenart `anlage` (`biogas.plant_inspections()`, `machines.BIOGAS_HIDDEN`),
-  Karte `#budget` auf der Biogas-Seite. Anzeige an der Anlage (800×480 wie das Stall-Display): `app/plant_display.py`
+  Biogas-Seiten mit Reitern (`biogas/_layout.html`, am PC die Unterleiste): `biogas.overview` „Jetzt“ `/biogas`,
+  `budget_page` `/biogas/budget`, `maintenance_page` `/biogas/wartung`, `analysis_page` `/biogas/auswertung`,
+  `settings_page` `/biogas/einstellungen` (Admin: Einspeisestellen, Monatsmengen, Vergütung, CSV-Import, Display-Link –
+  Formulare leiten dorthin zurück). Anzeige an der Anlage (800×480 wie das Stall-Display): `app/plant_display.py`
   (`data()`, `render()` → PNG für Farb-E-Paper mit `epaper`-Helfern, Schlüssel `settings` `biogas_display_token`), Routen
   `biogas.display` `/biogas/anzeige/<token>` (+ `/bild.png`) ohne Anmeldung, Vorlage `biogas/display.html`, Link für Admins
   unten auf der Biogas-Seite (`#anzeige`). Echte Abrechnungszahlen nie committen. SKVE liefert nur den Fahrplan (`PLAN_ONLY`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar

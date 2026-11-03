@@ -1114,3 +1114,11 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
     right: 2px; bottom: 2px; padding: 0 .3rem; border-radius: 1rem; font-size: .68rem; line-height: 1.15rem; z-index: 1; }
 .pick-map.is-load .stack-cell:disabled { cursor: default; opacity: .6; }
 
+/* Reiter mit vielen Einträgen (Biogas): breiter, am Handy ohne Symbole und enger, das Zahnrad schmal */
+.view-switch-wide { max-width: 640px; grid-auto-columns: auto; }
+.view-switch-wide a { padding: 0 .55rem; }
+@media (max-width: 575.98px) {
+    .view-switch-wide a { padding: 0 .3rem; font-size: .9rem; }
+    .view-switch-wide a > i.me-1 { display: none; }
+}
+

@@ -293,11 +293,28 @@ def _status(endpoint):
         from .models import ChpDay
         yesterday = date.today() - timedelta(days=1)
         kwh = db.session.query(db.func.sum(ChpDay.kwh)).filter(ChpDay.day == yesterday).scalar()
+        return (_("gestern {mwh} MWh", mwh=fmt_num(float(kwh) / 1000, 1)) if kwh else _("BHKW, Laufzeit und Wartung")), False
+    if endpoint == "biogas.maintenance_page":
         soon = sum(1 for m in Machine.query.filter_by(category="bhkw", active=True)
                    for t in m.tasks if machines.task_status(t)["state"] in ("overdue", "soon"))
+        overdue = sum(1 for _t, st in biogas.plant_inspections() if st["state"] == "overdue")
+        if overdue:
+            return ngettext("{n} Prüfung überfällig", "{n} Prüfungen überfällig", overdue), True
         if soon:
             return ngettext("{n} BHKW-Wartung fällig", "{n} BHKW-Wartungen fällig", soon), True
-        return (_("gestern {mwh} MWh", mwh=fmt_num(float(kwh) / 1000, 1)) if kwh else _("BHKW, Laufzeit und Wartung")), False
+        return _("Wartungsfenster und Prüffristen"), False
+    if endpoint == "biogas.budget_page":
+        from . import feedin
+        rows = [s for s in feedin.overview(date.today().year) if s["budget"]]
+        if not rows:
+            return _("Höchstbemessungsleistung je Einspeisestelle"), False
+        worst = max(rows, key=lambda s: {"over": 2, "tight": 1}.get(s["level"], 0))
+        return (_("{used} % verbraucht · Jahr {year} %", used=fmt_num(worst["used_pct"] or 0), year=fmt_num(worst["year_pct"])),
+                worst["level"] == "over")
+    if endpoint == "biogas.analysis_page":
+        return _("Woche, Fahrplan-Güte, Verfügbarkeit"), False
+    if endpoint == "biogas.settings_page":
+        return _("Einspeisestellen, Monatsmengen, Display"), False
     if endpoint == "climate.overview_page":
         data = climate.overview()
         if data["issues"]:

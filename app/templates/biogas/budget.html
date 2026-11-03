@@ -1,0 +1,126 @@
+{% extends "biogas/_layout.html" %}
+{% from "macros.html" import csrf, motor_start %}
+{% block biogas %}
+{% if True %}
+<div class="card shadow-sm mb-4" id="budget">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-speedometer2 me-1"></i>{{ _("Jahresbudget {year}", year=budget_year) }} <span class="small fw-normal text-body-secondary">· {{ _("Höchstbemessungsleistung") }}</span></span>
+        <span class="d-flex gap-1">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('biogas.budget_page', jahr=budget_year - 1) }}" aria-label="{{ _('Vorjahr') }}"><i class="bi bi-chevron-left"></i></a>
+            {% if budget_year < today.year %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('biogas.budget_page', jahr=budget_year + 1) }}" aria-label="{{ _('Folgejahr') }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+        </span>
+    </div>
+    <div class="card-body">
+        {% for s in budget %}{% set p = s.point %}
+        <div class="budget-point {{ 'border-top pt-3 mt-3' if not loop.first }}" id="fp{{ p.id }}">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <span class="fw-bold fs-5">{{ p.name }} <span class="small fw-normal text-body-secondary">{{ _("Budget {n} MWh", n=(s.budget / 1000)|num(0)) }} · Ø {{ p.mean_kw|num(0) }} kW</span></span>
+                {% if s.level %}<span class="climate-pill climate-pill-{{ 'danger' if s.level == 'over' else 'warning' if s.level == 'tight' else 'ok' }}">{{ _("über dem Budget") if s.level == "over" else _("knapp") if s.level == "tight" else _("im Rahmen") }}</span>{% endif %}
+            </div>
+            <div class="budget-bar" role="img" aria-label="{{ _('{used} % des Budgets verbraucht, {year} % des Jahres vorbei', used=s.used_pct|num(0), year=s.year_pct|num(0)) }}">
+                <span class="budget-used budget-{{ s.level or 'ok' }}" style="width: {{ [s.used_pct or 0, 100]|min }}%"></span>
+                <span class="budget-now" style="left: {{ s.year_pct }}%"></span>
+            </div>
+            <div class="small text-body-secondary mt-1">{{ _("{used} von {budget} MWh ({pct} %) · {year} % des Jahres vorbei", used=("≈ " if s.gap_days else "") ~ (s.estimated / 1000)|num(0), budget=(s.budget / 1000)|num(0), pct=s.used_pct|num(0), year=s.year_pct|num(0)) }}</div>
+            {% if s.missing %}{% set mn = namespace(t=[]) %}{% for mo in s.missing %}{% set mn.t = mn.t + [_(month_names[mo - 1])] %}{% endfor %}
+            <div class="alert alert-warning small py-2 mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>{{ _("Für {months} fehlen Werte – hochgerechnet aus den Tagen mit Daten. Genauer wird es mit den Mengen aus den Abrechnungen (unter Einstellungen eintragen).", months=mn.t|join(", ")) }}</div>{% endif %}
+            <div class="budget-facts mt-3">
+                {% if s.projected is not none %}<div><span>{{ _("Prognose 31.12.") }}</span><strong>{{ (s.projected / 1000)|num(0) }} MWh</strong><small class="{{ 'text-danger' if s.diff > 0 else 'text-success' }}">{{ ("+" if s.diff > 0 else "−") ~ ((s.diff|abs) / 1000)|num(0) }} MWh</small></div>{% endif %}
+                {% if budget_year == today.year %}
+                <div><span>{{ _("Rest bis 31.12.") }}</span><strong>{{ ([s.remaining, 0]|max / 1000)|num(0) }} MWh</strong><small>{{ _("in {n} Tagen", n=s.left_days) }}</small></div>
+                {% if s.avg_kw_left is not none %}<div><span>{{ _("Ø Leistung bis 31.12.") }}</span><strong>{{ s.avg_kw_left|num(0) }} kW</strong><small>{% if s.capacity and s.avg_kw_left > s.capacity %}{{ _("mehr als die Motoren schaffen ({n} kW) – Budget wird nicht ausgeschöpft", n=s.capacity) }}{% else %}{{ _("statt {n} kW", n=p.mean_kw|num(0)) }}{% endif %}</small></div>{% endif %}
+                {% if s.full_hours_left is not none %}<div><span>{{ _("Volllaststunden übrig") }}</span><strong>{{ s.full_hours_left|num(0) }} h</strong><small>{% if s.hours_per_day >= 24 %}{{ _("Dauerlauf möglich") }}{% else %}{{ _("≈ {n} h je Tag", n=s.hours_per_day|num(1)) }}{% endif %}</small></div>{% endif %}
+                {% if s.price_from is not none %}<div><span>{{ _("Lohnend ab") }}</span><strong>{{ s.price_from|num(0) }} €/MWh</strong><small>{{ _("teuerste Stunden der nächsten Tage") }}</small></div>{% endif %}
+                {% endif %}
+            </div>
+            {% if s.plan %}{% set pn = s.plan.now %}
+            <div class="budget-plan mt-3">
+                <div class="fw-semibold small mb-1"><i class="bi bi-signpost-split me-1"></i>{{ _("Fahrplan bis 31.12.") }}</div>
+                {% if pn.deviation is not none %}
+                <div class="small mb-2 {{ 'text-danger' if pn.deviation > 5 else 'text-success' if pn.deviation < -5 else '' }}">
+                    {{ _("{month}: bisher {actual} MWh, laut Plan bis heute {expected} MWh", month=_(month_names[pn.month - 1]), actual=(pn.actual / 1000)|num(0), expected=(pn.expected / 1000)|num(0)) }}
+                    · <strong>{{ _("{n} % über Plan", n=pn.deviation) if pn.deviation > 0 else _("{n} % unter Plan", n=-pn.deviation) if pn.deviation < 0 else _("genau im Plan") }}</strong>
+                </div>
+                {% endif %}
+                <div class="budget-plan-months">
+                    {% for m in s.plan.months %}
+                    <div class="budget-plan-month {{ 'is-now' if loop.first }}"><span>{{ _(month_names[m.month - 1]) }}</span><strong>{{ (m.target / 1000)|num(0) }}</strong><small>{% if m.hours_per_day is not none %}{{ _("{n} h/Tag", n=m.hours_per_day|num(1)) }}{% else %}MWh{% endif %}</small></div>
+                    {% endfor %}
+                </div>
+                <div class="form-text">{{ _("Soll in MWh je Monat: Rest-Budget verteilt nach den üblichen Strompreisen (Winter mehr), höchstens was die Motoren schaffen. h/Tag = Volllaststunden aller Motoren.") }}</div>
+            </div>
+            {% endif %}
+            <div class="budget-months mt-3">
+                {% set top = [s.months|map(attribute='kwh')|reject('none')|max if s.months|map(attribute='kwh')|reject('none')|list else 1, 1]|max %}
+                {% for m in s.months %}
+                <div class="budget-month {{ 'is-billed' if m.source == 'abrechnung' }}" title="{{ _(month_names[m.month - 1]) }}: {{ ((m.kwh or 0) / 1000)|num(0) }} MWh{% if m.source == 'abrechnung' %} · {{ _('Abrechnung') }}{% elif m.source %} · {{ _('Fahrplan') }}{% endif %}">
+                    <span class="budget-month-bar"><span style="height: {{ (100 * (m.kwh or 0) / top)|round|int }}%"></span></span>
+                    <span class="budget-month-name">{{ _(month_names[m.month - 1]) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% set x = s.extra %}
+            {% if x %}
+            <div class="budget-extra mt-3 p-3 rounded-3 border {{ 'border-danger' if x.over_kwh else '' }}">
+                <div class="fw-semibold small mb-2"><i class="bi bi-calculator me-1"></i>{{ _("Mehrstrom über der Höchstbemessungsleistung") }}</div>
+                <div class="budget-facts">
+                    {% if x.over_kwh %}<div><span>{{ _("Erwartete Kürzung") }}</span><strong>{{ x.claim_eur|euro }}</strong><small>{{ _("für {n} MWh über dem Budget", n=(x.over_kwh / 1000)|num(0)) }}{% if x.flex and x.flex_eur %} · {{ _("Flexprämie bis zu {eur} weniger", eur=x.flex_eur|euro) }}{% endif %}</small></div>{% endif %}
+                    <div><span>{{ _("Kosten je Mehr-kWh") }}</span><strong>{{ x.stage_ct|num(1) }} ct</strong><small>{{ _("weniger Marktprämie") }}{% if x.flex %} · {{ _("+ {ct} ct Flexprämie", ct=x.flex_ct|num(1)) }}{% endif %}{% if x.maintenance %} · {{ _("+ {ct} ct Wartung ({year})", ct=x.maintenance.ct|num(1), year=x.maintenance.year) }}{% endif %}{% if x.substrate_ct is not none %} · {{ _("+ {ct} ct Substrat", ct=x.substrate_ct|num(1)) }}{% endif %}</small></div>
+                    <div><span>{{ _("Mehrstrom lohnt ab") }}</span><strong>{{ (x.min_ct * 10)|num(0) }} €/MWh</strong><small>{{ _("nur die Kürzung: ab {n} €/MWh", n=(x.min_claim_ct * 10)|num(0)) }}</small></div>
+                </div>
+                <div class="small text-body-secondary mt-2">{{ _("Nach dem Hinweis der Clearingstelle: vergütet werden höchstens so viele kWh wie das Budget, die Kürzung verteilt sich anteilig auf die Vergütungsstufen. Der Mehrstrom bringt den Marktwert plus 0,2 ct Managementprämie.") }}</div>
+            </div>
+            {% elif current_user.is_admin %}
+            <div class="small text-body-secondary mt-2"><i class="bi bi-calculator me-1"></i>{{ _("Was Strom über dem Budget kostet, rechnet die App, sobald unter Einstellungen die anzulegenden Werte eingetragen sind.") }}</div>
+            {% endif %}
+            {% if s.reduced %}<div class="small mt-2"><i class="bi bi-scissors me-1"></i>{{ _("Davon ohne Marktprämie (über der Höchstbemessungsleistung): {n} MWh", n=(s.reduced / 1000)|num(1)) }}</div>{% endif %}
+            {% if s.annual is not none and not s.billed %}<div class="small text-body-secondary mt-1">{{ _("Jahresabrechnung: {n} MWh", n=(s.annual / 1000)|num(0)) }}</div>{% endif %}
+            <div class="small text-body-secondary mt-1"><span class="budget-key is-billed"></span>{{ ngettext("{n} Monat aus der Abrechnung", "{n} Monate aus der Abrechnung", s.billed) }} · <span class="budget-key"></span>{{ _("übrige aus dem Fahrplan (geplant)") }}</div>
+        </div>
+        {% else %}
+        <p class="small text-body-secondary mb-0">{{ _("Noch keine Einspeisestelle. Mit der Höchstbemessungsleistung (Jahresmittel in kW) rechnet die App, wie viel ihr im Jahr einspeisen dürft, wo ihr steht und wie viel bis 31.12. übrig bleibt.") }}</p>
+        {% endfor %}
+        {% if current_user.is_admin %}<a class="small d-inline-block mt-3" href="{{ url_for('biogas.settings_page', jahr=budget_year) }}"><i class="bi bi-gear me-1"></i>{{ _("Einspeisestellen, Monatsmengen und Vergütung unter Einstellungen") }}</a>{% endif %}
+    </div>
+    {% if budget %}<div class="card-footer small text-body-secondary">{{ _("Erlaubt sind Höchstbemessungsleistung × Stunden des Jahres. Monate ohne Abrechnung zählen mit dem SKVE-Fahrplan (geplant, nicht gemessen) – mit jeder eingetragenen Abrechnung wird die Rechnung genauer. Liegt die Prognose über dem Budget, kommt montags eine Push-Nachricht.") }}</div>{% endif %}
+</div>
+{% endif %}
+
+{% set rev = budget|selectattr("revenue")|list %}
+{% if rev and current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="erloese">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-cash-coin me-1"></i>{{ _("Erlöse {year} laut Abrechnung", year=budget_year) }}</span>
+    </div>
+    <div class="card-body">
+        {% for s in rev %}{% set r = s.revenue %}{% set y = r.year %}
+        <div class="{{ 'border-top pt-3 mt-3' if not loop.first }}">
+            <div class="fw-bold fs-5 mb-2">{{ s.point.name }}</div>
+            <div class="budget-facts">
+                <div><span>{{ _("Gesamterlös") }}</span><strong>{{ y.total|num(0) }} €</strong><small>{% if y.ct is not none %}{{ _("{n} ct/kWh", n=y.ct|num(2)) }}{% endif %}</small></div>
+                <div><span>{{ _("davon Netzbetreiber") }}</span><strong>{{ y.netz|num(0) }} €</strong><small>{{ _("Prämien und Boni") }}</small></div>
+                <div><span>{{ _("davon Direktvermarktung") }}</span><strong>{{ y.market|num(0) }} €</strong><small>{{ _("Marktwert") }}</small></div>
+                {% if y.lost %}<div><span>{{ _("Entgangen durch Verringerung") }}</span><strong class="text-danger">≈ {{ y.lost|num(0) }} €</strong><small>{{ _("kWh über der Höchstbemessungsleistung") }}</small></div>{% endif %}
+            </div>
+            {% if not r.annual_only %}
+            <div class="revenue-chart mt-3" role="img" aria-label="{{ _('Erlös je Monat nach Bestandteilen') }}">
+                {% for m in r.months %}
+                <div class="revenue-month" title="{{ _(month_names[m.month - 1]) }}: {{ m.total|num(0) }} €{% if m.ct is not none %} · {{ m.ct|num(2) }} ct/kWh{% endif %}">
+                    <span class="revenue-stack">{% for key, label in revenue_groups %}{% if m.height[key] %}<span class="rev-{{ key }}" style="height: {{ m.height[key] }}%"></span>{% endif %}{% endfor %}</span>
+                    <span class="budget-month-name">{{ _(month_names[m.month - 1]) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex flex-wrap gap-3 small text-body-secondary mt-1">
+                {% for key, label in revenue_groups %}{% if y.groups[key] %}<span><span class="budget-key rev-{{ key }}"></span>{{ _(label) }} {{ y.groups[key]|num(0) }} €</span>{% endif %}{% endfor %}
+            </div>
+            {% else %}
+            <div class="small text-body-secondary mt-2">{{ _("Nur Jahresabrechnung – ohne Aufteilung nach Monaten.") }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Aus den importierten Abrechnungen: Gesamterlös = anzulegender Wert, Boni und Flexprämie. Der Netzbetreiber zahlt das abzüglich Marktwert, den Marktwert bekommt ihr über die Direktvermarktung. „Entgangen“ ist geschätzt: kWh der Verringerung × (anzulegender Wert + Boni − Marktwert) desselben Monats.") }}</div>
+</div>
+{% endif %}
+{% endblock %}
