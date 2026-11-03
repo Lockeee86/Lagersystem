@@ -1887,8 +1887,6 @@ MESSAGES = {
     'verschickt': 'wysłano',
     'nicht eingeteilt': 'nieprzydzielony',
     'Was ist zu tun?': 'Co jest do zrobienia?',
-    'Maschine …': 'Maszyna …',
-    'Schlag …': 'Pole …',
     'Was der Nächste wissen muss – offene Notizen stehen {n} Tage auf der Startseite.': 'Co następna osoba musi wiedzieć – otwarte notatki są przez {n} dni na stronie głównej.',
     'Noch keine Übergabe-Notizen.': 'Brak notatek przekazania.',
     '{n} fällig': ('{n} do zrobienia', '{n} do zrobienia', '{n} do zrobienia'),
@@ -2967,4 +2965,7 @@ MESSAGES = {
     'Trotzdem draufstellen': 'Mimo to postaw na niej',
     'Angebrochene Kisten bleiben oben – es wird daneben angefangen.': 'Niepełne skrzynie zostają na górze – zaczynamy obok.',
     'Erst oben entscheiden.': 'Najpierw zdecyduj powyżej.',
+    'Maschine suchen …': 'Szukaj maszyny …',
+    'Maschinen …': 'Maszyny …',
+    'Schläge …': 'Pola …',
 }

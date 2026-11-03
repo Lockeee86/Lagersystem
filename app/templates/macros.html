@@ -195,25 +195,39 @@
 {% macro motor_start(s) %}{% if s %}<span class="text-nowrap" title="{{ _('Nächster geplanter Start') }}"><i class="bi bi-clock me-1"></i>{% if s.day == "today" %}{{ _("Start heute {time} Uhr", time=s.time) }}{% elif s.day == "tomorrow" %}{{ _("Start morgen {time} Uhr", time=s.time) }}{% else %}{{ _("Start {day} {time} Uhr", day=s.day.strftime("%d.%m."), time=s.time) }}{% endif %}</span>{% endif %}{% endmacro %}
 
 {# Mehrfachauswahl Schläge (Checkboxen `plot_ids` mit Suchfeld; Verhalten in app.js) #}
-{% macro plot_pick(plots, chosen, none_label) %}
-{% set chosen_names = plots|selectattr("id", "in", chosen)|map(attribute="label")|list %}
+{# Mehrfachauswahl als Aufklapp-Liste mit Suche (Schläge, Maschinen). `groups` = [(Überschrift, [Einträge])] #}
+{% macro multi_pick(groups, chosen, none_label, name, aria_label, search_label, small=true) %}
+{% set ns = namespace(names=[]) %}
+{% for _label, items in groups %}{% for it in items %}{% if it.id in chosen %}{% set ns.names = ns.names + [it.pick_label] %}{% endif %}{% endfor %}{% endfor %}
 <div class="dropdown plot-pick" data-plot-pick>
-    <button class="form-select form-select-sm text-start d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="{{ _('Schläge') }}">
-        <span class="text-truncate flex-grow-1" data-plot-summary data-none="{{ none_label }}">{{ chosen_names|join(", ") if chosen_names else none_label }}</span>
-        <span class="badge text-bg-primary {{ 'd-none' if chosen_names|length < 2 }}" data-plot-count>{{ chosen_names|length }}</span>
+    <button class="form-select{{ ' form-select-sm' if small }} text-start d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="{{ aria_label }}">
+        <span class="text-truncate flex-grow-1" data-plot-summary data-none="{{ none_label }}">{{ ns.names|join(", ") if ns.names else none_label }}</span>
+        <span class="badge text-bg-primary {{ 'd-none' if ns.names|length < 2 }}" data-plot-count>{{ ns.names|length }}</span>
     </button>
     <div class="dropdown-menu p-2 w-100">
-        <input type="search" class="form-control form-control-sm mb-2" placeholder="{{ _('Schlag suchen …') }}" aria-label="{{ _('Schlag suchen …') }}" data-plot-filter>
+        <input type="search" class="form-control form-control-sm mb-2" placeholder="{{ search_label }}" aria-label="{{ search_label }}" data-plot-filter>
         <div class="plot-pick-list">
-            {% for p in plots %}
-            <label class="dropdown-item d-flex align-items-center gap-2 rounded" data-plot-name="{{ p.label|lower }}">
-                <input class="form-check-input m-0" type="checkbox" name="plot_ids" value="{{ p.id }}" data-label="{{ p.label }}" {% if p.id in chosen %}checked{% endif %}>
-                <span class="text-truncate">{{ p.label }}</span>
+            {% for group_label, items in groups %}
+            {% if group_label %}<div class="dropdown-header px-2 pt-2 pb-1" data-plot-group>{{ group_label }}</div>{% endif %}
+            {% for it in items %}
+            <label class="dropdown-item d-flex align-items-center gap-2 rounded" data-plot-name="{{ it.pick_label|lower }}">
+                <input class="form-check-input m-0" type="checkbox" name="{{ name }}" value="{{ it.id }}" data-label="{{ it.pick_label }}" {% if it.id in chosen %}checked{% endif %}>
+                <span class="text-truncate">{{ it.pick_label }}</span>
             </label>
+            {% endfor %}
             {% endfor %}
         </div>
     </div>
 </div>
+{% endmacro %}
+
+{% macro plot_pick(plots, chosen, none_label, small=true) %}
+{{ multi_pick([(none, plots)], chosen, none_label, "plot_ids", _("Schläge"), _("Schlag suchen …"), small) }}
+{% endmacro %}
+
+{# Mehrere Maschinen, nach technischem Platz gruppiert #}
+{% macro machine_pick(machines, chosen, none_label, small=true) %}
+{{ multi_pick(machine_groups(machines), chosen, none_label, "machine_ids", _("Maschinen"), _("Maschine suchen …"), small) }}
 {% endmacro %}
 
 

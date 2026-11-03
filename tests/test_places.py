@@ -104,9 +104,10 @@ def test_grouped_machine_selects(as_admin, db, seed):
     assert [label for label, _items in groups] == ["Anlage Ost", "Anlage Ost › Motorenraum", "Halle Süd › Kühlung",
                                                    "Ohne festen Platz"]
     assert groups[-1][1] == [tractor]
-    for url in ("/bestellungen", "/aufgaben", "/tagesplan"):
+    assert '<optgroup label="Anlage Ost › Motorenraum">' in as_admin.get("/bestellungen").get_data(as_text=True)
+    for url in ("/aufgaben", "/tagesplan"):                  # Mehrfachauswahl: Platz als Überschrift
         html = as_admin.get(url).get_data(as_text=True)
-        assert '<optgroup label="Anlage Ost › Motorenraum">' in html, url
+        assert "data-plot-group>Anlage Ost › Motorenraum</div>" in html, url
     # ohne Plätze: keine Gruppen
     assert places.group_machines([tractor]) == [(None, [tractor])]
 

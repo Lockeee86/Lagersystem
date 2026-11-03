@@ -85,7 +85,8 @@ SUGGEST_DAYS = 7         # Wartungen, die in so vielen Tagen fällig werden, sch
 
 def _loaded(query):
     from sqlalchemy.orm import joinedload, selectinload
-    return query.options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine))
+    return query.options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine),
+                         selectinload(Task.machines))
 
 
 def plan_for(day, today=None, exact=False):
@@ -113,28 +114,38 @@ def _check_member(user):
         raise StorageError(_("Bitte einen Mitarbeiter wählen."))
 
 
-def add_plan_entry(day, user, text, actor, machine_id=None, plot_ids=()):
-    """Neue Aufgabe direkt in den Tagesplan einer Person."""
+def _machines(machine_ids):
+    ids = {int(i) for i in machine_ids or () if i}
+    return Machine.query.filter(Machine.id.in_(ids)).order_by(Machine.name).all() if ids else []
+
+
+def _plots(plot_ids):
+    ids = {int(i) for i in plot_ids or () if i}
+    return Plot.query.filter(Plot.id.in_(ids)).order_by(Plot.name).all() if ids else []
+
+
+def add_plan_entry(day, user, text, actor, machine_id=None, plot_ids=(), machine_ids=()):
+    """Neue Aufgabe direkt in den Tagesplan einer Person (mit Maschinen und Schlägen, je mehrere)."""
     text = _text(text, 200)
     if not text:
         raise StorageError(_("Bitte eintragen, was zu tun ist."))
     _check_member(user)
-    machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
-    plots = Plot.query.filter(Plot.id.in_(set(plot_ids))).order_by(Plot.name).all() if plot_ids else []
-    task = Task(title=text, machine_id=machine_id, plots=plots, assignees=[user], plan_day=day,
+    task = Task(title=text, plots=_plots(plot_ids), assignees=[user], plan_day=day,
                 plan_position=_next_position(day), created_by_id=actor.id if actor else None)
+    task.set_machines(_machines(list(machine_ids) + ([machine_id] if machine_id else [])))
     db.session.add(task)
     db.session.flush()
     return task
 
 
-def add_open_task(text, user, machine_id=None, important=False):
-    """Kurz notieren: Aufgabe ohne Person und Tag („Offen“)."""
+def add_open_task(text, user, machine_id=None, important=False, machine_ids=(), plot_ids=()):
+    """Kurz notieren: Aufgabe ohne Person und Tag („Offen“), optional mit Maschinen und Schlägen."""
     text = _text(text, 200)
     if not text:
         raise StorageError(_("Bitte eintragen, was zu tun ist."))
-    machine_id = machine_id if machine_id and db.session.get(Machine, machine_id) else None
-    task = Task(title=text, machine_id=machine_id, important=bool(important), created_by_id=user.id if user else None)
+    task = Task(title=text, plots=_plots(plot_ids), important=bool(important),
+                created_by_id=user.id if user else None)
+    task.set_machines(_machines(list(machine_ids) + ([machine_id] if machine_id else [])))
     db.session.add(task)
     db.session.flush()
     return task
@@ -185,9 +196,10 @@ def copy_plan(source_day, target_day, actor):
         for e in entries:
             if not e.is_done:
                 continue
-            db.session.add(Task(title=e.title, machine_id=e.machine_id, plots=list(e.plots), assignees=[e.plan_user],
-                                plan_day=target_day, plan_position=e.plan_position,
-                                created_by_id=actor.id if actor else None))
+            copy = Task(title=e.title, plots=list(e.plots), assignees=[e.plan_user],
+                        plan_day=target_day, plan_position=e.plan_position, created_by_id=actor.id if actor else None)
+            copy.set_machines(e.machine_list)
+            db.session.add(copy)
             copied += 1
     db.session.flush()
     return copied
@@ -212,7 +224,7 @@ def open_tasks(day, user, today=None):
     query = Task.query.filter(Task.done_at.is_(None), Task.plan_day.is_(None),
                               db.or_(Task.area.is_(None), Task.area != "huehner"),
                               db.or_(Task.due_on.is_(None), Task.due_on <= day + timedelta(days=OPEN_AHEAD_DAYS)))
-    rows = [t for t in _loaded(query) if (not t.machine or machines.can_see(t.machine, user))
+    rows = [t for t in _loaded(query) if all(machines.can_see(m, user) for m in t.machine_list)
             and (user.is_planner or not t.assignees)]
     return sorted(rows, key=lambda t: (not (t.due_on and t.due_on <= day), not t.important,
                                        t.due_on or date.max, t.created_at))
@@ -282,7 +294,8 @@ def send_plan(day, actor):
     sent = 0
     for user_id, entries in plan_for(day).items():
         user = entries[0].plan_user
-        lines = [e.title + (f" ({e.machine.name})" if e.machine else "") for e in entries if not e.is_done]
+        lines = [e.title + (f" ({', '.join(m.name for m in e.machine_list)})" if e.machine_list else "")
+                 for e in entries if not e.is_done]
         if not lines:
             continue
         sent += push.notify([user], "day_plan", Msg("Dein Plan für {day}", day=day.strftime("%d.%m.")),

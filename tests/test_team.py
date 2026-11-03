@@ -439,3 +439,32 @@ def test_plan_suggestions(as_admin, as_worker, db, seed):
     as_worker.post(f"/tagesplan/eintrag/{by_kind['wartung'].id}/erledigt")
     assert oil.last_done_on == today
 
+
+
+def test_several_machines_and_plots(as_admin, as_worker, db, seed):
+    """Notieren und Einplanen mit mehreren Maschinen und Schlägen (Mehrfachauswahl)."""
+    from app import tasks
+    worker = seed["worker"]
+    today = date.today()
+    a, b = Machine(code="M-11", name="Schlepper A", category="schlepper"), Machine(code="M-12", name="Hoflader B", category="lader")
+    south = Plot(name="Wiese Süd")
+    db.session.add_all([a, b, south])
+    db.session.commit()
+    html = as_worker.get("/aufgaben/offen").get_data(as_text=True)
+    assert 'name="machine_ids"' in html and 'name="plot_ids"' in html and "Maschinen …" in html
+    as_worker.post("/aufgaben/notieren", data={"datum": today.isoformat(), "text": "Reifen prüfen",
+                                              "machine_ids": [a.id, b.id], "plot_ids": [seed["plot"].id, south.id]})
+    task = Task.query.filter_by(title="Reifen prüfen").one()
+    assert [m.name for m in task.machine_list] == ["Hoflader B", "Schlepper A"] and task.machine == b
+    assert [p.name for p in task.plots] == ["Acker Nord", "Wiese Süd"]
+    html = as_worker.get("/aufgaben/offen").get_data(as_text=True)
+    assert "Schlepper A" in html and "Hoflader B" in html and "Wiese Süd" in html
+    # Tagesplan-Eintrag mit zwei Maschinen; übernehmen kopiert beide
+    as_admin.post("/tagesplan/eintrag", data={"datum": today.isoformat(), "user_id": worker.id, "text": "Umsetzen",
+                                              "machine_ids": [a.id, b.id]})
+    entry = Task.query.filter_by(title="Umsetzen").one()
+    assert len(entry.machine_list) == 2
+    assert {t.title for t in tasks.for_machine(a.id)} == {"Reifen prüfen", "Umsetzen"}      # auf der Maschinenseite
+    # Aufgabenformular: Auswahl bleibt erhalten
+    html = as_admin.get(f"/aufgabe/{task.id}").get_data(as_text=True)
+    assert f'name="machine_ids" value="{a.id}" data-label="Schlepper A" checked' in html

@@ -1,4 +1,4 @@
-{% from "macros.html" import plot_pick, machine_options %}
+{% from "macros.html" import plot_pick, machine_pick %}
 {% macro task_item(task, today, back="", extra_class="") %}
 {% set can_tick = not task.is_done and current_user.can_edit and (current_user.is_admin or task.is_for(current_user)) %}
 <li class="list-group-item gap-2 align-items-start task-item {% if task.is_done %}is-done{% endif %} {{ extra_class or 'd-flex' }}">
@@ -27,7 +27,7 @@
             {% endif %}
             <span><i class="bi bi-person"></i> {{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</span>
             {% if task.plots %}<span><i class="bi bi-map"></i> {{ task.plots|map(attribute="name")|join(", ") }}</span>{% endif %}
-            {% if task.machine %}<span><i class="bi bi-gear-wide-connected"></i> {{ task.machine.name }}</span>{% endif %}
+            {% if task.machine_list %}<span><i class="bi bi-gear-wide-connected"></i> {{ task.machine_list|map(attribute="name")|join(", ") }}</span>{% endif %}
             {% if task.delivery %}<span><i class="bi bi-truck"></i> {{ task.delivery.number }}</span>{% endif %}
             {% if task.location_label %}<span><i class="bi bi-geo-alt"></i> {{ task.location_label }}</span>{% endif %}
             {% if task.photos %}<span><i class="bi bi-camera"></i> {{ task.photos|length }}</span>{% endif %}
@@ -93,11 +93,8 @@
         {{ plot_pick(plots, chosen, _("– kein Schlag –")) }}
     </div>
     <div class="col-12 col-md-6 col-xl-3">
-        <select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
-            <option value="">{{ _("– keine Maschine –") }}</option>
-            {% set mid = task.machine_id if task else prefill.get('machine_id') %}
-            {{ machine_options(machines, mid) }}
-        </select>
+        {% set mids = task.machine_list|map(attribute="id")|list if task else ([prefill.get('machine_id')] if prefill.get('machine_id') else []) %}
+        {{ machine_pick(machines, mids, _("– keine Maschine –")) }}
     </div>
     <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="delivery_id" aria-label="{{ _('Lieferschein') }}">

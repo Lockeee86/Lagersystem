@@ -5,7 +5,7 @@ from functools import wraps
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 
-from . import team, uploads
+from . import machines, team, uploads
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .instruction_pdf import render_instruction_record
@@ -90,12 +90,18 @@ def _day_arg():
         return date.today()
 
 
+def _ids(name):
+    return [int(v) for v in request.form.getlist(name) if v.isdigit()]
+
+
 def _open_context(day):
     """Gemeinsam für „Heute“ und „Offen“: offene Aufgaben, Vorschläge (Planer), Maschinen fürs Notieren."""
     return dict(
         open=team.open_tasks(day, current_user) if current_user.can_edit else [],
         suggestions=team.suggestions(day, current_user) if current_user.is_planner else [],
-        note_machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.can_edit else [],
+        note_machines=machines.visible(Machine.query.filter_by(active=True), current_user).order_by(Machine.name).all()
+        if current_user.can_edit else [],
+        note_plots=Plot.query.filter_by(active=True).order_by(Plot.name).all() if current_user.can_edit else [],
     )
 
 
@@ -146,8 +152,7 @@ def plan_add():
     user = db.session.get(User, form_int("user_id", 0))
     try:
         team.add_plan_entry(day, user, request.form.get("text"), current_user,
-                            machine_id=form_int("machine_id"),
-                            plot_ids=[int(v) for v in request.form.getlist("plot_ids") if v.isdigit()])
+                            machine_ids=_ids("machine_ids") + _ids("machine_id"), plot_ids=_ids("plot_ids"))
         db.session.commit()
     except StorageError as e:
         db.session.rollback()
@@ -160,8 +165,8 @@ def plan_add():
 def open_add():
     """Kurz notieren – landet unter „Offen“."""
     try:
-        team.add_open_task(request.form.get("text"), current_user, machine_id=form_int("machine_id"),
-                           important=bool(request.form.get("important")))
+        team.add_open_task(request.form.get("text"), current_user, important=bool(request.form.get("important")),
+                           machine_ids=_ids("machine_ids") + _ids("machine_id"), plot_ids=_ids("plot_ids"))
         db.session.commit()
     except StorageError as e:
         db.session.rollback()

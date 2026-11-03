@@ -141,7 +141,7 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
                     {% for e in p.entries %}
                     <div class="entry {{ 'done' if e.done_at }}"><i class="bi {{ 'bi-check-square-fill' if e.done_at else 'bi-square' }}"></i>
                         <span>{{ e.title }}
-                        {% if e.machine %} <span class="tag">{{ e.machine.name }}</span>{% endif %}
+                        {% for m in e.machine_list %} <span class="tag">{{ m.name }}</span>{% endfor %}
                         {% for pl in e.plots[:2] %} <span class="tag">{{ pl.name }}</span>{% endfor %}</span>
                     </div>
                     {% endfor %}

@@ -130,8 +130,8 @@ window.App = (function () {
     });
     document.addEventListener("change", function (e) {
         var pick = e.target.closest && e.target.closest("[data-plot-pick]");
-        if (!pick || e.target.name !== "plot_ids") return;
-        var names = Array.prototype.map.call(pick.querySelectorAll("input[name=plot_ids]:checked"),
+        if (!pick || e.target.type !== "checkbox") return;
+        var names = Array.prototype.map.call(pick.querySelectorAll("input[type=checkbox]:checked"),
                                              function (box) { return box.dataset.label; });
         var summary = pick.querySelector("[data-plot-summary]"), count = pick.querySelector("[data-plot-count]");
         summary.textContent = names.length ? names.join(", ") : summary.dataset.none;

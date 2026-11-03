@@ -11,7 +11,7 @@
 </div>
 {{ task_tabs("offen") }}
 <div class="card shadow-sm" id="offen">
-    <div class="card-body pb-1">{{ note_form(day, note_machines, here) }}</div>
+    <div class="card-body pb-1">{{ note_form(day, note_machines, note_plots, here) }}</div>
     {{ open_list(open, suggestions, day, today, members, here) }}
 </div>
 {% endblock %}

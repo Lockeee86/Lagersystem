@@ -29,7 +29,7 @@ def _choices(task=None):
         return dict(users=tasks.request_recipients(), recurrences=RECURRENCES, machines=[], deliveries=[],
                     warehouses=[], plots=[])
     machines = visible_machines(Machine.query, current_user).filter(
-        (Machine.active.is_(True)) | (Machine.id == (task.machine_id if task else None)))
+        (Machine.active.is_(True)) | Machine.id.in_([m.id for m in task.machine_list] if task else []))
     deliveries = Delivery.query.filter((Delivery.status == DELIVERY_OPEN) |
                                        (Delivery.id == (task.delivery_id if task else None)))
     return dict(
@@ -44,7 +44,7 @@ def _choices(task=None):
 
 def _fields_from_form():
     ids = {int(v) for v in request.form.getlist("assignee_ids") if v.isdigit()}
-    machine_id = form_int("machine_id")
+    machine_ids = {int(v) for v in request.form.getlist("machine_ids") + request.form.getlist("machine_id") if v.isdigit()}
     delivery_id = form_int("delivery_id")
     plot_ids = {int(v) for v in request.form.getlist("plot_ids") if v.isdigit()}
     # Lagerplatz als "lager_id:reihe" (Reihe leer = ganzes Lager)
@@ -57,7 +57,7 @@ def _fields_from_form():
         due_on=form_date("due_on"), important=bool(request.form.get("important")),
         recurrence=recurrence if recurrence in RECURRENCES else None,
         assignees=User.query.filter(User.id.in_(ids)).all() if ids else [],
-        machine_id=machine_id if machine_id and db.session.get(Machine, machine_id) else None,
+        machines=Machine.query.filter(Machine.id.in_(machine_ids)).order_by(Machine.name).all() if machine_ids else [],
         delivery_id=delivery_id if delivery_id and db.session.get(Delivery, delivery_id) else None,
         warehouse_id=warehouse.id if warehouse else None,
         row=row if warehouse and row and row <= warehouse.rows else None,

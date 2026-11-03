@@ -10,7 +10,7 @@ from .extensions import db
 from .i18n import gettext as _
 from . import machines
 from .machines import add_months
-from .models import RECURRENCES, ROLE_MITARBEITER, Photo, Task, User, task_assignees, utcnow
+from .models import RECURRENCES, ROLE_MITARBEITER, Machine, Photo, Task, User, task_assignees, utcnow
 from .storage import StorageError
 
 UPCOMING_DAYS = 7
@@ -68,7 +68,7 @@ def next_due(due_on, recurrence, today=None):
 
 def apply_fields(task, title, description=None, due_on=None, important=False, recurrence=None, assignees=(),
                  machine_id=None, delivery_id=None, warehouse_id=None, row=None, machine_event_id=None,
-                 maintenance_task_id=None, plots=()):
+                 maintenance_task_id=None, plots=(), machines=None):
     title = (title or "").strip()
     if not title:
         raise StorageError(_("Bitte einen Titel angeben."))
@@ -80,7 +80,10 @@ def apply_fields(task, title, description=None, due_on=None, important=False, re
     task.recurrence = recurrence or None
     task.due_on = due_on or (date.today() if recurrence else None)   # Serien brauchen einen Termin
     task.assignees = list(assignees)
-    task.machine_id, task.delivery_id = machine_id, delivery_id
+    if machines is None:                                  # nur eine Maschine (Vorschlag, Störung, Wartung)
+        machines = [db.session.get(Machine, machine_id)] if machine_id else []
+    task.set_machines(machines)
+    task.delivery_id = delivery_id
     task.warehouse_id = warehouse_id
     task.row = row if warehouse_id else None
     task.plots = list(plots)
@@ -116,7 +119,7 @@ def complete_task(task, user, note=None, photo_names=None):
         follow_up = Task(
             title=task.title, description=task.description, important=task.important,
             recurrence=task.recurrence, due_on=next_due(task.due_on, task.recurrence),
-            assignees=list(task.assignees), machine_id=task.machine_id, delivery_id=task.delivery_id,
+            assignees=list(task.assignees), machine_id=task.machine_id, machines=list(task.machines), delivery_id=task.delivery_id,
             warehouse_id=task.warehouse_id, row=task.row, plots=list(task.plots), area=task.area, previous_id=task.id,
             created_by_id=task.created_by_id,
         )
@@ -176,7 +179,8 @@ def buckets(tasks, today=None):
 def open_tasks(user=None):
     from sqlalchemy.orm import joinedload, selectinload
     return (visible_query(user).filter(Task.done_at.is_(None))
-            .options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine)).all())
+            .options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine),
+                     selectinload(Task.machines)).all())
 
 
 def due_now(user=None, today=None):
@@ -192,7 +196,8 @@ def recently_done(user=None, days=7):
 
 
 def for_machine(machine_id):
-    return sorted(Task.query.filter_by(machine_id=machine_id, done_at=None), key=_sort_key)
+    return sorted(Task.query.filter(db.or_(Task.machine_id == machine_id, Task.machines.any(id=machine_id)),
+                                    Task.done_at.is_(None)), key=_sort_key)
 
 
 def for_plot(plot_id):

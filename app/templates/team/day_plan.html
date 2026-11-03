@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, plot_pick, machine_options %}
+{% from "macros.html" import csrf, plot_pick, machine_pick %}
 {% from "team/_macros.html" import plan_lines, task_tabs, note_form, open_list with context %}
 {% block title %}{{ _("Aufgaben") }}{% endblock %}
 {% block content %}
@@ -46,7 +46,7 @@
                 <span class="fw-semibold"><i class="bi bi-inbox me-1"></i>{{ _("Offen") }} {% if open or suggestions %}<span class="badge text-bg-secondary ms-1">{{ open|length + suggestions|length }}</span>{% endif %}</span>
                 <span class="small text-body-secondary">{{ _("zum Verteilen") if current_user.is_planner else _("für alle") }}</span>
             </div>
-            <div class="card-body pb-1">{{ note_form(day, note_machines, here ~ '#offen') }}</div>
+            <div class="card-body pb-1">{{ note_form(day, note_machines, note_plots, here ~ '#offen') }}</div>
             {{ open_list(open, suggestions, day, today, members, here ~ '#offen') }}
         </div>
     </div>
@@ -84,11 +84,8 @@
                                 <button class="btn btn-outline-primary" aria-label="{{ _('Hinzufügen') }}"><i class="bi bi-plus-lg"></i></button>
                             </div>
                             <div class="row g-1 mt-1">
-                                <div class="col-6"><select class="form-select form-select-sm" name="machine_id" aria-label="{{ _('Maschine') }}">
-                                    <option value="">{{ _("Maschine …") }}</option>
-                                    {{ machine_options(machines) }}
-                                </select></div>
-                                <div class="col-6">{{ plot_pick(plots, [], _("Schlag …")) }}</div>
+                                <div class="col-6">{{ machine_pick(machines, [], _("Maschinen …")) }}</div>
+                                <div class="col-6">{{ plot_pick(plots, [], _("Schläge …")) }}</div>
                             </div>
                         </form>
                         {% endif %}

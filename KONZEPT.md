@@ -573,6 +573,8 @@ Interaktiv geklärt; Reihenfolge: Datensicherung → Push → Maschinen → Kale
    zurück. Startseite für Mitarbeiter: „Meine Aufgaben heute“ (`team.my_today`: heute/liegengeblieben eingeplant und mir
    zugeteilt ohne Tag, fällig oder ohne Termin) und „Offen für alle“ mit „Mach ich“. Migration `b9d3f7a5c024` macht aus
    Pool-Einträgen und Tagesplan-Einträgen Aufgaben (verknüpfte Einträge setzen Tag/Person an der Aufgabe).
+   **Mehrere Maschinen und Schläge** (0.79.0): Aufgaben haben jetzt mehrere Maschinen (`task_machines`, die erste
+   bleibt `machine_id`); Notieren, Tagesplan-Eintrag und Aufgabenformular mit Mehrfachauswahl für Maschinen und Schläge.
    *Übergabe* (`/uebergabe`): Notiz zum Feierabend („Was der Nächste wissen muss“), steht oben auf der Startseite,
    bis jemand sie abhakt oder sie älter als 3 Tage ist; Push-Thema „Neue Übergabe-Notiz“ ist von sich aus aus
    (`Handover`).

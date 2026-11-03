@@ -104,7 +104,8 @@ docker compose up --build -d
   Rechte über `PurchaseRequest.can_handle`; „erledigt“ erst mit `invoice_handed_on` = Rechnung übergeben an
   `settings` `invoice_recipient`; Dateien `PurchaseDocument` unter `dokumente/`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`
-- `app/tasks.py`: Aufgaben (Zuteilung, Fälligkeit, Wiederholung `next_due`), committet nicht;
+- `app/tasks.py`: Aufgaben (Zuteilung, Fälligkeit, Wiederholung `next_due`; mehrere Maschinen `Task.machines` /
+  `machine_list` / `set_machines()` – `machine_id` = die erste, für Maschinenseite/Wartung/Störung), committet nicht;
   `app/task_views.py` (Blueprint `tasks`). Makros aus `tasks/_macros.html` mit `with context` importieren.
 - `app/fields.py`: Schlagkartei (KML-Import mit Abgleich, Anbaujahre `PlotYear`, Ertrag t/ha), committet nicht;
   `app/fields_views.py` (Blueprint `fields`), `app/static/js/schlagkarte.js` (Umrisse als SVG).
@@ -193,7 +194,8 @@ docker compose up --build -d
 - `app/static/js/mapzoom.js`: Lagerkarte am Handy/Tablet zoomen und verschieben (zwei Finger); ein Stapel klappt dort
   unten als Blatt auf (`#stackSheet`, Offcanvas), am PC als Fenster
 - `app/static/js/lager3d.js`: 3D-Ansicht der Lagerkarte (isometrisches SVG aus JSON, das `views.warehouse_map` liefert)
-- `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html` (Mehrfachauswahl Schläge: `plot_pick`)
+- `app/templates/`: Jinja2, Bootstrap 5. Gemeinsame Makros in `macros.html` (Mehrfachauswahl `multi_pick`: Schläge `plot_pick`,
+  Maschinen `machine_pick` – Einträge brauchen `pick_label`)
 - Glas-Design: `app/backgrounds.py` (Hintergrund je Benutzer `User.background` / `bg_strength`, „auto“ nach Tageszeit,
   „klassisch“ = Standard für alle, hell/dunkel über `User.theme_mode` – „auto“ nach Sonnenstand `theme()`, im Template
   `classic_theme`, Route `auth.theme_save`), `static/css/glass.css` (nur geladen bei `html[data-bg]`, überschreibt die

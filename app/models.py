@@ -418,6 +418,10 @@ class Plot(db.Model):
         return f"{self.name} ({self.number})" if self.number else self.name
 
     @property
+    def pick_label(self):                         # Mehrfachauswahl (macros.multi_pick)
+        return self.label
+
+    @property
     def rings(self):
         import json
         try:
@@ -1114,6 +1118,10 @@ class Machine(db.Model):
                              cascade="all, delete-orphan")
 
     @property
+    def pick_label(self):                         # Mehrfachauswahl (macros.multi_pick)
+        return self.name
+
+    @property
     def category_label(self):
         return _(MACHINE_CATEGORIES.get(self.category, self.category))
 
@@ -1253,6 +1261,13 @@ task_plots = db.Table(
 )
 
 
+task_machines = db.Table(
+    "task_machines",
+    db.Column("task_id", db.Integer, db.ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("machine_id", db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
+
+
 class Task(db.Model):
     """Aufgabe für eine oder mehrere Personen (keine Zuteilung = für alle). Einer hakt für alle ab.
     Wiederkehrende Aufgaben erzeugen beim Abhaken die nächste (`previous_id` verkettet die Serie)."""
@@ -1289,6 +1304,8 @@ class Task(db.Model):
     delivery = db.relationship("Delivery")
     warehouse = db.relationship("Warehouse")
     plots = db.relationship("Plot", secondary=task_plots, order_by="Plot.name")
+    # mehrere Maschinen; `machine_id` = die erste (für Maschinenseite, Wartung, Störung)
+    machines = db.relationship("Machine", secondary=task_machines, order_by="Machine.name")
     machine_event = db.relationship("MachineEvent")
     maintenance_task = db.relationship("MaintenanceTask")
     done_by = db.relationship("User", foreign_keys=[done_by_id])
@@ -1313,6 +1330,18 @@ class Task(db.Model):
 
     def is_for(self, user):
         return not self.assignees or user in self.assignees
+
+    @property
+    def machine_list(self):
+        """Alle Maschinen der Aufgabe (ältere Aufgaben haben nur `machine`)."""
+        if self.machines:
+            return list(self.machines)
+        return [self.machine] if self.machine else []
+
+    def set_machines(self, machines):
+        machines = [m for m in machines if m is not None]
+        self.machines = machines
+        self.machine = machines[0] if machines else None
 
     @property
     def plan_user(self):
