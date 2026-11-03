@@ -182,8 +182,8 @@ class User(UserMixin, db.Model):
 
     @property
     def sees_biogas(self):
-        """Rubrik Biogas (BHKW, Rundgang, Strompreis) – in der Benutzerverwaltung abwählbar, Admins immer."""
-        return self.is_admin or (bool(self.biogas) and not self.only_chickens)
+        """Rubrik Biogas (BHKW, Rundgang, Strompreis) – in der Benutzerverwaltung abwählbar, auch für Admins."""
+        return bool(self.biogas) and not self.only_chickens
 
     @property
     def sees_chickens(self):

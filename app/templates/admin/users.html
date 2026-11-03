@@ -25,7 +25,7 @@
                             <div class="small text-body-secondary">{{ u.username }}</div></div>
                     </div>
                 </td>
-                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if not u.biogas and not u.is_admin and not u.chickens_only %} <span class="badge text-bg-secondary">{{ _("ohne Biogas") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
+                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if not u.biogas and not u.chickens_only %} <span class="badge text-bg-secondary">{{ _("ohne Biogas") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
                 <td title="{{ languages.get(u.language, u.language) }}">{{ LANGUAGE_FLAGS.get(u.language, '') }} {{ u.language|upper }}</td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ u.last_login|datetime }}</td>
                 <td class="text-end">
@@ -85,7 +85,7 @@
 </div>
 <div class="form-check mb-2">
     <input class="form-check-input" type="checkbox" id="u_biogas" name="biogas" value="1">
-    <label class="form-check-label" for="u_biogas">{{ _("Rubrik Biogas (BHKW, Rundgang, Strompreis-Ampel; Admins sehen sie immer)") }}</label>
+    <label class="form-check-label" for="u_biogas">{{ _("Rubrik Biogas (BHKW, Rundgang, Strompreis-Ampel)") }}</label>
 </div>
 <div class="form-check mb-2">
     <input class="form-check-input" type="checkbox" id="u_chickens" name="chickens" value="1">

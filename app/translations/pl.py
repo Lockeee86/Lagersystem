@@ -2461,7 +2461,7 @@ MESSAGES = {
     'Um {time} Uhr noch zu – Klappe, Lichtsensor oder Batterie prüfen.': 'O {time} nadal zamknięta – sprawdź klapę, czujnik światła lub baterię.',
     'Push, wenn die Klappe morgens um diese Uhrzeit noch zu ist': 'Powiadomienie, gdy klapa rano o tej godzinie jest jeszcze zamknięta',
     'ohne Biogas': 'bez biogazu',
-    'Rubrik Biogas (BHKW, Rundgang, Strompreis-Ampel; Admins sehen sie immer)': 'Dział Biogaz (CHP, obchód, sygnalizacja cen prądu; admini widzą go zawsze)',
+    'Rubrik Biogas (BHKW, Rundgang, Strompreis-Ampel)': 'Dział Biogaz (CHP, obchód, sygnalizacja cen prądu)',
     'Fahrplan-Güte {n} %': 'jakość grafiku {n} %',
     'SKVE liefert bisher nur den Fahrplan (geplante Leistung), keine gemessenen Werte der Motoren. Laufzeiten, kWh, Day-Ahead-Werte und der Betriebsstundenzähler sind daraus gerechnet – steht ein Motor ungeplant, sieht die App das nur über eine Störung im Logbuch. Den Zähler deshalb ab und zu am Motor ablesen und eintragen.': 'SKVE dostarcza na razie tylko grafik pracy (planowaną moc), bez zmierzonych wartości silników. Czas pracy, kWh, wartości Day-Ahead i licznik motogodzin są z niego wyliczane – jeśli silnik stoi nieplanowo, aplikacja widzi to tylko po awarii wpisanej w dzienniku. Dlatego co jakiś czas odczytaj licznik na silniku i wpisz go.',
     'Fahrplan-Güte': 'Jakość grafiku',

@@ -187,6 +187,8 @@ Portainer-Stack (docker-compose)
   gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
 - Der runde Knopf in der Mitte der unteren Leiste ist jetzt **Einlagern** (Symbol Kiste mit Pfeil); unter Mein Konto
   → Untere Leiste auf **Scannen** umstellbar (`User.tab_center`, 0.77.0). Betrachter und „nur Hühner“ behalten Scannen.
+- **Biogas auch für Admins abwählbar** (0.79.1): wie die Hühner je Benutzer in der Benutzerverwaltung; bestehende Admins
+  behalten die Rubrik (Migration setzt den Haken).
 - **Warnung angebrochene Kiste** (0.78.1): Kämen neue Kisten auf einen Stapel mit angebrochener Kiste oben
   (`storage.partial_conflicts`), zeigt die Vorschau eine Warnung; eingelagert wird erst nach der Entscheidung
   „Daneben anfangen“ (`plan_batch(avoid_partial=True)`) oder „Trotzdem draufstellen“ (Feld `angebrochen`).

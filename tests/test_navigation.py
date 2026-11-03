@@ -120,7 +120,7 @@ def test_tabbar_choice(as_worker, as_admin, db, seed):
 
 
 def test_biogas_optional(as_admin, as_worker, db, seed):
-    """Rubrik Biogas je Benutzer abwählbar – bestehende Benutzer haben sie, Admins immer."""
+    """Rubrik Biogas je Benutzer abwählbar (auch Admins) – bestehende Benutzer haben sie."""
     from app import tabbar, tiles
     from app.models import CheckStation
     worker = seed["worker"]
@@ -140,9 +140,15 @@ def test_biogas_optional(as_admin, as_worker, db, seed):
     more = as_worker.get("/bereich/mehr").get_data(as_text=True)
     assert 'href="/biogas"' not in more and 'href="/rundgang"' not in more
     assert as_admin.get("/biogas").status_code == 200
-    seed["admin"].biogas = False
-    assert seed["admin"].sees_biogas                                           # Admins sehen sie immer
     assert "ohne Biogas" in as_admin.get("/admin/benutzer").get_data(as_text=True)
+    # auch Admins können die Rubrik abwählen (wie bei den Hühnern)
+    admin = seed["admin"]
+    as_admin.post("/admin/benutzer", data={"id": admin.id, "username": "admin", "role": "admin", "language": "de",
+                                           "active": "1"})
+    assert not admin.biogas and not admin.sees_biogas
+    assert as_admin.get("/biogas").status_code == 404
+    assert 'href="/biogas"' not in as_admin.get("/bereich/mehr").get_data(as_text=True)
+    assert "Benutzer" in as_admin.get("/admin/benutzer").get_data(as_text=True)    # wieder einschalten geht
 
 
 def test_bhkw_hidden_without_biogas(app, as_admin, as_worker, db, seed):
