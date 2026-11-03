@@ -4,10 +4,10 @@ from datetime import date, timedelta
 import os
 import secrets
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
-from . import biogas, feedin
+from . import biogas, feedin, plant_display
 from .models import FeedPoint, Machine
 from .i18n import gettext as _, ngettext
 from .extensions import db
@@ -54,7 +54,37 @@ def overview():
                            budget=budget, budget_year=budget_year, feed_candidates=feedin.candidates(),
                            month_names=feedin.MONTH_NAMES, revenue_groups=feedin.REVENUE_GROUPS,
                            inspections=biogas.plant_inspections(),
+                           display_token=plant_display.token() if current_user.is_admin else None,
                            plants=Machine.query.filter_by(category=biogas.PLANT_CATEGORY, active=True).all())
+
+
+# --- Anzeige an der Anlage (Display 800×480 bzw. Farb-E-Paper) – ohne Anmeldung über geheimen Link ---------------
+
+@bp.route("/biogas/anzeige/<token>")
+def display(token):
+    if not plant_display.check_token(token):
+        abort(404)
+    return render_template("biogas/display.html", d=plant_display.data())
+
+
+@bp.route("/biogas/anzeige/<token>/bild.png")
+def display_image(token):
+    """Dasselbe als Bild für Farb-E-Paper (reTerminal E1002, 800×480, sechs Farben) – ESPHome `online_image`."""
+    if not plant_display.check_token(token):
+        abort(404)
+    response = Response(plant_display.render(plant_display.data()), mimetype="image/png")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@bp.route("/biogas/anzeige", methods=["POST"])
+@admin_required
+def display_link():
+    """Link für das Display anlegen bzw. erneuern (der alte gilt danach nicht mehr)."""
+    plant_display.new_token()
+    db.session.commit()
+    flash(_("Neuer Link für das Display erzeugt – der alte funktioniert nicht mehr."), "success")
+    return redirect(url_for("biogas.overview") + "#anzeige")
 
 
 def _feed_point(point_id):

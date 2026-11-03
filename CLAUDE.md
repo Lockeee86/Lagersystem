@@ -132,7 +132,10 @@ docker compose up --build -d
   (`FeedPoint`, `FeedMonth` = Monatsmenge aus der Abrechnung, sonst Fahrplan; `status()`, `price_threshold()`, Push `check()`;
   CSV-Import `parse_csv()`/`apply_import()`, Erlöse `FeedRevenue`/`revenue()`, Budget-Fahrplan `plan()`), Ausfallkosten
   `biogas.loss_per_hour()`, Prüffristen der Anlage = Maschinenart `anlage` (`biogas.plant_inspections()`, `machines.BIOGAS_HIDDEN`),
-  Karte `#budget` auf der Biogas-Seite. Echte Abrechnungszahlen nie committen. SKVE liefert nur den Fahrplan (`PLAN_ONLY`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar
+  Karte `#budget` auf der Biogas-Seite. Anzeige an der Anlage (800×480 wie das Stall-Display): `app/plant_display.py`
+  (`data()`, `render()` → PNG für Farb-E-Paper mit `epaper`-Helfern, Schlüssel `settings` `biogas_display_token`), Routen
+  `biogas.display` `/biogas/anzeige/<token>` (+ `/bild.png`) ohne Anmeldung, Vorlage `biogas/display.html`, Link für Admins
+  unten auf der Biogas-Seite (`#anzeige`). Echte Abrechnungszahlen nie committen. SKVE liefert nur den Fahrplan (`PLAN_ONLY`). `app/biogas_views.py` (Blueprint `biogas`). Rubrik je Benutzer abwählbar
   (`User.biogas` → `sees_biogas`, auch für Admins abwählbar; Rundgang der Biogasanlage, BHKW/Strompreis auf der Startseite und
   Push-Gruppe „Biogas“ hängen daran; BHKW-Maschinen ebenso: `machines.visible(query, user)` / `can_see()` in Listen,
   Suche, Startseite, Kalender, Push – neue Maschinen-Abfragen für Benutzer damit filtern). Wartungen kopieren: `machines.copy_tasks`

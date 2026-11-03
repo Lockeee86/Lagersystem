@@ -10,6 +10,15 @@ https://<dein-server>/huehner/anzeige/<schlüssel>/bild.png
 Den Link (mit Schlüssel) gibt es unter **Hühner → Anzeige im Stall**. Wer den Link kennt, sieht das Bild;
 „Neuer Link“ macht den alten ungültig.
 
+Genauso gibt es eine **Anzeige der Biogasanlage** (BHKW, Gasspeicher, Strompreis-Ampel, Budget, Rundgang, Prüfungen):
+
+```
+https://<dein-server>/biogas/anzeige/<schlüssel>/bild.png
+```
+
+Den Link erzeugt ein Admin unten auf der Seite **Biogas → Anzeige der Biogasanlage**. Für ein zweites Gerät an der
+Anlage einfach diese Adresse bei `url:` eintragen – der Rest der Anleitung ist gleich.
+
 ## ESPHome
 
 Grundlage ist die ESPHome-Vorlage von Seeed für den reTerminal E1002 (Pins, PSRAM, Display-Modell

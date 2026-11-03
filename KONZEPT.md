@@ -187,6 +187,11 @@ Portainer-Stack (docker-compose)
   gestrichelt auf der Karte, antippen rechnet sie mit neuem Startplatz neu.
 - Der runde Knopf in der Mitte der unteren Leiste ist jetzt **Einlagern** (Symbol Kiste mit Pfeil); unter Mein Konto
   → Untere Leiste auf **Scannen** umstellbar (`User.tab_center`, 0.77.0). Betrachter und „nur Hühner“ behalten Scannen.
+- **Anzeige der Biogasanlage** (0.80.0): wie das Stall-Display (800×480, Webseite und PNG für das Farb-E-Paper
+  reTerminal E1002): je BHKW läuft/steht, kW, Stunden heute, nächster Start und nächste Wartung; Gasspeicher mit
+  24-h-Spanne; Strompreis jetzt mit Ampel-Streifen; Jahresbudget je Einspeisestelle; Rundgang; fällige Prüfungen;
+  unten Warnungen (Störungen an Anlage/BHKW, Gasspeicher ≥ 90 % / ≤ 10 %, Rundgang offen, Prüfung überfällig,
+  Budget überschritten). Live-Werte nur aus dem Zwischenspeicher. Link erzeugt ein Admin auf der Biogas-Seite.
 - **Biogas auch für Admins abwählbar** (0.79.1): wie die Hühner je Benutzer in der Benutzerverwaltung; bestehende Admins
   behalten die Rubrik (Migration setzt den Haken).
 - **Warnung angebrochene Kiste** (0.78.1): Kämen neue Kisten auf einen Stapel mit angebrochener Kiste oben

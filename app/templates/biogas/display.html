@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=800, height=480, initial-scale=1">
+<meta http-equiv="refresh" content="{{ d.refresh }}">
+<meta name="robots" content="noindex">
+<title>{{ _("Biogasanlage") }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+<style>
+@font-face { font-family: Figtree; src: url("{{ url_for('static', filename='vendor/figtree/figtree-latin.woff2') }}") format("woff2"); font-weight: 300 900; }
+@font-face { font-family: Figtree; src: url("{{ url_for('static', filename='vendor/figtree/figtree-latin-ext.woff2') }}") format("woff2"); font-weight: 300 900;
+    unicode-range: U+0100-024F, U+1E00-1EFF; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cursor: none; }
+/* genau 800×480; auf anderen Bildschirmen passend skaliert */
+.screen { width: 800px; height: 480px; position: absolute; left: 50%; top: 50%; transform-origin: center;
+    transform: translate(-50%, -50%) scale(var(--scale, 1)); color: #f4efe4; font-family: Figtree, system-ui, sans-serif;
+    background: radial-gradient(ellipse at 15% 0%, #3a2a17 0%, transparent 55%), radial-gradient(ellipse at 100% 100%, #1d2a1c 0%, transparent 55%), #17150f;
+    display: flex; flex-direction: column; }
+.top { height: 46px; display: flex; align-items: center; gap: 14px; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.top .title { font-size: 20px; font-weight: 800; }
+.top .date { color: #c9bfa9; font-size: 15px; font-weight: 600; }
+.top .sun { margin-left: auto; color: #c9bfa9; font-size: 15px; font-weight: 600; display: flex; gap: 14px; }
+.top .clock { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; margin-left: 6px; }
+.grid { flex: 1; display: grid; grid-template-columns: 276px 254px 1fr; gap: 10px; padding: 10px; min-height: 0; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09); border-radius: 18px; padding: 12px 14px;
+    display: flex; flex-direction: column; min-height: 0; }
+.label { font-size: 13px; font-weight: 700; color: #c9bfa9; text-transform: uppercase; letter-spacing: .04em; }
+.big { font-size: 88px; font-weight: 800; line-height: .95; font-variant-numeric: tabular-nums; }
+.mid { font-size: 34px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.sub { font-size: 15px; color: #d8cfbc; font-weight: 600; }
+.muted { color: #a59c88; }
+.bars { margin-top: auto; display: flex; align-items: flex-end; gap: 4px; height: 92px; }
+.bars span { flex: 1; background: #e8b04f; border-radius: 4px 4px 1px 1px; min-height: 3px; opacity: .55; }
+.bars span.today { opacity: 1; background: #ffcc66; }
+.bars-labels { display: flex; justify-content: space-between; font-size: 12px; color: #a59c88; margin-top: 3px; }
+.warn { color: #ff9f8a !important; }
+.motor { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.motor:last-child { border-bottom: 0; }
+.pill { min-width: 66px; text-align: center; padding: 6px 8px; border-radius: 10px; font-weight: 800; font-size: 15px; }
+.pill.on { background: #6fbf5a; color: #10200b; } .pill.off { background: rgba(156,194,255,.22); color: #cfe0ff; }
+.pill.none { background: rgba(255,255,255,.08); color: #a59c88; }
+.motor .name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.motor .info { font-size: 14px; color: #d8cfbc; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.motor .maint { font-size: 13px; color: #a59c88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.motor .maint.late { color: #ff9f8a; }
+.motor > div { min-width: 0; flex: 1; }
+.meter { height: 16px; border-radius: 8px; background: rgba(255,255,255,.09); overflow: hidden; position: relative; margin-top: 6px; }
+.meter span { position: absolute; inset: 0 auto 0 0; background: #6fa8ff; border-radius: 8px; }
+.meter span.warn { background: #ff7a5c; } .meter span.ok { background: #6fbf5a; } .meter span.tight { background: #ffcc66; }
+.meter i { position: absolute; top: -2px; bottom: -2px; width: 3px; background: #f4efe4; }
+.strip { display: flex; height: 22px; border-radius: 6px; overflow: hidden; margin-top: auto; position: relative; }
+.strip span.good { background: #6fbf5a; } .strip span.mid { background: #ffcc66; } .strip span.bad { background: #ff7a5c; }
+.strip b { position: absolute; top: 0; bottom: 0; width: 3px; background: #fff; box-shadow: 0 0 0 1px #000; }
+.state { margin-top: 6px; padding: 7px 10px; border-radius: 10px; font-weight: 800; font-size: 16px; }
+.state.ok { background: rgba(111,191,90,.2); color: #c9f0bb; } .state.bad { background: rgba(255,122,92,.2); color: #ffc9b8; }
+.state.mid { background: rgba(255,204,102,.18); color: #ffe2a8; }
+.row2 { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; padding: 2px 0; }
+.row2 .late { color: #ff9f8a; }
+.alerts { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.alerts div { background: #b8452e; color: #fff; border-radius: 14px; padding: 8px 14px; font-size: 18px; font-weight: 800;
+    display: flex; align-items: center; gap: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+<div class="screen" id="screen">
+    <div class="top">
+        <span class="title"><i class="bi bi-lightning-charge"></i> {{ _("Biogasanlage") }}</span>
+        <span class="date">{{ d.today|weekday }}, {{ d.today|date }}</span>
+        <span class="sun">{% if d.motors %}<span>{{ ngettext("{n} läuft", "{n} laufen", d.running) }} · {{ d.kw|num(0) }} kW{% if d.plan_only %} · {{ _("laut Fahrplan") }}{% endif %}</span>{% endif %}</span>
+        <span class="clock" id="clock">{{ d.now.strftime("%H:%M") }}</span>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 300px 220px 1fr">
+        <section class="card">
+            <span class="label">{{ _("BHKW") }}</span>
+            {% for m in d.motors %}
+            <div class="motor">
+                <span class="pill {{ 'on' if m.running else 'off' if m.known else 'none' }}">{{ _("läuft") if m.running else _("steht") if m.known else "–" }}</span>
+                <div>
+                    <div class="name">{{ m.machine.name }}</div>
+                    <div class="info">{% if m.running and m.kw is not none %}{{ m.kw|num(0) }} kW · {{ _("heute {h} h", h=m.today_hours|num(1)) }}{% elif m.start %}{% if m.start.day == "today" %}{{ _("Start {time}", time=m.start.time) }}{% elif m.start.day == "tomorrow" %}{{ _("Start morgen {time}", time=m.start.time) }}{% else %}{{ _("Start {date} {time}", date=m.start.day|date, time=m.start.time) }}{% endif %}{% elif m.known %}{{ _("heute {h} h", h=m.today_hours|num(1)) }}{% else %}{{ _("kein aktueller Wert") }}{% endif %}</div>
+                    {% if m.next %}<div class="maint {{ 'late' if m.next.left is not none and m.next.left <= 0 }}"><i class="bi bi-wrench-adjustable"></i> {% if m.next.left is not none and m.next.left <= 0 %}{{ _("{name} fällig", name=m.next.task.name) }}{% elif m.next.left is not none %}{{ _("{name} in {h} h", name=m.next.task.name, h=m.next.left|num(0)) }}{% else %}{{ m.next.task.name }}{% endif %}</div>{% endif %}
+                </div>
+            </div>
+            {% else %}
+            <span class="sub">{{ _("Keine BHKW angelegt.") }}</span>
+            {% endfor %}
+        </section>
+
+        <section class="card">
+            <span class="label">{{ _("Gasspeicher") }}</span>
+            {% if d.gas and d.gas.now is not none %}
+            {% set gwarn = d.gas.now >= 90 or d.gas.now <= 10 %}
+            <span class="mid {{ 'warn' if gwarn }}" style="font-size: 52px">{{ d.gas.now|num(0) }} %</span>
+            <div class="meter"><span class="{{ 'warn' if gwarn }}" style="width: {{ [[d.gas.now, 0]|max, 100]|min }}%"></span></div>
+            {% if d.gas.min is not none %}<span class="sub muted" style="margin-top: 4px">{{ _("24 h: {low} bis {high} %", low=d.gas.min|num(0), high=d.gas.max|num(0)) }}</span>{% endif %}
+            {% else %}<span class="mid">–</span>{% endif %}
+            <span class="label" style="margin-top: 14px">{{ _("Strompreis") }}</span>
+            <span class="mid">{{ d.price_now|num(0) if d.price_now is not none else "–" }} <span class="sub">€/MWh</span></span>
+            {% if d.bands %}
+            <div class="strip">{% for b in d.bands %}<span class="{{ b.level }}" style="width: {{ b.width }}%"></span>{% endfor %}{% if d.strip.now_pct is not none %}<b style="left: {{ d.strip.now_pct }}%"></b>{% endif %}</div>
+            {% if d.strip.best %}<span class="sub muted" style="margin-top: 4px; font-size: 13px">{% if d.strip.view == "erzeuger" %}{{ _("Teuerste Stunde {time}", time=d.strip.best[0].strftime("%H:%M")) }}{% else %}{{ _("Günstigste Stunde {time}", time=d.strip.best[0].strftime("%H:%M")) }}{% endif %}</span>{% endif %}
+            {% endif %}
+        </section>
+
+        <section class="card">
+            {% for s in d.budgets %}
+            <span class="label">{{ _("Budget {name}", name=s.point.name) }}</span>
+            <div class="meter"><span class="{{ 'warn' if s.level == 'over' else 'tight' if s.level == 'tight' else 'ok' }}" style="width: {{ [[s.used_pct or 0, 0]|max, 100]|min }}%"></span><i style="left: {{ [s.year_pct, 100]|min }}%"></i></div>
+            <span class="sub" style="font-size: 13px; margin: 3px 0 10px">{{ _("{used} % verbraucht · Jahr {year} %", used=(s.used_pct or 0)|num(0), year=s.year_pct|num(0)) }}</span>
+            {% endfor %}
+            {% if d.rounds %}
+            {% set r = d.rounds %}
+            <span class="label">{{ _("Rundgang") }}</span>
+            <div class="state {{ 'ok' if not r.overdue and not r.issues else 'bad' if r.overdue else 'mid' }}">
+                {% if not r.overdue and not r.issues %}<i class="bi bi-check-lg"></i> {{ _("alles kontrolliert") }}{% elif r.overdue %}{{ ngettext("{n} Station offen", "{n} Stationen offen", r.overdue) }}{% else %}{{ ngettext("{n} offener Mangel", "{n} offene Mängel", r.issues) }}{% endif %}
+            </div>
+            {% endif %}
+            {% if d.inspections %}
+            <span class="label" style="margin-top: 10px">{{ _("Prüfungen") }}</span>
+            {% for t, s in d.inspections %}<div class="row2"><span class="{{ 'late' if s.state == 'overdue' }}">{{ t.name }}</span><span class="{{ 'late' if s.state == 'overdue' }}">{{ s.due_on|date if s.due_on else "" }}</span></div>{% endfor %}
+            {% endif %}
+            {% if not d.budgets and not d.rounds and not d.inspections %}<span class="sub">{{ _("Alles in Ordnung.") }}</span>{% endif %}
+        </section>
+    </div>
+
+    {% if d.alerts %}
+    <div class="alerts" role="alert">{% for a in d.alerts[:2] %}<div><i class="bi bi-exclamation-triangle-fill"></i>{{ a }}</div>{% endfor %}</div>
+    {% endif %}
+</div>
+<script>
+(function () {
+    var screen = document.getElementById("screen"), clock = document.getElementById("clock");
+    function fit() { screen.style.setProperty("--scale", Math.min(window.innerWidth / 800, window.innerHeight / 480)); }
+    function tick() { var n = new Date(); clock.textContent = ("0" + n.getHours()).slice(-2) + ":" + ("0" + n.getMinutes()).slice(-2); }
+    fit(); window.addEventListener("resize", fit); setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>
