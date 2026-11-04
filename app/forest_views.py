@@ -264,7 +264,22 @@ def burial_page():
         tree, place = (nxt.tree.number, nxt.number) if nxt else (None, None)
     return _page("forest/burials.html", "beisetzungen", upcoming=forest.upcoming(days=3650),
                  past=[b for b in forest.burials(year or date.today().year) if b.day < date.today()],
-                 year=year or date.today().year, tree=tree, place=place, selection=selection)
+                 year=year or date.today().year, tree=tree, place=place, selection=selection,
+                 grave_team=forest.grave_team(), guides=_guides())
+
+
+@bp.route("/wald/grab-team", methods=["POST"])
+@admin_required
+def grave_team_save():
+    try:
+        forest.save_grave_team(db.session.get(User, form_int("grave_person", 0) or 0),
+                               db.session.get(User, form_int("grave_deputy", 0) or 0))
+        db.session.commit()
+        flash(_("Gespeichert."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("forest.burial_page") + "#grab-team")
 
 
 def _place_from_form():
@@ -284,11 +299,17 @@ def burial_save(burial_id=None):
     burial = db.session.get(ForestBurial, burial_id) if burial_id else None
     if burial_id and burial is None:
         abort(404)
+    team = None
+    if "grave_person" in request.form:                 # im Formular gewählt (sonst Standard)
+        team = [db.session.get(User, form_int(key, 0) or 0) for key in ("grave_person", "grave_deputy")]
+    new = burial is None
     try:
         burial = forest.save_burial(burial, current_user, _place_from_form(), form_str("deceased", 150),
                                     form_date("day"), form_str("time", 5), form_str("undertaker", 150),
-                                    form_str("note", 2000), selection=_selection_arg(request.form))
+                                    form_str("note", 2000), selection=_selection_arg(request.form), team=team)
         db.session.commit()
+        if new and burial.dig_task is not None:
+            push.task_assigned(burial.dig_task, current_user, users=burial.dig_task.assignees or _guides())
         flash(_("Beisetzung eingetragen – „Grab ausheben“ und „Grab schließen“ stehen unter Aufgaben."), "success")
     except StorageError as e:
         db.session.rollback()

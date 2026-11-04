@@ -3252,4 +3252,10 @@ MESSAGES = {
     'Für {name} merken': 'Zapamiętaj dla {name}',
     'Auswahl': 'Wybór',
     'Aus der Baumauswahl mit {name}': 'Z wyboru drzewa z {name}',
+    'Person und Vertretung müssen verschiedene Mitarbeiter sein.': 'Osoba i zastępstwo muszą być różnymi pracownikami.',
+    'Grabstelle vorbereiten': 'Przygotowanie grobu',
+    '– niemand –': '– nikt –',
+    'Vertretung': 'Zastępstwo',
+    'Grabstelle vorbereiten – Standard': 'Przygotowanie grobu – domyślnie',
+    '„Grab ausheben“ und „Grab schließen“ gehen bei jeder neuen Beisetzung an diese zwei – beim Eintragen änderbar.': '„Wykopać grób“ i „Zasypać grób“ trafiają przy każdym nowym pochówku do tych dwóch osób – można zmienić przy zapisie.',
 }

@@ -191,6 +191,9 @@ Portainer-Stack (docker-compose)
   antippen oder erste freie nehmen; vorgemerkte Plätze sieht man am Baum), dann Vertrag (Admin) und Beisetzung – beide
   mit den Angaben aus der Auswahl vorbelegt. Reiter-Reihenfolge folgt dem Ablauf: Übersicht · Baumauswahl ·
   Beisetzungen · Bäume · Karte · Verträge. Termine stehen im Kalender.
+- **Grabstelle vorbereiten** (0.86.0): „Grab ausheben“ und „Grab schließen“ gehen standardmäßig an eine Person und
+  eine Vertretung (beide zugeteilt, beide bekommen den Push). Standard pflegt der Admin unter Beisetzungen, beim
+  Eintragen einer Beisetzung vorbelegt und änderbar.
 - **Nur Bestattungswald** (0.84.0, `User.forest_only`): wie „nur Hühner“ – sieht nur den Wald (ohne Verträge),
   Aufgaben mit `Task.area == "wald"` oder ihm zugeteilt, Baumkontrolle, Push Sturm + eigene Aufgaben; untere Leiste
   Wald · Beisetzungen · Scannen · Aufgaben · Mehr. Beide Modi teilen sich `area_only.py`.

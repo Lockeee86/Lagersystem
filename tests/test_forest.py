@@ -282,3 +282,38 @@ def test_selection_pages(app, db, woods, as_admin, as_worker, as_viewer):
                                              "day": day, "selection_id": str(sel.id)})
     assert sel.burials and sel.burials[0].place.number == 5
     assert as_worker.post(f"/wald/baumauswahl/{sel.id}/loeschen").status_code == 403
+
+
+def test_grave_team(app, db, woods, as_admin, as_worker):
+    """Grabstelle vorbereiten: standardmäßig Person + Vertretung, beim Eintragen änderbar."""
+    from .conftest import make_user
+    admin, worker = woods["admin"], woods["worker"]
+    deputy = make_user("jana", "mitarbeiter")
+    deputy.forest = True
+    db.session.commit()
+    assert forest.grave_team() == (None, None)
+    with pytest.raises(StorageError):
+        forest.save_grave_team(worker, worker)
+    r = as_admin.post("/wald/grab-team", data={"grave_person": str(worker.id), "grave_deputy": str(deputy.id)})
+    assert r.status_code == 302 and forest.grave_team() == (worker, deputy)
+    assert as_worker.post("/wald/grab-team", data={"grave_person": ""}).status_code == 403
+
+    page = as_worker.get("/wald/beisetzungen").get_data(as_text=True)
+    assert f'<option value="{worker.id}" selected>' in page and f'<option value="{deputy.id}" selected>' in page
+
+    day = (date.today() + timedelta(days=5)).isoformat()
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "1", "deceased": "Hans Muster", "day": day,
+                                             "grave_person": str(worker.id), "grave_deputy": str(deputy.id)})
+    burial = ForestBurial.query.one()
+    assert set(burial.dig_task.assignees) == {worker, deputy} == set(burial.close_task.assignees)
+
+    # beim Eintragen anders gewählt
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "2", "deceased": "Gerda Muster", "day": day,
+                                             "grave_person": str(deputy.id), "grave_deputy": ""})
+    other = ForestBurial.query.filter_by(deceased="Gerda Muster").one()
+    assert other.dig_task.assignees == [deputy]
+    # ohne Formularfeld (z. B. aus der Logik) → Standard
+    with app.test_request_context():
+        third = forest.save_burial(None, admin, _tree(1).places[2], "Karl Beispiel", date.today() + timedelta(days=9))
+    assert set(third.close_task.assignees) == {worker, deputy}
+    assert f"({deputy.name}, {worker.name})" in as_worker.get("/wald/beisetzungen").get_data(as_text=True)

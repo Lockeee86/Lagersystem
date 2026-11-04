@@ -497,9 +497,40 @@ def _time(raw):
     return f"{int(m.group(1)):02d}:{int(m.group(2) or 0):02d}"
 
 
-def _burial_tasks(burial, user):
-    """Aufgaben „Grab ausheben“ (Werktag davor) und „Grab schließen“ (am Tag) anlegen bzw. nachziehen."""
+GRAVE_KEYS = ("forest_grave_person", "forest_grave_deputy")
+
+
+def grave_team():
+    """Wer standardmäßig die Grabstelle vorbereitet: (Person, Vertretung) – je ein aktiver Mitarbeiter oder None."""
+    team = []
+    for key in GRAVE_KEYS:
+        setting = db.session.get(Setting, key)
+        user = db.session.get(User, int(setting.value)) if setting and (setting.value or "").isdigit() else None
+        team.append(user if user is not None and user.active and user.can_edit and user.sees_forest else None)
+    return tuple(team)
+
+
+def save_grave_team(person, deputy):
+    if person is not None and deputy is not None and person.id == deputy.id:
+        raise StorageError(_("Person und Vertretung müssen verschiedene Mitarbeiter sein."))
+    for key, user in zip(GRAVE_KEYS, (person, deputy)):
+        Setting.put(key, str(user.id) if user else None)
+
+
+def _team_list(team):
+    seen, result = set(), []
+    for user in team or ():
+        if user is not None and user.id not in seen:
+            seen.add(user.id)
+            result.append(user)
+    return result
+
+
+def _burial_tasks(burial, user, team=None):
+    """Aufgaben „Grab ausheben“ (Werktag davor) und „Grab schließen“ (am Tag) anlegen bzw. nachziehen.
+    Zuständig: `team` (Person + Vertretung), sonst der Standard aus `grave_team()`."""
     from . import tasks
+    assignees = _team_list(team if team is not None else grave_team())
     where = burial.place.label
     when = burial.day.strftime("%d.%m.%Y") + (f" {burial.time}" if burial.time else "")
     info = _("Beisetzung {when}", when=when) + (f" · {burial.undertaker}" if burial.undertaker else "")
@@ -507,14 +538,18 @@ def _burial_tasks(burial, user):
                              ("close_task", _("Grab schließen: {place}", place=where), burial.day)):
         task = getattr(burial, attr)
         if task is None:
-            task = tasks.create_task(user, title=title, description=info, due_on=due, important=True)
+            task = tasks.create_task(user, title=title, description=info, due_on=due, important=True,
+                                     assignees=assignees)
             task.area = AREA
             setattr(burial, attr, task)
         elif not task.is_done:
             task.title, task.description, task.due_on = title, info, due
+            if team is not None:
+                task.assignees = assignees
 
 
-def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, note=None, selection=None):
+def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, note=None, selection=None, team=None):
+    """Beisetzung anlegen bzw. ändern. `team`: wer das Grab vorbereitet (None = Standard aus `grave_team()`)."""
     deceased = (deceased or "").strip()[:150]
     if place is None:
         raise StorageError(_("Bitte Baum und Platz wählen."))
@@ -539,7 +574,7 @@ def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, 
         if selection is not None:
             burial.selection = selection
     db.session.flush()
-    _burial_tasks(burial, user)
+    _burial_tasks(burial, user, team)
     db.session.flush()
     return burial
 

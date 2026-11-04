@@ -171,7 +171,8 @@ docker compose up --build -d
   (`free_for()`, ohne Nummern die ersten freien), `cancel_selection()` / `reopen_selection()`, `selections()`,
   `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,
   `save_contract()`, `next_contract_number()`), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
-  „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an), Kalender `calendar_events()`, Push `storm_check()` aus
+  „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an, zuständig Person + Vertretung: Standard `grave_team()` /
+  `save_grave_team()` in `settings` `forest_grave_person`/`forest_grave_deputy`, im Formular änderbar → `team=`), Kalender `calendar_events()`, Push `storm_check()` aus
   `push.daily`; committet nicht. `app/forest_views.py` (Blueprint `forest`, `/wald…`, Vorlagen `forest/` mit
   `_layout.html`), Baumkontrolle = Rundgang mit `CheckStation.area == "wald"` (`STATION_SUGGESTIONS`)
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
