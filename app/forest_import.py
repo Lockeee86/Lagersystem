@@ -5,6 +5,8 @@ Zwei Tabellen werden erkannt (Excel-XML „Tabellenexport“ oder .xlsx):
   Ruhebaum „A 147 (Gemeinschaftsbaum/Stieleiche)“, Vertrag, Vertragspartner, Person, Bestattung …)
   → Bäume mit Plätzen, Verträge (Reservierungen), Beisetzungen, vorgesehene Personen.
 - **Ruhebäume** (je Baum: Nummer, Typ, Art, Stammdurchmesser, Kategorie) → Stammdaten der Bäume.
+- **Grundkarte** aus CAD (DXF, auch ohne Dateiendung im ZIP): Polylinien je Ebene („wassergebundene Wege“,
+  „Parkplatz“, „Andachtsplatz“ …) → `ForestShape` für die Karte, Art am Ebenen-Namen (`shape_kind`).
 - **Shapefile der Baumpunkte** als ZIP (.shp + .dbf, Feld `nummer`, Lage aus `geokoordin` „N: … O: …“ oder aus dem
   Punkt in UTM, Zone aus der .prj) → Lage der Bäume für die Karte.
 
@@ -24,7 +26,7 @@ from datetime import date
 from . import forest
 from .extensions import db
 from .i18n import gettext as _
-from .models import ForestBurial, ForestContract, ForestPlace, ForestTree
+from .models import ForestBurial, ForestContract, ForestPlace, ForestShape, ForestTree, Setting
 from .storage import StorageError
 
 NS = "{urn:schemas-microsoft-com:office:spreadsheet}"
@@ -171,10 +173,114 @@ def apply_points(points):
     return stats
 
 
-def read_upload(data):
-    """Hochgeladene Datei → (Tabellen wie `parse_file` oder None, Baumpunkte wie `parse_shapefile` oder None).
-    Ein ZIP darf Tabellen (.xml/.xlsx) und ein Shapefile zugleich enthalten."""
+# --- Grundkarte aus CAD (DXF) ------------------------------------------------------------------------
+
+SHAPE_WORDS = (("parkplatz", "parkplatz"), ("kies", "kies"), ("weg", "weg"), ("straße", "weg"), ("strasse", "weg"),
+               ("rasen", "rasen"), ("wiese", "rasen"), ("biotop", "wasser"), ("teich", "wasser"),
+               ("wasser", "wasser"), ("andacht", "andacht"), ("aussicht", "aussicht"))
+
+
+def shape_kind(layer):
+    layer = (layer or "").lower()
+    return next((kind for word, kind in SHAPE_WORDS if word in layer), "sonstiges")
+
+
+def is_dxf(data):
+    head = data[:400].lstrip().replace(b"\r", b"")
+    return head.startswith(b"0\nSECTION") or head.startswith(b"999\n")
+
+
+def _utm_zone():
+    """UTM-Zone für Zeichnungen ohne Angabe: aus dem Hof-Standort, sonst 32 (West- und Mitteldeutschland)."""
+    m = re.match(r"^\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)", Setting.all().get("farm_location") or "")
+    return int((float(m.group(2)) + 180) // 6) + 1 if m else 32
+
+
+def parse_dxf(data, zone=None):
+    """DXF → [{"kind", "layer", "points": [[Länge, Breite], …], "line"}]. Liest LWPOLYLINE, POLYLINE und LINE."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        text = data.decode("cp1252", errors="replace")
+    lines = text.replace("\r", "").split("\n")
+    pairs = [(lines[i].strip(), lines[i + 1].strip()) for i in range(0, len(lines) - 1, 2)]
+    zone = zone or _utm_zone()
+    shapes, cur, section, i = [], None, None, 0
+
+    def finish(entity):
+        if entity and len(entity["xy"]) >= 2:
+            pts = []
+            for x, y in entity["xy"]:
+                lat, lon = utm_to_latlon(x, y, zone) if abs(x) > 180 else (y, x)
+                pts.append([round(lon, 7), round(lat, 7)])
+            closed = entity["closed"] and len(pts) >= 3
+            shapes.append({"kind": shape_kind(entity["layer"]), "layer": entity["layer"][:100] or None,
+                           "points": pts, "line": not closed})
+
+    while i < len(pairs):
+        code, value = pairs[i]
+        if code == "0" and value == "SECTION" and i + 1 < len(pairs):
+            section = pairs[i + 1][1]
+            i += 2
+            continue
+        if section != "ENTITIES":
+            i += 1
+            continue
+        if code == "0":
+            if value == "VERTEX" and cur and cur["type"] == "POLYLINE":
+                cur["vertex"] = True                       # Punkte folgen in VERTEX-Einträgen
+                i += 1
+                continue
+            if value == "SEQEND" or cur is None or cur["type"] != "POLYLINE" or value != "VERTEX":
+                finish(cur)
+                cur = None
+            if value in ("LWPOLYLINE", "POLYLINE", "LINE"):
+                cur = {"type": value, "layer": "", "xy": [], "closed": False, "vertex": False}
+            i += 1
+            continue
+        if cur is not None:
+            if code == "8" and not cur["vertex"]:
+                cur["layer"] = value
+            elif code == "70" and not cur["vertex"]:
+                cur["closed"] = bool(int(value or 0) & 1)
+            elif code in ("10", "11") and (cur["type"] != "POLYLINE" or cur["vertex"]):
+                try:
+                    cur["xy"].append([float(value), None])
+                except ValueError:
+                    pass
+            elif code in ("20", "21") and cur["xy"] and cur["xy"][-1][1] is None:
+                cur["xy"][-1][1] = float(value)
+        i += 1
+    finish(cur)
+    for shape in shapes:
+        shape["points"] = [p for p in shape["points"] if p[1] is not None]
+    return [s for s in shapes if len(s["points"]) >= 2]
+
+
+def apply_shapes(shapes, source=None):
+    """Grundkarte übernehmen: Ebenen, die in der Datei vorkommen, werden ersetzt. Committet nicht."""
+    import json
+    layers = {s["layer"] for s in shapes}
+    for old in ForestShape.query.filter(ForestShape.layer.in_([layer for layer in layers if layer])):
+        db.session.delete(old)
+    if None in layers:
+        ForestShape.query.filter(ForestShape.layer.is_(None)).delete()
+    for s in shapes:
+        db.session.add(ForestShape(kind=s["kind"], layer=s["layer"], points=json.dumps(s["points"]), line=s["line"],
+                                   source=(source or "")[:150] or None))
+    db.session.flush()
+    return {"shapes": len(shapes), "layers": len(layers)}
+
+
+def read_upload(data, name=None):
+    """Hochgeladene Datei → {"tables": wie `parse_file` oder None, "points": wie `parse_shapefile` oder None,
+    "shapes": wie `parse_dxf` oder None}. Ein ZIP darf Tabellen (.xml/.xlsx), ein Shapefile und Zeichnungen (DXF,
+    auch ohne Endung) zugleich enthalten."""
     data = data or b""
+    result = {"tables": None, "points": None, "shapes": None}
+    if is_dxf(data):
+        result["shapes"] = parse_dxf(data)
+        return result
     archive = None
     if data[:2] == b"PK":
         try:
@@ -184,23 +290,33 @@ def read_upload(data):
         if any(n.lower().startswith("xl/") for n in archive.namelist()):       # selbst eine .xlsx
             archive = None
     if archive is None:
-        return parse_file(data), None
-    names = archive.namelist()
+        result["tables"] = parse_file(data)
+        return result
+    names = [n for n in archive.namelist() if not n.startswith("__MACOSX") and not n.endswith("/")]
     if sum(archive.getinfo(n).file_size for n in names) > 200 * 1024 * 1024:
         raise StorageError(_("Die Datei konnte nicht gelesen werden."))
-    parsed = {"positions": [], "trees": []}
+    parsed, shapes = {"positions": [], "trees": []}, []
     for name in names:
-        if name.lower().endswith((".xml", ".xlsx")) and not name.startswith("__MACOSX"):
+        if name.lower().endswith((".xml", ".xlsx")):
             try:
                 part = parse_file(archive.read(name))
             except StorageError:                          # andere Tabelle im ZIP – überspringen
                 continue
             parsed["positions"] += part["positions"]
             parsed["trees"] += part["trees"]
-    points = parse_shapefile(data) if any(n.lower().endswith(".dbf") for n in names) else None
-    if not parsed["positions"] and not parsed["trees"] and points is None:
-        raise StorageError(_("Im ZIP wurden weder Tabellen noch Baumpunkte gefunden."))
-    return (parsed if parsed["positions"] or parsed["trees"] else None), points
+        elif not name.lower().endswith((".shp", ".shx", ".dbf", ".prj", ".cpg")):
+            content = archive.read(name)
+            if is_dxf(content):
+                shapes += parse_dxf(content)
+    if any(n.lower().endswith(".dbf") for n in names):
+        result["points"] = parse_shapefile(data)
+    if parsed["positions"] or parsed["trees"]:
+        result["tables"] = parsed
+    if shapes:
+        result["shapes"] = shapes
+    if not any(result.values()):
+        raise StorageError(_("Im ZIP wurden weder Tabellen noch Baumpunkte oder Zeichnungen gefunden."))
+    return result
 
 
 def parse_file(data):

@@ -64,7 +64,9 @@ def find():
 @login_required
 def map_page():
     from .fields_views import aerial_options
+    background, legend = forest.map_background()
     return _page("forest/map.html", "karte", items=forest.map_data(), aerial=aerial_options(),
+                 background=background, legend=legend,
                  missing=ForestTree.query.filter(ForestTree.lat.is_(None)).count())
 
 
@@ -73,7 +75,8 @@ def map_page():
 def trees():
     section = request.args.get("abschnitt") or None
     only_free = request.args.get("frei") == "1"
-    return _page("forest/trees.html", "baeume", rows=forest.tree_rows(section, only_free), sections=forest.sections(),
+    from .models import ForestShape
+    return _page("forest/trees.html", "baeume", shape_count=ForestShape.query.count(), rows=forest.tree_rows(section, only_free), sections=forest.sections(),
                  section=section, only_free=only_free, kinds=FOREST_KINDS, default_places=forest.DEFAULT_PLACES)
 
 
@@ -119,9 +122,14 @@ def legacy_import():
     try:
         if not upload or not upload.filename:
             raise StorageError(_("Bitte eine Datei auswählen."))
-        parsed, points = forest_import.read_upload(upload.read())
+        found = forest_import.read_upload(upload.read())
+        parsed, points, shapes = found["tables"], found["points"], found["shapes"]
         parts, stats = [], {}
         with audit.paused():
+            if shapes:
+                drawn = forest_import.apply_shapes(shapes, upload.filename)
+                stats = {**stats, **drawn}
+                parts.append(_("Grundkarte: {n} Formen in {layers} Ebenen", n=drawn["shapes"], layers=drawn["layers"]))
             if parsed:
                 stats = forest_import.apply(parsed, current_user, with_people=bool(request.form.get("with_people")))
                 parts.append(_("Bäume: {new} neu, {known} vorhanden · neue Plätze: {places} · Verträge: {contracts} · Beisetzungen: {burials} · vorgesehene Personen: {persons} · schon vergeben, übersprungen: {skipped}",  # noqa: E501
@@ -145,6 +153,17 @@ def legacy_import():
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
+    return redirect(url_for("forest.trees") + "#altsystem")
+
+
+@bp.route("/wald/karte/grundkarte/loeschen", methods=["POST"])
+@admin_required
+def shapes_delete():
+    from .models import ForestShape
+    for shape in ForestShape.query.all():
+        db.session.delete(shape)
+    db.session.commit()
+    flash(_("Grundkarte gelöscht."), "success")
     return redirect(url_for("forest.trees") + "#altsystem")
 
 

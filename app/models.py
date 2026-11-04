@@ -2338,6 +2338,36 @@ class ForestContract(db.Model):
         return f"{self.number} · {self.holder}"
 
 
+# Grundkarte des Waldes (aus CAD/GIS): Art → (Bezeichnung, Farbe); erkannt am Ebenen-Namen (forest_import.shape_kind)
+FOREST_SHAPE_KINDS = {
+    "weg": (N_("Weg"), "#c9b48a"), "kies": (N_("Kiesweg"), "#bdb6a8"), "parkplatz": (N_("Parkplatz"), "#9aa0a6"),
+    "rasen": (N_("Rasenfläche"), "#a8d08d"), "wasser": (N_("Wasser / Biotop"), "#7fb3d5"),
+    "andacht": (N_("Andachtsplatz"), "#c7a6d9"), "aussicht": (N_("Aussichtsplattform"), "#e8c170"),
+    "sonstiges": (N_("Sonstiges"), "#cccccc"),
+}
+
+
+class ForestShape(db.Model):
+    """Fläche oder Linie der Grundkarte (Wege, Parkplatz, Andachtsplatz …), Punkte als JSON [[Länge, Breite], …]."""
+    __tablename__ = "forest_shapes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(20), nullable=False, default="sonstiges")
+    layer = db.Column(db.String(100))                      # Ebene in der Zeichnung, z. B. „wassergebundene Wege“
+    points = db.Column(db.Text, nullable=False)
+    line = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # offen = Linie
+    source = db.Column(db.String(150))                     # Dateiname
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    @property
+    def kind_label(self):
+        return _(FOREST_SHAPE_KINDS.get(self.kind, FOREST_SHAPE_KINDS["sonstiges"])[0])
+
+    @property
+    def color(self):
+        return FOREST_SHAPE_KINDS.get(self.kind, FOREST_SHAPE_KINDS["sonstiges"])[1]
+
+
 FOREST_SELECTION_STATES = {"geplant": N_("Termin geplant"), "ausgesucht": N_("Baum ausgesucht"),
                            "abgesagt": N_("abgesagt")}
 

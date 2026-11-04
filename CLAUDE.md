@@ -173,8 +173,10 @@ docker compose up --build -d
   `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,
   `save_contract()` mit `ends_on`/`holder_birthday`, Vorgabe `default_end()` aus `settings` `forest_end` /
   `forest_single_years`, `next_contract_number()`). Übernahme aus dem Altsystem: `app/forest_import.py` (Tabellenexport
-  Excel-XML/.xlsx oder ZIP mit Tabellen + Shapefile: `read_upload()` → `apply()` / `apply_points()`, UTM →
-  `utm_to_latlon()`, Route `forest.legacy_import`; echte Exporte nie committen – Tests erzeugen erfundene Dateien), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
+  Excel-XML/.xlsx oder ZIP mit Tabellen + Shapefile + DXF: `read_upload()` → `apply()` / `apply_points()` /
+  `apply_shapes()`, UTM → `utm_to_latlon()`; Grundkarte aus CAD `parse_dxf()` → `ForestShape` (Art am Ebenen-Namen
+  `shape_kind()`, Farben `models.FOREST_SHAPE_KINDS`), auf der Karte über `forest.map_background()` →
+  Schlagkarte-Option `background` (nicht klickbar, `minSpan` für kleine Karten), Route `forest.legacy_import`; echte Exporte nie committen – Tests erzeugen erfundene Dateien), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
   „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an; Kirchenglocken `ForestBurial.bells`, nachträglich
   `set_bells()` – steht in Aufgaben und Kalender; zuständig `ForestBurial.grave_person` – bei Abwesenheit laut Kalender
   (`agenda.absent()`) `grave_deputy` (`_grave_assignees()`); Standard `grave_team()` / `save_grave_team()` in `settings`

@@ -222,8 +222,8 @@ def test_shapefile_points(app, db, seed, as_admin):
     data = _shapefile_zip([("A 7", "N: 50.100000 O: 9.200000", (0, 0)),
                            ("B 12", "", (500000.0, 5538630.7)),
                            ("C 1", "N: 50.2 O: 9.3", (0, 0))])
-    parsed, points = forest_import.read_upload(data)
-    assert len(parsed["positions"]) == 79 and len(points) == 3
+    found = forest_import.read_upload(data)
+    assert len(found["tables"]["positions"]) == 79 and len(found["points"]) == 3 and found["shapes"] is None
     r = as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(data), "export.zip"), "action": "apply"},
                       content_type="multipart/form-data", follow_redirects=True)
     page = r.get_data(as_text=True)
@@ -233,3 +233,77 @@ def test_shapefile_points(app, db, seed, as_admin):
     assert (a7.lat, a7.lon) == (50.1, 9.2) and abs(b12.lat - 50.0) < 1e-4 and abs(b12.lon - 9.0) < 1e-6
     assert len(forest.map_data()) == 2
     assert as_admin.get("/wald/karte").status_code == 200
+
+
+def _dxf(*entities):
+    """Minimale DXF-Zeichnung (erfundene Lagen in UTM 32 um 9° O / 50° N)."""
+    out = ["0", "SECTION", "2", "HEADER", "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES"]
+    for kind, layer, pts, closed in entities:
+        if kind == "LWPOLYLINE":
+            out += ["0", "LWPOLYLINE", "8", layer, "90", str(len(pts)), "70", "1" if closed else "0"]
+            for x, y in pts:
+                out += ["10", str(x), "20", str(y)]
+        elif kind == "POLYLINE":
+            out += ["0", "POLYLINE", "8", layer, "66", "1", "10", "0.0", "20", "0.0", "70", "1" if closed else "0"]
+            for x, y in pts:
+                out += ["0", "VERTEX", "8", layer, "10", str(x), "20", str(y)]
+            out += ["0", "SEQEND"]
+        else:
+            (x1, y1), (x2, y2) = pts
+            out += ["0", "LINE", "8", layer, "10", str(x1), "20", str(y1), "11", str(x2), "21", str(y2)]
+    out += ["0", "ENDSEC", "0", "EOF"]
+    return ("\n".join(out) + "\n").encode("utf-8")
+
+
+E, N = 500000.0, 5538630.7
+PARK = ("LWPOLYLINE", "Parkplatz", [(E, N), (E + 20, N), (E + 20, N + 10), (E, N + 10)], True)
+WAY = ("POLYLINE", "wassergebundene Wege", [(E, N), (E + 50, N + 30), (E + 90, N + 35)], False)
+FENCE = ("LINE", "Zaun", [(E - 10, N - 10), (E + 100, N - 10)], False)
+LAWN = ("LWPOLYLINE", "Rasenfläche", [(E + 30, N + 40), (E + 80, N + 40), (E + 80, N + 90)], True)
+
+
+def test_dxf(app, db, seed):
+    from app.models import ForestShape
+    shapes = forest_import.parse_dxf(_dxf(PARK, WAY, FENCE, LAWN), zone=32)
+    assert [(s["kind"], s["layer"], s["line"], len(s["points"])) for s in shapes] == [
+        ("parkplatz", "Parkplatz", False, 4), ("weg", "wassergebundene Wege", True, 3), ("sonstiges", "Zaun", True, 2),
+        ("rasen", "Rasenfläche", False, 3)]
+    lon, lat = shapes[0]["points"][0]
+    assert abs(lon - 9.0) < 1e-6 and abs(lat - 50.0) < 1e-4
+    assert forest_import.shape_kind("Kies") == "kies" and forest_import.shape_kind("Feuchtbiotop") == "wasser"
+    assert forest_import.shape_kind("Aussichtsplatform") == "aussicht" and forest_import.shape_kind("Andachtsplatz") == "andacht"
+    assert forest_import.is_dxf(_dxf(PARK)) and not forest_import.is_dxf(b"PK\x03\x04")
+    assert forest_import.apply_shapes(shapes, "plan.dxf") == {"shapes": 4, "layers": 4}
+    db.session.commit()
+    forest_import.apply_shapes(forest_import.parse_dxf(_dxf(PARK), zone=32))      # gleiche Ebene → ersetzt
+    db.session.commit()
+    assert ForestShape.query.count() == 4 and ForestShape.query.filter_by(layer="Parkplatz").count() == 1
+    with app.test_request_context():
+        items, legend = forest.map_background()
+    assert [i["color"] for i in items][0] == "#a8d08d"                            # Rasen zuerst (unten)
+    assert ("Parkplatz", "#9aa0a6") in legend and any(i["line"] for i in items)
+
+
+def test_dxf_upload(app, db, seed, as_admin):
+    import zipfile
+    from app.models import ForestShape
+    seed["admin"].forest = True
+    db.session.commit()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:                    # Dateien ohne Endung wie aus dem CAD-Programm
+        z.writestr("wege", _dxf(WAY, PARK))
+        z.writestr("flaechen", _dxf(LAWN))
+    r = as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(buf.getvalue()), "karte.zip"), "action": "check"},
+                      content_type="multipart/form-data", follow_redirects=True)
+    assert "Grundkarte: 3 Formen in 3 Ebenen" in r.get_data(as_text=True) and ForestShape.query.count() == 0
+    as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(buf.getvalue()), "karte.zip"), "action": "apply"},
+                  content_type="multipart/form-data")
+    assert ForestShape.query.count() == 3
+    page = as_admin.get("/wald/karte").get_data(as_text=True)                   # Karte auch ohne Bäume mit Lage
+    assert "background" in page and "Parkplatz" in page and "forestMap" in page
+    assert "Grundkarte: 3 Formen" in as_admin.get("/wald/baeume").get_data(as_text=True)
+    as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(_dxf(PARK)), "park.dxf"), "action": "apply"},
+                  content_type="multipart/form-data")
+    assert ForestShape.query.count() == 3
+    as_admin.post("/wald/karte/grundkarte/loeschen")
+    assert ForestShape.query.count() == 0

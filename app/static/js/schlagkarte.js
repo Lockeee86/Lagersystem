@@ -4,6 +4,8 @@
  *   [{ id, name, number, ha, crop, color, rings: [[[länge, breite], …], …], point: [länge, breite] | null }, …]
  *   Schläge ohne Umriss, aber mit Lage aus der Schlagdokumentation, erscheinen als Punkt.
  * Optionen: { url: "/schlag/0" (0 wird durch die ID ersetzt), labels: true, interactive: true,
+ *             background: [{ name, color, rings, line: false }] – Grundkarte unter den Einträgen (nicht klickbar),
+ *             minSpan: 800 – kleinster Ausschnitt (100 ≈ 70–110 m),
  *             aerial: { url: "/luftbild", credit: "© …", on: true } }
  * Das Luftbild kommt über den eigenen Server (CSP erlaubt nur 'self') für den gerade sichtbaren Ausschnitt in
  * Länge/Breite (EPSG:4326) – das ist dieselbe lineare Abbildung wie die Umrisse, das Bild passt also als Rechteck.
@@ -21,11 +23,12 @@ window.Schlagkarte = (function () {
 
     function create(container, items, opts) {
         opts = opts || {};
-        if (!items.length) return null;
+        var background = opts.background || [];
+        if (!items.length && !background.length) return null;
 
         // Flächentreue genügt hier: Länge mit cos(Breite) stauchen (Equirektangular um die Kartenmitte)
         var lats = [], lons = [];
-        items.forEach(function (it) {
+        items.concat(background).forEach(function (it) {
             it.rings.forEach(function (r) { r.forEach(function (p) { lons.push(p[0]); lats.push(p[1]); }); });
             if (it.point) { lons.push(it.point[0]); lats.push(it.point[1]); }
         });
@@ -34,7 +37,7 @@ window.Schlagkarte = (function () {
         function project(p) { return [p[0] * k * scale, -p[1] * scale]; }
 
         var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        items.forEach(function (it) {
+        items.concat(background).forEach(function (it) {
             it.projected = it.rings.map(function (r) { return r.map(project); });
             if (it.point) it.projected.push([project(it.point)]);
             it.projected.forEach(function (r) { r.forEach(function (p) {
@@ -43,8 +46,9 @@ window.Schlagkarte = (function () {
             }); });
         });
         var pad = Math.max(maxX - minX, maxY - minY) * 0.04 || 10;
-        // nur ein Punkt (oder sehr kleine Fläche): mindestens etwa 600 m Ausschnitt
-        var grow = Math.max(0, (800 - (maxX - minX + 2 * pad)) / 2, (800 - (maxY - minY + 2 * pad)) / 2);
+        // nur ein Punkt (oder sehr kleine Fläche): Mindest-Ausschnitt (Standard etwa 600 m, `minSpan` in Karteneinheiten)
+        var minSpan = opts.minSpan || 800;
+        var grow = Math.max(0, (minSpan - (maxX - minX + 2 * pad)) / 2, (minSpan - (maxY - minY + 2 * pad)) / 2);
         pad += grow;
         var full = { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad };
         var view = { x: full.x, y: full.y, w: full.w, h: full.h };
@@ -52,8 +56,21 @@ window.Schlagkarte = (function () {
         var svg = el("svg", { "class": "field-map-svg", preserveAspectRatio: "xMidYMid meet" });
         var photo = el("g", { "class": "field-aerial" });
         var shapes = el("g"), labels = el("g", { "class": "field-labels" }), points = [];
+        var base = el("g", { "class": "field-background" });
         svg.appendChild(photo);
+        svg.appendChild(base);
         svg.appendChild(shapes);
+        background.forEach(function (it) {
+            var d = it.projected.map(function (r) {
+                return "M" + r.map(function (p) { return p[0].toFixed(1) + " " + p[1].toFixed(1); }).join("L") + (it.line ? "" : "Z");
+            }).join("");
+            var path = el("path", { d: d, "class": "field-bg" + (it.line ? " is-line" : ""),
+                                    fill: it.line ? "none" : it.color, stroke: it.color });
+            var title = el("title");
+            title.textContent = it.name;
+            path.appendChild(title);
+            base.appendChild(path);
+        });
         svg.appendChild(labels);
 
         items.forEach(function (it) {

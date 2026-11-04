@@ -1,6 +1,9 @@
 {% extends "forest/_layout.html" %}
 {% block forest %}
-{% if items %}
+{% if not items %}
+<div class="alert alert-info">{{ _("Noch keine Bäume mit Lage. Am Baum die Baumseite öffnen und „Standort hier setzen“ tippen – oder die Baumpunkte aus dem GIS unter Bäume → „Übernahme aus dem bisherigen Programm“ einlesen.") }}</div>
+{% endif %}
+{% if items or background %}
 <div class="card shadow-sm mb-3 overflow-hidden">
     <div class="field-map" id="forestMap">
         <div class="field-map-tools btn-group-vertical">
@@ -15,21 +18,20 @@
         <span><span class="legend-swatch" style="background: #e0a800"></span>{{ _("teilweise frei") }}</span>
         <span><span class="legend-swatch" style="background: #7a5ea8"></span>{{ _("voll, noch nicht alles belegt") }}</span>
         <span><span class="legend-swatch" style="background: #8a8a8a"></span>{{ _("voll belegt") }}</span>
+        {% for label, color in legend %}<span><span class="legend-swatch" style="background: {{ color }}"></span>{{ label }}</span>{% endfor %}
         {% if missing %}<span class="text-body-secondary">{{ ngettext("{n} Baum ohne Lage", "{n} Bäume ohne Lage", missing) }}</span>{% endif %}
     </div>
 </div>
-{% else %}
-<div class="alert alert-info">{{ _("Noch keine Bäume mit Lage. Am Baum die Baumseite öffnen und „Standort hier setzen“ tippen – oder die Lage mit der Baumliste (CSV) importieren.") }}</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
-{% if items %}
+{% if items or background %}
 <script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
 <script>
 (function () {
     var aerial = {{ aerial|tojson }};
     if (aerial) aerial.on = true;
-    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial });
+    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial, background: {{ background|tojson }}, minSpan: 150 });
     var toggle = document.getElementById("aerialToggle");
     if (toggle) {
         toggle.classList.add("active");

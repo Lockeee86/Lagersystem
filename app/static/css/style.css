@@ -1143,3 +1143,8 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
     border: 2px solid var(--line, var(--bs-border-color)); }
 .forest-step.done .forest-step-no { background: #3f8f4f; border-color: #3f8f4f; color: #fff; }
 .forest-step.muted { opacity: .6; }
+
+/* Grundkarte unter Bäumen/Schlägen (Wege, Flächen …), nicht klickbar */
+.field-bg { fill-opacity: .55; stroke-width: calc(var(--px, 1) * 1px); stroke-opacity: .9; pointer-events: none; }
+.field-bg.is-line { fill: none; stroke-width: calc(var(--px, 1) * 3px); }
+.field-map-svg.with-aerial .field-bg { fill-opacity: .25; }

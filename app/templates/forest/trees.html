@@ -79,8 +79,8 @@
             <div class="card-header"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Übernahme aus dem bisherigen Programm") }}</div>
             <form class="card-body" method="post" enctype="multipart/form-data" action="{{ url_for('forest.legacy_import') }}">
                 {{ csrf() }}
-                <p class="small text-body-secondary">{{ _("Tabellenexport „Baumposition“ (Plätze, Verträge, Beisetzungen) und/oder „Ruhebäume“ (Baumart, Kategorie, Stamm) als Excel-XML oder .xlsx – oder die Baumpunkte aus dem GIS als ZIP (Shapefile) für die Karte. Erst „Prüfen“ zeigt, was übernommen würde, ohne etwas zu speichern. Plätze mit Vertrag oder Beisetzung in der App bleiben unverändert – mehrfaches Einlesen ist unschädlich.") }}</p>
-                <input class="form-control mb-2" type="file" name="file" accept=".xml,.xlsx,.zip" required aria-label="{{ _('Datei') }}">
+                <p class="small text-body-secondary">{{ _("Tabellenexport „Baumposition“ (Plätze, Verträge, Beisetzungen) und/oder „Ruhebäume“ (Baumart, Kategorie, Stamm) als Excel-XML oder .xlsx – oder die Baumpunkte aus dem GIS als ZIP (Shapefile) und die Grundkarte aus CAD (DXF: Wege, Parkplatz, Andachtsplatz …) für die Karte. Erst „Prüfen“ zeigt, was übernommen würde, ohne etwas zu speichern. Plätze mit Vertrag oder Beisetzung in der App bleiben unverändert – mehrfaches Einlesen ist unschädlich.") }}</p>
+                <input class="form-control mb-2" type="file" name="file" accept=".xml,.xlsx,.zip,.dxf" required aria-label="{{ _('Datei') }}">
                 <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="withPeople" name="with_people" value="1" checked>
                     <label class="form-check-label" for="withPeople">{{ _("Mit Namen, Anschriften und Geburts-/Sterbedaten (sonst nur Belegung und Verträge ohne Personen)") }}</label>
@@ -90,6 +90,13 @@
                     <button class="btn btn-primary" name="action" value="apply">{{ _("Übernehmen") }}</button>
                 </div>
             </form>
+            {% if shape_count %}
+            <form class="card-footer d-flex flex-wrap align-items-center gap-2 small" method="post" action="{{ url_for('forest.shapes_delete') }}">
+                {{ csrf() }}
+                <span class="text-body-secondary"><i class="bi bi-map me-1"></i>{{ ngettext("Grundkarte: {n} Form (Wege, Flächen …)", "Grundkarte: {n} Formen (Wege, Flächen …)", shape_count) }}</span>
+                <button class="btn btn-sm btn-link text-danger ms-auto" data-confirm="{{ _('Grundkarte löschen? Bäume bleiben erhalten.') }}">{{ _("Grundkarte löschen") }}</button>
+            </form>
+            {% endif %}
         </div>
     </div>
 </div>

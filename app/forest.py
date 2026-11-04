@@ -268,6 +268,23 @@ def map_data():
     return items
 
 
+def map_background():
+    """Grundkarte (Wege, Flächen …) für Schlagkarte.js: (Formen, Legende [(Bezeichnung, Farbe)]). Große Flächen
+    zuerst, damit Wege und Plätze obenauf liegen."""
+    import json
+    from .models import ForestShape
+    shapes = ForestShape.query.all()
+    priority = {"rasen": 0, "wasser": 1, "sonstiges": 2, "parkplatz": 3, "kies": 4, "weg": 5, "aussicht": 6, "andacht": 7}
+    shapes.sort(key=lambda s: priority.get(s.kind, 2))
+    items = [{"name": f"{s.kind_label}" + (f" · {s.layer}" if s.layer and s.layer.lower() != s.kind_label.lower() else ""),
+              "color": s.color, "rings": [json.loads(s.points)], "line": s.line} for s in shapes]
+    legend = []
+    for s in shapes:
+        if (s.kind_label, s.color) not in legend:
+            legend.append((s.kind_label, s.color))
+    return items, legend
+
+
 # --- Verträge ------------------------------------------------------------------------------------
 
 def next_contract_number(day=None):

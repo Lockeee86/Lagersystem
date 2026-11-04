@@ -196,6 +196,9 @@ Portainer-Stack (docker-compose)
   beide abwesend, an beide. Wird je Aufgabe geprüft, beim Anlegen, nach jeder Kalender-Änderung und morgens; neu
   Zugeteilte bekommen einen Push. Standard pflegt der Admin unter Beisetzungen, beim
   Eintragen einer Beisetzung vorbelegt und änderbar.
+- **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den
+  CAD-Zeichnungen (DXF, im ZIP auch ohne Dateiendung) über dieselbe Übernahme einlesen; die Karte zeichnet sie unter
+  den Bäumen, mit Legende. Eine Ebene erneut einlesen ersetzt sie; „Grundkarte löschen“ unter Bäume.
 - **Hof-Einstellungen** (0.89.1): Name, Nutzungsende und Einzelbaum-Laufzeit stehen jetzt wirklich unter Verwaltung → Hof
   (Karte Bestattungswald); Speichern ändert nur Felder, die im Formular stehen.
 - **Kirchenglocken** (0.89.0): optional je Beisetzung – Häkchen beim Eintragen, in der Liste per Glocke umschaltbar;
