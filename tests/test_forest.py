@@ -404,27 +404,30 @@ def test_settings_fields(db, seed, as_admin):
 
 
 def test_place_wheel(app, db, woods, as_worker):
-    """Plätze wie ein Zifferblatt: 1–12 auf den Stunden (1 = Norden), 13–24 dazwischen (13 zwischen 1 und 2)."""
+    """Zifferblatt in zwei Ringen: 1–12 innen auf den Stunden (1 = Norden), 13–24 außen um 15° versetzt."""
     forest.create_trees(30, 30, places=24, field="B")
     db.session.commit()
     tree = ForestTree.query.filter_by(field="B", number=30).one()
-    wheel = {s["number"]: s for s in forest.place_wheel(tree)}
-    assert len(wheel) == 24
-    assert abs(wheel[1]["x"]) < 0.01 and wheel[1]["y"] < -60                  # Platz 1 genau im Norden
-    assert wheel[4]["x"] > 60 and abs(wheel[4]["y"]) < 0.01                    # Platz 4 = 3 Uhr = Osten
-    assert abs(wheel[7]["x"]) < 0.01 and wheel[7]["y"] > 60                    # Platz 7 = 6 Uhr = Süden
-    assert wheel[10]["x"] < -60                                                # Platz 10 = 9 Uhr = Westen
-    order = sorted(range(1, 25), key=lambda n: forest.wheel_slot(n, 24))       # im Uhrzeigersinn
-    assert order[:5] == [1, 13, 2, 14, 3] and order[-2:] == [12, 24]
-    assert 0 < wheel[13]["x"] < wheel[2]["x"]                                  # 13 zwischen 1 und 2
+    data = forest.place_wheel(tree)
+    wheel = {s["number"]: s for s in data["segments"]}
+    assert len(wheel) == 24 and data["rings"] == 2
+    assert forest.wheel_position(1, 24) == (0, 0.0) and forest.wheel_position(2, 24) == (0, 30.0)
+    assert forest.wheel_position(13, 24) == (1, 15.0) and forest.wheel_position(24, 24) == (1, 345.0)
+    assert abs(wheel[1]["x"]) < 0.01 and wheel[1]["y"] < 0                     # Platz 1 im Norden
+    assert wheel[4]["x"] > 0 and abs(wheel[4]["y"]) < 0.01                     # Platz 4 = 3 Uhr = Osten
+    r1 = (wheel[1]["x"] ** 2 + wheel[1]["y"] ** 2) ** .5
+    r13 = (wheel[13]["x"] ** 2 + wheel[13]["y"] ** 2) ** .5
+    assert r13 > r1 + 20                                                       # 13 im äußeren Ring
+    assert wheel[1]["x"] < wheel[13]["x"] < wheel[2]["x"]                      # 13 über der Lücke zwischen 1 und 2
+    assert forest.wheel_position(5, 12) == (0, 120.0)                          # bis 12 Plätze: ein Ring
     forest.save_contract(None, woods["admin"], "Erika Muster", date(2026, 1, 2), tree.places[:2])
     db.session.commit()
-    assert [s["state"] for s in forest.place_wheel(tree)][:3] == ["reserviert", "reserviert", "frei"]
-    assert forest.place_wheel(tree, marks={3: object()})[2]["state"] == "vorgemerkt"
+    assert [s["state"] for s in forest.place_wheel(tree)["segments"]][:3] == ["reserviert", "reserviert", "frei"]
+    assert forest.place_wheel(tree, marks={3: object()})["segments"][2]["state"] == "vorgemerkt"
     page = as_worker.get("/wald/baum/B30").get_data(as_text=True)
     assert page.count('class="wheel-seg') == 24 and 'data-place="13"' in page
     one = ForestTree.query.filter_by(number=1, field="").one()                  # 12 Plätze → 30°-Stücke
-    assert len(forest.place_wheel(one)) == 12
+    assert len(forest.place_wheel(one)["segments"]) == 12 and forest.place_wheel(one)["rings"] == 1
     forest.create_trees(1, 1, places=300, field="Z", kind="flaeche")
     db.session.commit()
-    assert forest.place_wheel(ForestTree.query.filter_by(field="Z").one()) == []   # zu viele → nur Kacheln
+    assert forest.place_wheel(ForestTree.query.filter_by(field="Z").one()) is None   # zu viele → nur Kacheln

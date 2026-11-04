@@ -271,49 +271,61 @@ def map_data():
 WHEEL_MAX = 48                  # mehr Plätze (Waldruhefläche) → nur die Kacheln, kein Kreis
 
 
-def wheel_slot(number, count):
-    """Position eines Platzes im Kreis (0 = Norden, im Uhrzeigersinn, `count` gleich große Stücke).
-    24 Plätze wie ein Zifferblatt: 1–12 auf den Stunden (1 = 12 Uhr = Norden, 2 = 1 Uhr …), 13–24 dazwischen
-    (13 zwischen Platz 1 und 2, 24 zwischen 12 und 1) – im Uhrzeigersinn also 1, 13, 2, 14 … 12, 24.
-    Andere Platzzahlen: der Reihe nach im Uhrzeigersinn."""
-    if count == 24:
-        return (number - 1) * 2 if number <= 12 else (number - 13) * 2 + 1
-    return number - 1
+WHEEL_RING = 12                 # Plätze je Ring (wie die Stunden auf dem Zifferblatt)
+
+
+def wheel_position(number, count):
+    """(Ring, Winkel der Mitte in Grad ab Norden im Uhrzeigersinn) eines Platzes.
+    Wie ein Zifferblatt: Platz 1–12 im inneren Ring auf den Stunden (1 = Norden, 2 = 1 Uhr …), 13–24 im zweiten Ring
+    weiter außen und um eine halbe Stunde (15°) versetzt – Platz 13 liegt über der Lücke zwischen 1 und 2. Weitere
+    Plätze in weiteren Ringen. Bäume mit höchstens 12 Plätzen: ein Ring, gleichmäßig verteilt."""
+    if count <= WHEEL_RING:
+        return 0, (number - 1) * 360.0 / count
+    ring, index = divmod(number - 1, WHEEL_RING)
+    step = 360.0 / WHEEL_RING
+    return ring, index * step + (step / 2 if ring % 2 else 0.0)
 
 
 def place_wheel(tree, marks=None):
-    """Plätze im Kreis um den Baum (`wheel_slot`), Platz 1 mittig im Norden.
-    Liefert [{number, state, d (SVG-Pfad), x, y (Beschriftung)}] für ein viewBox von -110 bis 110, sonst []."""
+    """Plätze in Ringen um den Baum (`wheel_position`). Liefert {"size": Halbe Breite fürs viewBox,
+    "trunk": Radius des Stamms, "segments": [{number, state, d (SVG-Pfad), x, y}]} oder None."""
     import math
     places = sorted(tree.places, key=lambda p: p.number)
     count = max((p.number for p in places), default=0)
     if tree.kind == "flaeche" or not 1 <= count <= WHEEL_MAX:
-        return []
+        return None
     marks = marks or {}
-    outer, inner, step = 100.0, 40.0 if count > 1 else 0.0, 360.0 / count
+    trunk, first, width, gap = 26.0, 32.0, 30.0, 6.0
+    per_ring = min(count, WHEEL_RING)
+    step = 360.0 / per_ring
 
     def pt(r, deg):
         rad = math.radians(deg)
         return r * math.sin(rad), -r * math.cos(rad)
 
-    segments = []
+    segments, outer_max = [], first
     for p in places:
-        center = wheel_slot(p.number, count) * step
-        a0, a1 = center - step / 2, center + step / 2
-        if count == 1:                                     # ein Platz: ganzer Ring
-            d = "M0 -100A100 100 0 1 1 0 100A100 100 0 1 1 0 -100Z"
+        ring, center = wheel_position(p.number, count)
+        inner = first + ring * (width + gap)
+        outer = inner + width
+        outer_max = max(outer_max, outer)
+        if per_ring == 1:                                  # ein Platz je Ring: ganzer Kreisring
+            d = (f"M0 {-outer:.2f}A{outer:.2f} {outer:.2f} 0 1 1 0 {outer:.2f}A{outer:.2f} {outer:.2f} 0 1 1 0 {-outer:.2f}Z"
+                 f"M0 {-inner:.2f}A{inner:.2f} {inner:.2f} 0 1 0 0 {inner:.2f}A{inner:.2f} {inner:.2f} 0 1 0 0 {-inner:.2f}Z")
+            lx, ly = 0.0, -(inner + outer) / 2
         else:
+            a0, a1 = center - step / 2, center + step / 2
             large = 1 if step > 180 else 0
             (x0, y0), (x1, y1) = pt(outer, a0), pt(outer, a1)
             (x2, y2), (x3, y3) = pt(inner, a1), pt(inner, a0)
-            d = (f"M{x0:.2f} {y0:.2f}A{outer:.0f} {outer:.0f} 0 {large} 1 {x1:.2f} {y1:.2f}"
-                 f"L{x2:.2f} {y2:.2f}A{inner:.0f} {inner:.0f} 0 {large} 0 {x3:.2f} {y3:.2f}Z")
-        lx, ly = pt((outer + inner) / 2, center) if count > 1 else (0.0, -70.0)
+            d = (f"M{x0:.2f} {y0:.2f}A{outer:.2f} {outer:.2f} 0 {large} 1 {x1:.2f} {y1:.2f}"
+                 f"L{x2:.2f} {y2:.2f}A{inner:.2f} {inner:.2f} 0 {large} 0 {x3:.2f} {y3:.2f}Z")
+            lx, ly = pt((outer + inner) / 2, center)
         state = p.state
         if state == "frei" and p.number in marks:
             state = "vorgemerkt"
-        segments.append({"number": p.number, "state": state, "d": d, "x": round(lx, 2), "y": round(ly, 2)})
-    return segments
+        segments.append({"number": p.number, "ring": ring, "state": state, "d": d, "x": round(lx, 2), "y": round(ly, 2)})
+    return {"size": round(outer_max + 16), "trunk": trunk, "segments": segments, "rings": max(s["ring"] for s in segments) + 1}
 
 
 def map_background():

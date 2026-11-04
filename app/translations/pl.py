@@ -3319,6 +3319,6 @@ MESSAGES = {
     'Antippen wählt den Platz aus.': 'Dotknięcie wybiera miejsce.',
     'ausgewählt': 'wybrane',
     'Plätze um {tree} wie ein Zifferblatt, Platz 1 im Norden': 'Miejsca wokół {tree} jak na tarczy zegara, miejsce 1 na północy',
-    'Wie ein Zifferblatt: Platz 1–12 auf den Stunden (1 = Norden), 13–24 dazwischen.': 'Jak tarcza zegara: miejsca 1–12 na godzinach (1 = północ), 13–24 pomiędzy.',
     'Platz 1 im Norden, weiter im Uhrzeigersinn.': 'Miejsce 1 na północy, dalej zgodnie z ruchem wskazówek zegara.',
+    'Wie ein Zifferblatt: Platz 1–12 innen auf den Stunden (1 = Norden), ab 13 im äußeren Ring, eine halbe Stunde versetzt.': 'Jak tarcza zegara: miejsca 1–12 wewnątrz na godzinach (1 = północ), od 13 w zewnętrznym pierścieniu, przesunięte o pół godziny.',
 }

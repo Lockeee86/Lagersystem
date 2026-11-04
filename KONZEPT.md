@@ -196,10 +196,11 @@ Portainer-Stack (docker-compose)
   beide abwesend, an beide. Wird je Aufgabe geprüft, beim Anlegen, nach jeder Kalender-Änderung und morgens; neu
   Zugeteilte bekommen einen Push. Standard pflegt der Admin unter Beisetzungen, beim
   Eintragen einer Beisetzung vorbelegt und änderbar.
-- **Plätze im Kreis** (0.91.1): Die Plätze liegen wie ein Zifferblatt um den Baum – Platz 1–12 auf den Stunden
-  (Platz 1 = 12 Uhr = Norden, Platz 2 = 1 Uhr …), Platz 13–24 dazwischen (13 zwischen 1 und 2, 24 zwischen 12 und 1).
+- **Plätze im Kreis** (0.91.2): Die Plätze liegen wie ein Zifferblatt um den Baum – Platz 1–12 im inneren Ring auf den
+  Stunden (Platz 1 = 12 Uhr = Norden, Platz 2 = 1 Uhr …), Platz 13–24 im äußeren Ring (in Wirklichkeit etwa einen
+  halben Meter weiter vom Baum), um 15° versetzt: 13 über der Lücke zwischen 1 und 2, 24 über 12 und 1.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
-  Andere Platzzahlen: der Reihe nach im Uhrzeigersinn; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
+  Bis 12 Plätze ein Ring, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den
   CAD-Zeichnungen (DXF, im ZIP auch ohne Dateiendung) über dieselbe Übernahme einlesen; die Karte zeichnet sie unter
   den Bäumen, mit Legende. Eine Ebene erneut einlesen ersetzt sie; „Grundkarte löschen“ unter Bäume.

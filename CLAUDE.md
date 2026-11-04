@@ -167,9 +167,9 @@ docker compose up --build -d
   Bäume `ForestTree` (Feld + Nummer „A 147“, `key` „A147“ für Adressen `/wald/baum/<key>`, `name`, Code `W-A147`,
   `find_tree()` für jede Eingabe, `/scan` erkennt den Code; Art `flaeche` = Waldruhefläche mit Nummer 0; `category`,
   `trunk_cm`) mit Plätzen `ForestPlace` (Stand frei/reserviert/belegt, `person` = vorgesehen bei Vorsorge), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
-  `tree_rows()`, `overview()`, Plätze im Kreis um den Baum `place_wheel()` / `wheel_slot()` (Zifferblatt: bei 24
-  Plätzen 1–12 auf den Stunden, 1 = Norden, 13–24 dazwischen – 13 zwischen 1 und 2; sonst der Reihe nach; SVG in
-  `forest/tree.html`, Antippen kreuzt `#pl<n>` an), `map_data()` (Schlagkarte, id = Baum-id → `forest.tree_by_id`); Baumauswahl-Termin `ForestSelection` = Anfang
+  `tree_rows()`, `overview()`, Plätze in Ringen um den Baum `place_wheel()` / `wheel_position()` (Zifferblatt:
+  1–12 innen auf den Stunden, 1 = Norden; 13–24 im äußeren Ring um 15° versetzt – 13 über der Lücke zwischen 1 und 2;
+  bis 12 Plätze ein Ring; SVG in `forest/tree.html`, Antippen kreuzt `#pl<n>` an), `map_data()` (Schlagkarte, id = Baum-id → `forest.tree_by_id`); Baumauswahl-Termin `ForestSelection` = Anfang
   von allem (`save_selection()` → Aufgabe „Baumauswahl“ für den Begleiter `guide`, `choose_tree()` merkt Baum + Plätze vor
   (`free_for()`, ohne Nummern die ersten freien), `cancel_selection()` / `reopen_selection()`, `selections()`,
   `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,
