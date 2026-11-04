@@ -275,6 +275,20 @@ def _job_done(name, day):
     return setting is not None and setting.value == day.isoformat()
 
 
+def grave_refresh(actor, today=None):
+    """Bestattungswald: Zuständige der Grab-Aufgaben nach dem Kalender neu bestimmen, committen und die neu
+    Zugeteilten benachrichtigen (nach Änderungen an Abwesenheiten und morgens)."""
+    from . import forest
+    changed = forest.refresh_grave_tasks(today)
+    if not changed:
+        return 0
+    db.session.commit()
+    for task, added in changed:
+        if added:
+            task_assigned(task, actor, users=added)
+    return len(changed)
+
+
 def _mark_job(name, day):
     Setting.put(f"push_job_{name}", day.isoformat())
     db.session.commit()
@@ -376,6 +390,7 @@ def daily(app, now=None):
         today = now.date()
         if now.hour >= MORNING_HOUR and not _job_done("morning", today):
             _mark_job("morning", today)          # vorher markieren: lieber eine Nachricht verpassen als doppelt
+            grave_refresh(None, today)           # Wald: Grab-Aufgaben an die Vertretung, wenn die Person abwesend ist
             _morning_tasks(today)
             _maintenance(today)
             _weather_check(now, {"blight"})

@@ -3257,5 +3257,7 @@ MESSAGES = {
     '– niemand –': '– nikt –',
     'Vertretung': 'Zastępstwo',
     'Grabstelle vorbereiten – Standard': 'Przygotowanie grobu – domyślnie',
-    '„Grab ausheben“ und „Grab schließen“ gehen bei jeder neuen Beisetzung an diese zwei – beim Eintragen änderbar.': '„Wykopać grób“ i „Zasypać grób“ trafiają przy każdym nowym pochówku do tych dwóch osób – można zmienić przy zapisie.',
+    '„Grab ausheben“ und „Grab schließen“ gehen an die Person – ist sie im Kalender abwesend (Abwesenheit / Urlaub), an die Vertretung. Gilt für jede neue Beisetzung, beim Eintragen änderbar.': '„Wykopać grób“ i „Zasypać grób“ trafiają do osoby – jeśli w kalendarzu jest nieobecna (nieobecność / urlop), do zastępstwa. Dotyczy każdego nowego pochówku, można zmienić przy zapisie.',
+    'Grab: {person}': 'Grób: {person}',
+    'Vertretung: {name}': 'Zastępstwo: {name}',
 }

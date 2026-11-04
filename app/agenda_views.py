@@ -4,7 +4,7 @@ from datetime import date, datetime
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import agenda, tasks
+from . import agenda, push, tasks
 from .extensions import db
 from .i18n import force_locale, gettext as _
 from .models import CALENDAR_KINDS, CALENDAR_REPEATS, CalendarEntry, Setting, User
@@ -95,6 +95,7 @@ def entry_create():
         _save(entry)
         db.session.commit()
         flash(_("Termin „{title}“ eingetragen.", title=entry.title), "success")
+        push.grave_refresh(current_user)                   # Abwesenheit → Grab-Aufgaben im Wald an die Vertretung
         return redirect(url_for("agenda.month", jahr=entry.start_date.year, monat=entry.start_date.month))
     except StorageError as e:
         db.session.rollback()
@@ -126,6 +127,7 @@ def entry_edit(entry_id):
         _save(entry)
         db.session.commit()
         flash(_("Termin „{title}“ gespeichert.", title=entry.title), "success")
+        push.grave_refresh(current_user)                   # Abwesenheit → Grab-Aufgaben im Wald an die Vertretung
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
@@ -141,5 +143,6 @@ def entry_delete(entry_id):
     day = entry.start_date
     db.session.delete(entry)
     db.session.commit()
+    push.grave_refresh(current_user)                   # Abwesenheit → Grab-Aufgaben im Wald an die Vertretung
     flash(_("Termin „{title}“ gelöscht.", title=entry.title), "success")
     return redirect(url_for("agenda.month", jahr=day.year, monat=day.month))

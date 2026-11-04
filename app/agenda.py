@@ -219,6 +219,18 @@ def occurrences(entry, start, end):
     return days
 
 
+def absent(user, day):
+    """Ist `user` an `day` laut Kalender abwesend (Eintrag der Art „Abwesenheit / Urlaub“, er als Teilnehmer –
+    ohne Teilnehmer gilt der Eintrag für den, der ihn angelegt hat)?"""
+    if user is None:
+        return False
+    for entry in CalendarEntry.query.filter(CalendarEntry.kind == "abwesenheit", CalendarEntry.start_date <= day):
+        who = entry.participants or ([entry.created_by] if entry.created_by else [])
+        if user in who and occurrences(entry, day, day):
+            return True
+    return False
+
+
 def _entries(start, end, user):
     events = []
     query = CalendarEntry.query.filter(CalendarEntry.start_date <= end)

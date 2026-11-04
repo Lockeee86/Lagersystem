@@ -285,7 +285,8 @@ def test_selection_pages(app, db, woods, as_admin, as_worker, as_viewer):
 
 
 def test_grave_team(app, db, woods, as_admin, as_worker):
-    """Grabstelle vorbereiten: standardmäßig Person + Vertretung, beim Eintragen änderbar."""
+    """Grabstelle vorbereiten: an die Person, bei Abwesenheit (Kalender) an die Vertretung."""
+    from app.models import CalendarEntry
     from .conftest import make_user
     admin, worker = woods["admin"], woods["worker"]
     deputy = make_user("jana", "mitarbeiter")
@@ -297,23 +298,66 @@ def test_grave_team(app, db, woods, as_admin, as_worker):
     r = as_admin.post("/wald/grab-team", data={"grave_person": str(worker.id), "grave_deputy": str(deputy.id)})
     assert r.status_code == 302 and forest.grave_team() == (worker, deputy)
     assert as_worker.post("/wald/grab-team", data={"grave_person": ""}).status_code == 403
-
     page = as_worker.get("/wald/beisetzungen").get_data(as_text=True)
     assert f'<option value="{worker.id}" selected>' in page and f'<option value="{deputy.id}" selected>' in page
 
-    day = (date.today() + timedelta(days=5)).isoformat()
-    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "1", "deceased": "Hans Muster", "day": day,
+    monday = date.today() + timedelta(days=14 - date.today().weekday())       # Montag in zwei Wochen
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "1", "deceased": "Hans Muster",
+                                             "day": monday.isoformat(),
                                              "grave_person": str(worker.id), "grave_deputy": str(deputy.id)})
     burial = ForestBurial.query.one()
-    assert set(burial.dig_task.assignees) == {worker, deputy} == set(burial.close_task.assignees)
+    assert (burial.grave_person, burial.grave_deputy) == (worker, deputy)
+    assert burial.dig_task.assignees == [worker] and burial.close_task.assignees == [worker]
+    assert burial.dig_task.due_on == monday - timedelta(days=3)                  # Freitag davor
 
-    # beim Eintragen anders gewählt
-    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "2", "deceased": "Gerda Muster", "day": day,
-                                             "grave_person": str(deputy.id), "grave_deputy": ""})
+    # Person trägt Urlaub für den Freitag ein → „Grab ausheben“ geht an die Vertretung, „schließen“ bleibt
+    push.outbox.clear()
+    as_worker.post("/kalender/termin", data={"title": "Urlaub", "kind": "abwesenheit", "all_day": "1",
+                                             "start_date": burial.dig_task.due_on.isoformat(),
+                                             "participant_ids": str(worker.id)})
+    assert CalendarEntry.query.count() == 1
+    assert burial.dig_task.assignees == [deputy] and burial.close_task.assignees == [worker]
+    assert {m["user_id"] for m in push.outbox} <= {deputy.id}
+    # beide weg → beide, damit nichts liegen bleibt
+    db.session.add(CalendarEntry(title="Schule", kind="abwesenheit", start_date=burial.dig_task.due_on,
+                                 participants=[deputy]))
+    db.session.commit()
+    forest.refresh_grave_tasks()
+    assert set(burial.dig_task.assignees) == {worker, deputy}
+    # Urlaub gelöscht → wieder die Person
+    entry = CalendarEntry.query.filter_by(title="Urlaub").one()
+    as_worker.post(f"/kalender/termin/{entry.id}/loeschen")
+    db.session.delete(CalendarEntry.query.filter_by(title="Schule").one())
+    db.session.commit()
+    forest.refresh_grave_tasks()
+    assert burial.dig_task.assignees == [worker]
+
+    # beim Eintragen anders gewählt; ohne Formularfeld → Standard
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "2", "deceased": "Gerda Muster",
+                                             "day": monday.isoformat(), "grave_person": "",
+                                             "grave_deputy": str(deputy.id)})
     other = ForestBurial.query.filter_by(deceased="Gerda Muster").one()
-    assert other.dig_task.assignees == [deputy]
-    # ohne Formularfeld (z. B. aus der Logik) → Standard
+    assert other.dig_task.assignees == [deputy] and other.grave_person is None
     with app.test_request_context():
-        third = forest.save_burial(None, admin, _tree(1).places[2], "Karl Beispiel", date.today() + timedelta(days=9))
-    assert set(third.close_task.assignees) == {worker, deputy}
-    assert f"({deputy.name}, {worker.name})" in as_worker.get("/wald/beisetzungen").get_data(as_text=True)
+        third = forest.save_burial(None, admin, _tree(1).places[2], "Karl Beispiel", monday)
+    assert (third.grave_person, third.grave_deputy) == (worker, deputy)
+    assert third.close_task.assignees == [worker]
+    page = as_worker.get("/wald/beisetzungen").get_data(as_text=True)
+    assert f"Grab: {worker.name}" in page and f"Vertretung: {deputy.name}" in page
+
+
+def test_absent(db, seed):
+    from app import agenda
+    from app.models import CalendarEntry
+    worker = seed["worker"]
+    day = date(2030, 3, 4)
+    db.session.add(CalendarEntry(title="Urlaub", kind="abwesenheit", start_date=day, end_date=day + timedelta(days=4),
+                                 participants=[worker]))
+    db.session.add(CalendarEntry(title="Kurs", kind="termin", start_date=day + timedelta(days=10),
+                                 participants=[worker]))
+    db.session.add(CalendarEntry(title="Arzt", kind="abwesenheit", start_date=day + timedelta(days=20),
+                                 created_by_id=worker.id))                     # ohne Teilnehmer → wer ihn anlegt
+    db.session.commit()
+    assert agenda.absent(worker, day + timedelta(days=2)) and not agenda.absent(worker, day + timedelta(days=5))
+    assert not agenda.absent(worker, day + timedelta(days=10)) and agenda.absent(worker, day + timedelta(days=20))
+    assert not agenda.absent(seed["admin"], day) and not agenda.absent(None, day)
