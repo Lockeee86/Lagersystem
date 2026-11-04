@@ -29,11 +29,11 @@
             <div class="col-6"><label class="form-label" for="cPhone">{{ _("Telefon") }}</label><input class="form-control" id="cPhone" name="phone" type="tel" maxlength="60" value="{{ pre.phone or '' if pre }}"></div>
             <div class="col-6"><label class="form-label" for="cEmail">{{ _("E-Mail") }}</label><input class="form-control" id="cEmail" name="email" type="email" maxlength="120" value="{{ pre.email or '' if pre }}"></div>
             <div class="col-6 col-md-4"><label class="form-label" for="cSigned">{{ _("Vertrag vom") }}</label><input class="form-control" id="cSigned" name="signed_on" type="date" value="{{ (contract.signed_on if contract else today).isoformat() }}" required></div>
-            <div class="col-6 col-md-4"><label class="form-label" for="cYears">{{ _("Laufzeit (Jahre)") }}</label><input class="form-control" id="cYears" name="years" type="number" min="1" max="150" value="{{ ((contract.ends_on.year - contract.signed_on.year) if contract and contract.ends_on else term_years) }}"></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="cEnds">{{ _("Nutzungsende") }}</label><input class="form-control" id="cEnds" name="ends_on" type="date" value="{{ default_end.isoformat() if default_end else '' }}"></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="cBirthday">{{ _("Geburtsdatum") }}</label><input class="form-control" id="cBirthday" name="holder_birthday" type="date" value="{{ contract.holder_birthday.isoformat() if contract and contract.holder_birthday else '' }}"></div>
             <div class="col-12 col-md-4"><label class="form-label" for="cPrice">{{ _("Preis (€)") }}</label><input class="form-control" id="cPrice" name="price" inputmode="decimal" value="{{ contract.price|num(2) if contract and contract.price is not none else '' }}"></div>
             <div class="col-12"><label class="form-label" for="cNote">{{ _("Notiz") }}</label><textarea class="form-control" id="cNote" name="note" rows="2">{{ contract.note or '' if contract }}</textarea></div>
         </div>
-        {% if contract and contract.ends_on %}<p class="small text-body-secondary mt-2 mb-0">{{ _("Nutzungszeit bis {date}", date=contract.ends_on|date) }}</p>{% endif %}
         <button class="btn btn-primary mt-3" {{ 'disabled' if not places }}>{{ _("Speichern") }}</button>
     </form>
 </div>

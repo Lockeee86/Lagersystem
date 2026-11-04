@@ -9,7 +9,7 @@
         {% block subtitle %}{% endblock %}
     </div>
     <form class="d-flex gap-2" action="{{ url_for('forest.find') }}" role="search">
-        <input class="form-control" style="max-width: 9rem" name="baum" inputmode="numeric" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}">
+        <input class="form-control" style="max-width: 9rem" name="baum" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}">
         <button class="btn btn-outline-primary" aria-label="{{ _('Baum öffnen') }}"><i class="bi bi-search"></i></button>
     </form>
 </div>

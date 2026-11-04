@@ -22,17 +22,17 @@
     <li class="forest-step {{ 'done' if s.status == 'ausgesucht' }} {{ 'muted' if s.status == 'abgesagt' }}">
         <div class="forest-step-head"><span class="forest-step-no">2</span>{{ _("Baum aussuchen") }}</div>
         {% if s.status == "ausgesucht" %}
-        <div><a href="{{ url_for('forest.tree_detail', number=s.tree.number) }}">{{ s.places_label }}</a>{% if s.tree.species %} · {{ s.tree.species }}{% endif %} · {{ s.tree.kind_label }}</div>
+        <div><a href="{{ url_for('forest.tree_detail', key=s.tree.key) }}">{{ s.places_label }}</a>{% if s.tree.species %} · {{ s.tree.species }}{% endif %} · {{ s.tree.kind_label }}</div>
         {% elif s.status == "geplant" and current_user.can_edit %}
         <p class="small text-body-secondary mb-2">{{ _("Nach dem Rundgang den Baum eintragen: Baum öffnen und die Plätze antippen – oder nur die Nummer, dann nimmt die App die ersten freien Plätze.") }}</p>
         <form class="d-flex flex-wrap gap-2 mb-2" method="get" action="{{ url_for('forest.find') }}">
             <input type="hidden" name="auswahl" value="{{ s.id }}">
-            <input class="form-control" style="max-width: 8rem" name="baum" inputmode="numeric" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}" required>
+            <input class="form-control" style="max-width: 8rem" name="baum" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}" required>
             <button class="btn btn-primary"><i class="bi bi-hand-index me-1"></i>{{ _("Baum öffnen, Plätze antippen") }}</button>
         </form>
         <form class="d-flex flex-wrap gap-2" method="post" action="{{ url_for('forest.selection_choose', selection_id=s.id) }}">
             {{ csrf() }}
-            <input class="form-control" style="max-width: 8rem" name="tree" inputmode="numeric" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}" required>
+            <input class="form-control" style="max-width: 8rem" name="tree" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}" required>
             <button class="btn btn-outline-primary">{{ ngettext("ersten freien Platz nehmen", "ersten {n} freien Plätze nehmen", s.places_wanted) }}</button>
         </form>
         <a class="small d-inline-block mt-2" href="{{ url_for('forest.trees', frei=1) }}">{{ _("Bäume mit freien Plätzen") }}</a>

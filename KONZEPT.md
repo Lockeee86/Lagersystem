@@ -196,6 +196,13 @@ Portainer-Stack (docker-compose)
   beide abwesend, an beide. Wird je Aufgabe geprüft, beim Anlegen, nach jeder Kalender-Änderung und morgens; neu
   Zugeteilte bekommen einen Push. Standard pflegt der Admin unter Beisetzungen, beim
   Eintragen einer Beisetzung vorbelegt und änderbar.
+- **Übernahme aus dem Altsystem** (0.88.0): Der Export des bisherigen Programms (ZIP mit „Baumposition“, „Ruhebäume“
+  und Shapefile) wird unter Bäume → „Übernahme aus dem bisherigen Programm“ eingelesen – erst „Prüfen“ (nichts wird
+  gespeichert), dann „Übernehmen“. Daraus: Bäume je Feld (A/B) mit 24 Plätzen, Waldruheflächen, Sternchenbäume,
+  Kategorie und Stamm, Verträge (gleicher Partner + Datum = ein Vertrag, Ende wie im Altsystem, meist 31.12.2110,
+  Einzelbaum 45 Jahre), Beisetzungen (vergangene ohne Aufgaben), Vorsorge-Personen am Platz, Lage aus dem Shapefile.
+  Wahlweise ohne Personendaten. Mehrfaches Einlesen überschreibt nichts, was in der App schon vergeben ist.
+  Neue Verträge: Vorgabe Nutzungsende aus Hof-Einstellungen (`forest_end`, Einzelbaum `forest_single_years`).
 - **Nur Bestattungswald** (0.84.0, `User.forest_only`): wie „nur Hühner“ – sieht nur den Wald (ohne Verträge),
   Aufgaben mit `Task.area == "wald"` oder ihm zugeteilt, Baumkontrolle, Push Sturm + eigene Aufgaben; untere Leiste
   Wald · Beisetzungen · Scannen · Aufgaben · Mehr. Beide Modi teilen sich `area_only.py`.

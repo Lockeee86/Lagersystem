@@ -35,8 +35,10 @@ def _page(template, tab, **context):
     return render_template(template, tab=tab, forest_name=forest.name(), today=date.today(), **context)
 
 
-def _tree(number):
-    return ForestTree.query.filter_by(number=number).first() or abort(404)
+def _tree(key):
+    found = forest.split_key(key)
+    tree = ForestTree.query.filter_by(field=found[0], number=found[1]).first() if found else None
+    return tree or abort(404)
 
 
 @bp.route("/wald")
@@ -51,13 +53,11 @@ def overview():
 @bp.route("/wald/suche")
 @login_required
 def find():
-    tree = forest.tree_by_code(request.args.get("baum", "")) or \
-        (ForestTree.query.filter_by(number=request.args.get("baum", type=int)).first()
-         if request.args.get("baum", "").strip().isdigit() else None)
+    tree = forest.find_tree(request.args.get("baum", ""))
     if tree is None:
         flash_error(_("Keinen Baum mit dieser Nummer gefunden."))
         return redirect(request.referrer or url_for("forest.trees"))
-    return redirect(url_for("forest.tree_detail", number=tree.number, auswahl=request.args.get("auswahl", type=int)))
+    return redirect(url_for("forest.tree_detail", key=tree.key, auswahl=request.args.get("auswahl", type=int)))
 
 
 @bp.route("/wald/karte")
@@ -82,7 +82,8 @@ def trees():
 def trees_create():
     try:
         n = forest.create_trees(form_int("first"), form_int("last"), form_int("places", forest.DEFAULT_PLACES),
-                                form_str("species", 60), form_str("section", 60), form_str("kind", 20))
+                                form_str("species", 60), form_str("section", 60), form_str("kind", 20),
+                                field=form_str("field", 10))
         db.session.commit()
         flash(_("{n} Bäume angelegt.", n=n), "success")
     except StorageError as e:
@@ -107,10 +108,58 @@ def trees_import():
     return redirect(url_for("forest.trees"))
 
 
-@bp.route("/wald/baum/<int:number>")
+@bp.route("/wald/baeume/altsystem", methods=["POST"])
+@admin_required
+def legacy_import():
+    """Tabellenexport aus dem bisherigen Programm (Excel-XML/.xlsx oder ein ZIP mit Tabellen und Shapefile der
+    Baumpunkte): „Prüfen“ = Vorschau (Rollback), „Übernehmen“ = Commit."""
+    from . import audit, forest_import
+    upload = request.files.get("file")
+    commit = request.form.get("action") == "apply"
+    try:
+        if not upload or not upload.filename:
+            raise StorageError(_("Bitte eine Datei auswählen."))
+        parsed, points = forest_import.read_upload(upload.read())
+        parts, stats = [], {}
+        with audit.paused():
+            if parsed:
+                stats = forest_import.apply(parsed, current_user, with_people=bool(request.form.get("with_people")))
+                parts.append(_("Bäume: {new} neu, {known} vorhanden · neue Plätze: {places} · Verträge: {contracts} · Beisetzungen: {burials} · vorgesehene Personen: {persons} · schon vergeben, übersprungen: {skipped}",  # noqa: E501
+                               new=stats.get("trees_new", 0), known=stats.get("trees_known", 0),
+                               places=stats.get("places_new", 0), contracts=stats.get("contracts", 0),
+                               burials=stats.get("burials", 0), persons=stats.get("persons", 0),
+                               skipped=stats.get("skipped_places", 0) + stats.get("skipped_burials", 0)))
+            if points is not None:
+                located = forest_import.apply_points(points)
+                stats = {**stats, **located}
+                parts.append(_("Lage gesetzt: {n} Bäume · ohne passenden Baum: {unknown}", n=located["located"],
+                               unknown=located["unknown"]))
+        text = " · ".join(parts)
+        if commit:
+            audit.note("forest_trees", _("Übernahme aus dem Altsystem"), stats)
+            db.session.commit()
+            flash(_("Übernommen. {details}", details=text), "success")
+        else:
+            db.session.rollback()
+            flash(_("Vorschau – noch nichts gespeichert. {details}", details=text), "info")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("forest.trees") + "#altsystem")
+
+
+@bp.route("/wald/baum/id/<int:tree_id>")
 @login_required
-def tree_detail(number):
-    tree = _tree(number)
+def tree_by_id(tree_id):
+    """Für die Karte (Schlagkarte ersetzt die 0 durch die id)."""
+    tree = db.session.get(ForestTree, tree_id) or abort(404)
+    return redirect(url_for("forest.tree_detail", key=tree.key))
+
+
+@bp.route("/wald/baum/<key>")
+@login_required
+def tree_detail(key):
+    tree = _tree(key)
     # Plätze, die eine Baumauswahl schon vorgemerkt hat (noch ohne Vertrag/Beisetzung)
     marks = {}
     for sel in ForestSelection.query.filter_by(tree_id=tree.id, status="ausgesucht"):
@@ -178,7 +227,7 @@ def selection_save(selection_id=None):
 @editor_required
 def selection_choose(selection_id):
     selection = db.session.get(ForestSelection, selection_id) or abort(404)
-    tree = ForestTree.query.filter_by(number=form_int("tree", 0) or 0).first()
+    tree = forest.find_tree(form_str("tree", 20))
     numbers = [int(v) for v in request.form.getlist("platz") if v.isdigit()]
     numbers += [int(v) for v in (request.form.get("places") or "").replace(";", ",").replace(" ", ",").split(",")
                 if v.strip().isdigit()]
@@ -235,20 +284,22 @@ def selection_delete(selection_id):
     return redirect(url_for("forest.selection_page"))
 
 
-@bp.route("/wald/baum/<int:number>", methods=["POST"])
+@bp.route("/wald/baum/<key>", methods=["POST"])
 @admin_required
-def tree_save(number):
-    tree = _tree(number)
+def tree_save(key):
+    tree = _tree(key)
     try:
         forest.save_tree(tree, form_int("number"), form_str("species", 60), form_str("section", 60),
                          form_str("kind", 20), form_int("places", forest.DEFAULT_PLACES), form_str("lat", 20),
-                         form_str("lon", 20), form_str("note", 2000), active=bool(request.form.get("active")))
+                         form_str("lon", 20), form_str("note", 2000), active=bool(request.form.get("active")),
+                         field=form_str("field", 10), category=form_str("category", 10) or "",
+                         trunk_cm=form_int("trunk_cm") or 0)
         db.session.commit()
         flash(_("Gespeichert."), "success")
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return redirect(url_for("forest.tree_detail", number=tree.number))
+    return redirect(url_for("forest.tree_detail", key=tree.key))
 
 
 # --- Beisetzungen ------------------------------------------------------------------------------------
@@ -258,10 +309,10 @@ def tree_save(number):
 def burial_page():
     year = request.args.get("jahr", type=int)
     selection = _selection_arg()
-    tree, place = request.args.get("baum", type=int), request.args.get("platz", type=int)
+    tree, place = request.args.get("baum") or None, request.args.get("platz", type=int)
     if selection is not None and tree is None:
         nxt = forest.next_place(selection)
-        tree, place = (nxt.tree.number, nxt.number) if nxt else (None, None)
+        tree, place = (nxt.tree.name, nxt.number) if nxt else (None, None)
     return _page("forest/burials.html", "beisetzungen", upcoming=forest.upcoming(days=3650),
                  past=[b for b in forest.burials(year or date.today().year) if b.day < date.today()],
                  year=year or date.today().year, tree=tree, place=place, selection=selection,
@@ -283,12 +334,12 @@ def grave_team_save():
 
 
 def _place_from_form():
-    tree = ForestTree.query.filter_by(number=form_int("tree", 0)).first()
+    tree = forest.find_tree(form_str("tree", 20))
     if tree is None:
         raise StorageError(_("Keinen Baum mit dieser Nummer gefunden."))
     place = next((p for p in tree.places if p.number == form_int("place", 0)), None)
     if place is None:
-        raise StorageError(_("Baum {n} hat keinen Platz {p}.", n=tree.number, p=form_int("place", 0)))
+        raise StorageError(_("Baum {n} hat keinen Platz {p}.", n=tree.name, p=form_int("place", 0)))
     return place
 
 
@@ -338,7 +389,7 @@ def contracts_page():
 
 
 def _places_from_args(source):
-    tree = ForestTree.query.filter_by(number=source.get("baum", type=int)).first()
+    tree = forest.find_tree(source.get("baum", ""))
     if tree is None:
         return None, []
     wanted = {int(v) for v in source.getlist("platz") if str(v).isdigit()}
@@ -362,7 +413,8 @@ def contract_detail(contract_id=None):
         places = list(contract.places)
         tree = places[0].tree if places else None
     return _page("forest/contract.html", "vertraege", contract=contract, tree=tree, places=places,
-                 term_years=forest.TERM_YEARS, selection=selection)
+                 term_years=forest.TERM_YEARS, selection=selection,
+                 default_end=contract.ends_on if contract else forest.default_end(date.today(), places))
 
 
 @bp.route("/wald/vertrag", methods=["POST"])
@@ -378,7 +430,8 @@ def contract_save(contract_id=None):
         contract = forest.save_contract(contract, current_user, form_str("holder", 150), form_date("signed_on"), places,
                                         form_int("years", forest.TERM_YEARS), form_str("address", 1000),
                                         form_str("phone", 60), form_str("email", 120), form_str("price", 20),
-                                        form_str("note", 2000), selection=_selection_arg(request.form))
+                                        form_str("note", 2000), selection=_selection_arg(request.form),
+                                        ends_on=form_date("ends_on"), holder_birthday=form_date("holder_birthday"))
         db.session.commit()
         flash(_("Vertrag {number} gespeichert.", number=contract.number), "success")
     except StorageError as e:

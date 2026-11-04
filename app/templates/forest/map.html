@@ -29,7 +29,7 @@
 (function () {
     var aerial = {{ aerial|tojson }};
     if (aerial) aerial.on = true;
-    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_detail', number=0) }}", aerial: aerial });
+    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial });
     var toggle = document.getElementById("aerialToggle");
     if (toggle) {
         toggle.classList.add("active");

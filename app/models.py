@@ -50,6 +50,8 @@ class Setting(db.Model):
     FIELDS = {
         "farm_name": (N_("Hofname"), 100, False),
         "forest_name": (N_("Name des Bestattungswalds"), 100, False),
+        "forest_end": (N_("Nutzungsende des Bestattungswalds (TT.MM.JJJJ, Vorgabe für Verträge)"), 10, False),
+        "forest_single_years": (N_("Laufzeit Einzelbaum in Jahren (Vorgabe für Verträge)"), 3, False),
         "farm_address": (N_("Anschrift"), 500, True),
         "farm_phone": (N_("Telefon"), 50, False),
         "farm_email": (N_("E-Mail"), 120, False),
@@ -2226,17 +2228,22 @@ class ClimateReading(db.Model):
 
 # --- Bestattungswald (forest.py) ---------------------------------------------------
 
-FOREST_KINDS = {"gemeinschaft": N_("Gemeinschaftsbaum"), "familie": N_("Familienbaum"), "einzel": N_("Einzelbaum")}
+FOREST_KINDS = {"gemeinschaft": N_("Gemeinschaftsbaum"), "familie": N_("Familienbaum"), "einzel": N_("Einzelbaum"),
+                "sternchen": N_("Sternchenbaum"), "flaeche": N_("Waldruhefläche")}
 FOREST_PLACE_STATES = {"frei": N_("frei"), "reserviert": N_("reserviert"), "belegt": N_("belegt")}
 
 
 class ForestTree(db.Model):
-    """Baum im Bestattungswald mit seinen Beisetzungsplätzen (`places`, meist 12). Code „W-047“ (QR am Baum)."""
+    """Baum im Bestattungswald mit seinen Beisetzungsplätzen (`places`). Nummer je Feld („A 147“, ohne Feld „147“),
+    Code für den QR am Baum „W-A147“. Art „flaeche“ = Waldruhefläche (Plätze ohne Baum, Nummer 0)."""
     __tablename__ = "forest_trees"
 
     id = db.Column(db.Integer, primary_key=True)
-    number = db.Column(db.Integer, nullable=False, unique=True)
+    field = db.Column(db.String(10), nullable=False, default="", server_default="")   # Feld A, B … (leer = keins)
+    number = db.Column(db.Integer, nullable=False)
     species = db.Column(db.String(60))                    # Baumart
+    category = db.Column(db.String(10))                   # Preiskategorie
+    trunk_cm = db.Column(db.Integer)                      # Stammdurchmesser
     section = db.Column(db.String(60), index=True)        # Waldabschnitt
     kind = db.Column(db.String(20), nullable=False, default="gemeinschaft", server_default="gemeinschaft")
     lat = db.Column(db.Float)
@@ -2248,13 +2255,27 @@ class ForestTree(db.Model):
     places = db.relationship("ForestPlace", back_populates="tree", order_by="ForestPlace.number",
                              cascade="all, delete-orphan")
 
+    __table_args__ = (db.UniqueConstraint("field", "number", name="uq_forest_trees_field_number"),)
+
+    @property
+    def key(self):
+        """Für Adressen: „A147“ bzw. „147“."""
+        return f"{self.field}{self.number}"
+
+    @property
+    def name(self):
+        """Kurz: „A 147“ (Waldruhefläche: „Waldruhefläche A“)."""
+        if self.kind == "flaeche":
+            return f"{_('Waldruhefläche')} {self.field}".strip()
+        return f"{self.field} {self.number}".strip()
+
     @property
     def code(self):
-        return f"W-{self.number:03d}"
+        return f"W-{self.field}{self.number:03d}"
 
     @property
     def label(self):
-        return _("Baum {n}", n=self.number)
+        return self.name if self.kind == "flaeche" else _("Baum {n}", n=self.name)
 
     @property
     def kind_label(self):
@@ -2269,6 +2290,7 @@ class ForestPlace(db.Model):
     tree_id = db.Column(db.Integer, db.ForeignKey("forest_trees.id", ondelete="CASCADE"), nullable=False, index=True)
     number = db.Column(db.Integer, nullable=False)
     contract_id = db.Column(db.Integer, db.ForeignKey("forest_contracts.id", ondelete="SET NULL"), index=True)
+    person = db.Column(db.String(150))          # vorgesehen für (Vorsorge mit Namen, noch keine Beisetzung)
 
     tree = db.relationship("ForestTree", back_populates="places")
     contract = db.relationship("ForestContract", back_populates="places")
@@ -2284,7 +2306,9 @@ class ForestPlace(db.Model):
 
     @property
     def label(self):
-        return _("Baum {n}, Platz {p}", n=self.tree.number, p=self.number)
+        if self.tree.kind == "flaeche":
+            return _("{area}, Platz {p}", area=self.tree.name, p=self.number)
+        return _("Baum {n}, Platz {p}", n=self.tree.name, p=self.number)
 
 
 class ForestContract(db.Model):
@@ -2295,6 +2319,7 @@ class ForestContract(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     number = db.Column(db.String(20), nullable=False, unique=True)
     holder = db.Column(db.String(150), nullable=False)
+    holder_birthday = db.Column(db.Date)
     address = db.Column(db.Text)
     phone = db.Column(db.String(60))
     email = db.Column(db.String(120))
@@ -2359,7 +2384,7 @@ class ForestSelection(db.Model):
     def places_label(self):
         if not self.tree:
             return ""
-        return _("Baum {n}, Platz {p}", n=self.tree.number, p=", ".join(str(n) for n in self.numbers))
+        return _("Baum {n}, Platz {p}", n=self.tree.name, p=", ".join(str(n) for n in self.numbers))
 
     @property
     def status_label(self):
@@ -2374,6 +2399,9 @@ class ForestBurial(db.Model):
     place_id = db.Column(db.Integer, db.ForeignKey("forest_places.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = db.Column(db.Integer, db.ForeignKey("forest_contracts.id", ondelete="SET NULL"), index=True)
     deceased = db.Column(db.String(150), nullable=False)
+    died_on = db.Column(db.Date)
+    died_in = db.Column(db.String(100))
+    number = db.Column(db.String(20))                      # Bestattungsnummer (aus dem Altsystem)
     day = db.Column(db.Date, nullable=False, index=True)
     time = db.Column(db.String(5))                         # „11:00“
     undertaker = db.Column(db.String(150))                 # Bestatter

@@ -4,7 +4,7 @@
 <div class="hub-row" id="b{{ b.id }}">
     <span class="hub-icon"><i class="bi bi-flower1"></i></span>
     <span class="hub-text"><span class="hub-title">{{ b.deceased }}</span>
-        <span class="hub-status">{{ b.day|weekday }}, {{ b.day|date }}{% if b.time %} · {{ b.time }}{% endif %} · <a href="{{ url_for('forest.tree_detail', number=b.place.tree.number) }}#p{{ b.place.number }}">{{ b.place.label }}</a>{% if b.undertaker %} · {{ b.undertaker }}{% endif %}</span>
+        <span class="hub-status">{{ b.day|weekday }}, {{ b.day|date }}{% if b.time %} · {{ b.time }}{% endif %} · <a href="{{ url_for('forest.tree_detail', key=b.place.tree.key) }}#p{{ b.place.number }}">{{ b.place.label }}</a>{% if b.undertaker %} · {{ b.undertaker }}{% endif %}</span>
         {% if b.note %}<span class="hub-status d-block">{{ b.note }}</span>{% endif %}
         {% if b.grave_person or b.grave_deputy %}<span class="hub-status d-block"><i class="bi bi-people me-1"></i>{{ _("Grab: {person}", person=b.grave_person.name if b.grave_person else "–") }}{% if b.grave_deputy %} · {{ _("Vertretung: {name}", name=b.grave_deputy.name) }}{% endif %}</span>{% endif %}
         {% if b.day >= today %}<span class="hub-status d-block">
@@ -51,7 +51,7 @@
             {% if selection %}<input type="hidden" name="selection_id" value="{{ selection.id }}">
             <div class="alert alert-primary small py-2"><i class="bi bi-signpost-2 me-1"></i>{{ _("Aus der Baumauswahl mit {name}", name=selection.contact) }}{% if selection.places_label %} · {{ selection.places_label }}{% endif %}</div>{% endif %}
             <div class="row g-2">
-                <div class="col-6"><label class="form-label" for="bTree">{{ _("Baum-Nr.") }}</label><input class="form-control" id="bTree" name="tree" type="number" min="1" value="{{ tree or '' }}" required></div>
+                <div class="col-6"><label class="form-label" for="bTree">{{ _("Baum-Nr.") }}</label><input class="form-control" id="bTree" name="tree" value="{{ tree or '' }}" placeholder="{{ _('z. B. A 147') }}" required></div>
                 <div class="col-6"><label class="form-label" for="bPlace">{{ _("Platz") }}</label><input class="form-control" id="bPlace" name="place" type="number" min="1" value="{{ place or '' }}" required></div>
                 <div class="col-12"><label class="form-label" for="bName">{{ _("Verstorbene Person") }}</label><input class="form-control" id="bName" name="deceased" maxlength="150" value="{{ selection.deceased or '' if selection }}" required></div>
                 <div class="col-7"><label class="form-label" for="bDay">{{ _("Datum") }}</label><input class="form-control" id="bDay" name="day" type="date" required></div>

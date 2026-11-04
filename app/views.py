@@ -932,7 +932,7 @@ def scan():
         from . import forest
         tree = forest.tree_by_code(raw) if current_user.sees_forest else None
         if tree:
-            return redirect(url_for("forest.tree_detail", number=tree.number))
+            return redirect(url_for("forest.tree_detail", key=tree.key))
         station_code = rounds.normalize_code(raw)
         if station_code and CheckStation.query.filter_by(code=station_code).first():
             return redirect(url_for("rounds.station", code=station_code))       # Rundgang: Checkliste öffnen

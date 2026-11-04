@@ -1,6 +1,6 @@
 {% extends "forest/_layout.html" %}
 {% from "macros.html" import csrf %}
-{% block subtitle %}<p class="text-body-secondary mb-0">{{ tree.label }} · {{ tree.code }}{% if tree.species %} · {{ tree.species }}{% endif %}{% if tree.section %} · {{ tree.section }}{% endif %} · {{ tree.kind_label }}{% if not tree.active %} · <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</p>{% endblock %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ tree.label }} · {{ tree.code }}{% if tree.species %} · {{ tree.species }}{% endif %}{% if tree.category %} · {{ _("Kategorie {c}", c=tree.category) }}{% endif %}{% if tree.trunk_cm %} · {{ _("Stamm Ø {cm} cm", cm=tree.trunk_cm) }}{% endif %}{% if tree.section %} · {{ tree.section }}{% endif %} · {{ tree.kind_label }}{% if not tree.active %} · <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</p>{% endblock %}
 {% block forest %}
 <div class="d-flex flex-wrap gap-2 mb-3">
     {% if tree.lat is not none %}<a class="btn btn-sm btn-outline-secondary" href="https://www.openstreetmap.org/?mlat={{ tree.lat }}&mlon={{ tree.lon }}#map=19/{{ tree.lat }}/{{ tree.lon }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>{{ _("Lage öffnen") }}</a>{% endif %}
@@ -12,10 +12,10 @@
 <div class="alert alert-primary d-flex gap-2 align-items-start"><i class="bi bi-signpost-2"></i><div>{{ _("Baumauswahl mit {name}: die gewünschten Plätze antippen und „Merken“.", name=selection.contact) }} <a href="{{ url_for('forest.selection_detail', selection_id=selection.id) }}">{{ _("zurück zum Termin") }}</a></div></div>
 <form method="post" action="{{ url_for('forest.selection_choose', selection_id=selection.id) }}">
 {{ csrf() }}
-<input type="hidden" name="tree" value="{{ tree.number }}">
+<input type="hidden" name="tree" value="{{ tree.name }}">
 {% else %}
 <form method="get" action="{{ url_for('forest.contract_detail') }}">
-<input type="hidden" name="baum" value="{{ tree.number }}">
+<input type="hidden" name="baum" value="{{ tree.name }}">
 {% endif %}
 <div class="forest-grid mb-3">
     {% for p in tree.places %}
@@ -30,8 +30,9 @@
         <div class="small"><span class="forest-dot {{ p.state }}"></span>{{ _(states[p.state]) }}</div>
         {% if mark %}<div class="small text-truncate"><i class="bi bi-signpost-2 me-1"></i><a href="{{ url_for('forest.selection_detail', selection_id=mark.id) }}">{{ _("vorgemerkt: {name}", name=mark.contact) }}</a></div>{% endif %}
         {% if burial %}<div class="small text-truncate"><a href="{{ url_for('forest.burial_page') }}#b{{ burial.id }}">{{ burial.deceased }}</a></div><div class="small text-body-secondary">{{ burial.day|date }}</div>{% endif %}
+        {% if current_user.is_admin and p.person and not burial %}<div class="small text-truncate text-body-secondary">{{ _("vorgesehen: {name}", name=p.person) }}</div>{% endif %}
         {% if current_user.is_admin and p.contract %}<div class="small text-truncate"><a href="{{ url_for('forest.contract_detail', contract_id=p.contract.id) }}">{{ p.contract.holder }}</a></div>{% endif %}
-        {% if not burial and current_user.can_edit and not selection %}<a class="small" href="{{ url_for('forest.burial_page', baum=tree.number, platz=p.number) }}#neu">{{ _("Beisetzung eintragen") }}</a>{% endif %}
+        {% if not burial and current_user.can_edit and not selection %}<a class="small" href="{{ url_for('forest.burial_page', baum=tree.name, platz=p.number) }}#neu">{{ _("Beisetzung eintragen") }}</a>{% endif %}
     </label>
     {% endfor %}
 </div>
@@ -51,15 +52,18 @@
 {% if current_user.is_admin %}
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Baum bearbeiten") }}</div>
-    <form class="card-body" method="post" action="{{ url_for('forest.tree_save', number=tree.number) }}">
+    <form class="card-body" method="post" action="{{ url_for('forest.tree_save', key=tree.key) }}">
         {{ csrf() }}
         <div class="row g-2">
-            <div class="col-4 col-md-2"><label class="form-label" for="tNumber">{{ _("Nummer") }}</label><input class="form-control" id="tNumber" name="number" type="number" min="1" value="{{ tree.number }}" required></div>
-            <div class="col-4 col-md-2"><label class="form-label" for="tPlaces">{{ _("Plätze") }}</label><input class="form-control" id="tPlaces" name="places" type="number" min="1" max="99" value="{{ tree.places|length }}"></div>
+            <div class="col-3 col-md-1"><label class="form-label" for="tField">{{ _("Feld") }}</label><input class="form-control" id="tField" name="field" maxlength="10" value="{{ tree.field }}"></div>
+            <div class="col-5 col-md-2"><label class="form-label" for="tNumber">{{ _("Nummer") }}</label><input class="form-control" id="tNumber" name="number" type="number" min="0" value="{{ tree.number }}" required></div>
+            <div class="col-4 col-md-2"><label class="form-label" for="tPlaces">{{ _("Plätze") }}</label><input class="form-control" id="tPlaces" name="places" type="number" min="1" max="999" value="{{ tree.places|length }}"></div>
             <div class="col-4 col-md-3"><label class="form-label" for="tKind">{{ _("Art") }}</label>
                 <select class="form-select" id="tKind" name="kind">{% for key, label in kinds.items() %}<option value="{{ key }}" {{ 'selected' if key == tree.kind }}>{{ _(label) }}</option>{% endfor %}</select></div>
             <div class="col-6 col-md-2"><label class="form-label" for="tSpecies">{{ _("Baumart") }}</label><input class="form-control" id="tSpecies" name="species" maxlength="60" value="{{ tree.species or '' }}"></div>
             <div class="col-6 col-md-3"><label class="form-label" for="tSection">{{ _("Abschnitt") }}</label><input class="form-control" id="tSection" name="section" maxlength="60" value="{{ tree.section or '' }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="tCategory">{{ _("Kategorie") }}</label><input class="form-control" id="tCategory" name="category" maxlength="10" value="{{ tree.category or '' }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="tTrunk">{{ _("Stamm Ø (cm)") }}</label><input class="form-control" id="tTrunk" name="trunk_cm" type="number" min="0" value="{{ tree.trunk_cm or '' }}"></div>
             <div class="col-6 col-md-3"><label class="form-label" for="tLat">{{ _("Breite") }}</label><input class="form-control" id="tLat" name="lat" inputmode="decimal" value="{{ '%.6f'|format(tree.lat) if tree.lat is not none else '' }}"></div>
             <div class="col-6 col-md-3"><label class="form-label" for="tLon">{{ _("Länge") }}</label><input class="form-control" id="tLon" name="lon" inputmode="decimal" value="{{ '%.6f'|format(tree.lon) if tree.lon is not none else '' }}"></div>
             <div class="col-md-6 d-flex align-items-end"><button class="btn btn-outline-secondary" type="button" id="locateBtn"><i class="bi bi-crosshair me-1"></i>{{ _("Standort hier setzen") }}</button></div>

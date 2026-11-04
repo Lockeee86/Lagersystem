@@ -164,13 +164,17 @@ docker compose up --build -d
   Blueprint-Präfix, Leisten-Platz, Push-Gruppe; `allowed()` im `before_request`, `filter_tasks()`); Seiten des
   Rubrik-Blueprints gehen automatisch, andere dort freigeben. In Templates `current_user.restricted` / `only_area`
 - `app/forest.py`: Rubrik Bestattungswald (nur `User.forest` → `sees_forest`; Name `settings` `forest_name`, `name()`) –
-  Bäume `ForestTree` (Code `W-001`, `normalize_code`/`tree_by_code`, `/scan` erkennt ihn) mit Plätzen `ForestPlace`
-  (Stand frei/reserviert/belegt), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
-  `tree_rows()`, `overview()`, `map_data()` (Schlagkarte, id = Baumnummer); Baumauswahl-Termin `ForestSelection` = Anfang
+  Bäume `ForestTree` (Feld + Nummer „A 147“, `key` „A147“ für Adressen `/wald/baum/<key>`, `name`, Code `W-A147`,
+  `find_tree()` für jede Eingabe, `/scan` erkennt den Code; Art `flaeche` = Waldruhefläche mit Nummer 0; `category`,
+  `trunk_cm`) mit Plätzen `ForestPlace` (Stand frei/reserviert/belegt, `person` = vorgesehen bei Vorsorge), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
+  `tree_rows()`, `overview()`, `map_data()` (Schlagkarte, id = Baum-id → `forest.tree_by_id`); Baumauswahl-Termin `ForestSelection` = Anfang
   von allem (`save_selection()` → Aufgabe „Baumauswahl“ für den Begleiter `guide`, `choose_tree()` merkt Baum + Plätze vor
   (`free_for()`, ohne Nummern die ersten freien), `cancel_selection()` / `reopen_selection()`, `selections()`,
   `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,
-  `save_contract()`, `next_contract_number()`), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
+  `save_contract()` mit `ends_on`/`holder_birthday`, Vorgabe `default_end()` aus `settings` `forest_end` /
+  `forest_single_years`, `next_contract_number()`). Übernahme aus dem Altsystem: `app/forest_import.py` (Tabellenexport
+  Excel-XML/.xlsx oder ZIP mit Tabellen + Shapefile: `read_upload()` → `apply()` / `apply_points()`, UTM →
+  `utm_to_latlon()`, Route `forest.legacy_import`; echte Exporte nie committen – Tests erzeugen erfundene Dateien), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
   „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an, zuständig `ForestBurial.grave_person` – bei Abwesenheit laut Kalender
   (`agenda.absent()`) `grave_deputy` (`_grave_assignees()`); Standard `grave_team()` / `save_grave_team()` in `settings`
   `forest_grave_person`/`forest_grave_deputy`, im Formular änderbar → `team=`; nach Kalender-Änderungen und morgens

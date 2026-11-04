@@ -19,9 +19,9 @@
 </div>
 {% endif %}
 
-<h2 class="hub-heading">{{ _("Alle Verträge") }}</h2>
+<h2 class="hub-heading">{{ _("Alle Verträge") }}{% if contracts|length > 100 %} <span class="text-body-secondary fw-normal">· {{ _("die neuesten 100 von {n} – suchen für ältere", n=contracts|length) }}</span>{% endif %}</h2>
 <div class="hub-list mb-4">
-    {% for c in contracts %}
+    {% for c in contracts[:100] %}
     <a class="hub-row" href="{{ url_for('forest.contract_detail', contract_id=c.id) }}">
         <span class="hub-icon"><i class="bi bi-file-earmark-text"></i></span>
         <span class="hub-text"><span class="hub-title">{{ c.label }}</span>

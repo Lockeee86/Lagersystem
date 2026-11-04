@@ -29,7 +29,9 @@ from .storage import StorageError
 DEFAULT_PLACES = 12
 TERM_YEARS = 99                 # übliche Nutzungszeit, im Vertrag änderbar
 STORM_GUST = 70                 # km/h Böen: danach Baumkontrolle anmahnen
-CODE_RE = re.compile(r"^W-?(\d{1,5})$")
+CODE_RE = re.compile(r"^W-?([A-Z]{0,3})-?(\d{1,5})$")
+KEY_RE = re.compile(r"^([A-Z]{0,3})[\s-]*(\d{1,5})$")
+MAX_PLACES = 999                # Waldruheflächen haben mehrere hundert Plätze
 AREA = "wald"                   # Aufgaben und Rundgang-Stationen der Rubrik
 
 
@@ -38,15 +40,33 @@ def name():
 
 
 def normalize_code(raw):
-    """„W-047“, „w47“ oder eine URL, die darauf endet → „W-047“ (None, wenn es kein Baum-Code ist)."""
+    """„W-A147“, „w-047“ oder eine URL, die darauf endet → „W-A147“ / „W-047“ (None, wenn es kein Baum-Code ist)."""
     value = (raw or "").strip().upper().rstrip("/").rsplit("/", 1)[-1]
     m = CODE_RE.match(value)
-    return f"W-{int(m.group(1)):03d}" if m else None
+    return f"W-{m.group(1)}{int(m.group(2)):03d}" if m else None
 
 
-def tree_by_code(raw):
+def split_key(raw):
+    """„A 147“, „a147“, „A-147“, „147“ → ("A", 147); sonst None."""
+    m = KEY_RE.match((raw or "").strip().upper())
+    return (m.group(1), int(m.group(2))) if m else None
+
+
+def find_tree(raw):
+    """Baum zu einer Eingabe: Code „W-A147“, „A 147“ oder nur „147“ (dann nur, wenn die Nummer eindeutig ist)."""
     code = normalize_code(raw)
-    return ForestTree.query.filter_by(number=int(code[2:])).first() if code else None
+    key = split_key(code[2:]) if code else split_key(raw)
+    if key is None:
+        return None
+    field, number = key
+    tree = ForestTree.query.filter_by(field=field, number=number).first()
+    if tree is None and not field:
+        hits = ForestTree.query.filter_by(number=number).limit(2).all()
+        tree = hits[0] if len(hits) == 1 else None
+    return tree
+
+
+tree_by_code = find_tree
 
 
 def members():
@@ -57,8 +77,8 @@ def members():
 
 def _set_places(tree, count):
     count = int(count or 0)
-    if not 1 <= count <= 99:
-        raise StorageError(_("Ein Baum hat 1 bis 99 Plätze."))
+    if not 1 <= count <= MAX_PLACES:
+        raise StorageError(_("Ein Baum hat 1 bis {n} Plätze.", n=MAX_PLACES))
     have = {p.number for p in tree.places}
     for n in range(1, count + 1):
         if n not in have:
@@ -69,16 +89,22 @@ def _set_places(tree, count):
         tree.places.remove(place)
 
 
-def create_trees(first, last, places=DEFAULT_PLACES, species=None, section=None, kind="gemeinschaft"):
-    """Bäume mit den Nummern first–last anlegen (vorhandene bleiben). Liefert die Zahl der neuen."""
+def _field(raw):
+    return (raw or "").strip().upper()[:10]
+
+
+def create_trees(first, last, places=DEFAULT_PLACES, species=None, section=None, kind="gemeinschaft", field=None):
+    """Bäume mit den Nummern first–last (im Feld `field`) anlegen, vorhandene bleiben. Liefert die Zahl der neuen."""
     if first is None or last is None or not 1 <= first <= last or last - first >= 2000:
         raise StorageError(_("Bitte die Nummern von–bis angeben (höchstens 2000 auf einmal)."))
-    existing = {n for (n,) in db.session.query(ForestTree.number).filter(ForestTree.number.between(first, last))}
+    field = _field(field)
+    existing = {n for (n,) in db.session.query(ForestTree.number).filter(ForestTree.field == field,
+                                                                           ForestTree.number.between(first, last))}
     added = 0
     for number in range(first, last + 1):
         if number in existing:
             continue
-        tree = ForestTree(number=number, species=(species or "").strip()[:60] or None,
+        tree = ForestTree(field=field, number=number, species=(species or "").strip()[:60] or None,
                           section=(section or "").strip()[:60] or None, kind=kind if kind in FOREST_KINDS else "gemeinschaft")
         _set_places(tree, places)
         db.session.add(tree)
@@ -100,16 +126,22 @@ def _coord(raw, low, high):
     return value
 
 
-def save_tree(tree, number, species, section, kind, places, lat, lon, note, active=True):
-    if not number or number < 1:
+def save_tree(tree, number, species, section, kind, places, lat, lon, note, active=True, field=None, category=None,
+              trunk_cm=None):
+    field = _field(field) if field is not None else (tree.field if tree else "")
+    if number is None or number < (0 if kind == "flaeche" else 1):
         raise StorageError(_("Bitte eine Baumnummer angeben."))
-    other = ForestTree.query.filter(ForestTree.number == number, ForestTree.id != (tree.id if tree else None)).first()
+    other = ForestTree.query.filter(ForestTree.field == field, ForestTree.number == number,
+                                    ForestTree.id != (tree.id if tree else None)).first()
     if other:
-        raise StorageError(_("Baum {n} gibt es schon.", n=number))
+        raise StorageError(_("Baum {n} gibt es schon.", n=other.name))
     if tree is None:
-        tree = ForestTree(number=number)
+        tree = ForestTree(field=field, number=number)
         db.session.add(tree)
-    tree.number = number
+    tree.field, tree.number = field, number
+    tree.category = (category or "").strip()[:10] or None if category is not None else tree.category
+    if trunk_cm is not None:
+        tree.trunk_cm = trunk_cm or None
     tree.species = (species or "").strip()[:60] or None
     tree.section = (section or "").strip()[:60] or None
     tree.kind = kind if kind in FOREST_KINDS else "gemeinschaft"
@@ -124,13 +156,18 @@ def save_tree(tree, number, species, section, kind, places, lat, lon, note, acti
 
 
 def _kind_from_text(text):
-    """„Familienbaum“, „familie“, „Einzelbaum“, „einzel“ … → Schlüssel aus FOREST_KINDS (sonst Gemeinschaftsbaum)."""
+    """„Familienbaum“, „Familien/Freundesbaum“, „Einzelbaum“, „Sternchenbaum“, „Waldruhefläche“ … → Schlüssel aus
+    FOREST_KINDS (sonst Gemeinschaftsbaum)."""
     text = (text or "").strip().lower()
-    return "familie" if text.startswith("famil") else "einzel" if text.startswith("einzel") else "gemeinschaft"
+    for prefix, kind in (("famil", "familie"), ("einzel", "einzel"), ("stern", "sternchen"), ("waldruh", "flaeche")):
+        if text.startswith(prefix):
+            return kind
+    return "gemeinschaft"
 
 
 def parse_trees_csv(data):
-    """CSV mit Spalten nummer, baumart, abschnitt, art, plaetze, breite, laenge (nur nummer ist Pflicht)."""
+    """CSV mit Spalten nummer (auch „A 147“), feld, baumart, abschnitt, art, plaetze, breite, laenge (nur nummer ist
+    Pflicht)."""
     text = data.decode("utf-8-sig", errors="replace") if isinstance(data, bytes) else data
     try:
         dialect = csv.Sniffer().sniff(text[:2000], delimiters=";,\t")
@@ -146,11 +183,10 @@ def parse_trees_csv(data):
         get = lambda key: (raw.get(fields.get(key, ""), "") or "").strip()     # noqa: E731
         if not get("nummer"):
             continue
-        try:
-            number = int(get("nummer"))
-        except ValueError:
+        key = split_key(get("feld") + " " + get("nummer") if get("feld") else get("nummer"))
+        if key is None:
             raise StorageError(_("Zeile {line}: „{value}“ ist keine Baumnummer.", line=i, value=get("nummer")[:20]))
-        rows.append({"number": number, "species": get("baumart"), "section": get("abschnitt"),
+        rows.append({"field": key[0], "number": key[1], "species": get("baumart"), "section": get("abschnitt"),
                      "kind": _kind_from_text(get("art")),
                      "places": int(get("plaetze") or DEFAULT_PLACES) if get("plaetze").isdigit() or not get("plaetze")
                      else DEFAULT_PLACES, "lat": get("breite"), "lon": get("laenge")})
@@ -163,13 +199,13 @@ def apply_trees(rows):
     """Bäume aus `parse_trees_csv` anlegen bzw. aktualisieren (nach Nummer). Liefert (neu, geändert)."""
     added = changed = 0
     for r in rows:
-        tree = ForestTree.query.filter_by(number=r["number"]).first()
+        tree = ForestTree.query.filter_by(field=r.get("field", ""), number=r["number"]).first()
         if tree is None:
             added += 1
         else:
             changed += 1
         save_tree(tree, r["number"], r["species"], r["section"], r["kind"], r["places"], r["lat"], r["lon"],
-                  tree.note if tree else None, tree.active if tree else True)
+                  tree.note if tree else None, tree.active if tree else True, field=r.get("field", ""))
     return added, changed
 
 
@@ -180,7 +216,7 @@ def tree_rows(section=None, only_free=False):
         query = query.filter(ForestTree.section == section)
     from sqlalchemy.orm import selectinload
     rows = []
-    for tree in query.options(selectinload(ForestTree.places).selectinload(ForestPlace.burials)).order_by(ForestTree.number):
+    for tree in query.options(selectinload(ForestTree.places).selectinload(ForestPlace.burials)).order_by(ForestTree.field, ForestTree.number):
         states = [p.state for p in tree.places]
         row = {"tree": tree, "frei": states.count("frei"), "reserviert": states.count("reserviert"),
                "belegt": states.count("belegt"), "total": len(states)}
@@ -226,7 +262,7 @@ def map_data():
             continue
         color = "#3f8f4f" if row["frei"] == row["total"] else "#e0a800" if row["frei"] else \
             "#7a5ea8" if row["reserviert"] else "#8a8a8a"
-        items.append({"id": tree.number, "name": tree.label, "number": str(tree.number), "color": color, "rings": [],
+        items.append({"id": tree.id, "name": tree.label, "number": tree.name, "color": color, "rings": [],
                       "point": [tree.lon, tree.lat], "ha": None,
                       "crop": _("{free} von {total} frei", free=row["frei"], total=row["total"])})
     return items
@@ -258,7 +294,7 @@ def _money(raw):
 
 
 def save_contract(contract, user, holder, signed_on, places, years=TERM_YEARS, address=None, phone=None, email=None,
-                  price=None, note=None, selection=None):
+                  price=None, note=None, selection=None, ends_on=None, holder_birthday=None):
     """Vertrag anlegen bzw. ändern. `places`: ForestPlace-Objekte (frei oder schon zu diesem Vertrag).
     `selection`: Baumauswahl, aus der der Vertrag entsteht (wird mit ihm verknüpft)."""
     holder = (holder or "").strip()[:150]
@@ -281,7 +317,10 @@ def save_contract(contract, user, holder, signed_on, places, years=TERM_YEARS, a
     contract.phone = (phone or "").strip()[:60] or None
     contract.email = (email or "").strip()[:120] or None
     contract.signed_on = signed_on
-    contract.ends_on = add_months(signed_on, 12 * years)
+    if ends_on is not None and ends_on <= signed_on:
+        raise StorageError(_("Das Nutzungsende muss nach dem Vertragsdatum liegen."))
+    contract.ends_on = ends_on or add_months(signed_on, 12 * years)
+    contract.holder_birthday = holder_birthday
     contract.price = _money(price) if isinstance(price, str) else price
     contract.note = (note or "").strip() or None
     keep = {p.id for p in places}
@@ -296,6 +335,22 @@ def save_contract(contract, user, holder, signed_on, places, years=TERM_YEARS, a
     if selection is not None:
         selection.contract = contract
     return contract
+
+
+def default_end(signed_on, places):
+    """Vorgabe fürs Nutzungsende: Einzelbaum = `forest_single_years` Jahre, sonst `forest_end` (fester Tag), sonst
+    TERM_YEARS ab Vertragsdatum."""
+    settings = Setting.all()
+    years = (settings.get("forest_single_years") or "").strip()
+    if years.isdigit() and places and all(p.tree.kind == "einzel" for p in places):
+        return add_months(signed_on, 12 * int(years))
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})$", (settings.get("forest_end") or "").strip())
+    if m:
+        try:
+            return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        except ValueError:
+            pass
+    return add_months(signed_on, 12 * TERM_YEARS)
 
 
 def delete_contract(contract):
@@ -409,12 +464,12 @@ def choose_tree(selection, user, tree, numbers=None):
         numbers = sorted(free)[:selection.places_wanted]
         if len(numbers) < selection.places_wanted:
             raise StorageError(ngettext("Am Baum {tree} ist nur noch {n} Platz frei.",
-                                        "Am Baum {tree} sind nur noch {n} Plätze frei.", len(free), tree=tree.number))
+                                        "Am Baum {tree} sind nur noch {n} Plätze frei.", len(free), tree=tree.name))
     for n in numbers:
         if not any(p.number == n for p in tree.places):
-            raise StorageError(_("Baum {n} hat keinen Platz {p}.", n=tree.number, p=n))
+            raise StorageError(_("Baum {n} hat keinen Platz {p}.", n=tree.name, p=n))
         if n not in free:
-            raise StorageError(_("Baum {n}, Platz {p} ist nicht mehr frei.", n=tree.number, p=n))
+            raise StorageError(_("Baum {n}, Platz {p} ist nicht mehr frei.", n=tree.name, p=n))
     selection.tree = tree
     selection.place_numbers = ",".join(str(n) for n in numbers)
     selection.status = "ausgesucht"
