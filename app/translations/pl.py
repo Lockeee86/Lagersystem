@@ -3298,4 +3298,8 @@ MESSAGES = {
     'Kirchenglocken abbestellen': 'Odwołaj dzwony kościelne',
     'Kirchenglocken dazu': 'Dodaj dzwony kościelne',
     'Kirchenglocken gewünscht': 'Dzwony kościelne zamówione',
+    'Das Nutzungsende bitte als TT.MM.JJJJ angeben, z. B. 31.12.2110.': 'Podaj koniec użytkowania jako DD.MM.RRRR, np. 31.12.2110.',
+    'So heißt die Rubrik in der App.': 'Tak nazywa się dział w aplikacji.',
+    'Neue Verträge enden standardmäßig an diesem Tag. Leer = 99 Jahre ab Vertragsdatum.': 'Nowe umowy domyślnie kończą się tego dnia. Puste = 99 lat od daty umowy.',
+    'Für Einzelbäume statt des festen Tages. Leer = wie alle anderen.': 'Dla drzew pojedynczych zamiast stałego dnia. Puste = jak wszystkie inne.',
 }

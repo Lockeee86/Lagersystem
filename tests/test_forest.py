@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from app import agenda, forest, push
-from app.models import ForestBurial, ForestContract, ForestTree, PushSubscription, Task
+from app.models import ForestBurial, ForestContract, ForestTree, PushSubscription, Setting, Task
 from app.storage import StorageError
 
 
@@ -386,3 +386,18 @@ def test_bells(app, db, woods, as_worker, as_viewer):
     as_worker.post(f"/wald/beisetzung/{with_bells.id}/glocken", data={"bells": "0"})
     assert not with_bells.bells and "Kirchenglocken" not in with_bells.dig_task.description
     assert as_viewer.post(f"/wald/beisetzung/{without.id}/glocken", data={"bells": "0"}).status_code in (403, 404)
+
+
+def test_settings_fields(db, seed, as_admin):
+    """Name, Nutzungsende und Einzelbaum-Laufzeit unter Verwaltung → Hof; fehlende Felder löschen nichts."""
+    page = as_admin.get("/admin/einstellungen").get_data(as_text=True)
+    assert 'name="forest_name"' in page and 'name="forest_end"' in page and 'name="forest_single_years"' in page
+    as_admin.post("/admin/einstellungen", data={"farm_name": "Hof Sonnenfeld", "forest_name": "Waldfrieden",
+                                                "forest_end": "31.12.2110", "forest_single_years": "45",
+                                                "farm_location": ""})
+    values = Setting.all()
+    assert (values["forest_name"], values["forest_end"], values["forest_single_years"]) == ("Waldfrieden", "31.12.2110", "45")
+    as_admin.post("/admin/einstellungen", data={"farm_name": "Hof Sonnenfeld", "farm_location": ""})   # ohne Wald-Felder
+    assert Setting.all()["forest_name"] == "Waldfrieden"
+    as_admin.post("/admin/einstellungen", data={"farm_name": "Hof Sonnenfeld", "forest_end": "2110", "farm_location": ""})
+    assert Setting.all()["forest_end"] == "31.12.2110"                         # falsches Format → nicht gespeichert

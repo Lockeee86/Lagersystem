@@ -196,6 +196,8 @@ Portainer-Stack (docker-compose)
   beide abwesend, an beide. Wird je Aufgabe geprüft, beim Anlegen, nach jeder Kalender-Änderung und morgens; neu
   Zugeteilte bekommen einen Push. Standard pflegt der Admin unter Beisetzungen, beim
   Eintragen einer Beisetzung vorbelegt und änderbar.
+- **Hof-Einstellungen** (0.89.1): Name, Nutzungsende und Einzelbaum-Laufzeit stehen jetzt wirklich unter Verwaltung → Hof
+  (Karte Bestattungswald); Speichern ändert nur Felder, die im Formular stehen.
 - **Kirchenglocken** (0.89.0): optional je Beisetzung – Häkchen beim Eintragen, in der Liste per Glocke umschaltbar;
   steht bei der Beisetzung, im Kalender und in den Grab-Aufgaben.
 - **Übernahme aus dem Altsystem** (0.88.0): Der Export des bisherigen Programms (ZIP mit „Baumposition“, „Ruhebäume“

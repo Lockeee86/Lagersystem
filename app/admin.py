@@ -63,7 +63,10 @@ def index():
 @bp.route("/einstellungen", methods=["GET", "POST"])
 def settings():
     if request.method == "POST":
-        values = {key: form_str(key, max_len) for key, (_label, max_len, _multiline) in Setting.FIELDS.items()}
+        # nur Felder, die im Formular stehen – sonst würde ein fehlendes Feld den gespeicherten Wert löschen
+        values = {key: form_str(key, max_len) for key, (_label, max_len, _multiline) in Setting.FIELDS.items()
+                  if key in request.form}
+        values = {**{k: v for k, v in Setting.all().items() if k in Setting.FIELDS}, **values}
         location = weather.parse_location(values["farm_location"])
         for key in ("blight_from_month", "blight_to_month"):
             values[key] = str(form_int(key, int(Setting.DEFAULTS[key]), minimum=1, maximum=12))
@@ -73,8 +76,12 @@ def settings():
             values["aerial_wms_url"] = ""
         if values["holiday_state"] not in agenda.STATES and values["holiday_state"] != "-":
             values["holiday_state"] = Setting.DEFAULTS["holiday_state"]
+        if values.get("forest_single_years") and not values["forest_single_years"].isdigit():
+            values["forest_single_years"] = ""
         if values["farm_location"] and location is None:
             flash_error(_("Den Standort bitte als Breite, Länge angeben, z. B. 50.11, 8.68."))
+        elif values.get("forest_end") and not re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}", values["forest_end"]):
+            flash_error(_("Das Nutzungsende bitte als TT.MM.JJJJ angeben, z. B. 31.12.2110."))
         else:
             if location:
                 values["farm_location"] = f"{location[0]:.4f}, {location[1]:.4f}"

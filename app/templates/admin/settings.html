@@ -30,6 +30,15 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4" id="wald">
+        <div class="card-header"><i class="bi bi-tree me-1"></i>{{ _("Bestattungswald") }}</div>
+        <div class="card-body">
+            {% call text_field("forest_name", placeholder=_("Bestattungswald")) %}<div class="form-text">{{ _("So heißt die Rubrik in der App.") }}</div>{% endcall %}
+            {% call text_field("forest_end", placeholder="31.12.2110") %}<div class="form-text">{{ _("Neue Verträge enden standardmäßig an diesem Tag. Leer = 99 Jahre ab Vertragsdatum.") }}</div>{% endcall %}
+            {% call text_field("forest_single_years", type="number", placeholder="45") %}<div class="form-text">{{ _("Für Einzelbäume statt des festen Tages. Leer = wie alle anderen.") }}</div>{% endcall %}
+        </div>
+    </div>
+
     <div class="card shadow-sm mb-4">
         <div class="card-header"><i class="bi bi-cloud-sun me-1"></i>{{ _("Wetter") }}</div>
         <div class="card-body">
