@@ -431,6 +431,7 @@ def test_place_wheel(app, db, woods, as_worker):
     assert forest.place_wheel(tree, marks={3: object()})["segments"][2]["state"] == "vorgemerkt"
     page = as_worker.get("/wald/baum/B30").get_data(as_text=True)
     assert page.count('class="wheel-seg') == 24 and 'data-place="13"' in page
+    assert 'id="compassBtn"' in page and 'id="wheelRot"' in page                  # Kompass am Handy
     one = ForestTree.query.filter_by(number=1, field="").one()                  # 12 Plätze → 30°-Stücke
     assert len(forest.place_wheel(one)["segments"]) == 12 and forest.place_wheel(one)["rings"] == 1
     forest.create_trees(1, 1, places=300, field="Z", kind="flaeche")

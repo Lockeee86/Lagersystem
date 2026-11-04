@@ -20,8 +20,9 @@
 <div class="forest-layout {{ 'has-wheel' if wheel }}">
 {% if wheel %}
 <figure class="forest-wheel mb-3" aria-label="{{ _('Lage der Plätze um den Baum') }}">
-    <svg viewBox="{{ -wheel.size }} {{ -wheel.size - 6 }} {{ wheel.size * 2 }} {{ wheel.size * 2 + 6 }}" role="img" aria-labelledby="wheelTitle">
+    <svg viewBox="{{ -wheel.size }} {{ -wheel.size - 16 }} {{ wheel.size * 2 }} {{ wheel.size * 2 + 16 }}" role="img" aria-labelledby="wheelTitle">
         <title id="wheelTitle">{{ _("Plätze um {tree} wie eine Uhr, Platz 12 im Norden", tree=tree.label) }}</title>
+        <g id="wheelRot">
         <text class="wheel-north" x="0" y="{{ -wheel.size + 6 }}" text-anchor="middle">N</text>
         {% for s in wheel.segments %}
         <a href="#p{{ s.number }}" class="wheel-seg {{ s.state }}" data-place="{{ s.number }}">
@@ -30,10 +31,16 @@
             <text x="{{ s.x }}" y="{{ s.y }}" dy="0.35em" text-anchor="middle">{{ s.number }}</text>
         </a>
         {% endfor %}
+        </g>
+        <path id="wheelAhead" class="wheel-ahead" d="M0 {{ -wheel.size - 5 }}l-5 -9h10z" style="display: none"/>
         <circle class="wheel-trunk" r="{{ wheel.trunk }}"/>
         <text class="wheel-center" y="{{ wheel.trunk + 11 }}" text-anchor="middle">{{ tree.name }}</text>
         {% if tree.species %}<text class="wheel-center-sub" y="{{ wheel.trunk + 20 }}" text-anchor="middle">{{ tree.species[:16] }}</text>{% endif %}
     </svg>
+    <div class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-2" id="compassBox" hidden>
+        <button class="btn btn-sm btn-outline-primary" type="button" id="compassBtn" aria-pressed="false"><i class="bi bi-compass me-1"></i>{{ _("Kompass") }}</button>
+        <span class="small text-body-secondary" id="compassInfo" aria-live="polite"></span>
+    </div>
     <div class="d-flex flex-wrap justify-content-center gap-2 small mb-1">
         <span><span class="forest-dot frei"></span>{{ _("frei") }}</span>
         <span><span class="forest-dot reserviert"></span>{{ _("reserviert") }}</span>
@@ -105,6 +112,79 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+{% if wheel %}
+<script>
+// Kompass: Kreis so drehen, dass sein Norden zum echten Norden zeigt (Handy-Sensor, nur auf Knopfdruck)
+(function () {
+    var box = document.getElementById("compassBox"), btn = document.getElementById("compassBtn");
+    var info = document.getElementById("compassInfo"), rot = document.getElementById("wheelRot");
+    var ahead = document.getElementById("wheelAhead");
+    if (!box || !("DeviceOrientationEvent" in window) || !window.matchMedia("(pointer: coarse)").matches) return;
+    box.hidden = false;
+    var texts = {
+        looking: {{ _("Blickrichtung {deg}° {dir}")|tojson }}, wait: {{ _("Handy flach halten …")|tojson }},
+        none: {{ _("Dieses Handy liefert keine Kompass-Richtung.")|tojson }},
+        denied: {{ _("Zugriff auf den Kompass wurde nicht erlaubt.")|tojson }}
+    };
+    var dirs = {{ [_("N"), _("NO"), _("O"), _("SO"), _("S"), _("SW"), _("W"), _("NW")]|tojson }};
+    var on = false, shown = 0, target = null, eventName = null, timer = null;
+    function screenAngle() { return (screen.orientation && screen.orientation.angle) || window.orientation || 0; }
+    function onOrientation(e) {
+        var h = null;
+        if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;            // iPhone
+        else if (e.absolute && typeof e.alpha === "number") h = 360 - e.alpha;                 // Android
+        if (h === null) return;
+        target = (h + screenAngle() + 360) % 360;
+    }
+    function apply(h) {
+        rot.setAttribute("transform", "rotate(" + (-h).toFixed(1) + ")");
+        rot.querySelectorAll("text").forEach(function (t) {           // Zahlen bleiben aufrecht
+            t.setAttribute("transform", "rotate(" + h.toFixed(1) + " " + t.getAttribute("x") + " " + t.getAttribute("y") + ")");
+        });
+        info.textContent = texts.looking.replace("{deg}", Math.round(h) % 360).replace("{dir}", dirs[Math.round(h / 45) % 8]);
+    }
+    function tick() {
+        if (!on) return;
+        if (target !== null) {
+            var d = ((target - shown + 540) % 360) - 180;                 // kürzester Weg, sanft nachziehen
+            shown = (shown + d * 0.2 + 360) % 360;
+            apply(shown);
+        }
+        requestAnimationFrame(tick);
+    }
+    function stop(message) {
+        on = false;
+        if (eventName) window.removeEventListener(eventName, onOrientation);
+        clearTimeout(timer);
+        rot.removeAttribute("transform");
+        rot.querySelectorAll("text").forEach(function (t) { t.removeAttribute("transform"); });
+        ahead.style.display = "none";
+        btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false");
+        info.textContent = message || "";
+    }
+    function start() {
+        on = true; target = null;
+        eventName = "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
+        window.addEventListener(eventName, onOrientation);
+        btn.classList.add("active"); btn.setAttribute("aria-pressed", "true");
+        ahead.style.display = "";
+        info.textContent = texts.wait;
+        timer = setTimeout(function () { if (target === null) stop(texts.none); }, 3000);
+        requestAnimationFrame(tick);
+    }
+    btn.addEventListener("click", function () {
+        if (on) { stop(); return; }
+        if (typeof DeviceOrientationEvent.requestPermission === "function") {     // iPhone fragt einmal nach
+            DeviceOrientationEvent.requestPermission().then(function (state) {
+                if (state === "granted") start(); else stop(texts.denied);
+            }).catch(function () { stop(texts.denied); });
+        } else {
+            start();
+        }
+    });
+})();
+</script>
+{% endif %}
 <script>
 // Kreis um den Baum: Antippen kreuzt den Platz an (Baumauswahl / Reservieren), sonst Sprung zur Kachel
 (function () {

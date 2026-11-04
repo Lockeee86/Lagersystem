@@ -1172,3 +1172,4 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 .forest-wheel a, .forest-wheel a:hover { text-decoration: none; }
 .forest-dot.vorgemerkt { background: #2f7fa8; }
 .forest-dot.gewaehlt { background: #e0a800; }
+.wheel-ahead { fill: var(--bs-body-color); }
