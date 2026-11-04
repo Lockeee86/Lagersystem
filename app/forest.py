@@ -272,6 +272,9 @@ WHEEL_MAX = 48                  # mehr Plätze (Waldruhefläche) → nur die Kac
 
 
 WHEEL_RING = 12                 # Plätze je Ring (wie die Stunden auf dem Zifferblatt)
+WHEEL_FIRST_M = 2.0             # innerer Ring beginnt 2 m vom Baum (Stammmitte) …
+WHEEL_WIDTH_M = 0.5             # … und ist 0,5 m breit; der nächste schließt direkt an (2,5–3 m)
+WHEEL_UNITS_PER_M = 34          # Zeichenmaßstab im SVG
 
 
 def wheel_position(number, count):
@@ -289,15 +292,18 @@ def wheel_position(number, count):
 
 
 def place_wheel(tree, marks=None):
-    """Plätze in Ringen um den Baum (`wheel_position`). Liefert {"size": Halbe Breite fürs viewBox,
-    "trunk": Radius des Stamms, "segments": [{number, state, d (SVG-Pfad), x, y}]} oder None."""
+    """Plätze in Ringen um den Baum (`wheel_position`), maßstäblich: innerer Ring 2–2,5 m vom Baum, äußerer 2,5–3 m,
+    Stamm aus `trunk_cm` (sonst 0,6 m Durchmesser). Liefert {"size": halbe Breite fürs viewBox, "trunk": Radius des
+    Stamms, "segments": [{number, ring, state, d (SVG-Pfad), x, y}], "rings"} oder None."""
     import math
     places = sorted(tree.places, key=lambda p: p.number)
     count = max((p.number for p in places), default=0)
     if tree.kind == "flaeche" or not 1 <= count <= WHEEL_MAX:
         return None
     marks = marks or {}
-    trunk, first, width, gap = 26.0, 32.0, 30.0, 6.0
+    unit = WHEEL_UNITS_PER_M
+    trunk = min(max((tree.trunk_cm or 60) / 200.0, 0.1), 1.5) * unit
+    first, width, gap = WHEEL_FIRST_M * unit, WHEEL_WIDTH_M * unit, 0.0
     per_ring = min(count, WHEEL_RING)
     step = 360.0 / per_ring
 
@@ -327,7 +333,8 @@ def place_wheel(tree, marks=None):
         if state == "frei" and p.number in marks:
             state = "vorgemerkt"
         segments.append({"number": p.number, "ring": ring, "state": state, "d": d, "x": round(lx, 2), "y": round(ly, 2)})
-    return {"size": round(outer_max + 16), "trunk": trunk, "segments": segments, "rings": max(s["ring"] for s in segments) + 1}
+    return {"size": round(outer_max + 14), "trunk": round(trunk, 2), "segments": segments,
+            "rings": max(s["ring"] for s in segments) + 1}
 
 
 def map_background():

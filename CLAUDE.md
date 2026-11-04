@@ -169,7 +169,8 @@ docker compose up --build -d
   `trunk_cm`) mit Plätzen `ForestPlace` (Stand frei/reserviert/belegt, `person` = vorgesehen bei Vorsorge), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
   `tree_rows()`, `overview()`, Plätze in Ringen um den Baum `place_wheel()` / `wheel_position()` (innen wie eine
   analoge Uhr, 12 = Norden, 3 = Osten; 13–24 im äußeren Ring um 15° versetzt – 13 über der Lücke zwischen 12 und 1;
-  unter 12 Plätzen ein Ring ab Norden; SVG in `forest/tree.html`, Antippen kreuzt `#pl<n>` an), `map_data()` (Schlagkarte, id = Baum-id → `forest.tree_by_id`); Baumauswahl-Termin `ForestSelection` = Anfang
+  unter 12 Plätzen ein Ring ab Norden; maßstäblich `WHEEL_FIRST_M`/`WHEEL_WIDTH_M`: innen 2–2,5 m, außen 2,5–3 m,
+  Stamm aus `trunk_cm`; SVG in `forest/tree.html`, Antippen kreuzt `#pl<n>` an), `map_data()` (Schlagkarte, id = Baum-id → `forest.tree_by_id`); Baumauswahl-Termin `ForestSelection` = Anfang
   von allem (`save_selection()` → Aufgabe „Baumauswahl“ für den Begleiter `guide`, `choose_tree()` merkt Baum + Plätze vor
   (`free_for()`, ohne Nummern die ersten freien), `cancel_selection()` / `reopen_selection()`, `selections()`,
   `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,

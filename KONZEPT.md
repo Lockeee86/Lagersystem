@@ -199,6 +199,7 @@ Portainer-Stack (docker-compose)
 - **Plätze im Kreis** (0.91.3): Der innere Ring ist eine analoge Uhr – Platz 12 oben im Norden, Platz 1 bei 1 Uhr,
   3 im Osten, 6 im Süden, 9 im Westen. Platz 13–24 im äußeren Ring (in Wirklichkeit etwa einen halben Meter weiter vom
   Baum), um 15° versetzt: 13 über der Lücke zwischen 12 und 1, 14 zwischen 1 und 2 … 24 zwischen 11 und 12.
+  Maßstäblich gezeichnet (0.91.4): innerer Ring 2–2,5 m vom Baum, äußerer 2,5–3 m, Stamm nach Stammdurchmesser.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

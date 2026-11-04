@@ -419,7 +419,9 @@ def test_place_wheel(app, db, woods, as_worker):
     assert abs(wheel[6]["x"]) < 0.01 and wheel[6]["y"] > 0                     # 6 Uhr = Süden
     r12 = (wheel[12]["x"] ** 2 + wheel[12]["y"] ** 2) ** .5
     r13 = (wheel[13]["x"] ** 2 + wheel[13]["y"] ** 2) ** .5
-    assert r13 > r12 + 20                                                      # 13 im äußeren Ring
+    unit = forest.WHEEL_UNITS_PER_M
+    assert abs(r12 - 2.25 * unit) < 0.5 and abs(r13 - 2.75 * unit) < 0.5      # Mitte innen 2,25 m, außen 2,75 m
+    assert abs(data["trunk"] - 0.3 * unit) < 0.01                             # ohne Stammmaß 0,6 m Durchmesser
     assert wheel[12]["x"] < wheel[13]["x"] < wheel[1]["x"]                     # 13 über der Lücke zwischen 12 und 1
     assert forest.wheel_position(12, 12) == (0, 0.0)                           # 12 Plätze: Uhr, ein Ring
     assert forest.wheel_position(1, 4) == (0, 0.0)                             # weniger: ab Norden verteilt

@@ -23,7 +23,6 @@
     <svg viewBox="{{ -wheel.size }} {{ -wheel.size - 6 }} {{ wheel.size * 2 }} {{ wheel.size * 2 + 6 }}" role="img" aria-labelledby="wheelTitle">
         <title id="wheelTitle">{{ _("Plätze um {tree} wie eine Uhr, Platz 12 im Norden", tree=tree.label) }}</title>
         <text class="wheel-north" x="0" y="{{ -wheel.size + 6 }}" text-anchor="middle">N</text>
-        <circle class="wheel-trunk" r="{{ wheel.trunk }}"/>
         {% for s in wheel.segments %}
         <a href="#p{{ s.number }}" class="wheel-seg {{ s.state }}" data-place="{{ s.number }}">
             <title>{{ _("Platz {n}", n=s.number) }} · {{ _(states[s.state]) if s.state in states else _("vorgemerkt") }}</title>
@@ -31,8 +30,9 @@
             <text x="{{ s.x }}" y="{{ s.y }}" dy="0.35em" text-anchor="middle">{{ s.number }}</text>
         </a>
         {% endfor %}
-        <text class="wheel-center" y="-2" text-anchor="middle">{{ tree.name }}</text>
-        {% if tree.species %}<text class="wheel-center-sub" y="9" text-anchor="middle">{{ tree.species[:12] }}</text>{% endif %}
+        <circle class="wheel-trunk" r="{{ wheel.trunk }}"/>
+        <text class="wheel-center" y="{{ wheel.trunk + 11 }}" text-anchor="middle">{{ tree.name }}</text>
+        {% if tree.species %}<text class="wheel-center-sub" y="{{ wheel.trunk + 20 }}" text-anchor="middle">{{ tree.species[:16] }}</text>{% endif %}
     </svg>
     <div class="d-flex flex-wrap justify-content-center gap-2 small mb-1">
         <span><span class="forest-dot frei"></span>{{ _("frei") }}</span>
@@ -41,7 +41,7 @@
         {% if marks %}<span><span class="forest-dot vorgemerkt"></span>{{ _("vorgemerkt") }}</span>{% endif %}
         {% if selection or current_user.is_admin %}<span><span class="forest-dot gewaehlt"></span>{{ _("ausgewählt") }}</span>{% endif %}
     </div>
-    <figcaption class="small text-body-secondary text-center">{% if wheel.segments|length >= 12 %}{{ _("Innen wie eine Uhr: Platz 12 im Norden, 3 im Osten.") }}{% if wheel.rings > 1 %} {{ _("Ab 13 im äußeren Ring, eine halbe Stunde versetzt (13 zwischen 12 und 1).") }}{% endif %}{% else %}{{ _("Platz 1 im Norden, weiter im Uhrzeigersinn.") }}{% endif %}{% if selection or current_user.is_admin %} {{ _("Antippen wählt den Platz aus.") }}{% endif %}</figcaption>
+    <figcaption class="small text-body-secondary text-center">{% if wheel.segments|length >= 12 %}{{ _("Innen wie eine Uhr: Platz 12 im Norden, 3 im Osten.") }}{% if wheel.rings > 1 %} {{ _("Ab 13 im äußeren Ring, eine halbe Stunde versetzt (13 zwischen 12 und 1).") }}{% endif %} {{ _("Maßstäblich: innen 2–2,5 m vom Baum, außen 2,5–3 m.") if wheel.rings > 1 else _("Maßstäblich: 2–2,5 m vom Baum.") }}{% else %}{{ _("Platz 1 im Norden, weiter im Uhrzeigersinn.") }}{% endif %}{% if selection or current_user.is_admin %} {{ _("Antippen wählt den Platz aus.") }}{% endif %}</figcaption>
 </figure>
 {% endif %}
 <div class="forest-grid mb-3">

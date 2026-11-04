@@ -3322,4 +3322,6 @@ MESSAGES = {
     'Plätze um {tree} wie eine Uhr, Platz 12 im Norden': 'Miejsca wokół {tree} jak na zegarze, miejsce 12 na północy',
     'Innen wie eine Uhr: Platz 12 im Norden, 3 im Osten.': 'Wewnątrz jak zegar: miejsce 12 na północy, 3 na wschodzie.',
     'Ab 13 im äußeren Ring, eine halbe Stunde versetzt (13 zwischen 12 und 1).': 'Od 13 w zewnętrznym pierścieniu, przesunięte o pół godziny (13 między 12 a 1).',
+    'Maßstäblich: innen 2–2,5 m vom Baum, außen 2,5–3 m.': 'W skali: wewnątrz 2–2,5 m od drzewa, na zewnątrz 2,5–3 m.',
+    'Maßstäblich: 2–2,5 m vom Baum.': 'W skali: 2–2,5 m od drzewa.',
 }
