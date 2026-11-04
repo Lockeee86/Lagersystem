@@ -401,3 +401,27 @@ def test_settings_fields(db, seed, as_admin):
     assert Setting.all()["forest_name"] == "Waldfrieden"
     as_admin.post("/admin/einstellungen", data={"farm_name": "Hof Sonnenfeld", "forest_end": "2110", "farm_location": ""})
     assert Setting.all()["forest_end"] == "31.12.2110"                         # falsches Format → nicht gespeichert
+
+
+def test_place_wheel(app, db, woods, as_worker):
+    """Plätze im Kreis: Platz 1 im Norden, im Uhrzeigersinn; bei 24 Plätzen liegt Platz 13 im Süden."""
+    forest.create_trees(30, 30, places=24, field="B")
+    db.session.commit()
+    tree = ForestTree.query.filter_by(field="B", number=30).one()
+    wheel = forest.place_wheel(tree)
+    assert len(wheel) == 24 and [s["number"] for s in wheel] == list(range(1, 25))
+    first, east, south = wheel[0], wheel[6], wheel[12]
+    assert first["x"] > 0 and first["y"] < -60                                  # knapp rechts von Norden
+    assert east["x"] > 60 and abs(east["y"]) < 15                               # 6–7 Uhr → Osten
+    assert south["x"] < 0 and south["y"] > 60                                   # 12–13 Uhr → knapp links von Süden
+    forest.save_contract(None, woods["admin"], "Erika Muster", date(2026, 1, 2), tree.places[:2])
+    db.session.commit()
+    assert [s["state"] for s in forest.place_wheel(tree)][:3] == ["reserviert", "reserviert", "frei"]
+    assert forest.place_wheel(tree, marks={3: object()})[2]["state"] == "vorgemerkt"
+    page = as_worker.get("/wald/baum/B30").get_data(as_text=True)
+    assert page.count('class="wheel-seg') == 24 and 'data-place="13"' in page
+    one = ForestTree.query.filter_by(number=1, field="").one()                  # 12 Plätze → 30°-Stücke
+    assert len(forest.place_wheel(one)) == 12
+    forest.create_trees(1, 1, places=300, field="Z", kind="flaeche")
+    db.session.commit()
+    assert forest.place_wheel(ForestTree.query.filter_by(field="Z").one()) == []   # zu viele → nur Kacheln

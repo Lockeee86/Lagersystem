@@ -17,6 +17,33 @@
 <form method="get" action="{{ url_for('forest.contract_detail') }}">
 <input type="hidden" name="baum" value="{{ tree.name }}">
 {% endif %}
+<div class="forest-layout {{ 'has-wheel' if wheel }}">
+{% if wheel %}
+<figure class="forest-wheel mb-3" aria-label="{{ _('Lage der Plätze um den Baum') }}">
+    <svg viewBox="-118 -122 236 240" role="img" aria-labelledby="wheelTitle">
+        <title id="wheelTitle">{{ _("Plätze um {tree}, Platz 1 beginnt im Norden, im Uhrzeigersinn", tree=tree.label) }}</title>
+        <text class="wheel-north" x="0" y="-108" text-anchor="middle">N</text>
+        {% for s in wheel %}
+        <a href="#p{{ s.number }}" class="wheel-seg {{ s.state }}" data-place="{{ s.number }}">
+            <title>{{ _("Platz {n}", n=s.number) }} · {{ _(states[s.state]) if s.state in states else _("vorgemerkt") }}</title>
+            <path d="{{ s.d }}"/>
+            <text x="{{ s.x }}" y="{{ s.y }}" dy="0.35em" text-anchor="middle">{{ s.number }}</text>
+        </a>
+        {% endfor %}
+        <circle class="wheel-trunk" r="{{ 30 if wheel|length > 1 else 0 }}"/>
+        <text class="wheel-center" y="-3" text-anchor="middle">{{ tree.name }}</text>
+        {% if tree.species %}<text class="wheel-center-sub" y="11" text-anchor="middle">{{ tree.species[:14] }}</text>{% endif %}
+    </svg>
+    <div class="d-flex flex-wrap justify-content-center gap-2 small mb-1">
+        <span><span class="forest-dot frei"></span>{{ _("frei") }}</span>
+        <span><span class="forest-dot reserviert"></span>{{ _("reserviert") }}</span>
+        <span><span class="forest-dot belegt"></span>{{ _("belegt") }}</span>
+        {% if marks %}<span><span class="forest-dot vorgemerkt"></span>{{ _("vorgemerkt") }}</span>{% endif %}
+        {% if selection or current_user.is_admin %}<span><span class="forest-dot gewaehlt"></span>{{ _("ausgewählt") }}</span>{% endif %}
+    </div>
+    <figcaption class="small text-body-secondary text-center">{{ _("Platz 1 beginnt im Norden, weiter im Uhrzeigersinn.") }}{% if selection or current_user.is_admin %} {{ _("Antippen wählt den Platz aus.") }}{% endif %}</figcaption>
+</figure>
+{% endif %}
 <div class="forest-grid mb-3">
     {% for p in tree.places %}
     {% set burial = p.burials|first %}
@@ -25,7 +52,7 @@
         <div class="d-flex justify-content-between align-items-start">
             <span class="fw-semibold">{{ _("Platz {n}", n=p.number) }}</span>
             {% if selection %}{% if p.number in free %}<input class="form-check-input" type="checkbox" id="pl{{ p.number }}" name="platz" value="{{ p.number }}" {{ 'checked' if mark and mark.id == selection.id }} aria-label="{{ _('Platz {n} merken', n=p.number) }}">{% endif %}
-            {% elif current_user.is_admin and p.state == "frei" and not mark %}<input class="form-check-input" type="checkbox" name="platz" value="{{ p.number }}" aria-label="{{ _('Platz {n} reservieren', n=p.number) }}">{% endif %}
+            {% elif current_user.is_admin and p.state == "frei" and not mark %}<input class="form-check-input" type="checkbox" id="pl{{ p.number }}" name="platz" value="{{ p.number }}" aria-label="{{ _('Platz {n} reservieren', n=p.number) }}">{% endif %}
         </div>
         <div class="small"><span class="forest-dot {{ p.state }}"></span>{{ _(states[p.state]) }}</div>
         {% if mark %}<div class="small text-truncate"><i class="bi bi-signpost-2 me-1"></i><a href="{{ url_for('forest.selection_detail', selection_id=mark.id) }}">{{ _("vorgemerkt: {name}", name=mark.contact) }}</a></div>{% endif %}
@@ -35,6 +62,7 @@
         {% if not burial and current_user.can_edit and not selection %}<a class="small" href="{{ url_for('forest.burial_page', baum=tree.name, platz=p.number) }}#neu">{{ _("Beisetzung eintragen") }}</a>{% endif %}
     </label>
     {% endfor %}
+</div>
 </div>
 {% if selection %}
 <div class="d-flex flex-wrap gap-2 mb-4">
@@ -77,6 +105,28 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script>
+// Kreis um den Baum: Antippen kreuzt den Platz an (Baumauswahl / Reservieren), sonst Sprung zur Kachel
+(function () {
+    function sync() {
+        document.querySelectorAll(".wheel-seg").forEach(function (seg) {
+            var box = document.getElementById("pl" + seg.dataset.place);
+            seg.classList.toggle("is-picked", !!(box && box.checked));
+        });
+    }
+    document.querySelectorAll(".wheel-seg").forEach(function (seg) {
+        seg.addEventListener("click", function (e) {
+            var box = document.getElementById("pl" + seg.dataset.place);
+            if (!box) return;                          // nicht wählbar → normaler Sprung zur Kachel
+            e.preventDefault();
+            box.checked = !box.checked;
+            sync();
+        });
+    });
+    document.querySelectorAll("input[name=platz]").forEach(function (box) { box.addEventListener("change", sync); });
+    sync();
+})();
+</script>
 {% if current_user.is_admin %}
 <script>
 (function () {

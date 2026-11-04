@@ -268,6 +268,44 @@ def map_data():
     return items
 
 
+WHEEL_MAX = 48                  # mehr Plätze (Waldruhefläche) → nur die Kacheln, kein Kreis
+
+
+def place_wheel(tree, marks=None):
+    """Plätze im Kreis um den Baum wie ein 24-Stunden-Zifferblatt: Platz 1 beginnt im Norden, jeder Platz ist ein
+    gleich großes Stück im Uhrzeigersinn (bei 24 Plätzen: Platz 13 zwischen „12 und 13 Uhr“ = Süden).
+    Liefert [{number, state, d (SVG-Pfad), x, y (Beschriftung)}] für ein viewBox von -110 bis 110, sonst []."""
+    import math
+    places = sorted(tree.places, key=lambda p: p.number)
+    count = max((p.number for p in places), default=0)
+    if tree.kind == "flaeche" or not 1 <= count <= WHEEL_MAX:
+        return []
+    marks = marks or {}
+    outer, inner, step = 100.0, 40.0 if count > 1 else 0.0, 360.0 / count
+
+    def pt(r, deg):
+        rad = math.radians(deg)
+        return r * math.sin(rad), -r * math.cos(rad)
+
+    segments = []
+    for p in places:
+        a0, a1 = (p.number - 1) * step, p.number * step
+        if count == 1:                                     # ein Platz: ganzer Ring
+            d = "M0 -100A100 100 0 1 1 0 100A100 100 0 1 1 0 -100Z"
+        else:
+            large = 1 if step > 180 else 0
+            (x0, y0), (x1, y1) = pt(outer, a0), pt(outer, a1)
+            (x2, y2), (x3, y3) = pt(inner, a1), pt(inner, a0)
+            d = (f"M{x0:.2f} {y0:.2f}A{outer:.0f} {outer:.0f} 0 {large} 1 {x1:.2f} {y1:.2f}"
+                 f"L{x2:.2f} {y2:.2f}A{inner:.0f} {inner:.0f} 0 {large} 0 {x3:.2f} {y3:.2f}Z")
+        lx, ly = pt((outer + inner) / 2, (a0 + a1) / 2) if count > 1 else (0.0, -70.0)
+        state = p.state
+        if state == "frei" and p.number in marks:
+            state = "vorgemerkt"
+        segments.append({"number": p.number, "state": state, "d": d, "x": round(lx, 2), "y": round(ly, 2)})
+    return segments
+
+
 def map_background():
     """Grundkarte (Wege, Flächen …) für Schlagkarte.js: (Formen, Legende [(Bezeichnung, Farbe)]). Große Flächen
     zuerst, damit Wege und Plätze obenauf liegen."""

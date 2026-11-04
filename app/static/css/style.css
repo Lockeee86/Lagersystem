@@ -1148,3 +1148,27 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 .field-bg { fill-opacity: .55; stroke-width: calc(var(--px, 1) * 1px); stroke-opacity: .9; pointer-events: none; }
 .field-bg.is-line { fill: none; stroke-width: calc(var(--px, 1) * 3px); }
 .field-map-svg.with-aerial .field-bg { fill-opacity: .25; }
+
+/* Plätze im Kreis um den Baum (24-Stunden-Zifferblatt, Platz 1 im Norden) */
+.forest-layout.has-wheel { display: grid; gap: 1rem; }
+@media (min-width: 992px) { .forest-layout.has-wheel { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: start; } }
+.forest-wheel { margin: 0 auto; width: 100%; max-width: 340px; }
+.forest-wheel svg { display: block; width: 100%; height: auto; }
+.wheel-seg path { fill: #3f8f4f; stroke: var(--surface, var(--bs-body-bg)); stroke-width: 1.5; transition: opacity .15s; }
+.wheel-seg.reserviert path { fill: #7a5ea8; }
+.wheel-seg.belegt path { fill: #8a8a8a; }
+.wheel-seg.vorgemerkt path { fill: #2f7fa8; }
+.wheel-seg:hover path, .wheel-seg:focus path { opacity: .8; }
+.wheel-seg:focus { outline: none; }
+.wheel-seg:focus-visible path { stroke: var(--bs-body-color); stroke-width: 2.5; }
+.wheel-seg.is-picked path { fill: #e0a800; }
+.wheel-seg text { fill: #fff; font-size: 10px; font-weight: 700; pointer-events: none; }
+.wheel-seg.is-picked text { fill: #222; }
+.wheel-north { fill: var(--bs-body-color); font-size: 12px; font-weight: 800; }
+.wheel-trunk { fill: #6b4f32; }
+.wheel-center { fill: #fff; font-size: 11px; font-weight: 700; }
+.wheel-center-sub { fill: #f1e7d8; font-size: 8px; }
+@media (min-width: 992px) { .forest-layout.has-wheel .forest-wheel { position: sticky; top: 5rem; } }
+.forest-wheel a, .forest-wheel a:hover { text-decoration: none; }
+.forest-dot.vorgemerkt { background: #2f7fa8; }
+.forest-dot.gewaehlt { background: #e0a800; }

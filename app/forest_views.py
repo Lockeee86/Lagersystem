@@ -188,6 +188,7 @@ def tree_detail(key):
     if selection is not None and (selection.status == "abgesagt" or not current_user.can_edit):
         selection = None
     return _page("forest/tree.html", "baeume", tree=tree, kinds=FOREST_KINDS, states=FOREST_PLACE_STATES, marks=marks,
+                 wheel=forest.place_wheel(tree, marks),
                  selection=selection, free=[p.number for p in forest.free_for(selection, tree)] if selection else [])
 
 
