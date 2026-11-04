@@ -190,3 +190,95 @@ def test_forest_only_user(app, db, woods, as_admin, as_worker):
     # Admins sind nie „nur Bestattungswald“
     woods["admin"].forest_only = True
     assert not woods["admin"].restricted and woods["admin"].sees_biogas
+
+
+def test_selection_flow(app, db, woods):
+    """Baumauswahl → Baum aussuchen → Vertrag → Beisetzung."""
+    from app.models import ForestSelection
+    admin, worker = woods["admin"], woods["worker"]
+    day = date(2030, 6, 5)
+    sel = forest.save_selection(None, worker, "Erika Muster", day, "14", phone="0123 456", deceased="Hans Muster",
+                                places_wanted=2, kind_wanted="familie", guide=worker)
+    db.session.commit()
+    assert sel.status == "geplant" and sel.time == "14:00" and sel.task.area == forest.AREA
+    assert sel.task.assignees == [worker] and sel.task.due_on == day and "Erika Muster" in sel.task.title
+    with pytest.raises(StorageError):
+        forest.save_selection(None, worker, "", day)
+    db.session.rollback()
+
+    # zweite Auswahl will dieselben Plätze → geht nicht
+    other = forest.save_selection(None, worker, "Max Beispiel", day, places_wanted=1)
+    forest.choose_tree(sel, worker, _tree(1))                       # ohne Nummern: die ersten freien
+    db.session.commit()
+    assert sel.status == "ausgesucht" and sel.numbers == [1, 2] and sel.task.is_done
+    assert [p.number for p in sel.places] == [1, 2] and sel.places_label == "Baum 1, Platz 1, 2"
+    with pytest.raises(StorageError):
+        forest.choose_tree(other, worker, _tree(1), [2])
+    db.session.rollback()
+    forest.choose_tree(other, worker, _tree(1))                     # nimmt den nächsten freien
+    assert other.numbers == [3]
+    forest.choose_tree(sel, worker, _tree(1), [1, 4])              # umentscheiden geht
+    assert sel.numbers == [1, 4]
+    db.session.commit()
+
+    contract = forest.save_contract(None, admin, sel.contact, day, sel.places, selection=sel)
+    db.session.commit()
+    assert sel.contract == contract and _tree(1).places[3].state == "reserviert"
+    assert forest.next_place(sel).number == 1
+    with app.test_request_context():
+        burial = forest.save_burial(None, worker, forest.next_place(sel), "Hans Muster", date(2030, 6, 20), selection=sel)
+        db.session.commit()
+        assert burial.selection == sel and burial.contract == contract
+        assert forest.next_place(sel).number == 4
+        data = forest.selections()
+        assert sel in data["chosen"] and other in data["chosen"]
+        events = forest.calendar_events(day, day, agenda._event)
+        assert {e["kind"] for e in events} == {"baumauswahl"} and len(events) == 2
+
+    with pytest.raises(StorageError):
+        forest.cancel_selection(sel)                               # hat schon eine Beisetzung
+    db.session.rollback()
+    forest.cancel_selection(other)
+    db.session.commit()
+    assert other.status == "abgesagt" and other in forest.selections()["done"]
+    forest.reopen_selection(other, worker)
+    db.session.commit()
+    assert other.status == "geplant" and other.task is not None and not other.task.is_done
+    forest.delete_selection(other)
+    db.session.commit()
+    assert ForestSelection.query.count() == 1
+
+
+def test_selection_pages(app, db, woods, as_admin, as_worker, as_viewer):
+    worker = woods["worker"]
+    day = (date.today() + timedelta(days=3)).isoformat()
+    r = as_worker.post("/wald/baumauswahl", data={"contact": "Erika Muster", "day": day, "time": "10:00",
+                                                  "places_wanted": "2", "guide_id": str(worker.id),
+                                                  "deceased": "Hans Muster"})
+    assert r.status_code == 302
+    from app.models import ForestSelection
+    sel = ForestSelection.query.one()
+    for url in ("/wald/baumauswahl", f"/wald/baumauswahl/{sel.id}", f"/wald/baum/1?auswahl={sel.id}", "/wald",
+                "/bereich/wald", "/aufgaben"):
+        page = as_worker.get(url)
+        assert page.status_code == 200, url
+    assert "Erika Muster" in as_worker.get("/wald").get_data(as_text=True)
+    assert "Baumauswahl: Erika Muster" in as_worker.get("/aufgaben").get_data(as_text=True)
+    assert as_worker.get(f"/wald/suche?baum=1&auswahl={sel.id}").headers["Location"].endswith(f"/wald/baum/1?auswahl={sel.id}")
+
+    # am Baum antippen
+    r = as_worker.post(f"/wald/baumauswahl/{sel.id}/baum", data={"tree": "1", "platz": ["5", "6"]})
+    assert r.status_code == 302 and sel.numbers == [5, 6]
+    assert "vorgemerkt: Erika Muster" in as_worker.get("/wald/baum/1").get_data(as_text=True)
+    page = as_admin.get(f"/wald/vertrag/neu?auswahl={sel.id}").get_data(as_text=True)
+    assert 'value="Erika Muster"' in page and "Baum 1, Platz 5" in page
+    place_ids = [p.id for p in sel.places]
+    as_admin.post("/wald/vertrag", data={"holder": "Erika Muster", "signed_on": day, "years": "99",
+                                         "place_id": place_ids, "selection_id": str(sel.id)})
+    assert sel.contract is not None
+    page = as_worker.get(f"/wald/beisetzungen?auswahl={sel.id}").get_data(as_text=True)
+    assert 'value="Hans Muster"' in page and 'name="selection_id"' in page and 'value="5"' in page
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "5", "deceased": "Hans Muster",
+                                             "day": day, "selection_id": str(sel.id)})
+    assert sel.burials and sel.burials[0].place.number == 5
+    assert as_worker.post(f"/wald/baumauswahl/{sel.id}/loeschen").status_code == 403

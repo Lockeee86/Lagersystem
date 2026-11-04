@@ -1,0 +1,21 @@
+{# Formular Baumauswahl-Termin – neu (selection = None) oder bearbeiten #}
+{% from "macros.html" import csrf %}
+<form method="post" action="{{ url_for('forest.selection_save', selection_id=selection.id) if selection else url_for('forest.selection_save') }}">
+    {{ csrf() }}
+    <div class="row g-2">
+        <div class="col-12"><label class="form-label" for="sContact">{{ _("Wer kommt?") }}</label><input class="form-control" id="sContact" name="contact" maxlength="150" value="{{ selection.contact if selection else '' }}" placeholder="{{ _('Name der Angehörigen') }}" required></div>
+        <div class="col-7"><label class="form-label" for="sDay">{{ _("Datum") }}</label><input class="form-control" id="sDay" name="day" type="date" value="{{ selection.day.isoformat() if selection else '' }}" required></div>
+        <div class="col-5"><label class="form-label" for="sTime">{{ _("Uhrzeit") }}</label><input class="form-control" id="sTime" name="time" type="time" value="{{ selection.time or '' if selection }}"></div>
+        <div class="col-6"><label class="form-label" for="sPhone">{{ _("Telefon") }}</label><input class="form-control" id="sPhone" name="phone" type="tel" maxlength="60" value="{{ selection.phone or '' if selection }}"></div>
+        <div class="col-6"><label class="form-label" for="sEmail">{{ _("E-Mail") }}</label><input class="form-control" id="sEmail" name="email" type="email" maxlength="120" value="{{ selection.email or '' if selection }}"></div>
+        <div class="col-12"><label class="form-label" for="sDeceased">{{ _("Für wen?") }}</label><input class="form-control" id="sDeceased" name="deceased" maxlength="150" value="{{ selection.deceased or '' if selection }}" placeholder="{{ _('leer lassen bei Vorsorge') }}"></div>
+        <div class="col-5"><label class="form-label" for="sPlaces">{{ _("Plätze") }}</label><input class="form-control" id="sPlaces" name="places_wanted" type="number" min="1" max="99" value="{{ selection.places_wanted if selection else 1 }}"></div>
+        <div class="col-7"><label class="form-label" for="sKind">{{ _("Gewünschte Art") }}</label>
+            <select class="form-select" id="sKind" name="kind_wanted"><option value="">{{ _("egal") }}</option>{% for key, label in kinds.items() %}<option value="{{ key }}" {{ 'selected' if selection and selection.kind_wanted == key }}>{{ _(label) }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label" for="sGuide">{{ _("Wer führt?") }}</label>
+            <select class="form-select" id="sGuide" name="guide_id"><option value="">{{ _("– noch offen –") }}</option>{% for u in guides %}<option value="{{ u.id }}" {{ 'selected' if selection and selection.guide_id == u.id }}>{{ u.name }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label" for="sNote">{{ _("Notiz") }}</label><textarea class="form-control" id="sNote" name="note" rows="2">{{ selection.note or '' if selection }}</textarea></div>
+    </div>
+    {% if not selection %}<p class="small text-body-secondary mt-2 mb-2">{{ _("Dazu entsteht die Aufgabe „Baumauswahl“ für den, der führt.") }}</p>{% endif %}
+    <button class="btn btn-primary mt-2">{{ _("Speichern") if selection else _("Termin eintragen") }}</button>
+</form>

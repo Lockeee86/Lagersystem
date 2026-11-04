@@ -8,6 +8,9 @@
     <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i>{{ _("Vertrag {number}", number=contract.number) if contract else _("Neuer Vertrag") }}</div>
     <form class="card-body" method="post" action="{{ url_for('forest.contract_save', contract_id=contract.id) if contract else url_for('forest.contract_save') }}">
         {{ csrf() }}
+        {% if selection and not contract %}<input type="hidden" name="selection_id" value="{{ selection.id }}">
+        <div class="alert alert-primary small py-2"><i class="bi bi-signpost-2 me-1"></i><a href="{{ url_for('forest.selection_detail', selection_id=selection.id) }}">{{ _("Aus der Baumauswahl mit {name}", name=selection.contact) }}</a></div>{% endif %}
+        {% set pre = contract or selection %}
         <div class="mb-3">
             <div class="form-label">{{ _("Plätze") }}</div>
             {% if places %}
@@ -21,10 +24,10 @@
             {% endif %}
         </div>
         <div class="row g-2">
-            <div class="col-12"><label class="form-label" for="cHolder">{{ _("Vertragspartner") }}</label><input class="form-control" id="cHolder" name="holder" maxlength="150" value="{{ contract.holder if contract else '' }}" required></div>
+            <div class="col-12"><label class="form-label" for="cHolder">{{ _("Vertragspartner") }}</label><input class="form-control" id="cHolder" name="holder" maxlength="150" value="{{ contract.holder if contract else selection.contact if selection else '' }}" required></div>
             <div class="col-12"><label class="form-label" for="cAddress">{{ _("Anschrift") }}</label><textarea class="form-control" id="cAddress" name="address" rows="2">{{ contract.address or '' if contract }}</textarea></div>
-            <div class="col-6"><label class="form-label" for="cPhone">{{ _("Telefon") }}</label><input class="form-control" id="cPhone" name="phone" type="tel" maxlength="60" value="{{ contract.phone or '' if contract }}"></div>
-            <div class="col-6"><label class="form-label" for="cEmail">{{ _("E-Mail") }}</label><input class="form-control" id="cEmail" name="email" type="email" maxlength="120" value="{{ contract.email or '' if contract }}"></div>
+            <div class="col-6"><label class="form-label" for="cPhone">{{ _("Telefon") }}</label><input class="form-control" id="cPhone" name="phone" type="tel" maxlength="60" value="{{ pre.phone or '' if pre }}"></div>
+            <div class="col-6"><label class="form-label" for="cEmail">{{ _("E-Mail") }}</label><input class="form-control" id="cEmail" name="email" type="email" maxlength="120" value="{{ pre.email or '' if pre }}"></div>
             <div class="col-6 col-md-4"><label class="form-label" for="cSigned">{{ _("Vertrag vom") }}</label><input class="form-control" id="cSigned" name="signed_on" type="date" value="{{ (contract.signed_on if contract else today).isoformat() }}" required></div>
             <div class="col-6 col-md-4"><label class="form-label" for="cYears">{{ _("Laufzeit (Jahre)") }}</label><input class="form-control" id="cYears" name="years" type="number" min="1" max="150" value="{{ ((contract.ends_on.year - contract.signed_on.year) if contract and contract.ends_on else term_years) }}"></div>
             <div class="col-12 col-md-4"><label class="form-label" for="cPrice">{{ _("Preis (€)") }}</label><input class="form-control" id="cPrice" name="price" inputmode="decimal" value="{{ contract.price|num(2) if contract and contract.price is not none else '' }}"></div>

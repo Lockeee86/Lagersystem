@@ -339,6 +339,16 @@ def _status(endpoint):
         from . import forest
         data = forest.overview()
         return _("{free} von {total} Plätzen frei", free=data["frei"], total=data["places"]), False
+    if endpoint == "forest.selection_page":
+        from . import forest
+        data = forest.selections()
+        n, open_ = len(data["planned"]), len(data["chosen"])
+        if not n and not open_:
+            return _("Termine mit den Angehörigen"), False
+        parts = [ngettext("{n} Termin geplant", "{n} Termine geplant", n)] if n else []
+        if open_:
+            parts.append(ngettext("{n} ohne Beisetzung", "{n} ohne Beisetzung", open_))
+        return " · ".join(parts), False
     if endpoint == "forest.map_page":
         return _("Bäume auf dem Luftbild"), False
     if endpoint == "forest.trees":

@@ -186,6 +186,11 @@ Portainer-Stack (docker-compose)
   am Baum durch Ankreuzen freier Plätze.
 - Verkehrssicherung: Baumkontrolle als Rundgang (`CheckStation.area == "wald"`), Push „Nach Sturm“ bei Böen ab
   70 km/h am Vortag. Beisetzungen im Kalender.
+- **Baumauswahl** (0.85.0): alles beginnt mit dem Termin mit den Angehörigen (wer, wann, Telefon, für wen oder
+  Vorsorge, wie viele Plätze, gewünschte Art, wer führt → Aufgabe). Nach dem Rundgang Baum und Plätze eintragen (am Baum
+  antippen oder erste freie nehmen; vorgemerkte Plätze sieht man am Baum), dann Vertrag (Admin) und Beisetzung – beide
+  mit den Angaben aus der Auswahl vorbelegt. Reiter-Reihenfolge folgt dem Ablauf: Übersicht · Baumauswahl ·
+  Beisetzungen · Bäume · Karte · Verträge. Termine stehen im Kalender.
 - **Nur Bestattungswald** (0.84.0, `User.forest_only`): wie „nur Hühner“ – sieht nur den Wald (ohne Verträge),
   Aufgaben mit `Task.area == "wald"` oder ihm zugeteilt, Baumkontrolle, Push Sturm + eigene Aufgaben; untere Leiste
   Wald · Beisetzungen · Scannen · Aufgaben · Mehr. Beide Modi teilen sich `area_only.py`.

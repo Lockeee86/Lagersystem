@@ -1,4 +1,7 @@
-"""Bestattungswald: Bäume mit Beisetzungsplätzen, Verträge (Reservierungen), Beisetzungen, Baumkontrolle.
+"""Bestattungswald: Baumauswahl, Bäume mit Beisetzungsplätzen, Verträge (Reservierungen), Beisetzungen, Baumkontrolle.
+
+Alles beginnt mit dem Baumauswahl-Termin (`ForestSelection`): wer kommt, wann, wer vom Hof führt (Aufgabe für ihn).
+Nach dem Termin werden Baum und Plätze eingetragen; daraus entstehen Vertrag und später die Beisetzung.
 
 Ein Baum hat meist 12 Plätze. Stand je Platz: belegt (Beisetzung eingetragen), reserviert (Vertrag), sonst frei.
 Eine Beisetzung legt zwei Aufgaben an: „Grab ausheben“ am Werktag davor und „Grab schließen“ am Tag selbst – sie
@@ -16,9 +19,10 @@ from sqlalchemy import func
 
 from . import push
 from .extensions import db
-from .i18n import gettext as _
+from .i18n import gettext as _, ngettext
 from .machines import add_months
-from .models import FOREST_KINDS, ForestBurial, ForestContract, ForestPlace, ForestTree, Setting, Task, User
+from .models import (FOREST_KINDS, ForestBurial, ForestContract, ForestPlace, ForestSelection, ForestTree, Setting,
+                     Task, User)
 from .push import Msg
 from .storage import StorageError
 
@@ -254,8 +258,9 @@ def _money(raw):
 
 
 def save_contract(contract, user, holder, signed_on, places, years=TERM_YEARS, address=None, phone=None, email=None,
-                  price=None, note=None):
-    """Vertrag anlegen bzw. ändern. `places`: ForestPlace-Objekte (frei oder schon zu diesem Vertrag)."""
+                  price=None, note=None, selection=None):
+    """Vertrag anlegen bzw. ändern. `places`: ForestPlace-Objekte (frei oder schon zu diesem Vertrag).
+    `selection`: Baumauswahl, aus der der Vertrag entsteht (wird mit ihm verknüpft)."""
     holder = (holder or "").strip()[:150]
     if not holder:
         raise StorageError(_("Bitte angeben, wer den Vertrag hat."))
@@ -288,6 +293,8 @@ def save_contract(contract, user, holder, signed_on, places, years=TERM_YEARS, a
     db.session.flush()
     for burial in ForestBurial.query.filter(ForestBurial.place_id.in_(keep), ForestBurial.contract_id.is_(None)):
         burial.contract = contract
+    if selection is not None:
+        selection.contract = contract
     return contract
 
 
@@ -296,6 +303,8 @@ def delete_contract(contract):
         raise StorageError(_("Zu diesem Vertrag gibt es schon Beisetzungen – er kann nicht gelöscht werden."))
     for place in list(contract.places):
         place.contract = None
+    for selection in ForestSelection.query.filter_by(contract_id=contract.id):
+        selection.contract = None
     db.session.delete(contract)
 
 
@@ -313,6 +322,160 @@ def ending_contracts(today=None, years=1):
     return (ForestContract.query.filter(ForestContract.ends_on.isnot(None),
                                         ForestContract.ends_on <= add_months(today, 12 * years))
             .order_by(ForestContract.ends_on).all())
+
+
+# --- Baumauswahl ----------------------------------------------------------------------------------
+
+def _selection_task(selection, user):
+    """Aufgabe „Baumauswahl: {Name}“ für den, der führt (sonst für alle) – anlegen bzw. nachziehen."""
+    from . import tasks
+    title = _("Baumauswahl: {name}", name=selection.contact)
+    info = " · ".join(p for p in (
+        selection.day.strftime("%d.%m.%Y") + (f" {selection.time}" if selection.time else ""),
+        selection.phone, _("für {name}", name=selection.deceased) if selection.deceased else None,
+        ngettext("{n} Platz", "{n} Plätze", selection.places_wanted),
+        _(FOREST_KINDS[selection.kind_wanted]) if selection.kind_wanted in FOREST_KINDS else None) if p)
+    task = selection.task
+    if task is None:
+        task = tasks.create_task(user, title=title, description=info, due_on=selection.day,
+                                 assignees=[selection.guide] if selection.guide else [])
+        task.area = AREA
+        selection.task = task
+    elif not task.is_done:
+        task.title, task.description, task.due_on = title, info, selection.day
+        task.assignees = [selection.guide] if selection.guide else []
+
+
+def save_selection(selection, user, contact, day, time=None, phone=None, email=None, deceased=None, places_wanted=1,
+                   kind_wanted=None, guide=None, note=None):
+    """Baumauswahl-Termin anlegen bzw. ändern (legt die Aufgabe für den an, der führt)."""
+    contact = (contact or "").strip()[:150]
+    if not contact:
+        raise StorageError(_("Bitte angeben, wer zur Baumauswahl kommt."))
+    if day is None:
+        raise StorageError(_("Bitte das Datum des Termins angeben."))
+    if not places_wanted or not 1 <= places_wanted <= 99:
+        raise StorageError(_("Bitte angeben, wie viele Plätze gesucht werden."))
+    with db.session.no_autoflush:
+        if selection is None:
+            selection = ForestSelection(created_by_id=user.id if user else None, status="geplant")
+            db.session.add(selection)
+        selection.contact = contact
+        selection.day = day
+        selection.time = _time(time)
+        selection.phone = (phone or "").strip()[:60] or None
+        selection.email = (email or "").strip()[:120] or None
+        selection.deceased = (deceased or "").strip()[:150] or None
+        selection.places_wanted = places_wanted
+        selection.kind_wanted = kind_wanted if kind_wanted in FOREST_KINDS else None
+        selection.guide = guide
+        selection.note = (note or "").strip() or None
+    db.session.flush()
+    if selection.status == "geplant":
+        _selection_task(selection, user)
+        db.session.flush()
+    return selection
+
+
+def _taken_by_selection(place, selection):
+    """Eine andere, noch nicht abgeschlossene Auswahl hat diesen Platz schon ausgesucht?"""
+    others = ForestSelection.query.filter(ForestSelection.tree_id == place.tree_id, ForestSelection.status == "ausgesucht",
+                                          ForestSelection.id != selection.id)
+    for other in others:
+        if place.number in other.numbers and not any(b.place_id == place.id for b in other.burials) \
+                and not other.contract_id:
+            return other
+    return None
+
+
+def free_for(selection, tree):
+    """Plätze am Baum, die diese Auswahl nehmen kann (frei und von keiner anderen Auswahl vorgemerkt)."""
+    return [p for p in tree.places
+            if (p.state == "frei" or (selection.contract_id and p.contract_id == selection.contract_id))
+            and not _taken_by_selection(p, selection)]
+
+
+def choose_tree(selection, user, tree, numbers=None):
+    """Ergebnis des Termins: Baum und Plätze. Ohne Platznummern die ersten freien in gewünschter Anzahl.
+    Hakt die Aufgabe „Baumauswahl“ ab."""
+    from . import tasks
+    if tree is None:
+        raise StorageError(_("Keinen Baum mit dieser Nummer gefunden."))
+    if selection.status == "abgesagt":
+        raise StorageError(_("Der Termin ist abgesagt."))
+    free = {p.number: p for p in free_for(selection, tree)}
+    numbers = sorted(set(numbers or []))
+    if not numbers:
+        numbers = sorted(free)[:selection.places_wanted]
+        if len(numbers) < selection.places_wanted:
+            raise StorageError(ngettext("Am Baum {tree} ist nur noch {n} Platz frei.",
+                                        "Am Baum {tree} sind nur noch {n} Plätze frei.", len(free), tree=tree.number))
+    for n in numbers:
+        if not any(p.number == n for p in tree.places):
+            raise StorageError(_("Baum {n} hat keinen Platz {p}.", n=tree.number, p=n))
+        if n not in free:
+            raise StorageError(_("Baum {n}, Platz {p} ist nicht mehr frei.", n=tree.number, p=n))
+    selection.tree = tree
+    selection.place_numbers = ",".join(str(n) for n in numbers)
+    selection.status = "ausgesucht"
+    if selection.task is not None and not selection.task.is_done:
+        tasks.complete_task(selection.task, user)
+    db.session.flush()
+    return selection
+
+
+def cancel_selection(selection):
+    """Termin absagen: offene Aufgabe fällt weg, ausgesuchte Plätze werden wieder frei."""
+    if selection.burials:
+        raise StorageError(_("Zu dieser Baumauswahl gibt es schon eine Beisetzung."))
+    if selection.task is not None and not selection.task.is_done:
+        db.session.delete(selection.task)
+        selection.task = None
+    selection.status = "abgesagt"
+    db.session.flush()
+
+
+def reopen_selection(selection, user):
+    """Abgesagt bzw. ausgesucht → wieder geplant (z. B. Termin verschoben, anderer Baum)."""
+    selection.status = "geplant"
+    selection.tree = None
+    selection.place_numbers = None
+    if selection.task is not None and selection.task.is_done:
+        from . import tasks
+        tasks.reopen_task(selection.task)
+    _selection_task(selection, user)
+    db.session.flush()
+
+
+def delete_selection(selection):
+    if selection.burials:
+        raise StorageError(_("Zu dieser Baumauswahl gibt es schon eine Beisetzung."))
+    if selection.task is not None and not selection.task.is_done:
+        db.session.delete(selection.task)
+    db.session.delete(selection)
+
+
+def selections(today=None):
+    """{"planned": kommende/offene Termine, "chosen": ausgesucht, aber noch ohne Beisetzung, "done": übrige}"""
+    today = today or date.today()
+    from sqlalchemy.orm import selectinload
+    rows = (ForestSelection.query.options(selectinload(ForestSelection.burials), selectinload(ForestSelection.guide))
+            .order_by(ForestSelection.day.desc(), ForestSelection.time.desc()).all())
+    planned = sorted([s for s in rows if s.status == "geplant"], key=lambda s: (s.day, s.time or ""))
+    chosen = [s for s in rows if s.status == "ausgesucht" and len(s.burials) < len(s.numbers)]
+    done = [s for s in rows if s not in planned and s not in chosen]
+    return {"planned": planned, "chosen": chosen, "done": done}
+
+
+def upcoming_selections(today=None, days=30):
+    today = today or date.today()
+    return (ForestSelection.query.filter(ForestSelection.status == "geplant", ForestSelection.day <= today + timedelta(days=days))
+            .order_by(ForestSelection.day, ForestSelection.time).all())
+
+
+def next_place(selection):
+    """Platz für die nächste Beisetzung aus dieser Auswahl (der erste ohne Beisetzung)."""
+    return next((p for p in selection.places if not p.burials), None)
 
 
 # --- Beisetzungen --------------------------------------------------------------------------------
@@ -351,7 +514,7 @@ def _burial_tasks(burial, user):
             task.title, task.description, task.due_on = title, info, due
 
 
-def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, note=None):
+def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, note=None, selection=None):
     deceased = (deceased or "").strip()[:150]
     if place is None:
         raise StorageError(_("Bitte Baum und Platz wählen."))
@@ -373,6 +536,8 @@ def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, 
         burial.time = _time(time)
         burial.undertaker = (undertaker or "").strip()[:150] or None
         burial.note = (note or "").strip() or None
+        if selection is not None:
+            burial.selection = selection
     db.session.flush()
     _burial_tasks(burial, user)
     db.session.flush()
@@ -400,9 +565,14 @@ def burials(year=None):
 
 
 def calendar_events(start, end, event):
-    """Für den Kalender (agenda): Beisetzungen im Zeitraum. `event` = agenda._event."""
+    """Für den Kalender (agenda): Baumauswahl-Termine und Beisetzungen im Zeitraum. `event` = agenda._event."""
     rows = ForestBurial.query.filter(ForestBurial.day >= start, ForestBurial.day <= end)
-    return [event(b.day, "beisetzung", f"beisetzung-{b.id}", _("Beisetzung: {place}", place=b.place.label),
+    choices = ForestSelection.query.filter(ForestSelection.day >= start, ForestSelection.day <= end,
+                                           ForestSelection.status != "abgesagt")
+    return [event(s.day, "baumauswahl", f"baumauswahl-{s.id}", _("Baumauswahl: {name}", name=s.contact), "bi-signpost-2",
+                  "success", url_for("forest.selection_detail", selection_id=s.id),
+                  " · ".join(p for p in (s.guide.name if s.guide else None, s.phone) if p),
+                  time=dtime.fromisoformat(s.time) if s.time else None) for s in choices] + [event(b.day, "beisetzung", f"beisetzung-{b.id}", _("Beisetzung: {place}", place=b.place.label),
                   "bi-tree", "secondary", url_for("forest.burial_page") + f"#b{b.id}",
                   " · ".join(p for p in (b.deceased, b.undertaker) if p),
                   time=dtime.fromisoformat(b.time) if b.time else None) for b in rows]

@@ -1,0 +1,93 @@
+{% extends "forest/_layout.html" %}
+{% from "macros.html" import csrf %}
+{% set s = selection %}
+{% block subtitle %}<p class="text-body-secondary mb-0">{{ _("Baumauswahl") }} · {{ s.contact }} · <span class="badge {{ 'text-bg-success' if s.status == 'ausgesucht' else 'text-bg-secondary' if s.status == 'abgesagt' else 'text-bg-primary' }}">{{ s.status_label }}</span></p>{% endblock %}
+{% block forest %}
+<div class="row g-3">
+<div class="col-lg-7">
+<ol class="forest-steps list-unstyled mb-4">
+    {# 1. Termin #}
+    <li class="forest-step done">
+        <div class="forest-step-head"><span class="forest-step-no">1</span>{{ _("Termin") }}</div>
+        <div>{{ s.day|weekday }}, {{ s.day|date }}{% if s.time %} · {{ s.time }}{% endif %}{% if s.guide %} · {{ _("führt: {name}", name=s.guide.name) }}{% endif %}</div>
+        <div class="small text-body-secondary">
+            {% if s.phone %}<a href="tel:{{ s.phone }}">{{ s.phone }}</a> · {% endif %}{% if s.email %}<a href="mailto:{{ s.email }}">{{ s.email }}</a> · {% endif %}
+            {% if s.deceased %}{{ _("für {name}", name=s.deceased) }}{% else %}{{ _("Vorsorge") }}{% endif %} · {{ ngettext("{n} Platz", "{n} Plätze", s.places_wanted) }}{% if s.kind_wanted %} · {{ _(kinds[s.kind_wanted]) }}{% endif %}
+        </div>
+        {% if s.note %}<div class="small mt-1">{{ s.note }}</div>{% endif %}
+        {% if s.task %}<div class="small mt-1"><a href="{{ url_for('tasks.task_detail', task_id=s.task.id) }}"><i class="bi {{ 'bi-check-circle-fill text-success' if s.task.is_done else 'bi-circle' }} me-1"></i>{{ s.task.title }}</a></div>{% endif %}
+    </li>
+
+    {# 2. Baum #}
+    <li class="forest-step {{ 'done' if s.status == 'ausgesucht' }} {{ 'muted' if s.status == 'abgesagt' }}">
+        <div class="forest-step-head"><span class="forest-step-no">2</span>{{ _("Baum aussuchen") }}</div>
+        {% if s.status == "ausgesucht" %}
+        <div><a href="{{ url_for('forest.tree_detail', number=s.tree.number) }}">{{ s.places_label }}</a>{% if s.tree.species %} · {{ s.tree.species }}{% endif %} · {{ s.tree.kind_label }}</div>
+        {% elif s.status == "geplant" and current_user.can_edit %}
+        <p class="small text-body-secondary mb-2">{{ _("Nach dem Rundgang den Baum eintragen: Baum öffnen und die Plätze antippen – oder nur die Nummer, dann nimmt die App die ersten freien Plätze.") }}</p>
+        <form class="d-flex flex-wrap gap-2 mb-2" method="get" action="{{ url_for('forest.find') }}">
+            <input type="hidden" name="auswahl" value="{{ s.id }}">
+            <input class="form-control" style="max-width: 8rem" name="baum" inputmode="numeric" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}" required>
+            <button class="btn btn-primary"><i class="bi bi-hand-index me-1"></i>{{ _("Baum öffnen, Plätze antippen") }}</button>
+        </form>
+        <form class="d-flex flex-wrap gap-2" method="post" action="{{ url_for('forest.selection_choose', selection_id=s.id) }}">
+            {{ csrf() }}
+            <input class="form-control" style="max-width: 8rem" name="tree" inputmode="numeric" placeholder="{{ _('Baum-Nr.') }}" aria-label="{{ _('Baum-Nr.') }}" required>
+            <button class="btn btn-outline-primary">{{ ngettext("ersten freien Platz nehmen", "ersten {n} freien Plätze nehmen", s.places_wanted) }}</button>
+        </form>
+        <a class="small d-inline-block mt-2" href="{{ url_for('forest.trees', frei=1) }}">{{ _("Bäume mit freien Plätzen") }}</a>
+        {% else %}
+        <div class="text-body-secondary small">{{ _("noch offen") }}</div>
+        {% endif %}
+    </li>
+
+    {# 3. Vertrag #}
+    <li class="forest-step {{ 'done' if s.contract }} {{ 'muted' if s.status != 'ausgesucht' and not s.contract }}">
+        <div class="forest-step-head"><span class="forest-step-no">3</span>{{ _("Vertrag") }}</div>
+        {% if s.contract %}
+        <div>{% if current_user.is_admin %}<a href="{{ url_for('forest.contract_detail', contract_id=s.contract.id) }}">{{ s.contract.number }}</a>{% else %}{{ s.contract.number }}{% endif %} · {{ _("Plätze reserviert") }}</div>
+        {% elif s.status == "ausgesucht" and current_user.is_admin %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('forest.contract_detail', auswahl=s.id) }}"><i class="bi bi-file-earmark-plus me-1"></i>{{ _("Vertrag anlegen") }}</a>
+        {% else %}
+        <div class="text-body-secondary small">{{ _("noch offen") }}{% if s.status == "ausgesucht" %} · {{ _("macht ein Admin") }}{% endif %}</div>
+        {% endif %}
+    </li>
+
+    {# 4. Beisetzung #}
+    <li class="forest-step {{ 'done' if s.burials and not next_place }} {{ 'muted' if s.status != 'ausgesucht' }}">
+        <div class="forest-step-head"><span class="forest-step-no">4</span>{{ _("Beisetzung") }}</div>
+        {% for b in s.burials %}
+        <div><a href="{{ url_for('forest.burial_page', jahr=b.day.year) }}#b{{ b.id }}">{{ b.deceased }}</a> · {{ b.day|date }}{% if b.time %} · {{ b.time }}{% endif %} · {{ b.place.label }}</div>
+        {% endfor %}
+        {% if s.status == "ausgesucht" and next_place and current_user.can_edit %}
+        <a class="btn btn-sm {{ 'btn-primary' if s.contract or not current_user.is_admin else 'btn-outline-primary' }} mt-1" href="{{ url_for('forest.burial_page', auswahl=s.id) }}#neu"><i class="bi bi-calendar-plus me-1"></i>{{ _("Beisetzung eintragen") }}</a>
+        {% elif not s.burials %}
+        <div class="text-body-secondary small">{{ _("noch offen") }}</div>
+        {% endif %}
+    </li>
+</ol>
+
+{% if current_user.can_edit %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    {% if s.status != "abgesagt" and not s.burials %}
+    <form method="post" action="{{ url_for('forest.selection_cancel', selection_id=s.id) }}">{{ csrf() }}<button class="btn btn-sm btn-outline-secondary" data-confirm="{{ _('Termin absagen?') }}"><i class="bi bi-x-circle me-1"></i>{{ _("Absagen") }}</button></form>
+    {% endif %}
+    {% if s.status != "geplant" and not s.burials and not s.contract %}
+    <form method="post" action="{{ url_for('forest.selection_reopen', selection_id=s.id) }}">{{ csrf() }}<button class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Neu planen") }}</button></form>
+    {% endif %}
+    {% if current_user.is_admin and not s.burials %}
+    <form method="post" action="{{ url_for('forest.selection_delete', selection_id=s.id) }}">{{ csrf() }}<button class="btn btn-sm btn-outline-danger" data-confirm="{{ _('Baumauswahl löschen?') }}"><i class="bi bi-trash me-1"></i>{{ _("Löschen") }}</button></form>
+    {% endif %}
+</div>
+{% endif %}
+</div>
+{% if current_user.can_edit %}
+<div class="col-lg-5">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Termin bearbeiten") }}</div>
+        <div class="card-body">{% include "forest/_selection_form.html" %}</div>
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

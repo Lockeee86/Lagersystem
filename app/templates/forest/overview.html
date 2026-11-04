@@ -12,6 +12,25 @@
 <div class="col-lg-6">
 <section class="mb-4">
     <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Nächste Baumauswahl") }}</h2>
+        <a class="small" href="{{ url_for('forest.selection_page') }}{{ '#neu' if current_user.can_edit }}">{{ _("Termin eintragen") if current_user.can_edit else _("Alle") }}</a>
+    </div>
+    <div class="hub-list">
+        {% for s in selections %}
+        <a class="hub-row" href="{{ url_for('forest.selection_detail', selection_id=s.id) }}">
+            <span class="hub-icon"><i class="bi bi-signpost-2"></i></span>
+            <span class="hub-text"><span class="hub-title">{{ s.day|weekday }}, {{ s.day|date }}{% if s.time %} · {{ s.time }}{% endif %}</span>
+                <span class="hub-status {{ 'warn' if s.day < today }}">{{ s.contact }}{% if s.guide %} · {{ _("führt: {name}", name=s.guide.name) }}{% endif %}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% else %}
+        <div class="hub-row text-body-secondary">{{ _("Kein Termin geplant.") }}</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-baseline">
         <h2 class="hub-heading mt-0">{{ _("Nächste Beisetzungen") }}</h2>
         <a class="small" href="{{ url_for('forest.burial_page') }}">{{ _("Alle") }}</a>
     </div>

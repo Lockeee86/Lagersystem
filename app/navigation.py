@@ -72,9 +72,10 @@ AREAS = [
     # Bestattungswald: nur für Benutzer, die in der Benutzerverwaltung dafür freigeschaltet sind
     {"key": "wald", "label": N_("Bestattungswald"), "icon": "bi-tree", "show": lambda u: u.sees_forest, "items": [
         item("forest.overview", N_("Übersicht"), "bi-tree", endpoints=("forest.find",)),
-        item("forest.map_page", N_("Karte"), "bi-map"),
-        item("forest.trees", N_("Bäume"), "bi-list-ol", endpoints=("forest.tree_detail",)),
+        item("forest.selection_page", N_("Baumauswahl"), "bi-signpost-2", endpoints=("forest.selection_detail",)),
         item("forest.burial_page", N_("Beisetzungen"), "bi-calendar-event"),
+        item("forest.trees", N_("Bäume"), "bi-list-ol", endpoints=("forest.tree_detail",)),
+        item("forest.map_page", N_("Karte"), "bi-map"),
         item("forest.contracts_page", N_("Verträge"), "bi-file-earmark-text", role=ROLE_ADMIN,
              endpoints=("forest.contract_detail",)),
     ]},

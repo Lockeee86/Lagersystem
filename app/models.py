@@ -2313,6 +2313,59 @@ class ForestContract(db.Model):
         return f"{self.number} · {self.holder}"
 
 
+FOREST_SELECTION_STATES = {"geplant": N_("Termin geplant"), "ausgesucht": N_("Baum ausgesucht"),
+                           "abgesagt": N_("abgesagt")}
+
+
+class ForestSelection(db.Model):
+    """Baumauswahl-Termin mit den Angehörigen – der Anfang von allem: daraus werden Vertrag und Beisetzung."""
+    __tablename__ = "forest_selections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    time = db.Column(db.String(5))
+    contact = db.Column(db.String(150), nullable=False)   # wer kommt (Angehörige)
+    phone = db.Column(db.String(60))
+    email = db.Column(db.String(120))
+    deceased = db.Column(db.String(150))                   # für wen (leer = Vorsorge)
+    places_wanted = db.Column(db.Integer, nullable=False, default=1, server_default="1")
+    kind_wanted = db.Column(db.String(20))                 # gewünschte Art (FOREST_KINDS) oder leer
+    guide_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    status = db.Column(db.String(20), nullable=False, default="geplant", server_default="geplant")
+    tree_id = db.Column(db.Integer, db.ForeignKey("forest_trees.id", ondelete="SET NULL"), index=True)
+    place_numbers = db.Column(db.String(200))              # ausgesuchte Plätze am Baum, z. B. „3,4“
+    note = db.Column(db.Text)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
+    contract_id = db.Column(db.Integer, db.ForeignKey("forest_contracts.id", ondelete="SET NULL"))
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    guide = db.relationship("User", foreign_keys=[guide_id])
+    tree = db.relationship("ForestTree")
+    task = db.relationship("Task", foreign_keys=[task_id])
+    contract = db.relationship("ForestContract")
+    burials = db.relationship("ForestBurial", back_populates="selection")
+
+    @property
+    def numbers(self):
+        return [int(n) for n in (self.place_numbers or "").split(",") if n.strip().isdigit()]
+
+    @property
+    def places(self):
+        wanted = set(self.numbers)
+        return [p for p in self.tree.places if p.number in wanted] if self.tree else []
+
+    @property
+    def places_label(self):
+        if not self.tree:
+            return ""
+        return _("Baum {n}, Platz {p}", n=self.tree.number, p=", ".join(str(n) for n in self.numbers))
+
+    @property
+    def status_label(self):
+        return _(FOREST_SELECTION_STATES.get(self.status, self.status))
+
+
 class ForestBurial(db.Model):
     """Beisetzung an einem Platz. Grab ausheben und schließen werden als Aufgaben angelegt (`dig_task`, `close_task`)."""
     __tablename__ = "forest_burials"
@@ -2327,9 +2380,11 @@ class ForestBurial(db.Model):
     note = db.Column(db.Text)
     dig_task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
     close_task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
+    selection_id = db.Column(db.Integer, db.ForeignKey("forest_selections.id", ondelete="SET NULL"), index=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
+    selection = db.relationship("ForestSelection", back_populates="burials")
     place = db.relationship("ForestPlace", back_populates="burials")
     contract = db.relationship("ForestContract", back_populates="burials")
     dig_task = db.relationship("Task", foreign_keys=[dig_task_id])

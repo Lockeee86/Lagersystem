@@ -1,0 +1,36 @@
+{% extends "forest/_layout.html" %}
+{% macro sel_row(s) %}
+<a class="hub-row" href="{{ url_for('forest.selection_detail', selection_id=s.id) }}">
+    <span class="hub-icon"><i class="bi bi-signpost-2"></i></span>
+    <span class="hub-text"><span class="hub-title">{{ s.contact }}{% if s.deceased %} <span class="fw-normal text-body-secondary">· {{ _("für {name}", name=s.deceased) }}</span>{% endif %}</span>
+        <span class="hub-status {{ 'warn' if s.status == 'geplant' and s.day < today }}">{{ s.day|weekday }}, {{ s.day|date }}{% if s.time %} · {{ s.time }}{% endif %}
+            {% if s.status == "ausgesucht" %} · {{ s.places_label }}{% elif s.status == "abgesagt" %} · {{ s.status_label }}{% else %} · {{ ngettext("{n} Platz", "{n} Plätze", s.places_wanted) }}{% if s.guide %} · {{ s.guide.name }}{% endif %}{% endif %}</span></span>
+    <i class="bi bi-chevron-right hub-chevron"></i>
+</a>
+{% endmacro %}
+{% block forest %}
+<div class="row g-3">
+<div class="col-lg-7">
+    <h2 class="hub-heading mt-0">{{ _("Geplante Termine") }}</h2>
+    <div class="hub-list mb-4">
+        {% for s in data.planned %}{{ sel_row(s) }}{% else %}<div class="hub-row text-body-secondary">{{ _("Kein Termin geplant.") }}</div>{% endfor %}
+    </div>
+    {% if data.chosen %}
+    <h2 class="hub-heading">{{ _("Baum ausgesucht – Beisetzung noch nicht eingetragen") }}</h2>
+    <div class="hub-list mb-4">{% for s in data.chosen %}{{ sel_row(s) }}{% endfor %}</div>
+    {% endif %}
+    {% if data.done %}
+    <h2 class="hub-heading">{{ _("Erledigt und abgesagt") }}</h2>
+    <div class="hub-list mb-4">{% for s in data.done[:30] %}{{ sel_row(s) }}{% endfor %}</div>
+    {% endif %}
+</div>
+{% if current_user.can_edit %}
+<div class="col-lg-5">
+    <div class="card shadow-sm mb-4" id="neu">
+        <div class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Baumauswahl-Termin eintragen") }}</div>
+        <div class="card-body">{% include "forest/_selection_form.html" %}</div>
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

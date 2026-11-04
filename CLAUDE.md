@@ -166,7 +166,10 @@ docker compose up --build -d
 - `app/forest.py`: Rubrik Bestattungswald (nur `User.forest` → `sees_forest`; Name `settings` `forest_name`, `name()`) –
   Bäume `ForestTree` (Code `W-001`, `normalize_code`/`tree_by_code`, `/scan` erkennt ihn) mit Plätzen `ForestPlace`
   (Stand frei/reserviert/belegt), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
-  `tree_rows()`, `overview()`, `map_data()` (Schlagkarte, id = Baumnummer); Verträge `ForestContract` (nur Admin,
+  `tree_rows()`, `overview()`, `map_data()` (Schlagkarte, id = Baumnummer); Baumauswahl-Termin `ForestSelection` = Anfang
+  von allem (`save_selection()` → Aufgabe „Baumauswahl“ für den Begleiter `guide`, `choose_tree()` merkt Baum + Plätze vor
+  (`free_for()`, ohne Nummern die ersten freien), `cancel_selection()` / `reopen_selection()`, `selections()`,
+  `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,
   `save_contract()`, `next_contract_number()`), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
   „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an), Kalender `calendar_events()`, Push `storm_check()` aus
   `push.daily`; committet nicht. `app/forest_views.py` (Blueprint `forest`, `/wald…`, Vorlagen `forest/` mit

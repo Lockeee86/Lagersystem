@@ -14,9 +14,10 @@
     </form>
 </div>
 <nav class="view-switch view-switch-wide mb-3 d-lg-none" aria-label="{{ forest_name }}">
-    {% for key, endpoint, icon, label in [("uebersicht", "forest.overview", "bi-tree", _("Übersicht")), ("karte", "forest.map_page", "bi-map", _("Karte")), ("baeume", "forest.trees", "bi-list-ol", _("Bäume")), ("beisetzungen", "forest.burial_page", "bi-calendar-event", _("Beisetzungen"))] %}
+    {% for key, endpoint, icon, label in [("uebersicht", "forest.overview", "bi-tree", _("Übersicht")), ("auswahl", "forest.selection_page", "bi-signpost-2", _("Auswahl")), ("beisetzungen", "forest.burial_page", "bi-calendar-event", _("Beisetzungen")), ("baeume", "forest.trees", "bi-list-ol", _("Bäume"))] %}
     <a href="{{ url_for(endpoint) }}" class="{{ 'active' if tab == key }}" {% if tab == key %}aria-current="page"{% endif %}><i class="bi {{ icon }} me-1"></i>{{ label }}</a>
     {% endfor %}
+    <a href="{{ url_for('forest.map_page') }}" class="{{ 'active' if tab == 'karte' }}" title="{{ _('Karte') }}" aria-label="{{ _('Karte') }}"><i class="bi bi-map"></i></a>
     {% if current_user.is_admin %}<a href="{{ url_for('forest.contracts_page') }}" class="{{ 'active' if tab == 'vertraege' }}" title="{{ _('Verträge') }}" aria-label="{{ _('Verträge') }}"><i class="bi bi-file-earmark-text"></i></a>{% endif %}
 </nav>
 {% block forest %}{% endblock %}

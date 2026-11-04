@@ -41,10 +41,12 @@
         <div class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Beisetzung eintragen") }}</div>
         <form class="card-body" method="post" action="{{ url_for('forest.burial_save') }}">
             {{ csrf() }}
+            {% if selection %}<input type="hidden" name="selection_id" value="{{ selection.id }}">
+            <div class="alert alert-primary small py-2"><i class="bi bi-signpost-2 me-1"></i>{{ _("Aus der Baumauswahl mit {name}", name=selection.contact) }}{% if selection.places_label %} · {{ selection.places_label }}{% endif %}</div>{% endif %}
             <div class="row g-2">
                 <div class="col-6"><label class="form-label" for="bTree">{{ _("Baum-Nr.") }}</label><input class="form-control" id="bTree" name="tree" type="number" min="1" value="{{ tree or '' }}" required></div>
                 <div class="col-6"><label class="form-label" for="bPlace">{{ _("Platz") }}</label><input class="form-control" id="bPlace" name="place" type="number" min="1" value="{{ place or '' }}" required></div>
-                <div class="col-12"><label class="form-label" for="bName">{{ _("Verstorbene Person") }}</label><input class="form-control" id="bName" name="deceased" maxlength="150" required></div>
+                <div class="col-12"><label class="form-label" for="bName">{{ _("Verstorbene Person") }}</label><input class="form-control" id="bName" name="deceased" maxlength="150" value="{{ selection.deceased or '' if selection }}" required></div>
                 <div class="col-7"><label class="form-label" for="bDay">{{ _("Datum") }}</label><input class="form-control" id="bDay" name="day" type="date" required></div>
                 <div class="col-5"><label class="form-label" for="bTime">{{ _("Uhrzeit") }}</label><input class="form-control" id="bTime" name="time" type="time"></div>
                 <div class="col-12"><label class="form-label" for="bUndertaker">{{ _("Bestatter") }}</label><input class="form-control" id="bUndertaker" name="undertaker" maxlength="150"></div>
