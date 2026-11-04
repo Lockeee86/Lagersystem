@@ -3315,9 +3315,10 @@ MESSAGES = {
     'Grundkarte löschen': 'Usuń mapę podstawową',
     'Noch keine Bäume mit Lage. Am Baum die Baumseite öffnen und „Standort hier setzen“ tippen – oder die Baumpunkte aus dem GIS unter Bäume → „Übernahme aus dem bisherigen Programm“ einlesen.': 'Brak drzew z położeniem. Przy drzewie otwórz jego stronę i dotknij „Ustaw położenie tutaj“ – albo wczytaj punkty drzew z GIS w Drzewa → „Przejęcie z dotychczasowego programu“.',
     'Lage der Plätze um den Baum': 'Położenie miejsc wokół drzewa',
-    'Plätze um {tree}, Platz 1 beginnt im Norden, im Uhrzeigersinn': 'Miejsca wokół {tree}, miejsce 1 zaczyna się na północy, zgodnie z ruchem wskazówek zegara',
     'vorgemerkt': 'zarezerwowane wstępnie',
-    'Platz 1 beginnt im Norden, weiter im Uhrzeigersinn.': 'Miejsce 1 zaczyna się na północy, dalej zgodnie z ruchem wskazówek zegara.',
     'Antippen wählt den Platz aus.': 'Dotknięcie wybiera miejsce.',
     'ausgewählt': 'wybrane',
+    'Plätze um {tree} wie ein Zifferblatt, Platz 1 im Norden': 'Miejsca wokół {tree} jak na tarczy zegara, miejsce 1 na północy',
+    'Wie ein Zifferblatt: Platz 1–12 auf den Stunden (1 = Norden), 13–24 dazwischen.': 'Jak tarcza zegara: miejsca 1–12 na godzinach (1 = północ), 13–24 pomiędzy.',
+    'Platz 1 im Norden, weiter im Uhrzeigersinn.': 'Miejsce 1 na północy, dalej zgodnie z ruchem wskazówek zegara.',
 }

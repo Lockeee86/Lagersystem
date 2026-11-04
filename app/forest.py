@@ -271,9 +271,18 @@ def map_data():
 WHEEL_MAX = 48                  # mehr Plätze (Waldruhefläche) → nur die Kacheln, kein Kreis
 
 
+def wheel_slot(number, count):
+    """Position eines Platzes im Kreis (0 = Norden, im Uhrzeigersinn, `count` gleich große Stücke).
+    24 Plätze wie ein Zifferblatt: 1–12 auf den Stunden (1 = 12 Uhr = Norden, 2 = 1 Uhr …), 13–24 dazwischen
+    (13 zwischen Platz 1 und 2, 24 zwischen 12 und 1) – im Uhrzeigersinn also 1, 13, 2, 14 … 12, 24.
+    Andere Platzzahlen: der Reihe nach im Uhrzeigersinn."""
+    if count == 24:
+        return (number - 1) * 2 if number <= 12 else (number - 13) * 2 + 1
+    return number - 1
+
+
 def place_wheel(tree, marks=None):
-    """Plätze im Kreis um den Baum wie ein 24-Stunden-Zifferblatt: Platz 1 beginnt im Norden, jeder Platz ist ein
-    gleich großes Stück im Uhrzeigersinn (bei 24 Plätzen: Platz 13 zwischen „12 und 13 Uhr“ = Süden).
+    """Plätze im Kreis um den Baum (`wheel_slot`), Platz 1 mittig im Norden.
     Liefert [{number, state, d (SVG-Pfad), x, y (Beschriftung)}] für ein viewBox von -110 bis 110, sonst []."""
     import math
     places = sorted(tree.places, key=lambda p: p.number)
@@ -289,7 +298,8 @@ def place_wheel(tree, marks=None):
 
     segments = []
     for p in places:
-        a0, a1 = (p.number - 1) * step, p.number * step
+        center = wheel_slot(p.number, count) * step
+        a0, a1 = center - step / 2, center + step / 2
         if count == 1:                                     # ein Platz: ganzer Ring
             d = "M0 -100A100 100 0 1 1 0 100A100 100 0 1 1 0 -100Z"
         else:
@@ -298,7 +308,7 @@ def place_wheel(tree, marks=None):
             (x2, y2), (x3, y3) = pt(inner, a1), pt(inner, a0)
             d = (f"M{x0:.2f} {y0:.2f}A{outer:.0f} {outer:.0f} 0 {large} 1 {x1:.2f} {y1:.2f}"
                  f"L{x2:.2f} {y2:.2f}A{inner:.0f} {inner:.0f} 0 {large} 0 {x3:.2f} {y3:.2f}Z")
-        lx, ly = pt((outer + inner) / 2, (a0 + a1) / 2) if count > 1 else (0.0, -70.0)
+        lx, ly = pt((outer + inner) / 2, center) if count > 1 else (0.0, -70.0)
         state = p.state
         if state == "frei" and p.number in marks:
             state = "vorgemerkt"

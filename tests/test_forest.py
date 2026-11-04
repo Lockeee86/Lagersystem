@@ -404,16 +404,19 @@ def test_settings_fields(db, seed, as_admin):
 
 
 def test_place_wheel(app, db, woods, as_worker):
-    """Plätze im Kreis: Platz 1 im Norden, im Uhrzeigersinn; bei 24 Plätzen liegt Platz 13 im Süden."""
+    """Plätze wie ein Zifferblatt: 1–12 auf den Stunden (1 = Norden), 13–24 dazwischen (13 zwischen 1 und 2)."""
     forest.create_trees(30, 30, places=24, field="B")
     db.session.commit()
     tree = ForestTree.query.filter_by(field="B", number=30).one()
-    wheel = forest.place_wheel(tree)
-    assert len(wheel) == 24 and [s["number"] for s in wheel] == list(range(1, 25))
-    first, east, south = wheel[0], wheel[6], wheel[12]
-    assert first["x"] > 0 and first["y"] < -60                                  # knapp rechts von Norden
-    assert east["x"] > 60 and abs(east["y"]) < 15                               # 6–7 Uhr → Osten
-    assert south["x"] < 0 and south["y"] > 60                                   # 12–13 Uhr → knapp links von Süden
+    wheel = {s["number"]: s for s in forest.place_wheel(tree)}
+    assert len(wheel) == 24
+    assert abs(wheel[1]["x"]) < 0.01 and wheel[1]["y"] < -60                  # Platz 1 genau im Norden
+    assert wheel[4]["x"] > 60 and abs(wheel[4]["y"]) < 0.01                    # Platz 4 = 3 Uhr = Osten
+    assert abs(wheel[7]["x"]) < 0.01 and wheel[7]["y"] > 60                    # Platz 7 = 6 Uhr = Süden
+    assert wheel[10]["x"] < -60                                                # Platz 10 = 9 Uhr = Westen
+    order = sorted(range(1, 25), key=lambda n: forest.wheel_slot(n, 24))       # im Uhrzeigersinn
+    assert order[:5] == [1, 13, 2, 14, 3] and order[-2:] == [12, 24]
+    assert 0 < wheel[13]["x"] < wheel[2]["x"]                                  # 13 zwischen 1 und 2
     forest.save_contract(None, woods["admin"], "Erika Muster", date(2026, 1, 2), tree.places[:2])
     db.session.commit()
     assert [s["state"] for s in forest.place_wheel(tree)][:3] == ["reserviert", "reserviert", "frei"]
