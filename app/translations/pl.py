@@ -3291,4 +3291,11 @@ MESSAGES = {
     'Im ZIP wurde kein Shapefile mit Baumpunkten gefunden.': 'W pliku ZIP nie znaleziono pliku Shapefile z punktami drzew.',
     'Im ZIP wurden weder Tabellen noch Baumpunkte gefunden.': 'W pliku ZIP nie znaleziono ani tabel, ani punktów drzew.',
     'Tabellenexport „Baumposition“ (Plätze, Verträge, Beisetzungen) und/oder „Ruhebäume“ (Baumart, Kategorie, Stamm) als Excel-XML oder .xlsx – oder die Baumpunkte aus dem GIS als ZIP (Shapefile) für die Karte. Erst „Prüfen“ zeigt, was übernommen würde, ohne etwas zu speichern. Plätze mit Vertrag oder Beisetzung in der App bleiben unverändert – mehrfaches Einlesen ist unschädlich.': 'Eksport tabeli „Baumposition“ (miejsca, umowy, pochówki) i/lub „Ruhebäume“ (gatunek, kategoria, pień) jako Excel-XML lub .xlsx – albo punkty drzew z GIS jako ZIP (Shapefile) dla mapy. Najpierw „Sprawdź“ pokazuje, co zostałoby przejęte, bez zapisywania. Miejsca z umową lub pochówkiem w aplikacji pozostają bez zmian – wielokrotne wczytanie nie szkodzi.',
+    'mit Kirchenglocken': 'z dzwonami kościelnymi',
+    'Kirchenglocken gewünscht.': 'Dzwony kościelne zamówione.',
+    'Ohne Kirchenglocken.': 'Bez dzwonów kościelnych.',
+    'Kirchenglocken': 'Dzwony kościelne',
+    'Kirchenglocken abbestellen': 'Odwołaj dzwony kościelne',
+    'Kirchenglocken dazu': 'Dodaj dzwony kościelne',
+    'Kirchenglocken gewünscht': 'Dzwony kościelne zamówione',
 }

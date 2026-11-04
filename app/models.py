@@ -2405,6 +2405,7 @@ class ForestBurial(db.Model):
     day = db.Column(db.Date, nullable=False, index=True)
     time = db.Column(db.String(5))                         # „11:00“
     undertaker = db.Column(db.String(150))                 # Bestatter
+    bells = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # Kirchenglocken gewünscht
     note = db.Column(db.Text)
     dig_task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))
     close_task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"))

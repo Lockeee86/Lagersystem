@@ -589,7 +589,8 @@ def _burial_tasks(burial, user):
     from . import tasks
     where = burial.place.label
     when = burial.day.strftime("%d.%m.%Y") + (f" {burial.time}" if burial.time else "")
-    info = _("Beisetzung {when}", when=when) + (f" · {burial.undertaker}" if burial.undertaker else "")
+    info = _("Beisetzung {when}", when=when) + (f" · {burial.undertaker}" if burial.undertaker else "") + \
+        (" · " + _("mit Kirchenglocken") if burial.bells else "")
     for attr, title, due in (("dig_task", _("Grab ausheben: {place}", place=where), _workday_before(burial.day)),
                              ("close_task", _("Grab schließen: {place}", place=where), burial.day)):
         task = getattr(burial, attr)
@@ -625,7 +626,8 @@ def refresh_grave_tasks(today=None):
     return changed
 
 
-def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, note=None, selection=None, team=None):
+def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, note=None, selection=None, team=None,
+                bells=None):
     """Beisetzung anlegen bzw. ändern. `team`: (Person, Vertretung) fürs Grab – None = bei neuen der Standard
     aus `grave_team()`, bei vorhandenen unverändert."""
     if team is not None:
@@ -652,6 +654,8 @@ def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, 
         burial.day = day
         burial.time = _time(time)
         burial.undertaker = (undertaker or "").strip()[:150] or None
+        if bells is not None:
+            burial.bells = bool(bells)
         burial.note = (note or "").strip() or None
         if selection is not None:
             burial.selection = selection
@@ -663,6 +667,13 @@ def save_burial(burial, user, place, deceased, day, time=None, undertaker=None, 
     _burial_tasks(burial, user)
     db.session.flush()
     return burial
+
+
+def set_bells(burial, user, bells):
+    """Kirchenglocken nachträglich an/aus – die Beschreibung der offenen Grab-Aufgaben zieht mit."""
+    burial.bells = bool(bells)
+    _burial_tasks(burial, user)
+    db.session.flush()
 
 
 def delete_burial(burial):
@@ -695,7 +706,7 @@ def calendar_events(start, end, event):
                   " · ".join(p for p in (s.guide.name if s.guide else None, s.phone) if p),
                   time=dtime.fromisoformat(s.time) if s.time else None) for s in choices] + [event(b.day, "beisetzung", f"beisetzung-{b.id}", _("Beisetzung: {place}", place=b.place.label),
                   "bi-tree", "secondary", url_for("forest.burial_page") + f"#b{b.id}",
-                  " · ".join(p for p in (b.deceased, b.undertaker) if p),
+                  " · ".join(p for p in (b.deceased, b.undertaker, _("mit Kirchenglocken") if b.bells else None) if p),
                   time=dtime.fromisoformat(b.time) if b.time else None) for b in rows]
 
 

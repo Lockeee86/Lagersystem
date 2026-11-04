@@ -357,7 +357,8 @@ def burial_save(burial_id=None):
     try:
         burial = forest.save_burial(burial, current_user, _place_from_form(), form_str("deceased", 150),
                                     form_date("day"), form_str("time", 5), form_str("undertaker", 150),
-                                    form_str("note", 2000), selection=_selection_arg(request.form), team=team)
+                                    form_str("note", 2000), selection=_selection_arg(request.form), team=team,
+                                    bells=bool(request.form.get("bells")))
         db.session.commit()
         if new and burial.dig_task is not None:
             push.task_assigned(burial.dig_task, current_user, users=burial.dig_task.assignees or _guides())
@@ -367,6 +368,16 @@ def burial_save(burial_id=None):
         flash_error(str(e))
         return redirect(request.referrer or url_for("forest.burial_page"))
     return redirect(url_for("forest.burial_page") + f"#b{burial.id}")
+
+
+@bp.route("/wald/beisetzung/<int:burial_id>/glocken", methods=["POST"])
+@editor_required
+def burial_bells(burial_id):
+    burial = db.session.get(ForestBurial, burial_id) or abort(404)
+    forest.set_bells(burial, current_user, request.form.get("bells") == "1")
+    db.session.commit()
+    flash(_("Kirchenglocken gewünscht.") if burial.bells else _("Ohne Kirchenglocken."), "success")
+    return redirect(url_for("forest.burial_page", jahr=burial.day.year) + f"#b{burial.id}")
 
 
 @bp.route("/wald/beisetzung/<int:burial_id>/loeschen", methods=["POST"])

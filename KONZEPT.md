@@ -196,6 +196,8 @@ Portainer-Stack (docker-compose)
   beide abwesend, an beide. Wird je Aufgabe geprüft, beim Anlegen, nach jeder Kalender-Änderung und morgens; neu
   Zugeteilte bekommen einen Push. Standard pflegt der Admin unter Beisetzungen, beim
   Eintragen einer Beisetzung vorbelegt und änderbar.
+- **Kirchenglocken** (0.89.0): optional je Beisetzung – Häkchen beim Eintragen, in der Liste per Glocke umschaltbar;
+  steht bei der Beisetzung, im Kalender und in den Grab-Aufgaben.
 - **Übernahme aus dem Altsystem** (0.88.0): Der Export des bisherigen Programms (ZIP mit „Baumposition“, „Ruhebäume“
   und Shapefile) wird unter Bäume → „Übernahme aus dem bisherigen Programm“ eingelesen – erst „Prüfen“ (nichts wird
   gespeichert), dann „Übernehmen“. Daraus: Bäume je Feld (A/B) mit 24 Plätzen, Waldruheflächen, Sternchenbäume,

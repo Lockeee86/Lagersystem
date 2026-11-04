@@ -361,3 +361,28 @@ def test_absent(db, seed):
     assert agenda.absent(worker, day + timedelta(days=2)) and not agenda.absent(worker, day + timedelta(days=5))
     assert not agenda.absent(worker, day + timedelta(days=10)) and agenda.absent(worker, day + timedelta(days=20))
     assert not agenda.absent(seed["admin"], day) and not agenda.absent(None, day)
+
+
+def test_bells(app, db, woods, as_worker, as_viewer):
+    """Kirchenglocken: Häkchen beim Eintragen, nachträglich umschaltbar, steht in Aufgabe und Kalender."""
+    day = date.today() + timedelta(days=6)
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "1", "deceased": "Hans Muster",
+                                             "day": day.isoformat(), "bells": "1"})
+    as_worker.post("/wald/beisetzung", data={"tree": "1", "place": "2", "deceased": "Gerda Muster",
+                                             "day": day.isoformat()})
+    with_bells = ForestBurial.query.filter_by(deceased="Hans Muster").one()
+    without = ForestBurial.query.filter_by(deceased="Gerda Muster").one()
+    assert with_bells.bells and not without.bells
+    assert "mit Kirchenglocken" in with_bells.close_task.description
+    assert "Kirchenglocken" not in without.close_task.description
+    with app.test_request_context():
+        notes = {e["note"] for e in forest.calendar_events(day, day, agenda._event)}
+    assert "Hans Muster · mit Kirchenglocken" in notes and "Gerda Muster" in notes
+    page = as_worker.get("/wald/beisetzungen").get_data(as_text=True)
+    assert page.count("bi-bell-fill") == 1 and 'id="bBells"' in page
+
+    as_worker.post(f"/wald/beisetzung/{without.id}/glocken", data={"bells": "1"})
+    assert without.bells and "mit Kirchenglocken" in without.dig_task.description
+    as_worker.post(f"/wald/beisetzung/{with_bells.id}/glocken", data={"bells": "0"})
+    assert not with_bells.bells and "Kirchenglocken" not in with_bells.dig_task.description
+    assert as_viewer.post(f"/wald/beisetzung/{without.id}/glocken", data={"bells": "0"}).status_code in (403, 404)

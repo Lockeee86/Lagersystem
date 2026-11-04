@@ -175,7 +175,8 @@ docker compose up --build -d
   `forest_single_years`, `next_contract_number()`). Übernahme aus dem Altsystem: `app/forest_import.py` (Tabellenexport
   Excel-XML/.xlsx oder ZIP mit Tabellen + Shapefile: `read_upload()` → `apply()` / `apply_points()`, UTM →
   `utm_to_latlon()`, Route `forest.legacy_import`; echte Exporte nie committen – Tests erzeugen erfundene Dateien), Beisetzungen `ForestBurial` (`save_burial()` legt die Aufgaben
-  „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an, zuständig `ForestBurial.grave_person` – bei Abwesenheit laut Kalender
+  „Grab ausheben“/„Grab schließen“ mit `Task.area = "wald"` an; Kirchenglocken `ForestBurial.bells`, nachträglich
+  `set_bells()` – steht in Aufgaben und Kalender; zuständig `ForestBurial.grave_person` – bei Abwesenheit laut Kalender
   (`agenda.absent()`) `grave_deputy` (`_grave_assignees()`); Standard `grave_team()` / `save_grave_team()` in `settings`
   `forest_grave_person`/`forest_grave_deputy`, im Formular änderbar → `team=`; nach Kalender-Änderungen und morgens
   `push.grave_refresh()` → `refresh_grave_tasks()`), Kalender `calendar_events()`, Push `storm_check()` aus
