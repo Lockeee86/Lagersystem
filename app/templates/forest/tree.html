@@ -21,7 +21,7 @@
 {% if wheel %}
 <figure class="forest-wheel mb-3" aria-label="{{ _('Lage der Plätze um den Baum') }}">
     <svg viewBox="{{ -wheel.size }} {{ -wheel.size - 6 }} {{ wheel.size * 2 }} {{ wheel.size * 2 + 6 }}" role="img" aria-labelledby="wheelTitle">
-        <title id="wheelTitle">{{ _("Plätze um {tree} wie ein Zifferblatt, Platz 1 im Norden", tree=tree.label) }}</title>
+        <title id="wheelTitle">{{ _("Plätze um {tree} wie eine Uhr, Platz 12 im Norden", tree=tree.label) }}</title>
         <text class="wheel-north" x="0" y="{{ -wheel.size + 6 }}" text-anchor="middle">N</text>
         <circle class="wheel-trunk" r="{{ wheel.trunk }}"/>
         {% for s in wheel.segments %}
@@ -41,7 +41,7 @@
         {% if marks %}<span><span class="forest-dot vorgemerkt"></span>{{ _("vorgemerkt") }}</span>{% endif %}
         {% if selection or current_user.is_admin %}<span><span class="forest-dot gewaehlt"></span>{{ _("ausgewählt") }}</span>{% endif %}
     </div>
-    <figcaption class="small text-body-secondary text-center">{% if wheel.rings > 1 %}{{ _("Wie ein Zifferblatt: Platz 1–12 innen auf den Stunden (1 = Norden), ab 13 im äußeren Ring, eine halbe Stunde versetzt.") }}{% else %}{{ _("Platz 1 im Norden, weiter im Uhrzeigersinn.") }}{% endif %}{% if selection or current_user.is_admin %} {{ _("Antippen wählt den Platz aus.") }}{% endif %}</figcaption>
+    <figcaption class="small text-body-secondary text-center">{% if wheel.segments|length >= 12 %}{{ _("Innen wie eine Uhr: Platz 12 im Norden, 3 im Osten.") }}{% if wheel.rings > 1 %} {{ _("Ab 13 im äußeren Ring, eine halbe Stunde versetzt (13 zwischen 12 und 1).") }}{% endif %}{% else %}{{ _("Platz 1 im Norden, weiter im Uhrzeigersinn.") }}{% endif %}{% if selection or current_user.is_admin %} {{ _("Antippen wählt den Platz aus.") }}{% endif %}</figcaption>
 </figure>
 {% endif %}
 <div class="forest-grid mb-3">

@@ -276,14 +276,16 @@ WHEEL_RING = 12                 # Plätze je Ring (wie die Stunden auf dem Ziffe
 
 def wheel_position(number, count):
     """(Ring, Winkel der Mitte in Grad ab Norden im Uhrzeigersinn) eines Platzes.
-    Wie ein Zifferblatt: Platz 1–12 im inneren Ring auf den Stunden (1 = Norden, 2 = 1 Uhr …), 13–24 im zweiten Ring
-    weiter außen und um eine halbe Stunde (15°) versetzt – Platz 13 liegt über der Lücke zwischen 1 und 2. Weitere
-    Plätze in weiteren Ringen. Bäume mit höchstens 12 Plätzen: ein Ring, gleichmäßig verteilt."""
-    if count <= WHEEL_RING:
+    Innerer Ring wie eine analoge Uhr: Platz 12 oben im Norden, Platz 1 bei 1 Uhr, 3 im Osten, 6 im Süden, 9 im
+    Westen. Zweiter Ring (13–24) weiter außen, um eine halbe Stunde (15°) versetzt: Platz 13 über der Lücke zwischen
+    12 und 1, Platz 14 zwischen 1 und 2 … Bäume mit weniger als 12 Plätzen: ein Ring ab Norden, gleichmäßig verteilt."""
+    step = 360.0 / WHEEL_RING
+    if count < WHEEL_RING:
         return 0, (number - 1) * 360.0 / count
     ring, index = divmod(number - 1, WHEEL_RING)
-    step = 360.0 / WHEEL_RING
-    return ring, index * step + (step / 2 if ring % 2 else 0.0)
+    if ring % 2 == 0:                                      # Stunden-Ring: Platz 12 (24 …) oben
+        return ring, ((index + 1) % WHEEL_RING) * step
+    return ring, index * step + step / 2
 
 
 def place_wheel(tree, marks=None):
