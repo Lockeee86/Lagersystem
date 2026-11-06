@@ -207,6 +207,8 @@ Portainer-Stack (docker-compose)
   `W-A027` genau den Baum, sonst Baumart/Abschnitt/Notiz. Filter Baumart (Mehrfachauswahl) und Art (Gemeinschafts-,
   Familien-, Einzelbaum … mehrere gleichzeitig), dazu Abschnitt und „nur mit freien Plätzen“. Die Baum-Nr.-Suche oben öffnet
   bei genau einem Treffer den Baum, sonst die Liste.
+  **Standort auf der Karte** (0.94.0): Knopf mit Fadenkreuz auf Wald- und Schlagkarte – blauer Punkt mit
+  Genauigkeitskreis, folgt beim Gehen, die Karte springt beim ersten Mal hin. Weit weg: Hinweis mit Entfernung. Braucht HTTPS.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

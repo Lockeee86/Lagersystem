@@ -3342,4 +3342,8 @@ MESSAGES = {
     'Baumart suchen …': 'Szukaj gatunku …',
     'Anzeigen': 'Pokaż',
     'Alle Filter zurücksetzen': 'Wyczyść wszystkie filtry',
+    'Mein Standort': 'Moja lokalizacja',
+    'Standort nicht erlaubt – bitte im Browser freigeben.': 'Brak zgody na lokalizację – zezwól na nią w przeglądarce.',
+    'Du bist nicht auf der Karte (etwa {km} km entfernt).': 'Nie jesteś na mapie (ok. {km} km stąd).',
+    'Standort ungenau (± {m} m).': 'Lokalizacja niedokładna (± {m} m).',
 }

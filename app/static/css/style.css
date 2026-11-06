@@ -604,6 +604,10 @@ body:not(.has-tabbar) {
 /* Schlagkarte mit Luftbild */
 .field-map-svg.with-aerial .field-shape { fill-opacity: .28; stroke: #fff; stroke-width: calc(var(--px, 1) * 2px); }
 .field-map-svg.with-aerial .field-label { fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .65); }
+.field-me-range { fill: rgba(26, 115, 232, .15); stroke: rgba(26, 115, 232, .5); stroke-width: calc(var(--px, 1) * 1px); pointer-events: none; }
+.field-me-dot { fill: #1a73e8; stroke: #fff; stroke-width: calc(var(--px, 1) * 2.5px); pointer-events: none; }
+.field-map-note { position: absolute; left: 50%; bottom: 1.4rem; transform: translateX(-50%); z-index: 2; max-width: calc(100% - 1rem);
+    padding: .3rem .7rem; border-radius: 1rem; font-size: .8rem; background: rgba(0, 0, 0, .7); color: #fff; text-align: center; pointer-events: none; }
 .field-map-credit { position: absolute; left: .4rem; bottom: .3rem; z-index: 2; font-size: .65rem; color: #fff;
     text-shadow: 0 0 3px rgba(0, 0, 0, .9); pointer-events: none; }
 

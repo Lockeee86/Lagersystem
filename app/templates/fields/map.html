@@ -32,6 +32,7 @@
             <button class="btn btn-sm btn-light" type="button" id="zoomIn" aria-label="{{ _('Vergrößern') }}"><i class="bi bi-plus-lg"></i></button>
             <button class="btn btn-sm btn-light" type="button" id="zoomOut" aria-label="{{ _('Verkleinern') }}"><i class="bi bi-dash-lg"></i></button>
             <button class="btn btn-sm btn-light" type="button" id="zoomReset" aria-label="{{ _('Ganze Karte') }}"><i class="bi bi-arrows-fullscreen"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="locateBtn" aria-pressed="false" title="{{ _('Mein Standort') }}" aria-label="{{ _('Mein Standort') }}"><i class="bi bi-crosshair"></i></button>
             {% if aerial %}<button class="btn btn-sm btn-light" type="button" id="aerialToggle" aria-pressed="false" title="{{ _('Luftbild') }}" aria-label="{{ _('Luftbild') }}"><i class="bi bi-image"></i></button>{% endif %}
         </div>
     </div>
@@ -132,6 +133,9 @@
     document.getElementById("zoomIn").addEventListener("click", map.zoomIn);
     document.getElementById("zoomOut").addEventListener("click", map.zoomOut);
     document.getElementById("zoomReset").addEventListener("click", map.reset);
+    Schlagkarte.locateButton(map, document.getElementById("locateBtn"), {{ {"wait": _("Standort wird ermittelt …"), "none": _("Standort nicht verfügbar."),
+        "denied": _("Standort nicht erlaubt – bitte im Browser freigeben."), "far": _("Du bist nicht auf der Karte (etwa {km} km entfernt)."),
+        "rough": _("Standort ungenau (± {m} m).")}|tojson }});
 })();
 </script>
 {% endblock %}

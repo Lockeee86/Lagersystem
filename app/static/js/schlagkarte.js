@@ -102,6 +102,12 @@ window.Schlagkarte = (function () {
                 labels.appendChild(text);
             }
         });
+        // eigener Standort (blauer Punkt mit Genauigkeitskreis), erst nach `locate(true)` sichtbar
+        var me = el("g", { "class": "field-me", style: "display: none" });
+        var meRange = el("circle", { "class": "field-me-range" }), meDot = el("circle", { "class": "field-me-dot" });
+        me.appendChild(meRange);
+        me.appendChild(meDot);
+        svg.appendChild(me);
         container.appendChild(svg);
 
         // --- Luftbild -------------------------------------------------------------
@@ -165,6 +171,7 @@ window.Schlagkarte = (function () {
             var px = view.w / (svg.clientWidth || 600);
             svg.style.setProperty("--px", px);
             points.forEach(function (c) { c.setAttribute("r", (7 * px).toFixed(2)); });
+            meDot.setAttribute("r", (8 * px).toFixed(2));
             // Nummern erst ab etwa 3-facher Vergrößerung, sonst verdecken sie die kleinen Schläge
             var zoomed = view.w < full.w / 3;
             labels.style.display = opts.labels !== false && (zoomed || items.length < 4) ? "" : "none";
@@ -239,6 +246,48 @@ window.Schlagkarte = (function () {
             });
             svg.addEventListener("pointercancel", up);
         }
+        // --- Standort ----------------------------------------------------------------
+        var watchId = null, firstFix = true;
+        function locate(on, report) {
+            report = report || function () {};
+            if (!on) {
+                if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                me.style.display = "none";
+                report("off");
+                return false;
+            }
+            if (!navigator.geolocation || !window.isSecureContext) { report("error"); return false; }
+            if (watchId !== null) return true;
+            firstFix = true;
+            report("wait");
+            watchId = navigator.geolocation.watchPosition(function (pos) {
+                var p = project([pos.coords.longitude, pos.coords.latitude]);
+                meDot.setAttribute("cx", p[0].toFixed(1)); meDot.setAttribute("cy", p[1].toFixed(1));
+                meRange.setAttribute("cx", p[0].toFixed(1)); meRange.setAttribute("cy", p[1].toFixed(1));
+                // 1 Karteneinheit = 1/100000 Grad Breite ≈ 1,11 m
+                meRange.setAttribute("r", Math.max(0, (pos.coords.accuracy || 0) / 1.113).toFixed(1));
+                me.style.display = "";
+                // Abstand zur Karte (in Metern), 0 = innerhalb
+                var dx = Math.max(full.x - p[0], 0, p[0] - (full.x + full.w));
+                var dy = Math.max(full.y - p[1], 0, p[1] - (full.y + full.h));
+                var away = Math.hypot(dx, dy) * 1.113;
+                if (firstFix) {
+                    firstFix = false;
+                    if (away < 1000) {
+                        var w = Math.min(view.w, Math.max(full.w / 4, 250)), f = w / view.w;
+                        view = { x: p[0] - w / 2, y: p[1] - view.h * f / 2, w: w, h: view.h * f };
+                        apply();
+                    }
+                }
+                report(away < 1000 ? "ok" : "far", { accuracy: pos.coords.accuracy, away: away });
+            }, function (err) {
+                report(err && err.code === 1 ? "denied" : "error");
+                if (err && err.code === 1) locate(false);
+            }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+            return true;
+        }
+
         window.addEventListener("resize", apply);
         apply();
         if (aerial && aerial.on) setAerial(true);
@@ -247,8 +296,34 @@ window.Schlagkarte = (function () {
             zoomOut: function () { zoom(1.5); },
             reset: function () { view = { x: full.x, y: full.y, w: full.w, h: full.h }; apply(); },
             aerial: function (on) { setAerial(on === undefined ? !aerialOn : on); return aerialOn; },
+            locate: locate,
+            locating: function () { return watchId !== null; },
         };
     }
 
-    return { create: create };
+    // Knopf „Mein Standort“: an/aus, Meldungen unten auf der Karte (Texte kommen übersetzt aus der Vorlage)
+    function locateButton(map, btn, texts) {
+        if (!map || !btn) return;
+        if (!navigator.geolocation || !window.isSecureContext) { btn.disabled = true; btn.title = texts.none; return; }
+        var box = btn.closest(".field-map"), note = document.createElement("div");
+        note.className = "field-map-note";
+        note.style.display = "none";
+        box.appendChild(note);
+        function say(text) { note.textContent = text || ""; note.style.display = text ? "" : "none"; }
+        btn.addEventListener("click", function () {
+            var on = !map.locating();
+            map.locate(on, function (state, info) {
+                btn.classList.toggle("active", state !== "off" && state !== "denied" && state !== "error");
+                btn.setAttribute("aria-pressed", btn.classList.contains("active") ? "true" : "false");
+                if (state === "wait") say(texts.wait);
+                else if (state === "ok") say(info.accuracy > 30 ? texts.rough.replace("{m}", Math.round(info.accuracy)) : "");
+                else if (state === "far") say(texts.far.replace("{km}", (info.away / 1000).toLocaleString(document.documentElement.lang || "de", { maximumFractionDigits: 1 })));
+                else if (state === "denied") say(texts.denied);
+                else if (state === "error") say(texts.none);
+                else say("");
+            });
+        });
+    }
+
+    return { create: create, locateButton: locateButton };
 })();
