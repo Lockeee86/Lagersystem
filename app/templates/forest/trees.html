@@ -1,25 +1,64 @@
 {% extends "forest/_layout.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, filter_toggle, filter_chips, multi_pick %}
 {% block subtitle %}<p class="text-body-secondary mb-0">{{ ngettext("{n} Baum", "{n} Bäume", rows|length) }}</p>{% endblock %}
 {% block forest %}
-<form class="d-flex flex-wrap gap-2 align-items-center mb-3" method="get">
-    {% if sections %}
-    <select class="form-select w-auto" name="abschnitt" aria-label="{{ _('Abschnitt') }}" onchange="this.form.submit()">
-        <option value="">{{ _("Alle Abschnitte") }}</option>
-        {% for s in sections %}<option {{ 'selected' if s == section }}>{{ s }}</option>{% endfor %}
-    </select>
-    {% endif %}
-    <div class="form-check form-switch mb-0">
-        <input class="form-check-input" type="checkbox" role="switch" id="onlyFree" name="frei" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()">
-        <label class="form-check-label" for="onlyFree">{{ _("nur mit freien Plätzen") }}</label>
+{% set chips = [] %}
+{% if q %}{% set _x = chips.append(('q', '„' ~ q ~ '“')) %}{% endif %}
+{% if section %}{% set _x = chips.append(('abschnitt', section)) %}{% endif %}
+{% if chosen_species %}{% set _x = chips.append(('baumart', chosen_species|join(', '))) %}{% endif %}
+{% if chosen_kinds %}{% set _x = chips.append(('art', kind_labels|join(', '))) %}{% endif %}
+{% if only_free %}{% set _x = chips.append(('frei', _('nur mit freien Plätzen'))) %}{% endif %}
+<form class="filter-bar card shadow-sm mb-2 mb-lg-3" method="get" id="treeFilter">
+    {% if selection_id %}<input type="hidden" name="auswahl" value="{{ selection_id }}">{% endif %}
+    <div class="card-body row g-2 align-items-center">
+        <div class="col-12 col-lg-3 d-flex gap-2">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input class="form-control" type="search" name="q" value="{{ q }}" placeholder="{{ _('27, A 27 oder Baumart') }}" aria-label="{{ _('Baum suchen') }}" enterkeyhint="search">
+            </div>
+            {{ filter_toggle("treeFilters", chips|length - (1 if q else 0)) }}
+        </div>
+        <div class="collapse filter-more" id="treeFilters"><div class="row g-2">
+        {% if sections %}
+        <div class="col-12 col-md-6 col-lg-auto">
+            <select class="form-select" style="min-width: 11rem" name="abschnitt" aria-label="{{ _('Abschnitt') }}" onchange="this.form.submit()">
+                <option value="">{{ _("Alle Abschnitte") }}</option>
+                {% for s in sections %}<option {{ 'selected' if s == section }}>{{ s }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        {% if species_all %}
+        <div class="col-12 col-md-6 col-lg-auto" style="min-width: 13rem">
+            {{ multi_pick([(none, species_items)], chosen_species, _("Alle Baumarten"), "baumart", _("Baumart"), _("Baumart suchen …"), small=false) }}
+        </div>
+        {% endif %}
+        {% if kinds_used|length > 1 %}
+        <div class="col-12 col-lg-auto">
+            <div class="d-flex flex-wrap gap-1" role="group" aria-label="{{ _('Art') }}">
+                {% for key in kinds_used %}
+                <input type="checkbox" class="btn-check" name="art" value="{{ key }}" id="art_{{ key }}" autocomplete="off" {{ 'checked' if key in chosen_kinds }} onchange="this.form.submit()">
+                <label class="btn btn-sm btn-outline-primary" for="art_{{ key }}">{{ _(kinds[key]) }}</label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-12 col-lg-auto d-flex flex-wrap align-items-center gap-2 column-gap-3">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="onlyFree" name="frei" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()">
+                <label class="form-check-label text-nowrap" for="onlyFree">{{ _("nur mit freien Plätzen") }}</label>
+            </div>
+            <button class="btn btn-sm btn-primary">{{ _("Anzeigen") }}</button>
+            {% if chips %}<a class="small text-nowrap" href="{{ url_for('forest.trees', auswahl=selection_id) }}">{{ _("Alle Filter zurücksetzen") }}</a>{% endif %}
+        </div>
+        </div></div>
     </div>
-    <noscript><button class="btn btn-sm btn-outline-secondary">{{ _("Filtern") }}</button></noscript>
 </form>
+{{ filter_chips(chips) }}
 
 <div class="hub-list mb-4">
     {% for row in rows %}
     {% set t = row.tree %}
-    <a class="hub-row" href="{{ url_for('forest.tree_detail', key=t.key) }}">
+    <a class="hub-row" href="{{ url_for('forest.tree_detail', key=t.key, auswahl=selection_id) }}">
         <span class="hub-icon"><i class="bi bi-tree"></i></span>
         <span class="hub-text"><span class="hub-title">{{ t.label }}{% if t.species %} · {{ t.species }}{% endif %}{% if t.category %} <span class="badge text-bg-light border fw-normal">{{ _("Kat. {c}", c=t.category) }}</span>{% endif %}</span>
             <span class="hub-status">{% if t.section %}{{ t.section }} · {% endif %}{{ t.kind_label }}{% if t.lat is none %} · {{ _("ohne Lage") }}{% endif %}</span></span>

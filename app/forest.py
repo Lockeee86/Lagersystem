@@ -209,11 +209,45 @@ def apply_trees(rows):
     return added, changed
 
 
-def tree_rows(section=None, only_free=False):
-    """Bäume mit Zählern je Stand: [{tree, frei, reserviert, belegt, total}]."""
+def search_trees(query, q):
+    """Freitext-Suche über die Bäume: „27“ findet A 27, B 27 …; „A 27“ / „W-A027“ genau den einen; sonst Baumart,
+    Abschnitt oder Notiz."""
+    q = (q or "").strip()
+    if not q:
+        return query
+    code = normalize_code(q)
+    key = split_key(code[2:]) if code else split_key(q)
+    if key and key[0]:
+        return query.filter(ForestTree.field == key[0], ForestTree.number == key[1])
+    if key:
+        return query.filter(ForestTree.number == key[1])
+    like = f"%{q}%"
+    return query.filter(ForestTree.species.ilike(like) | ForestTree.section.ilike(like) | ForestTree.note.ilike(like))
+
+
+def species_list():
+    """Baumarten der aktiven Bäume (für den Filter)."""
+    return [s for (s,) in db.session.query(ForestTree.species).filter(ForestTree.active.is_(True),
+                                                                        ForestTree.species.isnot(None))
+            .distinct().order_by(ForestTree.species)]
+
+
+def kinds_in_use():
+    used = {k for (k,) in db.session.query(ForestTree.kind).filter(ForestTree.active.is_(True)).distinct()}
+    return [k for k in FOREST_KINDS if k in used]
+
+
+def tree_rows(section=None, only_free=False, species=None, kinds=None, q=None):
+    """Bäume mit Zählern je Stand: [{tree, frei, reserviert, belegt, total}]. Filter: Abschnitt, nur mit freien
+    Plätzen, Baumarten (Liste), Arten (Liste: gemeinschaft, einzel …), Suche `q` (`search_trees`)."""
     query = ForestTree.query.filter_by(active=True)
     if section:
         query = query.filter(ForestTree.section == section)
+    if species:
+        query = query.filter(ForestTree.species.in_(species))
+    if kinds:
+        query = query.filter(ForestTree.kind.in_(kinds))
+    query = search_trees(query, q)
     from sqlalchemy.orm import selectinload
     rows = []
     for tree in query.options(selectinload(ForestTree.places).selectinload(ForestPlace.burials)).order_by(ForestTree.field, ForestTree.number):

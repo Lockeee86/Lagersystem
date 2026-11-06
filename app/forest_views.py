@@ -53,11 +53,17 @@ def overview():
 @bp.route("/wald/suche")
 @login_required
 def find():
-    tree = forest.find_tree(request.args.get("baum", ""))
-    if tree is None:
+    raw = request.args.get("baum", "").strip()
+    selection = request.args.get("auswahl", type=int)
+    hits = forest.search_trees(ForestTree.query.filter_by(active=True), raw).limit(2).all() if raw else []
+    if len(hits) == 1:                                  # eindeutig → gleich den Baum öffnen
+        return redirect(url_for("forest.tree_detail", key=hits[0].key, auswahl=selection))
+    if not hits:
+        tree = forest.find_tree(raw)                    # z. B. inaktiver Baum
+        if tree is not None:
+            return redirect(url_for("forest.tree_detail", key=tree.key, auswahl=selection))
         flash_error(_("Keinen Baum mit dieser Nummer gefunden."))
-        return redirect(request.referrer or url_for("forest.trees"))
-    return redirect(url_for("forest.tree_detail", key=tree.key, auswahl=request.args.get("auswahl", type=int)))
+    return redirect(url_for("forest.trees", q=raw, auswahl=selection))
 
 
 @bp.route("/wald/karte")
@@ -75,9 +81,17 @@ def map_page():
 def trees():
     section = request.args.get("abschnitt") or None
     only_free = request.args.get("frei") == "1"
+    species = [s for s in request.args.getlist("baumart") if s]
+    kinds = [k for k in request.args.getlist("art") if k in FOREST_KINDS]
+    q = request.args.get("q", "").strip()
     from .models import ForestShape
-    return _page("forest/trees.html", "baeume", shape_count=ForestShape.query.count(), rows=forest.tree_rows(section, only_free), sections=forest.sections(),
-                 section=section, only_free=only_free, kinds=FOREST_KINDS, default_places=forest.DEFAULT_PLACES)
+    return _page("forest/trees.html", "baeume", shape_count=ForestShape.query.count(),
+                 rows=forest.tree_rows(section, only_free, species, kinds, q), sections=forest.sections(),
+                 section=section, only_free=only_free, kinds=FOREST_KINDS, default_places=forest.DEFAULT_PLACES,
+                 species_all=forest.species_list(), kinds_used=forest.kinds_in_use(), chosen_species=species,
+                 species_items=[{"id": s, "pick_label": s} for s in forest.species_list()],
+                 kind_labels=[_(FOREST_KINDS[k]) for k in kinds],
+                 chosen_kinds=kinds, q=q, selection_id=request.args.get("auswahl", type=int))
 
 
 @bp.route("/wald/baeume/anlegen", methods=["POST"])

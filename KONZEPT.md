@@ -203,6 +203,10 @@ Portainer-Stack (docker-compose)
   **Kompass** (0.92.0): Am Handy dreht der Knopf „Kompass“ den Kreis nach dem Kompass des Handys – oben ist, was vor
   einem liegt (Dreieck), „N“ zeigt zum echten Norden, die Zahlen bleiben aufrecht. Nur auf Knopfdruck; iPhone fragt
   einmal um Erlaubnis. Braucht HTTPS.
+  **Baumfilter und Suche** (0.93.0): In der Baumliste ein Suchfeld – „27“ findet A 27 und B 27, „A 27“ bzw. der Code
+  `W-A027` genau den Baum, sonst Baumart/Abschnitt/Notiz. Filter Baumart (Mehrfachauswahl) und Art (Gemeinschafts-,
+  Familien-, Einzelbaum … mehrere gleichzeitig), dazu Abschnitt und „nur mit freien Plätzen“. Die Baum-Nr.-Suche oben öffnet
+  bei genau einem Treffer den Baum, sonst die Liste.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

@@ -167,7 +167,8 @@ docker compose up --build -d
   Bäume `ForestTree` (Feld + Nummer „A 147“, `key` „A147“ für Adressen `/wald/baum/<key>`, `name`, Code `W-A147`,
   `find_tree()` für jede Eingabe, `/scan` erkennt den Code; Art `flaeche` = Waldruhefläche mit Nummer 0; `category`,
   `trunk_cm`) mit Plätzen `ForestPlace` (Stand frei/reserviert/belegt, `person` = vorgesehen bei Vorsorge), `create_trees()` / `save_tree()` / CSV `parse_trees_csv()` + `apply_trees()`,
-  `tree_rows()`, `overview()`, Plätze in Ringen um den Baum `place_wheel()` / `wheel_position()` (innen wie eine
+  `tree_rows(section, only_free, species, kinds, q)` (Suche `search_trees()` – „27“ ohne Feld findet alle Felder,
+  Filterwerte `species_list()` / `kinds_in_use()`; `find()` öffnet bei einem Treffer den Baum, sonst die Liste), `overview()`, Plätze in Ringen um den Baum `place_wheel()` / `wheel_position()` (innen wie eine
   analoge Uhr, 12 = Norden, 3 = Osten; 13–24 im äußeren Ring um 15° versetzt – 13 über der Lücke zwischen 12 und 1;
   unter 12 Plätzen ein Ring ab Norden; maßstäblich `WHEEL_FIRST_M`/`WHEEL_WIDTH_M`: innen 2–2,5 m, außen 2,5–3 m,
   Stamm aus `trunk_cm`; SVG in `forest/tree.html`, Antippen kreuzt `#pl<n>` an; Knopf „Kompass“ am Handy dreht

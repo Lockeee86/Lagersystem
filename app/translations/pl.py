@@ -3127,7 +3127,6 @@ MESSAGES = {
     'Abschnitt': 'Sektor',
     'Alle Abschnitte': 'Wszystkie sektory',
     'nur mit freien Plätzen': 'tylko z wolnymi miejscami',
-    'Filtern': 'Filtruj',
     'ohne Lage': 'bez położenia',
     'Keine Bäume gefunden.': 'Nie znaleziono drzew.',
     'Bäume anlegen': 'Utwórz drzewa',
@@ -3337,4 +3336,10 @@ MESSAGES = {
     'SW': 'SW',
     'W': 'W',
     'NW': 'NW',
+    '27, A 27 oder Baumart': '27, A 27 lub gatunek',
+    'Baum suchen': 'Szukaj drzewa',
+    'Alle Baumarten': 'Wszystkie gatunki',
+    'Baumart suchen …': 'Szukaj gatunku …',
+    'Anzeigen': 'Pokaż',
+    'Alle Filter zurücksetzen': 'Wyczyść wszystkie filtry',
 }

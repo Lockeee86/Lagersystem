@@ -437,3 +437,28 @@ def test_place_wheel(app, db, woods, as_worker):
     forest.create_trees(1, 1, places=300, field="Z", kind="flaeche")
     db.session.commit()
     assert forest.place_wheel(ForestTree.query.filter_by(field="Z").one()) is None   # zu viele → nur Kacheln
+
+
+def test_tree_filters(app, db, woods, as_worker):
+    """Bäume: Suche nach „27“ findet A 27 und B 27, Filter Baumart und Art mit Mehrfachauswahl."""
+    forest.create_trees(27, 27, places=24, field="A", species="Eiche", kind="einzel")
+    forest.create_trees(27, 28, places=24, field="B", species="Buche", kind="familie")
+    forest.create_trees(40, 40, places=24, field="B", species="Ahorn", kind="sternchen")
+    db.session.commit()
+    names = lambda rows: sorted(r["tree"].name for r in rows)                     # noqa: E731
+    assert names(forest.tree_rows(q="27")) == ["A 27", "B 27"]
+    assert names(forest.tree_rows(q="a27")) == ["A 27"] and names(forest.tree_rows(q="W-B027")) == ["B 27"]
+    assert names(forest.tree_rows(q="buch")) == ["1", "2", "3", "4", "5", "B 27", "B 28"]   # Baumart als Text
+    assert names(forest.tree_rows(species=["Eiche", "Ahorn"])) == ["A 27", "B 40"]
+    assert names(forest.tree_rows(kinds=["einzel", "sternchen"])) == ["A 27", "B 40"]
+    assert names(forest.tree_rows(species=["Buche"], kinds=["familie"])) == ["B 27", "B 28"]
+    assert "Eiche" in forest.species_list() and forest.kinds_in_use()[0] == "gemeinschaft"
+
+    page = as_worker.get("/wald/baeume?q=27").get_data(as_text=True)
+    assert "Baum A 27" in page and "Baum B 27" in page and "Baum B 28" not in page
+    page = as_worker.get("/wald/baeume?art=einzel&art=sternchen&baumart=Eiche").get_data(as_text=True)
+    assert "Baum A 27" in page and "Baum B 40" not in page and 'value="Eiche"' in page
+    # Suchfeld oben: eindeutig → Baum, mehrdeutig → Liste
+    assert as_worker.get("/wald/suche?baum=28").headers["Location"].endswith("/wald/baum/B28")
+    assert "/wald/baeume?q=27" in as_worker.get("/wald/suche?baum=27").headers["Location"]
+    assert "/wald/baeume" in as_worker.get("/wald/suche?baum=999").headers["Location"]
