@@ -239,3 +239,15 @@
 {% if label %}</optgroup>{% endif %}
 {% endfor %}
 {% endmacro %}
+
+{# Einklappbare Karte für „Neu …“-Formulare: am Handy oben als eine Zeile zum Antippen. `pc_open`: am PC immer offen
+   (dort steht sie in der rechten Spalte). `open`: gleich aufgeklappt (z. B. mit vorausgefüllten Werten). #neu in der
+   Adresse klappt die Karte mit dieser id auf (app.js). #}
+{% macro fold_card(id, icon, title, open=false, pc_open=true) -%}
+<div class="card shadow-sm fold-card {{ 'fold-pc-open' if pc_open }} mb-3" id="{{ id }}">
+    <button class="card-header fold-head {{ '' if open else 'collapsed' }}" type="button" data-bs-toggle="collapse" data-bs-target="#{{ id }}-body" aria-expanded="{{ 'true' if open else 'false' }}" aria-controls="{{ id }}-body">
+        <i class="bi {{ icon }} me-2"></i><span>{{ title }}</span><i class="bi bi-chevron-down fold-chevron ms-auto"></i>
+    </button>
+    <div class="collapse {{ 'show' if open }} {{ 'd-lg-block' if pc_open }}" id="{{ id }}-body">{{ caller() }}</div>
+</div>
+{%- endmacro %}

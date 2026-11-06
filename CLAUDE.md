@@ -225,6 +225,9 @@ docker compose up --build -d
   (`views._important`, ohne Aufgaben – die haben einen eigenen Block) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
   `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).
   Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)
+  „Neu …“-Formulare unter langen Listen über `macros.fold_card(id, icon, titel, open, pc_open)` (am Handy oben eingeklappt,
+  rechte Spalte `order-first order-lg-last`; `#id` in der Adresse klappt auf – `app.js`). Untere Leiste: `overscroll-behavior-y: none`,
+  `--vv-shift` wird beim Nachfedern nicht neu berechnet
 - `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen

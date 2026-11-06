@@ -1084,6 +1084,8 @@ body:not(.has-tabbar) {
 /* iOS: fest stehende Leiste und Hintergrund auf eigene Grafikebene, damit sie beim schnellen Scrollen nicht
    hinterherhinken („springen“); nichts darf seitlich überstehen */
 html, body { overflow-x: clip; }
+/* kein Nachfedern oben/unten: die fest stehende Leiste wackelte dabei mit */
+html, body { overscroll-behavior-y: none; }
 .tabbar { transform: translate3d(0, var(--vv-shift, 0px), 0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 /* Beim Tippen (Tastatur offen) stört die Leiste nur – ausblenden */
 body.typing .tabbar { display: none; }
@@ -1177,3 +1179,17 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 .forest-dot.vorgemerkt { background: #2f7fa8; }
 .forest-dot.gewaehlt { background: #e0a800; }
 .wheel-ahead { fill: var(--bs-body-color); }
+
+/* Einklappbare „Neu …“-Karten (macros.fold_card) */
+.fold-card { scroll-margin-top: 5rem; }
+@media (min-width: 992px) { .fold-card { scroll-margin-top: 8.5rem; } }
+.fold-head { width: 100%; display: flex; align-items: center; text-align: start; border: 0; font-weight: 600; color: var(--brand); }
+.fold-head.collapsed { border-radius: var(--bs-card-inner-border-radius); }
+.fold-chevron { transition: transform .2s; }
+.fold-head:not(.collapsed) .fold-chevron { transform: rotate(180deg); }
+.fold-head:not(.collapsed) { border-bottom: var(--bs-card-border-width) solid var(--bs-card-border-color); }
+@media (min-width: 992px) {
+    .fold-pc-open .fold-head { pointer-events: none; color: inherit; font-weight: inherit;
+        border-bottom: var(--bs-card-border-width) solid var(--bs-card-border-color); border-radius: 0; }
+    .fold-pc-open .fold-chevron { display: none; }
+}

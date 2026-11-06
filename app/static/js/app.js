@@ -178,6 +178,10 @@ window.App = (function () {
             var current = parseFloat(tabbar.style.getPropertyValue("--vv-shift")) || 0;
             var base = tabbar.getBoundingClientRect().bottom - current;
             var shift = Math.round(vv.offsetTop + vv.height - base);
+            // Nachfedern am Seitenanfang/-ende (iOS „Gummiband“): dort nichts verschieben, sonst springt die Leiste
+            var maxY = document.documentElement.scrollHeight - window.innerHeight;
+            var bouncing = window.scrollY < 0 || window.scrollY > maxY + 1;
+            if (bouncing) { pending = false; return; }
             if (document.body.classList.contains("typing") || Math.abs(shift) > window.innerHeight / 2) shift = 0;
             tabbar.style.setProperty("--vv-shift", shift + "px");
         };
@@ -191,6 +195,20 @@ window.App = (function () {
         document.addEventListener("focusout", function () { setTimeout(schedule, 300); });
         schedule();
     }
+
+    // #neu (oder eine andere id) in der Adresse: einklappbare Karte aufklappen und hinscrollen
+    var openFold = function () {
+        var id = decodeURIComponent((location.hash || "").slice(1));
+        var card = id && document.getElementById(id);
+        if (!card || !card.classList.contains("fold-card")) return;
+        var body = card.querySelector(":scope > .collapse"), head = card.querySelector(":scope > .fold-head");
+        body.classList.add("show");
+        head.classList.remove("collapsed");
+        head.setAttribute("aria-expanded", "true");
+        card.scrollIntoView({ block: "start" });
+    };
+    openFold();
+    window.addEventListener("hashchange", openFold);
 
     // Flash-Meldungen nach einiger Zeit ausblenden
     setTimeout(function () {

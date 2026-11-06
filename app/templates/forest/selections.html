@@ -1,4 +1,5 @@
 {% extends "forest/_layout.html" %}
+{% from "macros.html" import fold_card %}
 {% macro sel_row(s) %}
 <a class="hub-row" href="{{ url_for('forest.selection_detail', selection_id=s.id) }}">
     <span class="hub-icon"><i class="bi bi-signpost-2"></i></span>
@@ -25,11 +26,10 @@
     {% endif %}
 </div>
 {% if current_user.can_edit %}
-<div class="col-lg-5">
-    <div class="card shadow-sm mb-4" id="neu">
-        <div class="card-header"><i class="bi bi-plus-lg me-1"></i>{{ _("Baumauswahl-Termin eintragen") }}</div>
+<div class="col-lg-5 order-first order-lg-last">
+    {% call fold_card("neu", "bi-plus-lg", _("Baumauswahl-Termin eintragen")) %}
         <div class="card-body">{% include "forest/_selection_form.html" %}</div>
-    </div>
+    {% endcall %}
 </div>
 {% endif %}
 </div>
