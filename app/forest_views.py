@@ -71,8 +71,18 @@ def find():
 def map_page():
     from .fields_views import aerial_options
     background, legend = forest.map_background()
-    return _page("forest/map.html", "karte", items=forest.map_data(), aerial=aerial_options(),
-                 background=background, legend=legend,
+    species = [s for s in request.args.getlist("baumart") if s]
+    kinds = [k for k in request.args.getlist("art") if k in FOREST_KINDS]
+    only_free = request.args.get("frei") == "1"
+    single = db.session.get(ForestTree, request.args.get("baum", type=int)) if request.args.get("baum") else None
+    if single is not None:                               # „Lage öffnen“: nur dieser Baum, ohne Filter
+        species, kinds, only_free = [], [], False
+    items = forest.map_data(species, kinds, only_free, tree_id=single.id if single else None)
+    return _page("forest/map.html", "karte", items=items, aerial=aerial_options(),
+                 background=background, legend=legend, single=single,
+                 kinds=FOREST_KINDS, kinds_used=forest.kinds_in_use(), chosen_kinds=kinds,
+                 kind_labels=[_(FOREST_KINDS[k]) for k in kinds], chosen_species=species, only_free=only_free,
+                 species_items=[{"id": s, "pick_label": s} for s in forest.species_list()],
                  missing=ForestTree.query.filter(ForestTree.lat.is_(None)).count())
 
 

@@ -1,6 +1,40 @@
 {% extends "forest/_layout.html" %}
+{% from "macros.html" import multi_pick %}
 {% block forest %}
-{% if not items %}
+{% set filtered = chosen_kinds or chosen_species or only_free %}
+{% if single %}
+<div class="alert alert-light d-flex flex-wrap gap-2 align-items-center py-2">
+    <i class="bi bi-geo-alt"></i><span class="fw-semibold">{{ _("Nur {tree}", tree=single.label) }}</span>
+    <a class="ms-auto" href="{{ url_for('forest.tree_detail', key=single.key) }}">{{ _("zum Baum") }}</a>
+    <a href="{{ url_for('forest.map_page') }}">{{ _("Alle Bäume zeigen") }}</a>
+</div>
+{% if not items %}<div class="alert alert-warning">{{ _("Für diesen Baum ist noch keine Lage eingetragen.") }}</div>{% endif %}
+{% elif kinds_used|length > 1 or species_items %}
+<form class="card shadow-sm mb-2" method="get" id="mapFilter">
+    <div class="card-body py-2 d-flex flex-wrap gap-2 align-items-center">
+        {% if kinds_used|length > 1 %}
+        <div class="d-flex flex-wrap gap-1" role="group" aria-label="{{ _('Art') }}">
+            {% for key in kinds_used %}
+            <input type="checkbox" class="btn-check" name="art" value="{{ key }}" id="mart_{{ key }}" autocomplete="off" {{ 'checked' if key in chosen_kinds }} onchange="this.form.submit()">
+            <label class="btn btn-sm btn-outline-primary" for="mart_{{ key }}">{{ _(kinds[key]) }}</label>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if species_items %}
+        <div style="min-width: 12rem">{{ multi_pick([(none, species_items)], chosen_species, _("Alle Baumarten"), "baumart", _("Baumart"), _("Baumart suchen …")) }}</div>
+        {% endif %}
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="mapFree" name="frei" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()">
+            <label class="form-check-label text-nowrap" for="mapFree">{{ _("nur mit freien Plätzen") }}</label>
+        </div>
+        <button class="btn btn-sm btn-primary">{{ _("Anzeigen") }}</button>
+        {% if filtered %}<a class="small text-nowrap" href="{{ url_for('forest.map_page') }}">{{ _("Alle Filter zurücksetzen") }}</a>{% endif %}
+    </div>
+</form>
+{% endif %}
+{% if not items and filtered %}
+<div class="alert alert-info">{{ _("Keine Bäume mit Lage für diese Auswahl.") }}</div>
+{% elif not items and not single %}
 <div class="alert alert-info">{{ _("Noch keine Bäume mit Lage. Am Baum die Baumseite öffnen und „Standort hier setzen“ tippen – oder die Baumpunkte aus dem GIS unter Bäume → „Übernahme aus dem bisherigen Programm“ einlesen.") }}</div>
 {% endif %}
 {% if items or background %}
@@ -32,7 +66,7 @@
 (function () {
     var aerial = {{ aerial|tojson }};
     if (aerial) aerial.on = true;
-    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial, background: {{ background|tojson }}, minSpan: 150 });
+    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial, background: {{ background|tojson }}, minSpan: {{ 60 if single else 150 }}, fitItems: {{ 'true' if single else 'false' }} });
     var toggle = document.getElementById("aerialToggle");
     if (toggle) {
         toggle.classList.add("active");

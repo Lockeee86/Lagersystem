@@ -462,3 +462,24 @@ def test_tree_filters(app, db, woods, as_worker):
     assert as_worker.get("/wald/suche?baum=28").headers["Location"].endswith("/wald/baum/B28")
     assert "/wald/baeume?q=27" in as_worker.get("/wald/suche?baum=27").headers["Location"]
     assert "/wald/baeume" in as_worker.get("/wald/suche?baum=999").headers["Location"]
+
+
+def test_map_filters(app, db, seed, as_admin):
+    seed["admin"].forest = True
+    forest.create_trees(1, 3, 4, species="Buche", field="A")
+    forest.create_trees(4, 4, 4, species="Eiche", kind="einzel", field="A")
+    db.session.commit()
+    for i, t in enumerate(ForestTree.query.order_by(ForestTree.number)):
+        t.lat, t.lon = 50.1 + i * 0.0001, 9.2
+    db.session.commit()
+    assert len(forest.map_data()) == 4
+    assert len(forest.map_data(kinds=["gemeinschaft"])) == 3
+    assert len(forest.map_data(species=["Eiche"])) == 1
+    page = as_admin.get("/wald/karte?art=einzel").get_data(as_text=True)
+    assert page.count('"id":') == 1 or page.count('"id": ') == 1
+    a4 = ForestTree.query.filter_by(number=4).one()
+    tree_page = as_admin.get(f"/wald/baum/{a4.key}").get_data(as_text=True)
+    assert f"/wald/karte?baum={a4.id}" in tree_page
+    page = as_admin.get(f"/wald/karte?baum={a4.id}&art=gemeinschaft").get_data(as_text=True)
+    assert "Nur Baum A 4" in page and "Alle Bäume zeigen" in page
+    assert len(forest.map_data(tree_id=a4.id)) == 1

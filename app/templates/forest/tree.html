@@ -3,7 +3,7 @@
 {% block subtitle %}<p class="text-body-secondary mb-0">{{ tree.label }} · {{ tree.code }}{% if tree.species %} · {{ tree.species }}{% endif %}{% if tree.category %} · {{ _("Kategorie {c}", c=tree.category) }}{% endif %}{% if tree.trunk_cm %} · {{ _("Stamm Ø {cm} cm", cm=tree.trunk_cm) }}{% endif %}{% if tree.section %} · {{ tree.section }}{% endif %} · {{ tree.kind_label }}{% if not tree.active %} · <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</p>{% endblock %}
 {% block forest %}
 <div class="d-flex flex-wrap gap-2 mb-3">
-    {% if tree.lat is not none %}<a class="btn btn-sm btn-outline-secondary" href="https://www.openstreetmap.org/?mlat={{ tree.lat }}&mlon={{ tree.lon }}#map=19/{{ tree.lat }}/{{ tree.lon }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>{{ _("Lage öffnen") }}</a>{% endif %}
+    {% if tree.lat is not none or tree.outline %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('forest.map_page', baum=tree.id) }}"><i class="bi bi-geo-alt me-1"></i>{{ _("Lage öffnen") }}</a>{% endif %}
     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('forest.map_page') }}"><i class="bi bi-map me-1"></i>{{ _("Karte") }}</a>
 </div>
 {% set outline = tree.outline_points %}

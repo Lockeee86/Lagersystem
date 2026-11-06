@@ -287,11 +287,14 @@ def overview(today=None):
     }
 
 
-def map_data():
-    """Bäume mit Lage für die Karte (Schlagkarte.js): Farbe nach freien Plätzen."""
+def map_data(species=None, kinds=None, only_free=False, tree_id=None):
+    """Bäume mit Lage für die Karte (Schlagkarte.js): Farbe nach freien Plätzen. Filter wie `tree_rows`,
+    `tree_id` = nur dieser eine Baum (Knopf „Lage öffnen“ auf der Baumseite)."""
     items = []
-    for row in tree_rows():
+    for row in tree_rows(only_free=only_free, species=species, kinds=kinds):
         tree = row["tree"]
+        if tree_id is not None and tree.id != tree_id:
+            continue
         outline = tree.outline_points
         if (tree.lat is None or tree.lon is None) and not outline:
             continue

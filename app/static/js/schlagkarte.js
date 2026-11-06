@@ -33,13 +33,18 @@ window.Schlagkarte = (function () {
             if (it.point) { lons.push(it.point[0]); lats.push(it.point[1]); }
         });
         var lat0 = (Math.min.apply(null, lats) + Math.max.apply(null, lats)) / 2;
+        var lon0 = (Math.min.apply(null, lons) + Math.max.apply(null, lons)) / 2;
         var k = Math.cos(lat0 * Math.PI / 180), scale = 100000;
-        function project(p) { return [p[0] * k * scale, -p[1] * scale]; }
+        // Nullpunkt in der Kartenmitte: kleine Zahlen, sonst rundet der Browser beim starken Zoomen sichtbar
+        function project(p) { return [(p[0] - lon0) * k * scale, -(p[1] - lat0) * scale]; }
 
         var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        // `fitItems`: Ausschnitt nur nach den Einträgen, die Grundkarte liegt drumherum (z. B. ein einzelner Baum)
+        var fit = opts.fitItems && items.length ? items : null;
         items.concat(background).forEach(function (it) {
             it.projected = it.rings.map(function (r) { return r.map(project); });
             if (it.point) it.projected.push([project(it.point)]);
+            if (fit && fit.indexOf(it) < 0) return;
             it.projected.forEach(function (r) { r.forEach(function (p) {
                 minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
                 minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
@@ -131,8 +136,8 @@ window.Schlagkarte = (function () {
             if (!aerialOn) return;
             var b = visibleBox();
             if (!b) return;
-            var lon1 = b.x / (k * scale), lon2 = (b.x + b.w) / (k * scale);
-            var lat2 = -b.y / scale, lat1 = -(b.y + b.h) / scale;
+            var lon1 = lon0 + b.x / (k * scale), lon2 = lon0 + (b.x + b.w) / (k * scale);
+            var lat2 = lat0 - b.y / scale, lat1 = lat0 - (b.y + b.h) / scale;
             if (lon2 - lon1 > 2 || lat2 - lat1 > 2) return;
             var dpr = Math.min(window.devicePixelRatio || 1, 2);
             var pw = b.pw * dpr, ph = b.ph * dpr, f = Math.min(1, 2048 / Math.max(pw, ph));

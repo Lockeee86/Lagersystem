@@ -3348,4 +3348,9 @@ MESSAGES = {
     'Standort ungenau (± {m} m).': 'Lokalizacja niedokładna (± {m} m).',
     'Umriss der Fläche aus dem GIS': 'Obrys powierzchni z GIS',
     'Umriss übernommen: {n} Flächen': ('Przejęto obrys: {n} powierzchnia', 'Przejęto obrys: {n} powierzchnie', 'Przejęto obrys: {n} powierzchni'),
+    'Nur {tree}': 'Tylko {tree}',
+    'zum Baum': 'do drzewa',
+    'Alle Bäume zeigen': 'Pokaż wszystkie drzewa',
+    'Für diesen Baum ist noch keine Lage eingetragen.': 'Dla tego drzewa nie wpisano jeszcze położenia.',
+    'Keine Bäume mit Lage für diese Auswahl.': 'Brak drzew z położeniem dla tego wyboru.',
 }
