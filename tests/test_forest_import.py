@@ -235,6 +235,52 @@ def test_shapefile_points(app, db, seed, as_admin):
     assert as_admin.get("/wald/karte").status_code == 200
 
 
+def _polygon_zip(nummer, ring):
+    """Polygon-Shapefile mit einer Fläche (erfundener Umriss in UTM 32), zusätzlich ein Punkt-Shapefile."""
+    import struct
+    import zipfile
+    dbf = bytearray(struct.pack("<BBBBIHH20x", 3, 126, 1, 1, 1, 32 + 32 + 1, 21))
+    dbf += b"nummer".ljust(11, b"\0") + b"C" + b"\0" * 4 + bytes([20]) + b"\0" * 15 + b"\r"
+    dbf += b" " + nummer.encode("cp1252").ljust(20) + b"\x1a"
+    ring = ring + [ring[0]]
+    content = struct.pack("<i4d2ii", 5, 0, 0, 0, 0, 1, len(ring), 0) + b"".join(struct.pack("<2d", *p) for p in ring)
+    body = struct.pack(">2i", 1, len(content) // 2) + content
+    shp = struct.pack(">7i", 9994, 0, 0, 0, 0, 0, (100 + len(body)) // 2) + struct.pack("<2i4d4d", 1000, 5, *[0] * 8) + body
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for stem in ("Wald_Polygon", "Kopie_Polygon"):                 # doppelt im ZIP → nur einmal zählen
+            z.writestr(stem + ".dbf", bytes(dbf))
+            z.writestr(stem + ".shp", shp)
+            z.writestr(stem + ".prj", 'PROJCS["ETRS_1989_UTM_Zone_32N"]')
+        point = _shapefile_zip([("A 7", "N: 50.100000 O: 9.200000", (0, 0))])
+        with zipfile.ZipFile(io.BytesIO(point)) as src:
+            for name in ("Wald_Point.dbf", "Wald_Point.shp", "Wald_Point.prj"):
+                z.writestr(name, src.read(name))
+    return buf.getvalue()
+
+
+def test_shapefile_polygon(app, db, seed, as_admin):
+    seed["admin"].forest = True
+    db.session.commit()
+    ring = [(500000.0, 5538630.7), (500020.0, 5538630.7), (500020.0, 5538650.7), (500000.0, 5538650.7)]
+    data = _polygon_zip("Waldruhefläche D", ring)
+    points = forest_import.read_upload(data)["points"]
+    area = [p for p in points if p["outline"]]
+    assert len(points) == 2 and len(area) == 1 and area[0]["key"] == ("D", 0, "flaeche")
+    assert len(area[0]["outline"]) == 4 and abs(area[0]["lat"] - 50.00009) < 1e-4
+    forest.create_trees(7, 7, 4, field="A")
+    db.session.commit()
+    r = as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(data), "export.zip"), "action": "apply"},
+                      content_type="multipart/form-data", follow_redirects=True)
+    assert "Umriss übernommen: 1 Fläche" in r.get_data(as_text=True)
+    d = ForestTree.query.filter_by(field="D", number=0).one()             # fehlende Waldruhefläche angelegt
+    assert d.kind == "flaeche" and len(d.outline_points) == 4
+    items = {i["id"]: i for i in forest.map_data()}
+    assert items[d.id]["rings"] and items[d.id]["point"] is None
+    assert as_admin.get("/wald/karte").status_code == 200
+    assert as_admin.get(f"/wald/baum/{d.key}").status_code == 200
+
+
 def _dxf(*entities):
     """Minimale DXF-Zeichnung (erfundene Lagen in UTM 32 um 9° O / 50° N)."""
     out = ["0", "SECTION", "2", "HEADER", "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES"]

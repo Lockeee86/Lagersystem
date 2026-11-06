@@ -2248,6 +2248,7 @@ class ForestTree(db.Model):
     kind = db.Column(db.String(20), nullable=False, default="gemeinschaft", server_default="gemeinschaft")
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
+    outline = db.Column(db.Text)                          # Umriss einer Fläche: JSON [[Länge, Breite], …]
     note = db.Column(db.Text)
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -2280,6 +2281,16 @@ class ForestTree(db.Model):
     @property
     def kind_label(self):
         return _(FOREST_KINDS.get(self.kind, self.kind))
+
+    @property
+    def outline_points(self):
+        """Umriss als [[Länge, Breite], …] (leer = nur ein Punkt)."""
+        import json
+        try:
+            points = json.loads(self.outline) if self.outline else []
+        except ValueError:
+            return []
+        return points if len(points) >= 3 else []
 
 
 class ForestPlace(db.Model):

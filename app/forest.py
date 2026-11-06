@@ -292,12 +292,13 @@ def map_data():
     items = []
     for row in tree_rows():
         tree = row["tree"]
-        if tree.lat is None or tree.lon is None:
+        outline = tree.outline_points
+        if (tree.lat is None or tree.lon is None) and not outline:
             continue
         color = "#3f8f4f" if row["frei"] == row["total"] else "#e0a800" if row["frei"] else \
             "#7a5ea8" if row["reserviert"] else "#8a8a8a"
-        items.append({"id": tree.id, "name": tree.label, "number": tree.name, "color": color, "rings": [],
-                      "point": [tree.lon, tree.lat], "ha": None,
+        items.append({"id": tree.id, "name": tree.label, "number": tree.name, "color": color,
+                      "rings": [outline] if outline else [], "point": None if outline else [tree.lon, tree.lat], "ha": None,
                       "crop": _("{free} von {total} frei", free=row["frei"], total=row["total"])})
     return items
 

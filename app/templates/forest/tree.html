@@ -6,6 +6,20 @@
     {% if tree.lat is not none %}<a class="btn btn-sm btn-outline-secondary" href="https://www.openstreetmap.org/?mlat={{ tree.lat }}&mlon={{ tree.lon }}#map=19/{{ tree.lat }}/{{ tree.lon }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>{{ _("Lage öffnen") }}</a>{% endif %}
     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('forest.map_page') }}"><i class="bi bi-map me-1"></i>{{ _("Karte") }}</a>
 </div>
+{% set outline = tree.outline_points %}
+{% if outline %}
+<div class="card shadow-sm mb-3 overflow-hidden">
+    <div class="field-map field-map-small" id="areaMap">
+        <div class="field-map-tools btn-group-vertical">
+            <button class="btn btn-sm btn-light" type="button" id="areaZoomIn" aria-label="{{ _('Vergrößern') }}"><i class="bi bi-plus-lg"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="areaZoomOut" aria-label="{{ _('Verkleinern') }}"><i class="bi bi-dash-lg"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="areaZoomReset" aria-label="{{ _('Ganze Karte') }}"><i class="bi bi-arrows-fullscreen"></i></button>
+            <button class="btn btn-sm btn-light" type="button" id="areaLocate" aria-pressed="false" title="{{ _('Mein Standort') }}" aria-label="{{ _('Mein Standort') }}"><i class="bi bi-crosshair"></i></button>
+        </div>
+    </div>
+    <div class="card-body py-2 small text-body-secondary">{{ _("Umriss der Fläche aus dem GIS") }}</div>
+</div>
+{% endif %}
 {% if tree.note %}<div class="alert alert-light small">{{ tree.note }}</div>{% endif %}
 
 {% if selection %}
@@ -112,6 +126,23 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+{% set outline = tree.outline_points %}
+{% if outline %}
+<script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
+<script>
+(function () {
+    var map = Schlagkarte.create(document.getElementById("areaMap"),
+        [{ id: {{ tree.id }}, name: {{ tree.label|tojson }}, number: "", color: "#3f8f4f", rings: [{{ outline|tojson }}], point: null, ha: null }],
+        { labels: false, minSpan: 60 });
+    document.getElementById("areaZoomIn").addEventListener("click", map.zoomIn);
+    document.getElementById("areaZoomOut").addEventListener("click", map.zoomOut);
+    document.getElementById("areaZoomReset").addEventListener("click", map.reset);
+    Schlagkarte.locateButton(map, document.getElementById("areaLocate"), {{ {"wait": _("Standort wird ermittelt …"), "none": _("Standort nicht verfügbar."),
+        "denied": _("Standort nicht erlaubt – bitte im Browser freigeben."), "far": _("Du bist nicht auf der Karte (etwa {km} km entfernt)."),
+        "rough": _("Standort ungenau (± {m} m).")}|tojson }});
+})();
+</script>
+{% endif %}
 {% if wheel %}
 <script>
 // Kompass: Kreis so drehen, dass sein Norden zum echten Norden zeigt (Handy-Sensor, nur auf Knopfdruck)

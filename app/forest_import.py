@@ -116,59 +116,118 @@ def _dbf_records(data):
     return records
 
 
-def _shp_points(data):
+def _shp_records(data):
+    """Shapefile → je Datensatz ("point", (x, y)) bzw. ("polygon", [[(x, y), …], …]) oder None."""
     if len(data) < 100 or struct.unpack(">i", data[:4])[0] != 9994:
         raise StorageError(_("Die Datei konnte nicht gelesen werden."))
-    points, pos = [], 100
+    records, pos = [], 100
     while pos + 8 <= len(data):
         length = struct.unpack(">i", data[pos + 4:pos + 8])[0] * 2
         content = data[pos + 8:pos + 8 + length]
         shape = struct.unpack("<i", content[:4])[0] if len(content) >= 4 else 0
-        points.append(struct.unpack("<2d", content[4:20]) if shape in (1, 11, 21) and len(content) >= 20 else None)
+        if shape in (1, 11, 21) and len(content) >= 20:
+            records.append(("point", struct.unpack("<2d", content[4:20])))
+        elif shape in (5, 15, 25) and len(content) >= 44:
+            parts, count = struct.unpack("<2i", content[36:44])
+            starts = list(struct.unpack(f"<{parts}i", content[44:44 + 4 * parts])) + [count]
+            base = 44 + 4 * parts
+            coords = [struct.unpack("<2d", content[base + 16 * i:base + 16 * i + 16]) for i in range(count)]
+            records.append(("polygon", [coords[starts[i]:starts[i + 1]] for i in range(parts)]))
+        else:
+            records.append(None)
         pos += 8 + length
-    return points
+    return records
+
+
+def _ring_area(ring):
+    return abs(sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(ring, ring[1:] + ring[:1]))) / 2
 
 
 def parse_shapefile(data):
-    """ZIP mit Shapefile der Baumpunkte → [{"key": (Feld, Nummer, Art), "lat", "lon"}]."""
+    """ZIP mit Shapefiles aus dem GIS → [{"key": (Feld, Nummer, Art), "lat", "lon", "outline"}]. Punkte = Bäume,
+    Polygone = Flächen (Waldruhefläche): `outline` ist der größte Ring als [[Länge, Breite], …], Lage = Mitte."""
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
-        names = {n.lower(): n for n in archive.namelist()}
-        dbf_name = next((n for n in names if n.endswith(".dbf") and "point" in n), None) or \
-            next(n for n in names if n.endswith(".dbf"))
-        stem = dbf_name[:-4]
-        records = _dbf_records(archive.read(names[dbf_name]))
-        points = _shp_points(archive.read(names[stem + ".shp"])) if stem + ".shp" in names else []
-        prj = archive.read(names[stem + ".prj"]).decode("latin-1") if stem + ".prj" in names else ""
+        names = {n.lower(): n for n in archive.namelist() if not n.startswith("__MACOSX")}
+        stems = sorted(n[:-4] for n in names if n.endswith(".dbf"))
+        if not stems:
+            raise StopIteration
+        layers = []
+        for stem in stems:
+            records = _dbf_records(archive.read(names[stem + ".dbf"]))
+            shapes = _shp_records(archive.read(names[stem + ".shp"])) if stem + ".shp" in names else []
+            prj = archive.read(names[stem + ".prj"]).decode("latin-1") if stem + ".prj" in names else ""
+            layers.append((records, shapes, prj))
     except (zipfile.BadZipFile, StopIteration, KeyError, struct.error):
         raise StorageError(_("Im ZIP wurde kein Shapefile mit Baumpunkten gefunden."))
-    zone = int(re.search(r"UTM_Zone_(\d+)", prj).group(1)) if re.search(r"UTM_Zone_(\d+)", prj) else 32
     result = []
-    for i, rec in enumerate(records):
-        if not rec:
-            continue
-        key = tree_key(rec.get("nummer") or rec.get("nrform"))
-        m = re.search(r"N:\s*(-?[\d.]+)\s*O:\s*(-?[\d.]+)", rec.get("geokoordin", ""))
-        if m:
-            lat, lon = float(m.group(1)), float(m.group(2))
-        elif i < len(points) and points[i]:
-            lat, lon = utm_to_latlon(*points[i], zone=zone) if abs(points[i][0]) > 180 else (points[i][1], points[i][0])
-        else:
-            continue
-        result.append({"key": key, "lat": round(lat, 7), "lon": round(lon, 7)})
-    return result
+    for records, shapes, prj in layers:
+        m = re.search(r"UTM_Zone_(\d+)", prj)
+        zone = int(m.group(1)) if m else 32
+
+        def latlon(xy):
+            return utm_to_latlon(*xy, zone=zone) if abs(xy[0]) > 180 else (xy[1], xy[0])
+
+        for i, rec in enumerate(records):
+            if not rec:
+                continue
+            key = tree_key(rec.get("nummer") or rec.get("nrform"))
+            shape = shapes[i] if i < len(shapes) else None
+            item = {"key": key, "outline": None}
+            if shape and shape[0] == "polygon":
+                ring = max(shape[1], key=_ring_area)
+                outline = []
+                for xy in ring:
+                    lat, lon = latlon(xy)
+                    outline.append([round(lon, 7), round(lat, 7)])
+                if len(outline) > 1 and outline[0] == outline[-1]:
+                    outline.pop()
+                if len(outline) < 3:
+                    continue
+                item["outline"] = outline
+                item["lon"] = round(sum(p[0] for p in outline) / len(outline), 7)
+                item["lat"] = round(sum(p[1] for p in outline) / len(outline), 7)
+            else:
+                m = re.search(r"N:\s*(-?[\d.]+)\s*O:\s*(-?[\d.]+)", rec.get("geokoordin", ""))
+                if m:
+                    lat, lon = float(m.group(1)), float(m.group(2))
+                elif shape and shape[0] == "point":
+                    lat, lon = latlon(shape[1])
+                else:
+                    continue
+                item["lat"], item["lon"] = round(lat, 7), round(lon, 7)
+            result.append(item)
+    # dieselbe Ebene mehrfach im ZIP (z. B. mehrere Exporte): je Baum nur einmal, Umriss vor Punkt
+    unique, rest = {}, []
+    for item in result:
+        if not item["key"]:
+            rest.append(item)
+        elif item["key"] not in unique or item["outline"] or not unique[item["key"]]["outline"]:
+            unique[item["key"]] = item
+    return list(unique.values()) + rest
 
 
 def apply_points(points):
-    """Lage der Bäume setzen. Liefert {"located": …, "unknown": …}; committet nicht."""
-    stats = {"located": 0, "unknown": 0}
+    """Lage der Bäume setzen, Flächen bekommen ihren Umriss (eine fehlende Waldruhefläche wird angelegt).
+    Liefert {"located": …, "areas": …, "unknown": …}; committet nicht."""
+    import json
+    stats = {"located": 0, "areas": 0, "unknown": 0}
     for point in points:
-        tree = ForestTree.query.filter_by(field=point["key"][0], number=point["key"][1]).first() if point["key"] else None
+        key = point["key"]
+        tree = ForestTree.query.filter_by(field=key[0], number=key[1]).first() if key else None
+        if tree is None and key and key[2] == "flaeche" and point.get("outline"):
+            tree = ForestTree(field=key[0], number=0, kind="flaeche",
+                              section=_("Feld {field}", field=key[0]) if key[0] else None)
+            db.session.add(tree)
         if tree is None:
             stats["unknown"] += 1
             continue
         tree.lat, tree.lon = point["lat"], point["lon"]
-        stats["located"] += 1
+        if point.get("outline"):
+            tree.outline = json.dumps(point["outline"])
+            stats["areas"] += 1
+        else:
+            stats["located"] += 1
     db.session.flush()
     return stats
 

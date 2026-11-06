@@ -209,6 +209,9 @@ Portainer-Stack (docker-compose)
   bei genau einem Treffer den Baum, sonst die Liste.
   **Standort auf der Karte** (0.94.0): Knopf mit Fadenkreuz auf Wald- und Schlagkarte – blauer Punkt mit
   Genauigkeitskreis, folgt beim Gehen, die Karte springt beim ersten Mal hin. Weit weg: Hinweis mit Entfernung. Braucht HTTPS.
+  **Waldruhefläche als Fläche** (0.95.0): Polygone aus dem GIS-Export (Shapefile im ZIP) werden als Umriss übernommen –
+  eine fehlende Waldruhefläche wird dabei angelegt. Auf der Karte erscheint sie als Fläche statt Punkt, auf ihrer Seite eine
+  kleine Karte mit Standort-Knopf. Mehrfach enthaltene Ebenen im ZIP zählen nur einmal.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

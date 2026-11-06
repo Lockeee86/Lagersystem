@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 
 from . import forest, push, rounds
 from .extensions import db
-from .i18n import N_, gettext as _
+from .i18n import N_, gettext as _, ngettext
 from .models import (FOREST_KINDS, FOREST_PLACE_STATES, FOREST_SELECTION_STATES, ForestBurial, ForestContract,
                      ForestPlace, ForestSelection, ForestTree, User)
 from .storage import StorageError
@@ -156,6 +156,9 @@ def legacy_import():
                 stats = {**stats, **located}
                 parts.append(_("Lage gesetzt: {n} Bäume · ohne passenden Baum: {unknown}", n=located["located"],
                                unknown=located["unknown"]))
+                if located["areas"]:
+                    parts.append(ngettext("Umriss übernommen: {n} Fläche", "Umriss übernommen: {n} Flächen",
+                                          located["areas"]))
         text = " · ".join(parts)
         if commit:
             audit.note("forest_trees", _("Übernahme aus dem Altsystem"), stats)

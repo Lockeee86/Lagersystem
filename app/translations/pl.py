@@ -3346,4 +3346,6 @@ MESSAGES = {
     'Standort nicht erlaubt – bitte im Browser freigeben.': 'Brak zgody na lokalizację – zezwól na nią w przeglądarce.',
     'Du bist nicht auf der Karte (etwa {km} km entfernt).': 'Nie jesteś na mapie (ok. {km} km stąd).',
     'Standort ungenau (± {m} m).': 'Lokalizacja niedokładna (± {m} m).',
+    'Umriss der Fläche aus dem GIS': 'Obrys powierzchni z GIS',
+    'Umriss übernommen: {n} Flächen': ('Przejęto obrys: {n} powierzchnia', 'Przejęto obrys: {n} powierzchnie', 'Przejęto obrys: {n} powierzchni'),
 }
