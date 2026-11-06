@@ -47,6 +47,24 @@
         </div>
     </div>
 
+    {% if current_user.restricted and center_choices|length > 1 %}
+    <div class="col-12" id="leiste">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
+            <form class="card-body" method="post" action="{{ url_for('auth.tabbar_save') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <span class="form-label small mb-1 d-block">{{ _("Runder Knopf in der Mitte") }}</span>
+                <div class="btn-group mb-2" role="group" aria-label="{{ _('Runder Knopf in der Mitte') }}">
+                    {% for key in center_choices %}
+                    <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %} onchange="this.form.submit()">
+                    <label class="btn btn-outline-primary" for="mitte_{{ key }}"><i class="bi {{ center_items[key].icon }} me-1"></i>{{ _(center_items[key].label) }}</label>
+                    {% endfor %}
+                </div>
+                <noscript><button class="btn btn-primary">{{ _("Speichern") }}</button></noscript>
+            </form>
+        </div>
+    </div>
+    {% endif %}
     {% if not current_user.restricted %}
     <div class="col-12" id="leiste">
         <div class="card shadow-sm">

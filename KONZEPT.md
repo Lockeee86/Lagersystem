@@ -219,6 +219,8 @@ Portainer-Stack (docker-compose)
   Handy oben als einklappbare Zeile (`fold_card`), am PC bleiben Beisetzung/Termin rechts offen. Baumliste importieren und
   Übernahme aus dem Altsystem bleiben (selten gebraucht) unten auf der Baumseite. Untere Leiste springt nicht mehr beim
   Nachfedern am Seitenanfang/-ende.
+  **Mitte „Waldkarte“** (0.97.2): Benutzer „nur Bestattungswald“ haben in der Mitte der unteren Leiste die Waldkarte statt
+  Scannen; unter Mein Konto auf Scannen umstellbar.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

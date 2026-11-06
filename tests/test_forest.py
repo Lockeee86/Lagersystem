@@ -163,6 +163,13 @@ def test_forest_only_user(app, db, woods, as_admin, as_worker):
     tabs = html[html.index('class="tabbar'):html.index("</nav>", html.index('class="tabbar'))]
     assert 'href="/wald/beisetzungen"' in tabs and 'href="/aufgaben"' in tabs and "Lager" not in tabs
     assert 'action="/suche"' not in html
+    assert 'class="tabbar-scan tabbar-waldkarte' in tabs and 'href="/wald/karte"' in tabs     # Mitte: Waldkarte
+    assert "tabbar-scan tabbar-waldkarte active" in as_worker.get("/wald/karte").get_data(as_text=True)
+    as_worker.post("/konto/leiste", data={"mitte": "scan"})
+    assert worker.tab_center == "scan" and "tabbar-scan tabbar-scan" in as_worker.get("/wald").get_data(as_text=True)
+    as_worker.post("/konto/leiste", data={"mitte": "waldkarte"})
+    assert worker.tab_center == ""
+    assert as_worker.post("/konto/leiste", data={"mitte": "einlagern"}).status_code == 302 and worker.tab_center == ""
 
     # Beisetzung eintragen → die Aufgaben sieht er, fremde nicht
     other = Task(title="Ölwechsel Schlepper")

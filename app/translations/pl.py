@@ -3353,4 +3353,5 @@ MESSAGES = {
     'Alle Bäume zeigen': 'Pokaż wszystkie drzewa',
     'Für diesen Baum ist noch keine Lage eingetragen.': 'Dla tego drzewa nie wpisano jeszcze położenia.',
     'Keine Bäume mit Lage für diese Auswahl.': 'Brak drzew z położeniem dla tego wyboru.',
+    'Waldkarte': 'Mapa lasu',
 }

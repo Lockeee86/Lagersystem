@@ -221,7 +221,7 @@ docker compose up --build -d
   eigene Übersicht `main.storage_home` mit Kartoffellager und Schüttlager). `app/search.py`: Suche
 - Handy: untere Leiste in `base.html` (`mobile_tab`, Zurück-Link `mobile_crumb`; die zwei freien Plätze aus
   `app/tabbar.py`: `CHOICES`, Rolle `settings` `tabbar_<rolle>`, eigene Wahl `User.tabbar`; runder Knopf in der Mitte
-  `CENTER` Einlagern (Standard) / Scannen, `center()`, eigene Wahl `User.tab_center`, Betrachter/nur Hühner immer Scannen), Startseite mit „Jetzt wichtig“
+  `CENTER` Einlagern (Standard) / Scannen, `center()`, eigene Wahl `User.tab_center`, Betrachter/nur Hühner immer Scannen, nur Bestattungswald Waldkarte (Standard) oder Scannen – `default_center()`), Startseite mit „Jetzt wichtig“
   (`views._important`, ohne Aufgaben – die haben einen eigenen Block) und Schnellzugriff (`tiles.quick`). Listen-Filter am Handy über `macros.filter_toggle` /
   `filter_chips` (Auswahlfelder in `<div class="collapse filter-more" id="…"><div class="row g-2">`).
   Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)

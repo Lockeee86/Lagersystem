@@ -233,7 +233,8 @@ def tab_for(endpoint, view_args=None, user=None):
     if user is not None and user.is_authenticated and user.restricted:
         from .area_only import config
         tab = config(user)["tab"]
-        return {_only_home(user): "heute", tab["endpoint"]: tab["key"], "main.scan": "scan"}.get(
+        return {_only_home(user): "heute", tab["endpoint"]: tab["key"], "main.scan": "scan",
+                "forest.map_page": "waldkarte"}.get(
             endpoint, "aufgaben" if endpoint.startswith("tasks.") else "mehr")
     tabs = _tabs(user)
     if endpoint == "main.dashboard":
