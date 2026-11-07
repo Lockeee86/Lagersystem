@@ -1208,3 +1208,29 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 .assistant-answer h4, .assistant-answer h5, .assistant-answer h6 { margin-top: .75rem; font-weight: 600; }
 .assistant-answer p:last-child, .assistant-answer ul:last-child { margin-bottom: 0; }
 .assistant-answer .table { font-size: .9rem; }
+
+/* Fütterungsplan Biogas */
+.feeding-week { display: grid; gap: .6rem; }
+.feeding-day.is-today { border: 2px solid var(--brand); }
+.feeding-day.is-past { opacity: .75; }
+.feeding-day.has-free:not(.is-past) { border-left: 4px solid #e0a800; }
+.feeding-date { line-height: 1.2; }
+.feeding-slots { display: grid; gap: .35rem; }
+.feeding-slot { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; padding: .35rem .5rem; border-radius: .5rem;
+    background: color-mix(in srgb, var(--bs-body-color) 5%, transparent); }
+.feeding-slot.is-mine { background: color-mix(in srgb, var(--brand) 14%, transparent); }
+.feeding-slot.is-free { background: color-mix(in srgb, #e0a800 14%, transparent); }
+.feeding-day.is-past .feeding-slot.is-free { background: color-mix(in srgb, var(--bs-body-color) 5%, transparent); }
+.feeding-label { font-size: .8rem; font-weight: 600; min-width: 4.8rem; color: var(--bs-secondary-color); }
+.feeding-name { font-weight: 500; }
+.feeding-actions { display: flex; flex-wrap: wrap; gap: .3rem; margin-left: auto; align-items: center; }
+.feeding-actions form { margin: 0; }
+@media (min-width: 992px) {
+    .feeding-week { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; }
+    .feeding-day .card-body { padding: .6rem; }
+    .feeding-day .d-flex.mb-2 { flex-wrap: wrap; }
+    .feeding-slot { flex-direction: column; align-items: stretch; }
+    .feeding-actions { margin-left: 0; }
+    .feeding-actions .btn, .feeding-actions .form-select { width: 100%; }
+    .feeding-actions form { width: 100%; }
+}

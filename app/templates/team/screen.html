@@ -195,6 +195,14 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
                     {% if b.price_now is not none and not d.price %}<span><i class="bi bi-currency-euro"></i> {{ _("Strompreis") }} <b>{{ b.price_now|num(0) }} €/MWh</b></span>{% endif %}
                 </div>
                 {% endif %}
+                {% if d.feeding %}
+                <div class="plant-facts">
+                    {% for word, rows in [(_("Heute"), d.feeding.today), (_("Morgen"), d.feeding.tomorrow)] %}
+                    <span><i class="bi bi-basket2"></i> {{ word }}:
+                        {% for label, name, done in rows %}<b class="{{ 'warn-text' if not name }}">{% if rows|length > 1 %}{{ label }} {% endif %}{{ name or _("frei") }}{% if done %} ✓{% endif %}</b>{{ " · " if not loop.last }}{% endfor %}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </section>
             {% endif %}
             <section class="card grow">

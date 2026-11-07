@@ -251,6 +251,11 @@ class User(UserMixin, db.Model):
 
 # Push-Nachrichten: Thema → Bezeichnung, Gruppe, für wen es in Frage kommt, ob es von sich aus an ist
 # ("default" fehlt = an)
+def _feeding_active():
+    from .plant_feeding import active
+    return active()
+
+
 PUSH_TOPICS = {
     "tasks_new": {"label": N_("Neue Aufgabe für mich"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
     "tasks_due": {"label": N_("Morgens: meine Aufgaben für heute"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
@@ -294,6 +299,12 @@ PUSH_TOPICS = {
                   "who": lambda u: u.keeps_chickens},
     "coop_sensor": {"label": N_("Stall-Sensor: Frost, Hitze oder keine Verbindung"), "group": N_("Hühner"),
                     "who": lambda u: u.keeps_chickens},
+    "feeding_mine": {"label": N_("Fütterung: abends Erinnerung, wenn ich morgen füttere"), "group": N_("Biogas"),
+                     "who": lambda u: u.can_edit and u.sees_biogas and _feeding_active()},
+    "feeding_free": {"label": N_("Fütterung: Platz frei (morgen noch offen oder abgegeben)"), "group": N_("Biogas"),
+                     "who": lambda u: u.can_edit and u.sees_biogas and _feeding_active()},
+    "feeding_missed": {"label": N_("Fütterung nicht abgehakt"), "group": N_("Biogas"),
+                       "who": lambda u: u.is_planner and u.sees_biogas and _feeding_active()},
 }
 
 
@@ -2503,4 +2514,38 @@ class AssistantQuery(db.Model):
             return json.loads(self.tools) if self.tools else []
         except ValueError:
             return []
+
+
+class FeedingDay(db.Model):
+    """Fütterungsplan der Biogasanlage: ein Tag, an dem vom Standard (1× oder 2×) abgewichen wird, oder mit Notiz."""
+    __tablename__ = "feeding_days"
+
+    day = db.Column(db.Date, primary_key=True)
+    times = db.Column(db.Integer, nullable=False, default=1)       # 1 = einmal, 2 = Früh und Abend
+    note = db.Column(db.String(200))
+    updated_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+
+    updated_by = db.relationship("User")
+
+
+FEEDING_SLOTS = {1: N_("Früh"), 2: N_("Abend")}
+
+
+class FeedingShift(db.Model):
+    """Wer an einem Tag füttert: Platz 1 = Früh (bzw. die einzige Fütterung), Platz 2 = Abend."""
+    __tablename__ = "feeding_shifts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    slot = db.Column(db.Integer, nullable=False, default=1)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    done_at = db.Column(db.DateTime(timezone=True))
+    done_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    note = db.Column(db.String(300))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    done_by = db.relationship("User", foreign_keys=[done_by_id])
+
+    __table_args__ = (db.UniqueConstraint("day", "slot", name="uq_feeding_shifts_day_slot"),)
 

@@ -412,4 +412,6 @@ def daily(app, now=None):
         chickens.evening_check(now, _job_done, _mark_job)     # Eier eintragen? Hühnerklappe zu?
         from . import climate
         climate.check(now, _job_done, _mark_job)              # Lagerklima außerhalb der Grenzwerte
+        from . import plant_feeding
+        plant_feeding.check(now, _job_done, _mark_job)        # Fütterungsplan Biogas: frei, Erinnerung, nicht abgehakt
 

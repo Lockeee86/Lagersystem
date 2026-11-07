@@ -147,6 +147,14 @@ docker compose up --build -d
   (`User.biogas` → `sees_biogas`, auch für Admins abwählbar; Rundgang der Biogasanlage, BHKW/Strompreis auf der Startseite und
   Push-Gruppe „Biogas“ hängen daran; BHKW-Maschinen ebenso: `machines.visible(query, user)` / `can_see()` in Listen,
   Suche, Startseite, Kalender, Push – neue Maschinen-Abfragen für Benutzer damit filtern). Wartungen kopieren: `machines.copy_tasks`
+- `app/plant_feeding.py`: Fütterungsplan der Biogasanlage (Reiter Biogas → Fütterung, `biogas.feeding_page` `/biogas/fuetterung`,
+  Routen `feeding_*` in `biogas_views.py`) – Standard je Wochentag + Feiertag `defaults()` (`settings` `feeding_defaults`),
+  Abweichung je Tag `FeedingDay` (1×/2×), `FeedingShift` je Platz (1 = Früh bzw. einzige, 2 = Abend) mit Person und Abhaken;
+  `week()`, `take()` (selbst, Planer auch für andere; bis `WEEKS_AHEAD` Wochen), `give_up()` → `notify_free()`, `set_times()`
+  (Planer jederzeit, am Tag selbst auch wer dann füttert; 2 → 1 lässt Früh, Abend rückt auf oder fällt weg → `notify_removed()`),
+  `mark_done()`/`undo_done()`, Push `check()` aus `push.daily` (16 Uhr frei morgen, 19 Uhr Erinnerung, 12 Uhr / 8 Uhr nicht
+  abgehakt an Planer; Themen `feeding_*`), Startseite (`views._feeding_important`, „Meine Aufgaben heute“), Kalender
+  `calendar_events()`, Werkstatt-Bildschirm, Anlagen-Display (Hinweis); committet nicht (außer über `push.daily`)
 - `app/rounds.py`: Rundgang – `CheckStation` (Code `R-01`, `normalize_code`, `/scan` erkennt ihn) und `StationCheck`
   (Ergebnis je Prüfpunkt, Fotos über `Photo.check_id`), `record_check()` / `resolve()` / `status()` / `overview()`,
   Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint

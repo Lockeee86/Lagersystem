@@ -141,6 +141,21 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     return sorted(items, key=lambda i: order[i["level"]])
 
 
+def _feeding_important(today):
+    """Fütterungsplan Biogas: freie Plätze heute und morgen für „Jetzt wichtig“."""
+    from . import plant_feeding
+    items = []
+    for day, word in ((today, _("heute")), (today + timedelta(days=1), _("morgen"))):
+        free = plant_feeding.free_slots(day)
+        if free:
+            times = plant_feeding.times_on(day)
+            items.append({"level": "danger" if day == today else "warning", "title": _("Fütterung noch frei"),
+                          "sub": f"{word} · " + ", ".join(plant_feeding.slot_label(s, times) for s in free),
+                          "url": url_for("biogas.feeding_page", woche=plant_feeding.monday_of(day).isoformat())
+                          + f"#t{day.isoformat()}"})
+    return items
+
+
 def _stock_overview(recent_limit=12, site=None):
     """Lagerzahlen für Startseite (PC) und Lager-Bereichsseite (Handy): Belegung je Lager, Bestand je Sorte,
     Kennzahlen, letzte Bewegungen. Mit `site` nur die Lager dieser Betriebsstätte und die Kisten darin."""
@@ -224,6 +239,14 @@ def dashboard():
                            rounds.overview() if current_user.can_edit and current_user.sees_biogas
                            and rounds.has_stations() else None,
                            climate.important())
+    from . import plant_feeding
+    my_feeding = []
+    if plant_feeding.is_member(current_user) and plant_feeding.active():
+        times = plant_feeding.times_on(today)
+        my_feeding = [{"shift": f, "label": plant_feeding.slot_label(f.slot, times) if times == 2 else None}
+                      for f in plant_feeding.mine(current_user, today, today)]
+        order = {"danger": 0, "warning": 1, "success": 2}
+        important = sorted(important + _feeding_important(today), key=lambda i: order[i["level"]])
     show_order = tiles.sections_for(current_user)
     show = set(show_order)
     strip = None
@@ -239,6 +262,7 @@ def dashboard():
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(),
         my_today=team.my_today(current_user, today) if current_user.can_edit else [],
+        my_feeding=my_feeding,
         open_for_all=[t for t in team.open_tasks(today, current_user, today) if not t.assignees]
         if current_user.can_edit else [],
         bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show,

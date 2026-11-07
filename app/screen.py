@@ -6,7 +6,7 @@ erneuert ihn unter Verwaltung → Hof). Nur lesend; committet nicht.
 """
 import hmac
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import biogas, machines, tasks, team, weather
 from .extensions import db
@@ -65,7 +65,13 @@ def data(now=None):
     w = weather.get_weather()
     if not w or w.get("error"):
         w = None
+    from . import plant_feeding
+    feeding = None
+    if plant is not None and plant_feeding.active():
+        feeding = {"today": plant_feeding.day_summary(today),
+                   "tomorrow": plant_feeding.day_summary(today + timedelta(days=1))}
     return {"now": now, "today": today, "people": people, "faults": faults, "faults_more": faults_more,
             "due": due, "due_more": due_more, "tasks": open_tasks, "tasks_more": tasks_more,
             "handovers": handovers, "weather": w, "refresh": REFRESH, "biogas": plant,
-            "price": biogas.price_strip(cached.get("price_series")) if cached.get("price_series") else None}
+            "price": biogas.price_strip(cached.get("price_series")) if cached.get("price_series") else None,
+            "feeding": feeding}

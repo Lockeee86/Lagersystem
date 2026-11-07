@@ -272,3 +272,128 @@ def plant_create():
     db.session.commit()
     flash(_("Prüfliste angelegt – Fristen und letzte Prüfung bitte an Genehmigung und Prüfbescheide anpassen."), "success")
     return redirect(url_for("machines.machine_detail", machine_id=machine.id) + "#wartungen")
+
+
+# --- Fütterungsplan -----------------------------------------------------------------------------
+
+def _feeding_back(day=None):
+    from . import plant_feeding
+    target = request.form.get("back", "")
+    if target.startswith("/") and not target.startswith("//"):
+        return redirect(target)
+    monday = plant_feeding.monday_of(day or date.today())
+    return redirect(url_for("biogas.feeding_page", woche=monday.isoformat()) + (f"#t{day.isoformat()}" if day else ""))
+
+
+def _form_day():
+    try:
+        return date.fromisoformat(request.form.get("tag", ""))
+    except ValueError:
+        abort(400)
+
+
+@bp.route("/biogas/fuetterung")
+@login_required
+def feeding_page():
+    """Reiter „Fütterung“: Kalenderwoche mit 1×/2× je Tag, eintragen, abgeben, abhaken."""
+    from . import plant_feeding
+    from .models import User
+    today = date.today()
+    try:
+        start = date.fromisoformat(request.args.get("woche", ""))
+    except ValueError:
+        start = today
+    monday = plant_feeding.monday_of(start)
+    days = plant_feeding.week(monday, current_user, today)
+    absent = set()
+    if plant_feeding.is_member(current_user):
+        absent = {d["day"] for d in days if not d["past"] and plant_feeding.absent_warning(current_user, d["day"])}
+    members = sorted(plant_feeding.members(), key=lambda u: u.name.casefold()) if current_user.is_planner else []
+    return _page("biogas/feeding.html", "fuetterung", days=days, monday=monday,
+                 week_no=monday.isocalendar()[1], prev=monday - timedelta(days=7), next=monday + timedelta(days=7),
+                 last_day=plant_feeding.last_day(today), member=plant_feeding.is_member(current_user),
+                 members=members, absent=absent, defaults=plant_feeding.defaults(),
+                 weeks_ahead=plant_feeding.WEEKS_AHEAD)
+
+
+@bp.route("/biogas/fuetterung/eintragen", methods=["POST"])
+@login_required
+def feeding_take():
+    from . import plant_feeding
+    from .models import User
+    day = _form_day()
+    user = db.session.get(User, form_int("user_id") or 0) if request.form.get("user_id") else None
+    try:
+        shift = plant_feeding.take(day, form_int("slot") or 1, current_user, user)
+        db.session.commit()
+        if plant_feeding.absent_warning(shift.user, day):
+            flash(_("Hinweis: {name} ist an dem Tag laut Kalender abwesend.", name=shift.user.name), "warning")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _feeding_back(day)
+
+
+@bp.route("/biogas/fuetterung/<int:shift_id>/abgeben", methods=["POST"])
+@login_required
+def feeding_give_up(shift_id):
+    from . import plant_feeding
+    from .models import FeedingShift
+    shift = db.session.get(FeedingShift, shift_id) or abort(404)
+    day = shift.day
+    try:
+        info = plant_feeding.give_up(shift, current_user)
+        db.session.commit()
+        plant_feeding.notify_free(info[0], info[1], current_user)
+        flash(_("Fütterung abgegeben – das Team bekommt Bescheid."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _feeding_back(day)
+
+
+@bp.route("/biogas/fuetterung/<int:shift_id>/erledigt", methods=["POST"])
+@login_required
+def feeding_done(shift_id):
+    from . import plant_feeding
+    from .models import FeedingShift
+    shift = db.session.get(FeedingShift, shift_id) or abort(404)
+    try:
+        if request.form.get("zurueck"):
+            plant_feeding.undo_done(shift, current_user)
+        else:
+            plant_feeding.mark_done(shift, current_user, request.form.get("note"))
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _feeding_back(shift.day)
+
+
+@bp.route("/biogas/fuetterung/tag", methods=["POST"])
+@login_required
+def feeding_times():
+    from . import plant_feeding
+    day = _form_day()
+    try:
+        removed = plant_feeding.set_times(day, form_int("times") or 1, current_user)
+        db.session.commit()
+        plant_feeding.notify_removed(removed, day, current_user)
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _feeding_back(day)
+
+
+@bp.route("/biogas/fuetterung/standard", methods=["POST"])
+@admin_required
+def feeding_defaults():
+    from . import plant_feeding
+    try:
+        plant_feeding.save_defaults([request.form.get(f"d{i}", "1") for i in range(plant_feeding.WEEKDAY_KEYS)])
+        db.session.commit()
+        flash(_("Standard gespeichert."), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("biogas.feeding_page") + "#standard")

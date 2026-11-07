@@ -1,0 +1,103 @@
+{% extends "biogas/_layout.html" %}
+{% block biogas %}
+{% set here = url_for('biogas.feeding_page', woche=monday.isoformat()) %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3 feeding-head">
+    <a class="btn btn-outline-secondary" href="{{ url_for('biogas.feeding_page', woche=prev.isoformat()) }}" aria-label="{{ _('Vorwoche') }}"><i class="bi bi-chevron-left"></i></a>
+    <div class="text-center flex-grow-1 flex-lg-grow-0 px-lg-2">
+        <div class="fw-semibold">{{ _("KW {n}", n=week_no) }}</div>
+        <div class="small text-body-secondary">{{ monday|date }} – {{ (days[-1].day)|date }}</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('biogas.feeding_page', woche=next.isoformat()) }}" aria-label="{{ _('Folgewoche') }}"><i class="bi bi-chevron-right"></i></a>
+    {% if not (monday <= today <= days[-1].day) %}<a class="btn btn-sm btn-link" href="{{ url_for('biogas.feeding_page') }}">{{ _("Diese Woche") }}</a>{% endif %}
+</div>
+
+<div class="feeding-week mb-4">
+{% for d in days %}
+<div class="feeding-day card shadow-sm {{ 'is-today' if d.today }} {{ 'is-past' if d.past }} {{ 'has-free' if d.free and d.open }}" id="t{{ d.day.isoformat() }}">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="feeding-date">
+                <div class="fw-semibold">{{ d.day|weekday }}{% if d.today %} <span class="badge text-bg-primary">{{ _("heute") }}</span>{% endif %}</div>
+                <div class="small text-body-secondary">{{ d.day|date }}{% if d.holiday %} · <span class="text-danger">{{ _(d.holiday) }}</span>{% endif %}</div>
+            </div>
+            <div class="ms-auto">
+                {% if d.can_switch %}
+                <form method="post" action="{{ url_for('biogas.feeding_times') }}" class="btn-group btn-group-sm" role="group" aria-label="{{ _('Wie oft füttern?') }}">
+                    {{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                    <button class="btn {{ 'btn-primary' if d.times == 1 else 'btn-outline-primary' }}" name="times" value="1" {{ 'aria-pressed=true' if d.times == 1 }}>1×</button>
+                    <button class="btn {{ 'btn-primary' if d.times == 2 else 'btn-outline-primary' }}" name="times" value="2" {{ 'aria-pressed=true' if d.times == 2 }}>2×</button>
+                </form>
+                {% else %}<span class="badge text-bg-light border">{{ d.times }}×</span>{% endif %}
+            </div>
+        </div>
+        {% if d.day in absent %}<div class="small text-warning-emphasis mb-1"><i class="bi bi-airplane me-1"></i>{{ _("Du bist an diesem Tag laut Kalender abwesend.") }}</div>{% endif %}
+        <div class="feeding-slots">
+        {% for s in d.slots %}
+        {% set sh = s.shift %}
+        <div class="feeding-slot {{ 'is-done' if sh and sh.done_at }} {{ 'is-free' if not sh }} {{ 'is-mine' if sh and sh.user_id == current_user.id }}">
+            <span class="feeding-label">{{ s.label }}</span>
+            {% if sh %}
+            <span class="feeding-name">{% if sh.done_at %}<i class="bi bi-check-circle-fill text-success me-1"></i>{% endif %}{{ sh.user.name }}{% if sh.done_at %} <span class="small text-body-secondary">{{ sh.done_at|time }}</span>{% endif %}</span>
+            {% if sh.note %}<span class="small text-body-secondary d-block w-100">{{ sh.note }}</span>{% endif %}
+            {% set can_act = member and (sh.user_id == current_user.id or current_user.is_planner) %}
+            {% if can_act %}
+            <span class="feeding-actions">
+                {% if not sh.done_at and d.day <= today %}
+                <form method="post" action="{{ url_for('biogas.feeding_done', shift_id=sh.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                    <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>{{ _("Erledigt") }}</button></form>
+                {% elif sh.done_at %}
+                <form method="post" action="{{ url_for('biogas.feeding_done', shift_id=sh.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}"><input type="hidden" name="zurueck" value="1">
+                    <button class="btn btn-sm btn-link text-body-secondary p-0" title="{{ _('Abhaken zurücknehmen') }}" aria-label="{{ _('Abhaken zurücknehmen') }}"><i class="bi bi-arrow-counterclockwise"></i></button></form>
+                {% endif %}
+                {% if not sh.done_at and not d.past %}
+                <form method="post" action="{{ url_for('biogas.feeding_give_up', shift_id=sh.id) }}">{{ csrf() }}<input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                    <button class="btn btn-sm btn-outline-secondary" data-confirm="{{ _('Fütterung abgeben? Das Team bekommt Bescheid.') }}">{{ _("Abgeben") }}</button></form>
+                {% endif %}
+            </span>
+            {% endif %}
+            {% else %}
+            {% if member and d.open %}
+            <span class="feeding-actions">
+                <form method="post" action="{{ url_for('biogas.feeding_take') }}">{{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="slot" value="{{ s.slot }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                    <button class="btn btn-sm btn-primary"><i class="bi bi-hand-index-thumb me-1"></i>{{ _("Ich übernehme") }}</button></form>
+                {% if members %}
+                <form method="post" action="{{ url_for('biogas.feeding_take') }}" class="d-flex gap-1">{{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="slot" value="{{ s.slot }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                    <select class="form-select form-select-sm" name="user_id" aria-label="{{ _('Person eintragen') }}" onchange="this.form.submit()">
+                        <option value="">{{ _("Jemanden eintragen …") }}</option>
+                        {% for u in members if u.id != current_user.id %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                    </select></form>
+                {% endif %}
+            </span>
+            {% else %}
+            <span class="feeding-name text-body-secondary">{{ _("frei") if not d.past else _("niemand") }}</span>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+<p class="small text-body-secondary">{{ _("Eintragen geht bis {date} ({n} Wochen im Voraus). 1×/2× stellen Planer und Admins um – am Tag selbst auch, wer dann füttert.", date=last_day|date, n=weeks_ahead) }}</p>
+
+{% if current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="standard">
+    <div class="card-header"><i class="bi bi-gear me-1"></i>{{ _("Standard: so oft wird gefüttert") }}</div>
+    <form class="card-body" method="post" action="{{ url_for('biogas.feeding_defaults') }}">
+        {{ csrf() }}
+        <div class="row g-2 mb-2">
+            {% for label in [_("Montag"), _("Dienstag"), _("Mittwoch"), _("Donnerstag"), _("Freitag"), _("Samstag"), _("Sonntag"), _("Feiertage")] %}
+            <div class="col-6 col-md-3"><label class="form-label small mb-1" for="fd{{ loop.index0 }}">{{ label }}</label>
+                <select class="form-select" id="fd{{ loop.index0 }}" name="d{{ loop.index0 }}">
+                    <option value="1" {{ 'selected' if defaults[loop.index0] == 1 }}>{{ _("1× füttern") }}</option>
+                    <option value="2" {{ 'selected' if defaults[loop.index0] == 2 }}>{{ _("2× füttern") }}</option>
+                </select></div>
+            {% endfor %}
+        </div>
+        <p class="small text-body-secondary">{{ _("Gilt für alle Tage, die nicht einzeln umgestellt wurden.") }}</p>
+        <button class="btn btn-outline-primary">{{ _("Speichern") }}</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

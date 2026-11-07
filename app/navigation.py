@@ -66,6 +66,7 @@ AREAS = [
         item("biogas.budget_page", N_("Budget"), "bi-speedometer2"),
         item("biogas.maintenance_page", N_("Wartung"), "bi-wrench-adjustable", endpoints=("biogas.window_settings",)),
         item("biogas.analysis_page", N_("Auswertung"), "bi-graph-up"),
+        item("biogas.feeding_page", N_("Fütterung"), "bi-basket2"),
         item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",)),
         item("biogas.settings_page", N_("Einstellungen"), "bi-gear", role=ROLE_ADMIN,
              endpoints=("biogas.feed_import_preview",)),

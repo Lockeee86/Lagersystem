@@ -92,6 +92,12 @@ def data(now=None):
     if round_overview and round_overview["overdue"]:
         alerts.append(ngettext("Rundgang: {n} Station nicht kontrolliert.", "Rundgang: {n} Stationen nicht kontrolliert.",
                                round_overview["overdue"]))
+    from . import plant_feeding
+    free_today = plant_feeding.free_slots(today) if plant_feeding.active() else []
+    if free_today:
+        times = plant_feeding.times_on(today)
+        alerts.append(_("Fütterung heute noch frei: {slots}",
+                        slots=", ".join(plant_feeding.slot_label(s_, times) for s_ in free_today)))
     overdue = [t for t, s in inspections if s["state"] == "overdue"]
     if overdue:
         alerts.append(ngettext("Prüfung überfällig: {names}", "Prüfungen überfällig: {names}", len(overdue),
