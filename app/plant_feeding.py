@@ -90,11 +90,17 @@ def slot_label(slot, times):
 # --- Rechte ---------------------------------------------------------------------------------------
 
 def is_member(user):
-    return bool(user and user.is_authenticated and user.can_edit and user.sees_biogas)
+    """Füttert die Anlage: Haken „BGA füttern“ in der Benutzerverwaltung (dazu Rubrik Biogas, nicht nur Betrachter)."""
+    return bool(user and user.is_authenticated and user.can_edit and user.sees_biogas and user.feeds_plant)
+
+
+def is_planner(user):
+    """Plant die Fütterung (andere eintragen, 1×/2× im Voraus) – auch ohne selbst zu füttern."""
+    return bool(user and user.is_authenticated and user.is_planner and user.sees_biogas)
 
 
 def members():
-    return [u for u in User.query.filter_by(active=True) if u.can_edit and u.sees_biogas]
+    return [u for u in User.query.filter_by(active=True) if u.can_edit and u.sees_biogas and u.feeds_plant]
 
 
 def last_day(today=None):
@@ -104,10 +110,12 @@ def last_day(today=None):
 def can_switch(user, day, today=None):
     """1×/2× umstellen: Planer/Admins jederzeit (nicht rückwirkend), sonst nur am Tag selbst, wer dann füttert."""
     today = today or date.today()
-    if not is_member(user) or day < today:
+    if day < today:
         return False
-    if user.is_planner:
+    if is_planner(user):
         return True
+    if not is_member(user):
+        return False
     return day == today and FeedingShift.query.filter_by(day=day, user_id=user.id).first() is not None
 
 
@@ -170,12 +178,10 @@ def take(day, slot, actor, user=None, today=None):
     """Platz übernehmen – für sich selbst, Planer/Admins auch für andere. Liefert die `FeedingShift`."""
     today = today or date.today()
     user = user or actor
-    if not is_member(actor):
-        raise StorageError(_("Eintragen dürfen nur Mitarbeiter mit der Rubrik Biogas."))
-    if user.id != actor.id and not actor.is_planner:
+    if user.id != actor.id and not is_planner(actor):
         raise StorageError(_("Andere eintragen dürfen nur Planer und Admins."))
     if not is_member(user):
-        raise StorageError(_("Diese Person hat keinen Zugang zur Rubrik Biogas."))
+        raise StorageError(_("Eintragen lassen sich nur Mitarbeiter mit dem Haken „BGA füttern“ (Benutzerverwaltung)."))
     if day < today:
         raise StorageError(_("Vergangene Tage lassen sich nicht mehr belegen."))
     if day > last_day(today):
@@ -196,7 +202,7 @@ def take(day, slot, actor, user=None, today=None):
 def give_up(shift, actor, today=None):
     """Platz abgeben (eigener oder als Planer). Liefert (Tag, Platz, frühere Person) für die Push-Nachricht."""
     today = today or date.today()
-    if not is_member(actor) or (shift.user_id != actor.id and not actor.is_planner):
+    if not (shift.user_id == actor.id or is_planner(actor)):
         raise StorageError(_("Abgeben kann nur, wer eingetragen ist – oder ein Planer."))
     if shift.done_at:
         raise StorageError(_("Diese Fütterung ist schon abgehakt."))
@@ -244,7 +250,7 @@ def set_times(day, times, actor, today=None):
 
 def mark_done(shift, actor, note=None, now=None, today=None):
     today = today or date.today()
-    if not is_member(actor) or (shift.user_id != actor.id and not actor.is_planner):
+    if not (shift.user_id == actor.id or is_planner(actor)):
         raise StorageError(_("Abhaken kann nur, wer eingetragen ist – oder ein Planer."))
     if shift.day > today:
         raise StorageError(_("Erst am Tag der Fütterung abhaken."))
@@ -256,7 +262,7 @@ def mark_done(shift, actor, note=None, now=None, today=None):
 
 
 def undo_done(shift, actor):
-    if not is_member(actor) or (shift.done_by_id != actor.id and shift.user_id != actor.id and not actor.is_planner):
+    if not (actor.id in (shift.done_by_id, shift.user_id) or is_planner(actor)):
         raise StorageError(_("Zurücknehmen kann nur, wer abgehakt hat – oder ein Planer."))
     shift.done_at = None
     shift.done_by_id = None
@@ -351,7 +357,7 @@ def _missed(day, slot):
     label = _slots_msg([slot], times_on(day))
     body = Msg("{day} {slot}: {name} hat noch nicht abgehakt.", day=_day_label(day), slot=label, name=shift.user.name) \
         if shift is not None else Msg("{day} {slot}: Es ist niemand eingetragen.", day=_day_label(day), slot=label)
-    planners = [u for u in members() if u.is_planner]
+    planners = [u for u in User.query.filter_by(active=True) if is_planner(u)]
     return push.notify(planners, "feeding_missed", Msg("Fütterung nicht abgehakt"), body, _where(day),
                        tag=f"feeding-missed-{day.isoformat()}-{slot}")
 

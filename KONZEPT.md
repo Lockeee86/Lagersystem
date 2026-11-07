@@ -232,6 +232,8 @@ Portainer-Stack (docker-compose)
   Wochentag und für Feiertage, vom Admin), Mitarbeiter tragen sich selbst ein (bis 8 Wochen voraus, auch beide Fütterungen),
   abgeben mit Push ans Team, abhaken. 1×/2× stellen Planer/Admins, am Tag selbst auch wer füttert. Keine Uhrzeiten; Push um
   16 Uhr (morgen frei), 19 Uhr (Erinnerung), 12 Uhr und 8 Uhr (nicht abgehakt → Planer). Mengen kommen ggf. später.
+  Haken **„BGA füttern“** in der Benutzerverwaltung (0.100.1): nur diese Mitarbeiter tragen sich ein, werden eingeteilt und
+  bekommen die Erinnerungen; Planer/Admins planen auch ohne Haken.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

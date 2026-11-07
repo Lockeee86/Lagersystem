@@ -739,6 +739,7 @@ def users():
         user.active = active
         user.can_order = bool(request.form.get("can_order"))
         user.can_plan = bool(request.form.get("can_plan"))
+        user.feeds_plant = bool(request.form.get("feeds_plant"))
         only = request.form.get("only") if role != ROLE_ADMIN else None       # nur eine Rubrik (area_only.py)
         user.chickens_only = only == "huehner"
         user.forest_only = only == "wald"

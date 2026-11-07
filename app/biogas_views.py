@@ -308,10 +308,12 @@ def feeding_page():
     absent = set()
     if plant_feeding.is_member(current_user):
         absent = {d["day"] for d in days if not d["past"] and plant_feeding.absent_warning(current_user, d["day"])}
-    members = sorted(plant_feeding.members(), key=lambda u: u.name.casefold()) if current_user.is_planner else []
+    members = sorted(plant_feeding.members(), key=lambda u: u.name.casefold()) \
+        if plant_feeding.is_planner(current_user) else []
     return _page("biogas/feeding.html", "fuetterung", days=days, monday=monday,
                  week_no=monday.isocalendar()[1], prev=monday - timedelta(days=7), next=monday + timedelta(days=7),
                  last_day=plant_feeding.last_day(today), member=plant_feeding.is_member(current_user),
+                 planner=plant_feeding.is_planner(current_user), feeders=len(plant_feeding.members()),
                  members=members, absent=absent, defaults=plant_feeding.defaults(),
                  weeks_ahead=plant_feeding.WEEKS_AHEAD)
 

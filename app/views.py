@@ -241,9 +241,9 @@ def dashboard():
                            climate.important())
     from . import plant_feeding
     my_feeding = []
-    if plant_feeding.is_member(current_user) and plant_feeding.active():
+    if (plant_feeding.is_member(current_user) or plant_feeding.is_planner(current_user)) and plant_feeding.active():
         times = plant_feeding.times_on(today)
-        my_feeding = [{"shift": f, "label": plant_feeding.slot_label(f.slot, times) if times == 2 else None}
+        my_feeding = [] if not plant_feeding.is_member(current_user) else [{"shift": f, "label": plant_feeding.slot_label(f.slot, times) if times == 2 else None}
                       for f in plant_feeding.mine(current_user, today, today)]
         order = {"danger": 0, "warning": 1, "success": 2}
         important = sorted(important + _feeding_important(today), key=lambda i: order[i["level"]])

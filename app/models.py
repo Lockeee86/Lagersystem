@@ -105,6 +105,7 @@ class User(UserMixin, db.Model):
     # Besteller: bearbeitet Bestellwünsche (Admins dürfen das immer)
     can_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     can_plan = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    feeds_plant = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # füttert die BGA
     chickens = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())   # Rubrik Hühner
     forest = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())     # Rubrik Bestattungswald
     biogas = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())        # Rubrik Biogas
@@ -300,9 +301,9 @@ PUSH_TOPICS = {
     "coop_sensor": {"label": N_("Stall-Sensor: Frost, Hitze oder keine Verbindung"), "group": N_("Hühner"),
                     "who": lambda u: u.keeps_chickens},
     "feeding_mine": {"label": N_("Fütterung: abends Erinnerung, wenn ich morgen füttere"), "group": N_("Biogas"),
-                     "who": lambda u: u.can_edit and u.sees_biogas and _feeding_active()},
+                     "who": lambda u: u.can_edit and u.sees_biogas and u.feeds_plant and _feeding_active()},
     "feeding_free": {"label": N_("Fütterung: Platz frei (morgen noch offen oder abgegeben)"), "group": N_("Biogas"),
-                     "who": lambda u: u.can_edit and u.sees_biogas and _feeding_active()},
+                     "who": lambda u: u.can_edit and u.sees_biogas and u.feeds_plant and _feeding_active()},
     "feeding_missed": {"label": N_("Fütterung nicht abgehakt"), "group": N_("Biogas"),
                        "who": lambda u: u.is_planner and u.sees_biogas and _feeding_active()},
 }

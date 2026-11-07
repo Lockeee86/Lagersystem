@@ -25,12 +25,12 @@
                             <div class="small text-body-secondary">{{ u.username }}</div></div>
                     </div>
                 </td>
-                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens and not u.forest_only %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if u.forest_only and not u.is_admin %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("nur Bestattungswald") }}</span>{% elif u.forest and not u.chickens_only %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("Bestattungswald") }}</span>{% endif %}{% if not u.biogas and not u.chickens_only and not u.forest_only %} <span class="badge text-bg-secondary">{{ _("ohne Biogas") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
+                <td><span class="badge role-{{ u.role }}">{{ u.role_label }}</span>{% if u.can_order and not u.is_admin %} <span class="badge text-bg-info">{{ _("Besteller") }}</span>{% endif %}{% if u.can_plan and not u.is_admin %} <span class="badge text-bg-info">{{ _("Tagesplan") }}</span>{% endif %}{% if u.feeds_plant %} <span class="badge text-bg-info"><i class="bi bi-basket2"></i> {{ _("BGA füttern") }}</span>{% endif %}{% if u.chickens_only and not u.is_admin %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("nur Hühner") }}</span>{% elif u.chickens and not u.forest_only %} <span class="badge text-bg-warning"><i class="bi bi-egg"></i> {{ _("Hühner") }}</span>{% endif %}{% if u.forest_only and not u.is_admin %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("nur Bestattungswald") }}</span>{% elif u.forest and not u.chickens_only %} <span class="badge text-bg-success"><i class="bi bi-tree"></i> {{ _("Bestattungswald") }}</span>{% endif %}{% if not u.biogas and not u.chickens_only and not u.forest_only %} <span class="badge text-bg-secondary">{{ _("ohne Biogas") }}</span>{% endif %}{% if not u.active %} <span class="badge text-bg-secondary">{{ _("gesperrt") }}</span>{% endif %}</td>
                 <td title="{{ languages.get(u.language, u.language) }}">{{ LANGUAGE_FLAGS.get(u.language, '') }} {{ u.language|upper }}</td>
                 <td class="d-none d-md-table-cell small text-body-secondary">{{ u.last_login|datetime }}</td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal"
-                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active, "can_order": u.can_order, "can_plan": u.can_plan, "chickens": u.chickens, "only": "huehner" if u.chickens_only else "wald" if u.forest_only else "", "biogas": u.biogas, "forest": u.forest}|tojson }}'><i class="bi bi-pencil"></i></button>
+                            data-edit='{{ {"id": u.id, "username": u.username, "display_name": u.display_name or "", "role": u.role, "language": u.language, "active": u.active, "can_order": u.can_order, "can_plan": u.can_plan, "feeds_plant": u.feeds_plant, "chickens": u.chickens, "only": "huehner" if u.chickens_only else "wald" if u.forest_only else "", "biogas": u.biogas, "forest": u.forest}|tojson }}'><i class="bi bi-pencil"></i></button>
                 </td>
             </tr>
             {% endfor %}
@@ -86,6 +86,10 @@
 <div class="form-check mb-2">
     <input class="form-check-input" type="checkbox" id="u_biogas" name="biogas" value="1">
     <label class="form-check-label" for="u_biogas">{{ _("Rubrik Biogas (BHKW, Rundgang, Strompreis-Ampel)") }}</label>
+</div>
+<div class="form-check mb-2 ms-4">
+    <input class="form-check-input" type="checkbox" id="u_feeds_plant" name="feeds_plant" value="1">
+    <label class="form-check-label" for="u_feeds_plant">{{ _("BGA füttern (trägt sich in den Fütterungsplan ein, bekommt die Erinnerungen)") }}</label>
 </div>
 <div class="form-check mb-2">
     <input class="form-check-input" type="checkbox" id="u_forest" name="forest" value="1">

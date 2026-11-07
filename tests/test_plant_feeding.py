@@ -23,6 +23,7 @@ def team(db, seed):
     anna = make_user("anna", "mitarbeiter")
     for u in (seed["admin"], seed["worker"], anna):
         u.biogas = True
+        u.feeds_plant = True
         db.session.add(PushSubscription(user=u, endpoint=f"https://push.example/{u.username}", p256dh="a", auth="b"))
     seed["viewer"].biogas = True
     db.session.commit()
@@ -181,3 +182,32 @@ def test_absence_hint(app, db, team, as_worker):
     r = as_worker.post("/biogas/fuetterung/eintragen", data={"tag": tomorrow.isoformat(), "slot": "1"},
                        follow_redirects=True)
     assert "laut Kalender abwesend" in r.get_data(as_text=True)
+
+
+def test_feeds_plant_flag(app, db, team, as_admin, as_worker):
+    """Nur wer den Haken „BGA füttern“ hat, trägt sich ein und bekommt Erinnerungen; Planer planen auch ohne."""
+    worker, admin = team["worker"], team["admin"]
+    worker.feeds_plant = False
+    admin.feeds_plant = False
+    db.session.commit()
+    pf.save_defaults([1] * 8)
+    db.session.commit()
+    today = date.today()
+    with pytest.raises(StorageError):
+        pf.take(today, 1, worker)
+    page = as_worker.get("/biogas/fuetterung").get_data(as_text=True)
+    assert "Ich übernehme" not in page and "BGA füttern" in page
+    assert "Fütterung noch frei" not in as_worker.get("/").get_data(as_text=True)
+    assert "feeding_mine" not in worker.push_topics()
+    # Admin ohne Haken plant trotzdem: trägt Anna ein, stellt um – sich selbst aber nicht
+    shift = pf.take(today, 1, admin, user=team["anna"])
+    assert pf.can_switch(admin, today + timedelta(days=3))
+    with pytest.raises(StorageError):
+        pf.take(today + timedelta(days=1), 1, admin)
+    db.session.commit()
+    assert shift.user_id == team["anna"].id
+    # Haken in der Benutzerverwaltung
+    as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter", "language": "de",
+                                           "active": "1", "biogas": "1", "feeds_plant": "1"})
+    assert worker.feeds_plant and pf.is_member(worker)
+    assert "BGA füttern" in as_admin.get("/admin/benutzer").get_data(as_text=True)

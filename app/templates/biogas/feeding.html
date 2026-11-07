@@ -11,6 +11,11 @@
     {% if not (monday <= today <= days[-1].day) %}<a class="btn btn-sm btn-link" href="{{ url_for('biogas.feeding_page') }}">{{ _("Diese Woche") }}</a>{% endif %}
 </div>
 
+{% if not feeders %}
+<div class="alert alert-info small"><i class="bi bi-info-circle me-1"></i>{{ _("Noch niemand hat den Haken „BGA füttern“. Admins setzen ihn unter Verwaltung → Benutzer bei allen, die die Anlage füttern.") }}</div>
+{% elif not member and not planner %}
+<div class="alert alert-light small"><i class="bi bi-info-circle me-1"></i>{{ _("Eintragen können sich alle mit dem Haken „BGA füttern“ in der Benutzerverwaltung.") }}</div>
+{% endif %}
 <div class="feeding-week mb-4">
 {% for d in days %}
 <div class="feeding-day card shadow-sm {{ 'is-today' if d.today }} {{ 'is-past' if d.past }} {{ 'has-free' if d.free and d.open }}" id="t{{ d.day.isoformat() }}">
@@ -39,7 +44,7 @@
             {% if sh %}
             <span class="feeding-name">{% if sh.done_at %}<i class="bi bi-check-circle-fill text-success me-1"></i>{% endif %}{{ sh.user.name }}{% if sh.done_at %} <span class="small text-body-secondary">{{ sh.done_at|time }}</span>{% endif %}</span>
             {% if sh.note %}<span class="small text-body-secondary d-block w-100">{{ sh.note }}</span>{% endif %}
-            {% set can_act = member and (sh.user_id == current_user.id or current_user.is_planner) %}
+            {% set can_act = sh.user_id == current_user.id or planner %}
             {% if can_act %}
             <span class="feeding-actions">
                 {% if not sh.done_at and d.day <= today %}
@@ -56,10 +61,10 @@
             </span>
             {% endif %}
             {% else %}
-            {% if member and d.open %}
+            {% if (member or members) and d.open %}
             <span class="feeding-actions">
-                <form method="post" action="{{ url_for('biogas.feeding_take') }}">{{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="slot" value="{{ s.slot }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
-                    <button class="btn btn-sm btn-primary"><i class="bi bi-hand-index-thumb me-1"></i>{{ _("Ich übernehme") }}</button></form>
+                {% if member %}<form method="post" action="{{ url_for('biogas.feeding_take') }}">{{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="slot" value="{{ s.slot }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                    <button class="btn btn-sm btn-primary"><i class="bi bi-hand-index-thumb me-1"></i>{{ _("Ich übernehme") }}</button></form>{% endif %}
                 {% if members %}
                 <form method="post" action="{{ url_for('biogas.feeding_take') }}" class="d-flex gap-1">{{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="slot" value="{{ s.slot }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
                     <select class="form-select form-select-sm" name="user_id" aria-label="{{ _('Person eintragen') }}" onchange="this.form.submit()">
