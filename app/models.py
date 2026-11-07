@@ -1237,7 +1237,7 @@ class MachineEvent(db.Model):
 class Photo(db.Model):
     """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert), gehört zu einem
     Maschinen-Logbucheintrag, einer Aufgabe, einem Bestellwunsch, einer Kiste, einem Anbaujahr, einem
-    Schüttlager oder einem Lieferschein. Wird es gelöscht, verschwindet die Datei nach dem Commit (uploads.py)."""
+    Schüttlager, einem Lieferschein oder einem Baum im Bestattungswald. Wird es gelöscht, verschwindet die Datei nach dem Commit (uploads.py)."""
     __tablename__ = "photos"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1250,6 +1250,7 @@ class Photo(db.Model):
     delivery_id = db.Column(db.Integer, db.ForeignKey("deliveries.id"), index=True)
     field_note_id = db.Column(db.Integer, db.ForeignKey("field_notes.id"), index=True)
     check_id = db.Column(db.Integer, db.ForeignKey("station_checks.id", ondelete="CASCADE"), index=True)
+    forest_tree_id = db.Column(db.Integer, db.ForeignKey("forest_trees.id", ondelete="CASCADE"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -1262,6 +1263,7 @@ class Photo(db.Model):
     bulk_store = db.relationship("BulkStore", back_populates="photos")
     delivery = db.relationship("Delivery", back_populates="photos")
     field_note = db.relationship("FieldNote", back_populates="photos")
+    forest_tree = db.relationship("ForestTree", back_populates="photos")
     user = db.relationship("User")
 
 
@@ -2253,6 +2255,8 @@ class ForestTree(db.Model):
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
+    photos = db.relationship("Photo", back_populates="forest_tree", order_by="Photo.created_at",
+                             cascade="all, delete-orphan")
     places = db.relationship("ForestPlace", back_populates="tree", order_by="ForestPlace.number",
                              cascade="all, delete-orphan")
 

@@ -5,6 +5,7 @@
 {% if single %}
 <div class="alert alert-light d-flex flex-wrap gap-2 align-items-center py-2">
     <i class="bi bi-geo-alt"></i><span class="fw-semibold">{{ _("Nur {tree}", tree=single.label) }}</span>
+    {% if target %}<button class="btn btn-sm btn-primary" type="button" id="guideBtn"><i class="bi bi-compass me-1"></i>{{ _("Hinführen") }}</button>{% endif %}
     <a class="ms-auto" href="{{ url_for('forest.tree_detail', key=single.key) }}">{{ _("zum Baum") }}</a>
     <a href="{{ url_for('forest.map_page') }}">{{ _("Alle Bäume zeigen") }}</a>
 </div>
@@ -66,7 +67,7 @@
 (function () {
     var aerial = {{ aerial|tojson }};
     if (aerial) aerial.on = true;
-    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial, background: {{ background|tojson }}, minSpan: {{ 60 if single else 150 }}, fitItems: {{ 'true' if single else 'false' }} });
+    var map = Schlagkarte.create(document.getElementById("forestMap"), {{ items|tojson }}, { url: "{{ url_for('forest.tree_by_id', tree_id=0) }}", aerial: aerial, background: {{ background|tojson }}, minSpan: {{ 60 if single else 150 }}, fitItems: {{ 'true' if single else 'false' }}, target: {{ target|tojson }} });
     var toggle = document.getElementById("aerialToggle");
     if (toggle) {
         toggle.classList.add("active");
@@ -77,7 +78,12 @@
     document.getElementById("zoomReset").addEventListener("click", map.reset);
     Schlagkarte.locateButton(map, document.getElementById("locateBtn"), {{ {"wait": _("Standort wird ermittelt …"), "none": _("Standort nicht verfügbar."),
         "denied": _("Standort nicht erlaubt – bitte im Browser freigeben."), "far": _("Du bist nicht auf der Karte (etwa {km} km entfernt)."),
-        "rough": _("Standort ungenau (± {m} m).")}|tojson }});
+        "rough": _("Standort ungenau (± {m} m)."), "target": single.label if target else none, "here": _("Du bist am Baum."),
+        "north_up": _("Pfeil: Norden oben wie auf der Karte"), "ahead": _("Pfeil zeigt in deine Richtung"), "compass": _("Kompass"),
+        "dirs": [_("Norden"), _("Nordost"), _("Osten"), _("Südost"), _("Süden"), _("Südwest"), _("Westen"), _("Nordwest")]}|tojson }});
+    var locate = document.getElementById("locateBtn"), guideBtn = document.getElementById("guideBtn");
+    if (guideBtn) guideBtn.addEventListener("click", function () { if (!locate.classList.contains("active")) locate.click(); });
+    {% if target and guide %}if (!locate.disabled) locate.click();{% endif %}
 })();
 </script>
 {% endif %}

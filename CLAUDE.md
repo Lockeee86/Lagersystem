@@ -109,7 +109,8 @@ docker compose up --build -d
   `app/task_views.py` (Blueprint `tasks`). Makros aus `tasks/_macros.html` mit `with context` importieren.
 - `app/fields.py`: Schlagkartei (KML-Import mit Abgleich, Anbaujahre `PlotYear`, Ertrag t/ha), committet nicht;
   `app/fields_views.py` (Blueprint `fields`), `app/static/js/schlagkarte.js` (Umrisse als SVG, Nullpunkt in der Kartenmitte `lon0`/`lat0`; eigener Standort
-  `map.locate()` + Knopf `Schlagkarte.locateButton(map, btn, texte)` auf Schlag- und Waldkarte).
+  `map.locate()` + Knopf `Schlagkarte.locateButton(map, btn, texte)` auf Schlag- und Waldkarte; Hinführen: Option `target`
+  + Texte `target`/`dirs`/`here` → Linie, Kasten mit Pfeil/Entfernung/Richtung, Kompass wie auf der Baumseite).
   `app/fielddoc.py`: Myfarm24-Schlagdokumentation (CSV) → Stammdaten, `PlotYear`, Maßnahmen `FieldMeasure`
   (`source="myfarm"` wird beim Re-Import ersetzt), Abgleich über `fields._match`; Anzeige `fields/_doc.html`.
   Wartezeiten: `fielddoc.protection()` / `protection_overview()` (Bemerkung „Wartezeit n Tage/F“, sonst
@@ -175,7 +176,9 @@ docker compose up --build -d
   Stamm aus `trunk_cm`; SVG in `forest/tree.html`, Antippen kreuzt `#pl<n>` an; Knopf „Kompass“ am Handy dreht
   `#wheelRot` nach dem Kompass – `deviceorientationabsolute` bzw. iPhone `webkitCompassHeading` nach
   `requestPermission`, Sensoren in der `Permissions-Policy` erlaubt), `map_data(species, kinds, only_free, tree_id)` (Schlagkarte, id = Baum-id → `forest.tree_by_id`; Karte `/wald/karte` mit
-  Filter Art/Baumart/frei, `?baum=<id>` = nur dieser Baum – „Lage öffnen“ auf der Baumseite, Option `fitItems`); Baumauswahl-Termin `ForestSelection` = Anfang
+  Filter Art/Baumart/frei, `?baum=<id>` = nur dieser Baum – „Lage öffnen“ auf der Baumseite, Option `fitItems`; `&hin=1` = „Hinführen“ startet den
+  Standort gleich); Fotos am Baum `ForestTree.photos` (`Photo.forest_tree_id`, Fotoleiste `kind="baum"`, für „nur Wald“ in
+  `area_only.allowed` freigegeben); Baumauswahl-Termin `ForestSelection` = Anfang
   von allem (`save_selection()` → Aufgabe „Baumauswahl“ für den Begleiter `guide`, `choose_tree()` merkt Baum + Plätze vor
   (`free_for()`, ohne Nummern die ersten freien), `cancel_selection()` / `reopen_selection()`, `selections()`,
   `next_place()`; Vertrag/Beisetzung aus der Auswahl über `?auswahl=` bzw. Formularfeld `selection_id`); Verträge `ForestContract` (nur Admin,

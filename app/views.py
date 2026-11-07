@@ -1308,6 +1308,12 @@ def _photo_owner(kind, owner_id):
     if kind == "lieferschein":
         delivery = db.session.get(Delivery, owner_id) or abort(404)
         return delivery, url_for("sales.delivery_detail", delivery_id=delivery.id) + "#fotos"
+    if kind == "baum":
+        from .models import ForestTree
+        tree = db.session.get(ForestTree, owner_id) or abort(404)
+        if not current_user.sees_forest:
+            abort(403)
+        return tree, url_for("forest.tree_detail", key=tree.key) + "#fotos"
     if kind == "schlag":
         plot = db.session.get(Plot, owner_id) or abort(404)
         year = form_int("year", minimum=1990, maximum=2100) or abort(400)

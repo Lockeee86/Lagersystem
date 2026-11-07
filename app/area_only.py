@@ -76,7 +76,12 @@ def allowed(user, endpoint, view_args):
         if photo.task_id:
             task = db.session.get(Task, photo.task_id)
             return task is not None and task_visible(task, user)
-        return False
+        return bool(photo.forest_tree_id) and area == "wald"
+    if endpoint == "main.photos_add":                     # Fotoleiste an der Baumseite
+        return area == "wald" and args.get("kind") == "baum"
+    if endpoint == "main.photo_delete":
+        photo = db.session.get(Photo, args.get("photo_id") or 0)
+        return photo is not None and bool(photo.forest_tree_id) and area == "wald"
     return False
 
 

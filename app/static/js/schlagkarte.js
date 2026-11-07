@@ -110,6 +110,10 @@ window.Schlagkarte = (function () {
         // eigener Standort (blauer Punkt mit Genauigkeitskreis), erst nach `locate(true)` sichtbar
         var me = el("g", { "class": "field-me", style: "display: none" });
         var meRange = el("circle", { "class": "field-me-range" }), meDot = el("circle", { "class": "field-me-dot" });
+        // Ziel (`opts.target` = [Länge, Breite], z. B. ein Baum): gestrichelte Linie vom Standort dorthin
+        var target = opts.target ? project(opts.target) : null;
+        var meLine = el("line", { "class": "field-me-line" });
+        if (target) me.appendChild(meLine);
         me.appendChild(meRange);
         me.appendChild(meDot);
         svg.appendChild(me);
@@ -277,15 +281,32 @@ window.Schlagkarte = (function () {
                 var dx = Math.max(full.x - p[0], 0, p[0] - (full.x + full.w));
                 var dy = Math.max(full.y - p[1], 0, p[1] - (full.y + full.h));
                 var away = Math.hypot(dx, dy) * 1.113;
+                var guide = null;
+                if (target) {
+                    meLine.setAttribute("x1", p[0].toFixed(1)); meLine.setAttribute("y1", p[1].toFixed(1));
+                    meLine.setAttribute("x2", target[0].toFixed(1)); meLine.setAttribute("y2", target[1].toFixed(1));
+                    var tx = target[0] - p[0], ty = target[1] - p[1];
+                    // Richtung in Grad ab Norden im Uhrzeigersinn (y zeigt auf der Karte nach Süden)
+                    guide = { distance: Math.hypot(tx, ty) * 1.113, bearing: (Math.atan2(tx, -ty) * 180 / Math.PI + 360) % 360 };
+                }
                 if (firstFix) {
                     firstFix = false;
-                    if (away < 1000) {
+                    if (target && guide.distance < 3000) {
+                        // Standort und Ziel zusammen zeigen
+                        var x1 = Math.min(p[0], target[0]), x2 = Math.max(p[0], target[0]);
+                        var y1 = Math.min(p[1], target[1]), y2 = Math.max(p[1], target[1]);
+                        var pad = Math.max(x2 - x1, y2 - y1) * 0.2 + 15;
+                        var bw = Math.max(x2 - x1 + 2 * pad, 50), bh = Math.max(y2 - y1 + 2 * pad, 50);
+                        var cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+                        view = { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh };
+                        apply();
+                    } else if (!target && away < 1000) {
                         var w = Math.min(view.w, Math.max(full.w / 4, 250)), f = w / view.w;
                         view = { x: p[0] - w / 2, y: p[1] - view.h * f / 2, w: w, h: view.h * f };
                         apply();
                     }
                 }
-                report(away < 1000 ? "ok" : "far", { accuracy: pos.coords.accuracy, away: away });
+                report(away < 1000 || target ? "ok" : "far", { accuracy: pos.coords.accuracy, away: away, guide: guide });
             }, function (err) {
                 report(err && err.code === 1 ? "denied" : "error");
                 if (err && err.code === 1) locate(false);
@@ -315,13 +336,81 @@ window.Schlagkarte = (function () {
         note.style.display = "none";
         box.appendChild(note);
         function say(text) { note.textContent = text || ""; note.style.display = text ? "" : "none"; }
+
+        // Hinführen (nur mit Ziel): Kasten oben links mit Pfeil, Entfernung und Himmelsrichtung. Mit Kompass zeigt der
+        // Pfeil in Laufrichtung (wie das Handy gehalten wird), sonst gilt „Norden oben“ wie auf der Karte.
+        var guideBox = null, guideArrow, guideText, guideHint, compassBtn, heading = null, lastGuide = null, compassOn = false;
+        if (texts.target) {
+            guideBox = document.createElement("div");
+            guideBox.className = "field-map-guide";
+            guideBox.style.display = "none";
+            guideBox.innerHTML = '<i class="bi bi-arrow-up-circle-fill guide-arrow" aria-hidden="true"></i>' +
+                '<div class="guide-body"><div class="guide-name"></div><div class="guide-text"></div><div class="guide-hint"></div></div>' +
+                '<button type="button" class="btn btn-sm btn-light guide-compass"><i class="bi bi-compass me-1"></i></button>';
+            guideBox.querySelector(".guide-name").textContent = texts.target;
+            guideArrow = guideBox.querySelector(".guide-arrow");
+            guideText = guideBox.querySelector(".guide-text");
+            guideHint = guideBox.querySelector(".guide-hint");
+            compassBtn = guideBox.querySelector(".guide-compass");
+            compassBtn.appendChild(document.createTextNode(texts.compass));
+            compassBtn.addEventListener("click", function () { startCompass(); });
+            box.appendChild(guideBox);
+        }
+        function direction(deg) { return texts.dirs[Math.round(deg / 45) % 8]; }
+        function renderGuide() {
+            if (!guideBox || !lastGuide) return;
+            guideBox.style.display = "";
+            var d = lastGuide.distance;
+            if (d < 6) {
+                guideText.textContent = texts.here;
+                guideArrow.className = "bi bi-check-circle-fill guide-arrow is-here";
+                guideArrow.style.transform = "";
+            } else {
+                var shown = d < 100 ? Math.round(d) + " m" : d < 1000 ? Math.round(d / 5) * 5 + " m" :
+                    (d / 1000).toLocaleString(document.documentElement.lang || "de", { maximumFractionDigits: 1 }) + " km";
+                guideText.textContent = shown + " · " + direction(lastGuide.bearing);
+                guideArrow.className = "bi bi-arrow-up-circle-fill guide-arrow";
+                guideArrow.style.transform = "rotate(" + Math.round(lastGuide.bearing - (heading || 0)) + "deg)";
+            }
+            guideHint.textContent = heading === null ? texts.north_up : texts.ahead;
+            compassBtn.style.display = heading === null && !compassOn ? "" : "none";
+        }
+        function onOrientation(e) {
+            var h = typeof e.webkitCompassHeading === "number" ? e.webkitCompassHeading :
+                (e.absolute && e.alpha !== null ? (360 - e.alpha) % 360 : null);
+            if (h === null) return;
+            var turn = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+            heading = (h + turn + 360) % 360;
+            renderGuide();
+        }
+        function startCompass() {
+            if (compassOn || !texts.target) return;
+            var listen = function () {
+                compassOn = true;
+                window.addEventListener("deviceorientationabsolute", onOrientation);
+                window.addEventListener("deviceorientation", onOrientation);
+                renderGuide();
+            };
+            if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") {
+                DeviceOrientationEvent.requestPermission().then(function (r) { if (r === "granted") listen(); })
+                    .catch(function () { renderGuide(); });
+            } else if (window.DeviceOrientationEvent) {
+                listen();
+            }
+        }
+
         btn.addEventListener("click", function () {
             var on = !map.locating();
+            if (on) startCompass();
+            else if (guideBox) { guideBox.style.display = "none"; lastGuide = null; }
             map.locate(on, function (state, info) {
                 btn.classList.toggle("active", state !== "off" && state !== "denied" && state !== "error");
                 btn.setAttribute("aria-pressed", btn.classList.contains("active") ? "true" : "false");
                 if (state === "wait") say(texts.wait);
-                else if (state === "ok") say(info.accuracy > 30 ? texts.rough.replace("{m}", Math.round(info.accuracy)) : "");
+                else if (state === "ok") {
+                    say(info.accuracy > 30 ? texts.rough.replace("{m}", Math.round(info.accuracy)) : "");
+                    if (info.guide) { lastGuide = info.guide; renderGuide(); }
+                }
                 else if (state === "far") say(texts.far.replace("{km}", (info.away / 1000).toLocaleString(document.documentElement.lang || "de", { maximumFractionDigits: 1 })));
                 else if (state === "denied") say(texts.denied);
                 else if (state === "error") say(texts.none);

@@ -78,8 +78,15 @@ def map_page():
     if single is not None:                               # „Lage öffnen“: nur dieser Baum, ohne Filter
         species, kinds, only_free = [], [], False
     items = forest.map_data(species, kinds, only_free, tree_id=single.id if single else None)
+    target = None
+    if single is not None:                               # Ziel fürs Hinführen: Baum bzw. Mitte der Fläche
+        points = single.outline_points
+        if single.lat is not None and single.lon is not None:
+            target = [single.lon, single.lat]
+        elif points:
+            target = [sum(p[0] for p in points) / len(points), sum(p[1] for p in points) / len(points)]
     return _page("forest/map.html", "karte", items=items, aerial=aerial_options(),
-                 background=background, legend=legend, single=single,
+                 background=background, legend=legend, single=single, target=target, guide=request.args.get("hin") == "1",
                  kinds=FOREST_KINDS, kinds_used=forest.kinds_in_use(), chosen_kinds=kinds,
                  kind_labels=[_(FOREST_KINDS[k]) for k in kinds], chosen_species=species, only_free=only_free,
                  species_items=[{"id": s, "pick_label": s} for s in forest.species_list()],

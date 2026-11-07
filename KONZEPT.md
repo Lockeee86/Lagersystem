@@ -221,6 +221,10 @@ Portainer-Stack (docker-compose)
   Nachfedern am Seitenanfang/-ende.
   **Mitte „Waldkarte“** (0.97.2): Benutzer „nur Bestattungswald“ haben in der Mitte der unteren Leiste die Waldkarte statt
   Scannen; unter Mein Konto auf Scannen umstellbar.
+  **Hinführen und Fotos** (0.98.0): Knopf „Hinführen“ auf der Baumseite öffnet die Karte mit dem Baum und startet den
+  Standort: gestrichelte Linie, Kasten mit Pfeil, Entfernung und Himmelsrichtung, am Ziel „Du bist am Baum“; mit Kompass zeigt
+  der Pfeil in Laufrichtung. Fotoleiste an jedem Baum (auch für „nur Bestattungswald“). Tests laufen parallel und bei jedem
+  Push automatisch bei GitHub.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

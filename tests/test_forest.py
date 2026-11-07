@@ -490,3 +490,34 @@ def test_map_filters(app, db, seed, as_admin):
     page = as_admin.get(f"/wald/karte?baum={a4.id}&art=gemeinschaft").get_data(as_text=True)
     assert "Nur Baum A 4" in page and "Alle Bäume zeigen" in page
     assert len(forest.map_data(tree_id=a4.id)) == 1
+
+
+def test_tree_photos(app, db, woods, as_admin, as_worker):
+    """Fotos am Baum – auch für Benutzer „nur Bestattungswald“, aber nur Baum-Fotos."""
+    from tests.test_photos import upload
+    from app.models import Photo
+    tree = _tree(2)
+    r = upload(as_worker, f"/fotos/baum/{tree.id}")
+    assert r.status_code == 302 and r.headers["Location"].endswith(f"/wald/baum/{tree.key}#fotos")
+    assert len(tree.photos) == 1 and tree.photos[0].user_id == woods["worker"].id
+    page = as_worker.get(f"/wald/baum/{tree.key}").get_data(as_text=True)
+    assert "Fotos vom Baum" in page and "photo-thumb" in page
+
+    woods["worker"].forest_only = True
+    db.session.commit()
+    photo = tree.photos[0]
+    assert as_worker.get(f"/foto/{photo.id}").status_code == 200
+    assert upload(as_worker, f"/fotos/baum/{tree.id}").status_code == 302 and len(tree.photos) == 2
+    other = Photo(filename="fremd.jpg", box_id=None)
+    db.session.add(other)
+    db.session.commit()
+    assert as_worker.get(f"/foto/{other.id}").status_code in (403, 404)       # keine fremden Fotos
+    assert upload(as_worker, f"/fotos/kiste/1").status_code in (403, 404)
+    assert as_worker.post(f"/foto/{photo.id}/loeschen", data={"back": "/wald"}).status_code == 302
+    assert len(tree.photos) == 1
+
+    # ohne Rubrik Bestattungswald kein Hochladen an Bäume
+    woods["worker"].forest_only = False
+    woods["worker"].forest = False
+    db.session.commit()
+    assert upload(as_worker, f"/fotos/baum/{tree.id}").status_code == 403
