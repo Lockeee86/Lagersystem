@@ -1,5 +1,5 @@
 -r requirements.txt
 pytest==9.1.1
 pytest-xdist==3.8.0                      # Tests parallel: pytest -n auto
-cryptography==46.0.3                     # nur Tests: Brücke (Meshtastic entschlüsseln)
+cryptography==50.0.2                     # nur Tests: Brücke (Meshtastic entschlüsseln)
 xlwt==1.3.0                              # nur Tests: .xls-Dateien erzeugen
