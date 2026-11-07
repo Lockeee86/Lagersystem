@@ -184,6 +184,14 @@ Nach Änderungen an `app/models.py` eine Migration erzeugen und mit committen:
 flask --app wsgi db migrate -m "Beschreibung"
 ```
 
+## Daten-Agent („Fragen“)
+
+Unter Übersicht → „Fragen“ (nur Admins) beantwortet ein Agent (Claude von Anthropic) Fragen zu den eigenen Zahlen:
+Kartoffellager, Erträge, Biogas, Maschinenkosten und Diesel, Bestattungswald, Hühner. Er darf **nur lesen** und bekommt
+nur Zahlen – keine Namen, Anschriften, Kunden, Verträge oder Haushalte. Einrichten: API-Schlüssel auf
+console.anthropic.com anlegen (Abrechnung nach Verbrauch) und im Stack als `ANTHROPIC_API_KEY` setzen. Jede Frage steht
+mit abgerufenen Daten und Kosten im Verlauf; das Monatslimit (Standard 20 $) stellt man auf der Seite ein.
+
 ## Biogas (Speicher-Kraftwerk)
 
 Für die Rubrik „Biogas“ liest die App die Fahrpläne der BHKW-Motoren aus der Speicher-Kraftwerk-API (nur lesend).

@@ -14,6 +14,7 @@ services:
       - BACKUP_DIR=/backup
       - BACKUP_HOUR=${BACKUP_HOUR:-3}
       - SKVE_API_KEY=${SKVE_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - SKVE_GAS_STORAGE_ID=${SKVE_GAS_STORAGE_ID:-}
     volumes:
       - uploads:/app/data

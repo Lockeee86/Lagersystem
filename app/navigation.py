@@ -29,6 +29,7 @@ AREAS = [
         item("purchases.purchase_list", N_("Bestellungen"), "bi-box-seam", prefixes=("purchases.",), badge="purchases"),
         item("agenda.month", N_("Kalender"), "bi-calendar3", prefixes=("agenda.",)),
         item("main.search", N_("Suche"), "bi-search"),
+        item("assistant.ask_page", N_("Fragen"), "bi-stars", role=ROLE_ADMIN, prefixes=("assistant.",)),
     ]},
     {"key": "lager", "label": N_("Lager"), "icon": "bi-grid-3x3-gap", "items": [
         # Übersicht mit den zwei Teilen Kartoffellager und Schüttlager, danach die Kartoffel-Seiten, dann Schüttlager
@@ -299,6 +300,8 @@ def crumb(endpoint, view_args=None, user=None):
         if endpoint.startswith("tasks."):
             return url_for("tasks.task_list"), ONLY_TASKS["label"]
         return url_for(conf["home"]), conf["label"]
+    if endpoint == "assistant.query_detail":
+        return url_for("assistant.ask_page"), N_("Fragen an die Daten")
     tabs = _tabs(user)
     more = (url_for("main.area", key="mehr"), HUBS["mehr"])
     if endpoint == "main.area":

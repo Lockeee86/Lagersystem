@@ -1203,3 +1203,8 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
         border-bottom: var(--bs-card-border-width) solid var(--bs-card-border-color); border-radius: 0; }
     .fold-pc-open .fold-chevron { display: none; }
 }
+
+/* Daten-Agent: Antwort */
+.assistant-answer h4, .assistant-answer h5, .assistant-answer h6 { margin-top: .75rem; font-weight: 600; }
+.assistant-answer p:last-child, .assistant-answer ul:last-child { margin-bottom: 0; }
+.assistant-answer .table { font-size: .9rem; }

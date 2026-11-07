@@ -225,6 +225,9 @@ Portainer-Stack (docker-compose)
   Standort: gestrichelte Linie, Kasten mit Pfeil, Entfernung und Himmelsrichtung, am Ziel „Du bist am Baum“; mit Kompass zeigt
   der Pfeil in Laufrichtung. Fotoleiste an jedem Baum (auch für „nur Bestattungswald“). Tests laufen parallel und bei jedem
   Push automatisch bei GitHub.
+  **Daten-Agent „Fragen“** (0.99.0): Admins stellen unter Übersicht → Fragen Fragen in Alltagssprache. Claude holt sich die
+  Zahlen über Werkzeuge, die nur lesen (Lager, Erträge, Biogas, Maschinenkosten/Diesel, Bestattungswald, Hühner) – ohne
+  personenbezogene Daten. Verlauf mit abgerufenen Daten und Kosten, Monatslimit (Standard 20 $), ohne `ANTHROPIC_API_KEY` aus.
   Die Baumseite zeigt den Ring farbig nach Stand; Antippen wählt den Platz beim Reservieren und bei der Baumauswahl.
   Unter 12 Plätzen ein Ring ab Norden, gleichmäßig verteilt; Waldruheflächen (mehr als 48 Plätze) bleiben bei den Kacheln.
 - **Grundkarte** (0.90.0): Wege, Kies, Parkplatz, Rasenflächen, Biotop, Andachtsplatz und Aussichtsplattform aus den

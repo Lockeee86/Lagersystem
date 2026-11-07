@@ -2469,3 +2469,38 @@ class ForestBurial(db.Model):
     dig_task = db.relationship("Task", foreign_keys=[dig_task_id])
     close_task = db.relationship("Task", foreign_keys=[close_task_id])
 
+
+class AssistantQuery(db.Model):
+    """Eine Frage an den Daten-Agenten (Claude, nur lesend): Antwort, benutzte Werkzeuge, Verbrauch und Kosten."""
+    __tablename__ = "assistant_queries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text)
+    status = db.Column(db.String(10), nullable=False, default="laeuft")    # laeuft | fertig | fehler
+    error = db.Column(db.String(20))               # Kennung aus `assistant.ERRORS`
+    tools = db.Column(db.Text)                     # JSON: [{"name", "input"}] – welche Daten abgerufen wurden
+    input_tokens = db.Column(db.Integer, nullable=False, default=0)
+    output_tokens = db.Column(db.Integer, nullable=False, default=0)
+    cache_read_tokens = db.Column(db.Integer, nullable=False, default=0)
+    cache_write_tokens = db.Column(db.Integer, nullable=False, default=0)
+    cost_usd = db.Column(db.Numeric(10, 4), nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    finished_at = db.Column(db.DateTime(timezone=True))
+
+    user = db.relationship("User")
+
+    @property
+    def error_label(self):
+        from .assistant import ERRORS
+        return _(ERRORS.get(self.error, ERRORS["unexpected"])) if self.error else ""
+
+    @property
+    def tool_list(self):
+        import json
+        try:
+            return json.loads(self.tools) if self.tools else []
+        except ValueError:
+            return []
+

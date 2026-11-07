@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Fragen") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Fragen an die Daten") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Der Agent liest Lager, Erträge, Biogas, Maschinen, Bestattungswald und Hühner – er kann nichts ändern.") }}</p>
+    </div>
+</div>
+{% if not enabled %}{% include "assistant/_setup.html" %}{% endif %}
+<div class="row g-3">
+<div class="col-lg-7">
+    <form class="card shadow-sm mb-3" method="post" action="{{ url_for('assistant.ask') }}" id="askForm">
+        {{ csrf() }}
+        <div class="card-body">
+            <label class="form-label fw-semibold" for="frage">{{ _("Deine Frage") }}</label>
+            <textarea class="form-control mb-2" id="frage" name="frage" rows="3" maxlength="2000" required {{ 'disabled' if not enabled }}
+                      placeholder="{{ _('z. B. Welche Sorte hatte den besten Ertrag je Hektar?') }}"></textarea>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+                {% for ex in examples %}<button type="button" class="btn btn-sm btn-outline-secondary ask-example" {{ 'disabled' if not enabled }}>{{ _(ex) }}</button>{% endfor %}
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button class="btn btn-primary" {{ 'disabled' if not enabled }}><i class="bi bi-stars me-1"></i>{{ _("Fragen") }}</button>
+                <span class="small text-body-secondary">{{ _("Die Antwort dauert meist 10–60 Sekunden. Es gehen nur Zahlen an Anthropic, keine Namen oder Anschriften.") }}</span>
+            </div>
+        </div>
+    </form>
+
+    <h2 class="hub-heading">{{ _("Bisherige Fragen") }}</h2>
+    <div class="hub-list mb-4">
+        {% for q in queries %}
+        <a class="hub-row" href="{{ url_for('assistant.query_detail', query_id=q.id) }}">
+            <span class="hub-icon"><i class="bi {{ 'bi-hourglass-split' if q.status == 'laeuft' else 'bi-exclamation-triangle text-danger' if q.status == 'fehler' else 'bi-chat-left-text' }}"></i></span>
+            <span class="hub-text"><span class="hub-title text-truncate">{{ q.question }}</span>
+                <span class="hub-status">{{ q.created_at|datetime }}{% if q.user %} · {{ q.user.name }}{% endif %}{% if q.cost_usd %} · {{ "%.2f"|format(q.cost_usd) }} $ {% endif %}{% if q.status == 'fehler' %} · {{ q.error_label }}{% endif %}</span></span>
+            <i class="bi bi-chevron-right hub-chevron"></i>
+        </a>
+        {% else %}
+        <div class="hub-row text-body-secondary">{{ _("Noch keine Fragen.") }}</div>
+        {% endfor %}
+    </div>
+</div>
+<div class="col-lg-5">
+    <div class="card shadow-sm mb-3" id="limit">
+        <div class="card-header"><i class="bi bi-cash-coin me-1"></i>{{ _("Kosten") }}</div>
+        <div class="card-body">
+            {% set pct = (100 * month_cost / limit)|round|int if limit else 0 %}
+            <div class="d-flex justify-content-between small mb-1"><span>{{ _("Dieser Monat") }}</span><span>{{ "%.2f"|format(month_cost) }} $ / {{ "%.2f"|format(limit) }} $</span></div>
+            <div class="progress mb-3" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100" style="height: .5rem">
+                <div class="progress-bar {{ 'bg-danger' if pct >= 90 else 'bg-warning' if pct >= 70 else '' }}" style="width: {{ [pct, 100]|min }}%"></div>
+            </div>
+            <form method="post" action="{{ url_for('assistant.save_limit') }}" class="d-flex gap-2 align-items-end">
+                {{ csrf() }}
+                <div class="flex-grow-1"><label class="form-label small mb-1" for="limitInput">{{ _("Monatslimit in US-Dollar") }}</label>
+                    <input class="form-control" id="limitInput" name="limit" inputmode="decimal" value="{{ '%.2f'|format(limit) }}"></div>
+                <button class="btn btn-outline-primary">{{ _("Speichern") }}</button>
+            </form>
+            <p class="small text-body-secondary mt-2 mb-0">{{ _("Ist das Limit erreicht, nimmt der Agent bis zum Monatsende keine Fragen mehr an. Abgerechnet wird bei Anthropic in US-Dollar.") }}</p>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll(".ask-example").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+        var box = document.getElementById("frage");
+        box.value = btn.textContent;
+        box.focus();
+    });
+});
+document.getElementById("askForm").addEventListener("submit", function (e) {
+    var btn = e.target.querySelector("button.btn-primary");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + btn.textContent;
+});
+</script>
+{% endblock %}

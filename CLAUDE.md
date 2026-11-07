@@ -196,6 +196,13 @@ docker compose up --build -d
   `push.grave_refresh()` → `refresh_grave_tasks()`), Kalender `calendar_events()`, Push `storm_check()` aus
   `push.daily`; committet nicht. `app/forest_views.py` (Blueprint `forest`, `/wald…`, Vorlagen `forest/` mit
   `_layout.html`), Baumkontrolle = Rundgang mit `CheckStation.area == "wald"` (`STATION_SUGGESTIONS`)
+- `app/assistant.py`: Daten-Agent „Fragen“ (nur Admin, `/fragen`, Blueprint `assistant` in `app/assistant_views.py`) – Claude
+  (`MODEL`, Anthropic-SDK, Schlüssel `ANTHROPIC_API_KEY` aus der Umgebung, ohne Schlüssel aus) mit Werkzeugen **nur zum Lesen**
+  (`TOOLS`: lager, ertraege, biogas, maschinen, wald, huehner – nur Zahlen, nie Namen/Anschriften/Kunden/Verträge/Haushalte;
+  `call_tool()` rollt danach zurück), eigene Schleife `run()` im Hintergrund-Thread (`start()`, in Tests sofort), Verlauf
+  `AssistantQuery` (Werkzeuge, Tokens, `cost_usd`, Fehler als Kennung `ERRORS`), Monatslimit `settings` `assistant_limit_usd`,
+  Antwort-Markdown `render_markdown()`. In Tests `assistant._client` ersetzen (kein Netz). Neue Werkzeuge: Personen weglassen und
+  `tests/test_assistant.py` (Datenschutz-Test) erweitern
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
   leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
   `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, Hof-Kanal `channel()` / `save_channel()`

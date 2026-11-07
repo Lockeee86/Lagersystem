@@ -61,6 +61,8 @@ def create_app(config=None):
         SKVE_API_BASE=os.environ.get("SKVE_API_BASE", "https://www.speicher-kraftwerk.de/api").rstrip("/"),
         SKVE_GAS_STORAGE_ID=os.environ.get("SKVE_GAS_STORAGE_ID", "").strip(),
         SKVE_TIMEOUT=float(os.environ.get("SKVE_TIMEOUT", "20")),
+        # Daten-Agent (Claude, nur lesend): ohne Schlüssel ist die Seite „Fragen“ aus
+        ANTHROPIC_API_KEY=os.environ.get("ANTHROPIC_API_KEY", "").strip(),
     )
     if config:
         app.config.update(config)
@@ -122,6 +124,8 @@ def create_app(config=None):
     app.register_blueprint(forest_bp)
     app.register_blueprint(climate_bp)
     app.register_blueprint(sensors_bp)
+    from .assistant_views import bp as assistant_bp
+    app.register_blueprint(assistant_bp)
 
     from . import cli
     cli.register(app)
