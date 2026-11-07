@@ -12,7 +12,7 @@ und den Phasenplan aktuell halten. Die Oberfläche und alle Texte sind auf Deuts
 
 ```sh
 pip install -r requirements-dev.txt
-pytest                                   # Tests (SQLite in-memory)
+pytest -n auto                           # Tests (SQLite in-memory, parallel; GitHub Actions `.github/workflows/tests.yml` bei jedem Push)
 flask --app wsgi db upgrade              # Migrationen anwenden
 flask --app wsgi db migrate -m "..."     # Migration nach Modelländerung erzeugen (immer mit committen)
 flask --app wsgi run --debug
