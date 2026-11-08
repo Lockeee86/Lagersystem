@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from . import (agenda, backup, biogas, bulk, chickens, climate, fuel, irrigation, machines, navigation, places, purchases,
+from . import (agenda, backup, biogas, bulk, chickens, climate, fuel, irrigation, kpis, machines, navigation, places, purchases,
                rounds, sales, search, sites, storage, tasks, team, tiles, uploads, weather)
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
@@ -268,6 +268,7 @@ def dashboard():
         bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show,
         hens=chickens.summary(today) if "huehner" in show else None, show_order=show_order, strip=strip,
         price_configured=biogas.configured(),
+        kpis=kpis.cards(current_user, today, stock["stats"], stock["occupancy"]),
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
     if choice:

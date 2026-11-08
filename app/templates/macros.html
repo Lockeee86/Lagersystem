@@ -251,3 +251,33 @@
     <div class="collapse {{ 'show' if open }} {{ 'd-lg-block' if pc_open }}" id="{{ id }}-body">{{ caller() }}</div>
 </div>
 {%- endmacro %}
+
+
+{# Leerer Zustand: Symbol, ein Satz, optional Hinweis und ein Knopf. `compact` für Kästen auf der Startseite. #}
+{% macro empty_state(icon, text, hint=none, url=none, label=none, compact=false, ok=false, collapse=none) -%}
+<div class="empty-box {{ 'compact' if compact }} {{ 'ok' if ok }}">
+    <span class="empty-icon"><i class="bi {{ icon }}"></i></span>
+    <div class="empty-body">
+        <div class="empty-text">{{ text }}</div>
+        {% if hint %}<div class="empty-hint">{{ hint }}</div>{% endif %}
+        {% if url %}<a class="btn btn-sm btn-primary mt-2" href="{{ url }}"><i class="bi bi-plus-lg me-1"></i>{{ label }}</a>
+        {% elif collapse %}<button class="btn btn-sm btn-primary mt-2" type="button" data-bs-toggle="collapse" data-bs-target="{{ collapse }}"><i class="bi bi-plus-lg me-1"></i>{{ label }}</button>{% endif %}
+    </div>
+</div>
+{%- endmacro %}
+
+{# Kleiner Verlauf als SVG (Werte von links = alt nach rechts = heute) #}
+{% macro sparkline(values, label="") -%}
+{%- set w, h = 120, 34 -%}
+{%- set top = values|max if values else 0 -%}
+{%- set n = values|length -%}
+{%- if n > 1 -%}
+{%- set ns = namespace(pts=[]) -%}
+{%- for v in values -%}{%- set ns.pts = ns.pts + ["%.1f,%.1f"|format(loop.index0 * w / (n - 1), h - 3 - (v / top * (h - 6) if top else 0))] -%}{%- endfor -%}
+<svg class="spark" viewBox="0 0 {{ w }} {{ h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}">
+    <polygon class="spark-area" points="0,{{ h }} {{ ns.pts|join(' ') }} {{ w }},{{ h }}"/>
+    <polyline class="spark-line" points="{{ ns.pts|join(' ') }}"/>
+    <circle class="spark-dot" cx="{{ ns.pts[-1].split(',')[0] }}" cy="{{ ns.pts[-1].split(',')[1] }}" r="2.6"/>
+</svg>
+{%- endif -%}
+{%- endmacro %}
