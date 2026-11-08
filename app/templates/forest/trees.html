@@ -1,5 +1,5 @@
 {% extends "forest/_layout.html" %}
-{% from "macros.html" import csrf, filter_toggle, filter_chips, multi_pick, fold_card %}
+{% from "macros.html" import csrf, filter_toggle, filter_chips, multi_pick, fold_card, empty_state %}
 {% block subtitle %}<p class="text-body-secondary mb-0">{{ ngettext("{n} Baum", "{n} Bäume", rows|length) }}</p>{% endblock %}
 {% block forest %}
 {% if current_user.is_admin %}
@@ -99,7 +99,7 @@
         <i class="bi bi-chevron-right hub-chevron"></i>
     </a>
     {% else %}
-    <div class="hub-row text-body-secondary">{{ _("Keine Bäume gefunden.") }}</div>
+    <div class="hub-row d-block">{{ empty_state("bi-search", _("Keine Bäume gefunden.")) }}</div>
     {% endfor %}
 </div>
 

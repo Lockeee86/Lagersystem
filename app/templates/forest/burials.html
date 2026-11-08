@@ -1,5 +1,5 @@
 {% extends "forest/_layout.html" %}
-{% from "macros.html" import csrf, fold_card %}
+{% from "macros.html" import csrf, fold_card, empty_state %}
 {% macro burial_row(b) %}
 <div class="hub-row" id="b{{ b.id }}">
     <span class="hub-icon"><i class="bi bi-flower1"></i></span>
@@ -34,7 +34,7 @@
 <div class="col-lg-7">
     <h2 class="hub-heading mt-0">{{ _("Kommende Beisetzungen") }}</h2>
     <div class="hub-list mb-4">
-        {% for b in upcoming %}{{ burial_row(b) }}{% else %}<div class="hub-row text-body-secondary">{{ _("Keine Beisetzung geplant.") }}</div>{% endfor %}
+        {% for b in upcoming %}{{ burial_row(b) }}{% else %}<div class="hub-row d-block">{{ empty_state("bi-flower1", _("Keine Beisetzung geplant."), _("Neue Beisetzungen trägst du über „Neue Beisetzung“ ein."), compact=true) }}</div>{% endfor %}
     </div>
 
     <div class="d-flex justify-content-between align-items-baseline">
@@ -45,7 +45,7 @@
         </span>
     </div>
     <div class="hub-list mb-4">
-        {% for b in past %}{{ burial_row(b) }}{% else %}<div class="hub-row text-body-secondary">{{ _("Keine Beisetzungen in diesem Jahr.") }}</div>{% endfor %}
+        {% for b in past %}{{ burial_row(b) }}{% else %}<div class="hub-row d-block">{{ empty_state("bi-calendar", _("Keine Beisetzungen in diesem Jahr.")) }}</div>{% endfor %}
     </div>
 </div>
 {% if current_user.can_edit %}

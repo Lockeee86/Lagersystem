@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, machine_options %}
+{% from "macros.html" import csrf, machine_options, empty_state %}
 {% from "machines/_macros.html" import photo_input %}
 {% block title %}{{ _("Bestellungen") }}{% endblock %}
 {% block content %}
@@ -99,7 +99,7 @@
             <i class="bi bi-chevron-right text-body-tertiary"></i>
         </a>
         {% else %}
-        <div class="list-group-item text-body-secondary">{{ _("Keine Bestellungen.") }}</div>
+        <div class="list-group-item">{{ empty_state("bi-box-seam", _("Keine Bestellungen."), _("Fehlt ein Ersatzteil oder Material? Einfach einen Bestellwunsch anlegen – der Besteller kümmert sich."), label=_("Bestellwunsch"), collapse="#newPurchase") }}</div>
         {% endfor %}
     </div>
 </div>

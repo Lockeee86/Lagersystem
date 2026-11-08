@@ -248,6 +248,13 @@ docker compose up --build -d
   „Neu …“-Formulare unter langen Listen über `macros.fold_card(id, icon, titel, open, pc_open)` (am Handy oben eingeklappt,
   rechte Spalte `order-first order-lg-last`; `#id` in der Adresse klappt auf – `app.js`). Untere Leiste: `overscroll-behavior-y: none`,
   `--vv-shift` wird beim Nachfedern nicht neu berechnet
+- `app/kpis.py`: Kennzahlen-Leiste der Startseite (Bereich `kennzahlen` in `tiles.SECTIONS`, steht oben, abwählbar) –
+  `cards(user, today, stats, occupancy)` je Rubrik große Zahl + Verlauf `DAYS` Tage (Makro `macros.sparkline`); am PC
+  fallen dann im Lagerblock „Bestand“/„Belegung“ weg (`hide_totals` in `partials/stock_overview.html`)
+- Oberfläche: leere Listen über `macros.empty_state(icon, text, hint, url|collapse, label, compact, ok)`; Erfolg/Info-Meldungen
+  (`flash(..., "success"|"info")`) erscheinen als Hinweis unten (`.toast-stack` in `base.html`, `app.js`), Fehler/Warnungen
+  bleiben oben. Statusfarben einheitlich über `--st-ok/-warn/-bad/-info` (Bootstrap-Badges `text-bg-*` ohne `rounded-pill`
+  werden automatisch zur Ampel-Pille) – keine eigenen Farben für Status erfinden
 - `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen

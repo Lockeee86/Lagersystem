@@ -103,14 +103,31 @@
 <main class="container-xl py-3 py-lg-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
+    {# Erfolg/Info: kurzer Hinweis unten (über der Leiste), Fehler und Warnungen bleiben oben stehen #}
+    {% set inline = messages|rejectattr(0, "in", ["success", "info"])|list %}
+    {% set toasts = messages|selectattr(0, "in", ["success", "info"])|list %}
+    {% if inline %}
     <div class="flash-stack">
-        {% for category, message in messages %}
+        {% for category, message in inline %}
         <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show shadow-sm" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('Schließen') }}"></button>
         </div>
         {% endfor %}
     </div>
+    {% endif %}
+    {% if toasts %}
+    <div class="toast-stack" aria-live="polite">
+        {% for category, message in toasts %}
+        <div class="app-toast app-toast-{{ category }}" role="status">
+            <i class="bi {{ 'bi-check-circle-fill' if category == 'success' else 'bi-info-circle-fill' }}"></i>
+            <span class="flex-grow-1">{{ message }}</span>
+            <button type="button" class="app-toast-close" aria-label="{{ _('Schließen') }}"><i class="bi bi-x-lg"></i></button>
+            <span class="app-toast-timer"></span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% endif %}
     {% endwith %}
     {% if mobile_crumb %}<a class="mobile-crumb d-lg-none" href="{{ mobile_crumb[0] }}"><i class="bi bi-chevron-left"></i>{{ _(mobile_crumb[1]) }}</a>{% endif %}

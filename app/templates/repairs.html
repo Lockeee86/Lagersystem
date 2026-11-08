@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, variety_chip, location_badge %}
+{% from "macros.html" import csrf, variety_chip, location_badge, empty_state %}
 {% block title %}{{ _("Kisten-Reparatur") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -32,7 +32,7 @@
             {% endif %}
         </li>
         {% else %}
-        <li class="list-group-item text-body-secondary">{{ _("Keine defekten Kisten.") }}</li>
+        <li class="list-group-item d-block">{{ empty_state("bi-check2-circle", _("Keine defekten Kisten."), ok=true) }}</li>
         {% endfor %}
     </ul>
 </div>

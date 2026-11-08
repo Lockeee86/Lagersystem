@@ -1,4 +1,5 @@
 {% extends "forest/_layout.html" %}
+{% from "macros.html" import empty_state %}
 {% block subtitle %}<p class="text-body-secondary mb-0">{{ _("Verträge") }} · {{ _("nur für Admins sichtbar") }}</p>{% endblock %}
 {% block forest %}
 <form class="d-flex gap-2 mb-3" method="get" role="search">
@@ -29,7 +30,7 @@
         <i class="bi bi-chevron-right hub-chevron"></i>
     </a>
     {% else %}
-    <div class="hub-row text-body-secondary">{{ _("Keine Verträge gefunden.") }}</div>
+    <div class="hub-row d-block">{{ empty_state("bi-search", _("Keine Verträge gefunden.")) }}</div>
     {% endfor %}
 </div>
 {% endblock %}

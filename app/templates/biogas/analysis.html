@@ -1,5 +1,5 @@
 {% extends "biogas/_layout.html" %}
-{% from "macros.html" import csrf, motor_start %}
+{% from "macros.html" import csrf, motor_start, empty_state %}
 {% block biogas %}
 {% if week %}
 <div class="card shadow-sm mb-4" id="woche">
@@ -72,6 +72,6 @@
 </div>
 {% endif %}
 {% if not week and not quality and not availability %}
-<div class="hub-list"><div class="hub-row text-body-secondary">{{ _("Noch keine Laufzeiten – die Auswertung füllt sich mit den ersten SKVE-Daten.") }}</div></div>
+<div class="hub-list"><div class="hub-row d-block">{{ empty_state("bi-graph-up", _("Noch keine Laufzeiten – die Auswertung füllt sich mit den ersten SKVE-Daten.")) }}</div></div>
 {% endif %}
 {% endblock %}

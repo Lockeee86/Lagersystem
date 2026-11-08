@@ -210,12 +210,24 @@ window.App = (function () {
     openFold();
     window.addEventListener("hashchange", openFold);
 
-    // Flash-Meldungen nach einiger Zeit ausblenden
-    setTimeout(function () {
-        document.querySelectorAll(".flash-stack .alert-success, .flash-stack .alert-info").forEach(function (el) {
-            bootstrap.Alert.getOrCreateInstance(el).close();
+    // Hinweise unten (Erfolg/Info): nach 5 s ausblenden, Antippen/Wischen schließt sofort, Maus darüber hält an
+    document.querySelectorAll(".app-toast").forEach(function (el, i) {
+        var timer, close = function () {
+            el.classList.add("hide");
+            setTimeout(function () { el.remove(); }, 250);
+        };
+        var start = function () { timer = setTimeout(close, 5000 + i * 600); el.classList.add("running"); };
+        el.querySelector(".app-toast-close").addEventListener("click", close);
+        el.addEventListener("mouseenter", function () { clearTimeout(timer); el.classList.remove("running"); });
+        el.addEventListener("mouseleave", start);
+        var x0 = null;
+        el.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+        el.addEventListener("touchend", function (e) {
+            if (x0 !== null && Math.abs(e.changedTouches[0].clientX - x0) > 60) { close(); }
+            x0 = null;
         });
-    }, 6000);
+        requestAnimationFrame(function () { el.classList.add("show"); start(); });
+    });
 
     return { autoRefresh: autoRefresh, initForms: initForms };
 })();

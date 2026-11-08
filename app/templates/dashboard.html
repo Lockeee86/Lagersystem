@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import movement_item, variety_chip, motor_start %}
+{% from "macros.html" import movement_item, variety_chip, motor_start, empty_state, sparkline %}
 {% block title %}{{ _("Übersicht") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -90,12 +90,28 @@
 </div>
 
 
+
 {% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
 {% from "tasks/_macros.html" import task_item with context %}
 {% from "agenda/_macros.html" import when %}
 {% set week_has = week|selectattr("events")|list %}
 
 {# Jeder Bereich wird erst erfasst und dann in der eingestellten Reihenfolge ausgegeben (tiles.sections_for). #}
+{% set sec_kennzahlen %}
+{% if "kennzahlen" in show and kpis %}
+<div class="kpi-row">
+    {% for k in kpis %}
+    <a class="kpi-card kpi-{{ k.key }}" href="{{ k.url }}">
+        <span class="kpi-label"><i class="bi {{ k.icon }}"></i>{{ k.label }}</span>
+        <span class="kpi-value">{{ k.value }}{% if k.unit %}<small>{{ k.unit }}</small>{% endif %}</span>
+        <span class="kpi-sub">{{ k.sub }}</span>
+        {% if k.series %}{{ sparkline(k.series, k.series_label) }}
+        {% elif k.bar is defined %}<span class="kpi-bar"><span style="width: {{ k.bar }}%"></span></span>{% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endset %}
 {% set sec_strompreis %}
 {% if "strompreis" in show and price_configured %}
 {% from "partials/price_strip.html" import price_strip with context %}
@@ -119,7 +135,7 @@
                 <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>{{ _("Erledigt") }}</button></form>{% endif %}
         </div>
         {% endfor %}
-        {% if my_today %}{{ plan_lines(my_today, url_for('main.dashboard') ~ '#meinplan', today) }}{% elif my_feeding %}{% else %}<span class="text-body-secondary"><i class="bi bi-check2-circle text-success me-1"></i>{{ _("Für dich ist heute nichts eingeteilt.") }}</span>{% endif %}
+        {% if my_today %}{{ plan_lines(my_today, url_for('main.dashboard') ~ '#meinplan', today) }}{% elif my_feeding %}{% else %}{{ empty_state("bi-cup-hot", _("Für dich ist heute nichts eingeteilt."), _("Unter „Offen für alle“ wartet vielleicht etwas."), compact=true, ok=true) }}{% endif %}
     </div></div>
 </section>
 {% endif %}
@@ -138,7 +154,7 @@
     {% if handovers %}
     <div class="hub-list">{% for note in handovers %}{{ handover_item(note, url_for('main.dashboard') ~ '#uebergabe') }}{% endfor %}</div>
     {% else %}
-    <div class="hub-list"><div class="hub-row text-body-secondary small">{{ _("Keine offene Übergabe. Zum Feierabend kurz notieren, was der Nächste wissen muss.") }}</div></div>
+    <div class="hub-list"><div class="hub-row d-block">{{ empty_state("bi-chat-square-text", _("Keine offene Übergabe."), _("Zum Feierabend kurz notieren, was der Nächste wissen muss."), compact=true) }}</div></div>
     {% endif %}
 </section>
 {% endif %}
@@ -164,7 +180,7 @@
     </button>
     {% endif %}
     {% else %}
-    <div class="hub-list"><div class="hub-row text-body-secondary"><i class="bi bi-check2-circle text-success fs-5"></i>{{ _("Alles erledigt – nichts Dringendes.") }}</div></div>
+    <div class="hub-list"><div class="hub-row d-block">{{ empty_state("bi-check2-circle", _("Alles erledigt – nichts Dringendes."), compact=true, ok=true) }}</div></div>
     {% endif %}
 </section>
 {% endif %}
@@ -307,14 +323,15 @@
 {% set sec_bestand %}
 {% if "bestand" in show %}
 <div class="d-none d-lg-block">
+{% set hide_totals = "kennzahlen" in show and kpis|selectattr("key", "equalto", "lager")|list %}
 {% include "partials/stock_overview.html" %}
 </div>
 {% endif %}
 {% endset %}
-{% set blocks = {"strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
+{% set blocks = {"kennzahlen": sec_kennzahlen, "strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
 {# Handy: untereinander in der eingestellten Reihenfolge. PC: Strompreis und Bestand über die volle Breite, die
    Bereiche dazwischen in derselben Reihenfolge auf zwei Spalten verteilt (ein einzelner nutzt die volle Breite). #}
-{% set wide = ["strompreis", "bestand"] %}
+{% set wide = ["kennzahlen", "strompreis", "bestand"] %}
 {% set ns = namespace(segments=[], current=[]) %}
 {% for key in show_order %}{% set html = blocks.get(key) %}{% if html and html|trim %}
 {% if key in wide %}

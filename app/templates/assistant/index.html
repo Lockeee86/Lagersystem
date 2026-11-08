@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, empty_state %}
 {% block title %}{{ _("Fragen") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -37,7 +37,7 @@
             <i class="bi bi-chevron-right hub-chevron"></i>
         </a>
         {% else %}
-        <div class="hub-row text-body-secondary">{{ _("Noch keine Fragen.") }}</div>
+        <div class="hub-row d-block">{{ empty_state("bi-stars", _("Noch keine Fragen.")) }}</div>
         {% endfor %}
     </div>
 </div>

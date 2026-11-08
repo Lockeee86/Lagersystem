@@ -75,11 +75,11 @@ def test_dashboard_strip_from_cache_only(app, as_admin, db, seed, monkeypatch):
 def test_section_order(app, as_worker, db, seed):
     worker = seed["worker"]
     default = tiles.sections_for(worker)
-    assert default[:2] == ["wichtig", "plan"]
+    assert default[:3] == ["kennzahlen", "wichtig", "plan"]
     html = as_worker.get("/startseite/kacheln").get_data(as_text=True)
     assert 'name="order" value="wichtig"' in html and "nach oben" in html
     # Aufgaben ganz nach oben, Wetter vor Woche
-    order = ["aufgaben", "strompreis", "wichtig", "plan", "uebergabe", "bhkw", "wetter", "woche", "bestand"]
+    order = ["aufgaben", "kennzahlen", "strompreis", "wichtig", "plan", "uebergabe", "bhkw", "wetter", "woche", "bestand"]
     as_worker.post("/startseite/kacheln", data={"section": default, "order": order})
     shown = tiles.sections_for(worker)
     assert shown[0] == "aufgaben" and shown.index("wetter") < shown.index("woche")
@@ -99,7 +99,7 @@ def test_new_section_after_saved_default(db, seed):
     worker = seed["worker"]
     Setting.put("home_mitarbeiter", "wichtig,aufgaben")                  # gespeichert vor dem Bereich Hühner
     db.session.commit()
-    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "huehner"]
+    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "kennzahlen", "huehner"]
     assert "huehner" not in tiles.sections_for(worker)                    # nur mit Freischaltung
     worker.chickens = True
     assert "huehner" in tiles.sections_for(worker)
