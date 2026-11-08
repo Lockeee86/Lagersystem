@@ -46,6 +46,7 @@
             <form class="app-search d-none d-xl-block" action="{{ url_for('main.search') }}" role="search">
                 <i class="bi bi-search"></i>
                 <input class="form-control form-control-sm" name="q" placeholder="{{ _('Suchen …') }}" aria-label="{{ _('Suche') }}">
+                <kbd class="app-search-kbd" title="{{ _('Befehlssuche') }}">Strg K</kbd>
             </form>
             <a class="btn btn-icon d-none d-lg-inline-flex d-xl-none" href="{{ url_for('main.search') }}" title="{{ _('Suche') }}"><i class="bi bi-search"></i></a>
             {% endif %}
@@ -54,6 +55,7 @@
                 <i class="bi bi-list-check"></i>{% if my_task_count %}<span class="count">{{ my_task_count }}</span>{% endif %}
             </a>
             {% endif %}
+            <button class="btn btn-icon d-lg-none" type="button" data-cmdk title="{{ _('Befehlssuche') }}" aria-label="{{ _('Befehlssuche') }}"><i class="bi bi-search"></i></button>
             {% if current_user.is_admin %}
             <a class="btn btn-icon {% if nav.area and nav.area.key == 'admin' %}active{% endif %}" href="{{ url_for('admin.index') }}" title="{{ _('Verwaltung') }}"><i class="bi bi-sliders"></i></a>
             {% endif %}
@@ -104,8 +106,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {# Erfolg/Info: kurzer Hinweis unten (über der Leiste), Fehler und Warnungen bleiben oben stehen #}
-    {% set inline = messages|rejectattr(0, "in", ["success", "info"])|list %}
-    {% set toasts = messages|selectattr(0, "in", ["success", "info"])|list %}
+    {% set inline = messages|rejectattr(0, "in", ["success", "info", "undo"])|list %}
+    {% set toasts = messages|selectattr(0, "in", ["success", "info", "undo"])|list %}
     {% if inline %}
     <div class="flash-stack">
         {% for category, message in inline %}
@@ -119,9 +121,13 @@
     {% if toasts %}
     <div class="toast-stack" aria-live="polite">
         {% for category, message in toasts %}
-        <div class="app-toast app-toast-{{ category }}" role="status">
-            <i class="bi {{ 'bi-check-circle-fill' if category == 'success' else 'bi-info-circle-fill' }}"></i>
-            <span class="flex-grow-1">{{ message }}</span>
+        {% set undo = message|undo_data if category == "undo" else none %}
+        <div class="app-toast app-toast-{{ 'success' if category == 'undo' else category }}" role="status">
+            <i class="bi {{ 'bi-info-circle-fill' if category == 'info' else 'bi-check-circle-fill' }}"></i>
+            <span class="flex-grow-1">{{ undo.text if undo else message }}</span>
+            {% if undo %}<form method="post" action="{{ undo.url }}" class="m-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% for k, v in undo.fields.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+                <button class="app-toast-undo"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Rückgängig") }}</button></form>{% endif %}
             <button type="button" class="app-toast-close" aria-label="{{ _('Schließen') }}"><i class="bi bi-x-lg"></i></button>
             <span class="app-toast-timer"></span>
         </div>
@@ -148,6 +154,23 @@
     {{ app_name }} · {{ _("Lagersystem") }} v{{ app_version }}
 </footer>
 
+{% if current_user.is_authenticated %}
+<div class="nav-progress" aria-hidden="true"></div>
+<div class="modal fade" id="cmdk" tabindex="-1" aria-label="{{ _('Befehlssuche') }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable cmdk-dialog">
+        <div class="modal-content">
+            <div class="cmdk-head">
+                <i class="bi bi-search"></i>
+                <input class="cmdk-input" type="search" autocomplete="off" placeholder="{{ _('Seite, Aktion oder Suchbegriff (z. B. K-0012) …') }}" aria-label="{{ _('Befehlssuche') }}">
+                <kbd>Esc</kbd>
+            </div>
+            <div class="modal-body p-2"><div class="cmdk-list" role="listbox"></div></div>
+            <div class="cmdk-foot"><span><kbd>↑</kbd><kbd>↓</kbd> {{ _("wählen") }}</span><span><kbd>↵</kbd> {{ _("öffnen") }}</span><span><kbd>Strg</kbd><kbd>K</kbd> {{ _("öffnet diese Suche") }}</span></div>
+        </div>
+    </div>
+</div>
+<script type="application/json" id="cmdData">{{ {"source": url_for('main.commands'), "search": url_for('main.search') if not current_user.restricted else none, "searchLabel": _("Suchen nach „{q}“", q="%Q%"), "empty": _("Nichts gefunden.")}|tojson }}</script>
+{% endif %}
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% block scripts %}{% endblock %}

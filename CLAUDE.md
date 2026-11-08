@@ -254,7 +254,15 @@ docker compose up --build -d
 - Oberfläche: leere Listen über `macros.empty_state(icon, text, hint, url|collapse, label, compact, ok)`; Erfolg/Info-Meldungen
   (`flash(..., "success"|"info")`) erscheinen als Hinweis unten (`.toast-stack` in `base.html`, `app.js`), Fehler/Warnungen
   bleiben oben. Statusfarben einheitlich über `--st-ok/-warn/-bad/-info` (Bootstrap-Badges `text-bg-*` ohne `rounded-pill`
-  werden automatisch zur Ampel-Pille) – keine eigenen Farben für Status erfinden
+  werden automatisch zur Ampel-Pille) – keine eigenen Farben für Status erfinden.
+  „Rückgängig“ im Hinweis: `utils.flash_undo(text, url, **felder)` (Kategorie `undo`, POST an `url` mit den Feldern;
+  genutzt beim Abhaken im Tagesplan, „Mach ich“ → `team.task_giveback`, Fütterung abhaken). Wischen am Handy: Zeile mit
+  `data-swipe`, darin `form.swipe-done` (rechts) und/oder `form.swipe-away` (links, `data-confirm` am Knopf fragt nach).
+  Wochenleiste `macros.week_strip(days, prev_url, next_url, label)` (Tagesplan über `team.week_summary()`, Fütterungsplan),
+  seitlich wischen = Woche wechseln. Befehlssuche Strg+K / Lupe am Handy (`#cmdk` in `base.html`, Liste
+  `navigation.commands(user)` über `main.commands` `/befehle.json`, erst beim Öffnen geladen; Zusatz-Aktionen
+  `navigation.EXTRA_COMMANDS`). Ladebalken `.nav-progress` (app.js). Bewegungen nur unter
+  `prefers-reduced-motion: no-preference`
 - `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen

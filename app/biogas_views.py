@@ -12,7 +12,7 @@ from .models import FeedPoint, Machine
 from .i18n import gettext as _, ngettext
 from .extensions import db
 from .storage import StorageError
-from .utils import admin_required, back_target, flash_error, form_int, form_str
+from .utils import admin_required, back_target, flash_error, flash_undo, form_int, form_str
 
 bp = Blueprint("biogas", __name__)
 
@@ -367,6 +367,9 @@ def feeding_done(shift_id):
         else:
             plant_feeding.mark_done(shift, current_user, request.form.get("note"))
         db.session.commit()
+        if shift.done_at:
+            flash_undo(_("Fütterung abgehakt."), url_for("biogas.feeding_done", shift_id=shift.id), zurueck="1",
+                       back=back_target() or "")
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))

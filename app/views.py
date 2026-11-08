@@ -506,6 +506,15 @@ def area(key):
                            tank=fuel.status() if key == "feld" and current_user.can_edit else None)
 
 
+@bp.route("/befehle.json")
+@login_required
+def commands():
+    """Liste für die Befehlssuche (Strg+K) – erst beim Öffnen geladen."""
+    response = jsonify(navigation.commands(current_user))
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @bp.route("/startseite/kacheln", methods=["GET", "POST"])
 @login_required
 def tile_settings():

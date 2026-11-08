@@ -161,6 +161,21 @@ def excel_safe(workbook):
     return workbook
 
 
+def flash_undo(message, url, **fields):
+    """Erfolgsmeldung als Hinweis unten mit Knopf „Rückgängig“ – der schickt `fields` per POST an `url`."""
+    import json
+    flash(json.dumps({"text": str(message), "url": url, "fields": {k: str(v) for k, v in fields.items()}}), "undo")
+
+
+def undo_data(message):
+    import json
+    try:
+        data = json.loads(message)
+        return data if isinstance(data, dict) and _is_local_path(data.get("url", "")) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def back(default_endpoint="main.dashboard", **kwargs):
     """Zurück zur Seite aus dem Formularfeld `back` (nur lokale Pfade)."""
     return redirect(back_target() or url_for(default_endpoint, **kwargs))

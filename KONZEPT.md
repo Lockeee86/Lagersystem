@@ -939,8 +939,15 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Leere Listen zeigen Symbol, einen erklärenden Satz und – wo sinnvoll – gleich den Knopf zum Anlegen.
 - Erfolgsmeldungen erscheinen kurz unten (über der Leiste bzw. unten rechts), Fehler bleiben oben stehen.
 - Statusfarben einheitlich (grün/gelb/rot/blau, Punkt + Wort) in der ganzen App.
-- Als Nächstes vorgesehen: Wischgesten (abhaken/abgeben), Wochenleiste im Fütterungs- und Tagesplan,
-  „Rückgängig“ im Hinweis, Befehlssuche (Strg+K).
+
+### Auffrischung, Teil 2 (0.102.0)
+- Wischen am Handy: eigene Aufgabe bzw. Fütterung nach rechts = erledigt, Fütterung nach links = abgeben (mit Rückfrage).
+- „Rückgängig“ im Hinweis nach Abhaken (Tagesplan, Startseite, Fütterung) und nach „Mach ich“.
+- Wochenleiste mit Punkten (erledigt/offen/frei/meins) im Tagesplan und im Fütterungsplan, wischen = Woche wechseln.
+- Befehlssuche: Strg+K am PC bzw. Lupe oben am Handy – alle erlaubten Seiten und Aktionen, sonst Suche (auch Codes).
+- Ladebalken oben bei langsamen Seiten, dezente Bewegungen (Kennzahlen zählen hoch, Listen gleiten ein, Haken „ploppt“) –
+  aus, wenn das Gerät „weniger Bewegung“ eingestellt hat.
+- Dunkles Design durchgesehen (helle Abzeichen und aktive Knöpfe angeglichen).
 
 ## Noch offen
 

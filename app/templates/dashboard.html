@@ -127,11 +127,11 @@
     </div>
     <div class="hub-list"><div class="hub-row d-block">
         {% for item in my_feeding %}{% set f = item.shift %}
-        <div class="d-flex align-items-center gap-2 {{ 'mb-2' if my_today or not loop.last }}">
+        <div class="d-flex align-items-center gap-2 {{ 'mb-2' if my_today or not loop.last }}" {% if not f.done_at %}data-swipe{% endif %}>
             <i class="bi bi-basket2 {{ 'text-success' if f.done_at else 'text-warning' }}"></i>
             <a class="text-reset fw-semibold" href="{{ url_for('biogas.feeding_page') }}#t{{ f.day.isoformat() }}">{{ _("Fütterung Biogas") }}{% if item.label %} · {{ item.label }}{% endif %}</a>
             {% if f.done_at %}<span class="small text-body-secondary ms-auto"><i class="bi bi-check-circle-fill text-success me-1"></i>{{ f.done_at|time }}</span>
-            {% else %}<form method="post" action="{{ url_for('biogas.feeding_done', shift_id=f.id) }}" class="ms-auto"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ url_for('main.dashboard') }}#meinplan">
+            {% else %}<form method="post" action="{{ url_for('biogas.feeding_done', shift_id=f.id) }}" class="ms-auto swipe-done"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ url_for('main.dashboard') }}#meinplan">
                 <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>{{ _("Erledigt") }}</button></form>{% endif %}
         </div>
         {% endfor %}

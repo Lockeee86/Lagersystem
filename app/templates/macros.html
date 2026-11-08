@@ -281,3 +281,20 @@
 </svg>
 {%- endif -%}
 {%- endmacro %}
+
+
+{# Wochenleiste: 7 Tage mit Punkten (Stand), wischen bzw. Pfeile = Woche davor/danach.
+   days: [{date, url, active, today, dots: ["ok"|"warn"|"bad"|"mine"|"mute"], count}] #}
+{% macro week_strip(days, prev_url, next_url, label) -%}
+<nav class="week-strip" aria-label="{{ label }}" data-prev="{{ prev_url }}" data-next="{{ next_url }}">
+    <a class="week-strip-nav" href="{{ prev_url }}" aria-label="{{ _('Vorwoche') }}"><i class="bi bi-chevron-left"></i></a>
+    {% for d in days %}
+    <a class="week-strip-day {{ 'active' if d.active }} {{ 'today' if d.today }}" href="{{ d.url }}" {% if d.active %}aria-current="date"{% endif %}>
+        <span class="ws-name">{{ d.date|weekday }}</span>
+        <span class="ws-num">{{ d.date.day }}</span>
+        <span class="ws-dots">{% for dot in d.dots[:4] %}<i class="ws-dot {{ dot }}"></i>{% else %}<i class="ws-dot none"></i>{% endfor %}</span>
+    </a>
+    {% endfor %}
+    <a class="week-strip-nav" href="{{ next_url }}" aria-label="{{ _('Folgewoche') }}"><i class="bi bi-chevron-right"></i></a>
+</nav>
+{%- endmacro %}

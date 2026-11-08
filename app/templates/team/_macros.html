@@ -28,9 +28,9 @@
 {# Aufgaben einer Person (Tagesplan bzw. „Meine Aufgaben heute“) – zum Abhaken #}
 {% macro plan_lines(entries, back_url=none, today=none) %}
 {% for e in entries %}
-<div class="plan-line {{ 'is-done' if e.done_at }}">
+<div class="plan-line {{ 'is-done' if e.done_at }}" {% if e.can_check(current_user) and not e.done_at %}data-swipe{% endif %}>
     {% if e.can_check(current_user) %}
-    <form method="post" action="{{ url_for('team.plan_check', task_id=e.id) }}" class="plan-check">
+    <form method="post" action="{{ url_for('team.plan_check', task_id=e.id) }}" class="plan-check {{ 'swipe-done' if not e.done_at }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if back_url %}<input type="hidden" name="back" value="{{ back_url }}">{% endif %}
         <button class="btn btn-link p-0" aria-label="{{ _('Wieder öffnen') if e.done_at else _('Erledigt') }}" title="{{ _('Wieder öffnen') if e.done_at else _('Erledigt') }}"><i class="bi {{ 'bi-check-square-fill text-success' if e.done_at else 'bi-square' }}"></i></button>

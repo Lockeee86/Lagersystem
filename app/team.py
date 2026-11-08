@@ -7,6 +7,7 @@ from datetime import date, timedelta
 
 from flask import url_for
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from . import push, signatures
 from .extensions import db
@@ -87,6 +88,23 @@ def _loaded(query):
     from sqlalchemy.orm import joinedload, selectinload
     return query.options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine),
                          selectinload(Task.machines))
+
+
+def week_summary(day, user):
+    """Montag–Sonntag um `day`: je Tag erledigte/offene Einträge (alle) und ob eigene offen sind – für die Wochenleiste."""
+    monday = day - timedelta(days=day.weekday())
+    days = [monday + timedelta(days=i) for i in range(7)]
+    out = {d: {"day": d, "done": 0, "open": 0, "mine": False} for d in days}
+    rows = (Task.query.filter(Task.plan_day >= days[0], Task.plan_day <= days[-1])
+            .options(selectinload(Task.assignees)).all())
+    for t in rows:
+        entry = out[t.plan_day]
+        if t.done_at:
+            entry["done"] += 1
+        else:
+            entry["open"] += 1
+            entry["mine"] = entry["mine"] or any(u.id == user.id for u in t.assignees)
+    return [out[d] for d in days]
 
 
 def plan_for(day, today=None, exact=False):

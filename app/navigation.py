@@ -333,3 +333,43 @@ def crumb(endpoint, view_args=None, user=None):
 def admin_tiles():
     return [{**it, "hint": ADMIN_HINTS.get(it["endpoint"]), "url": url_for(it["endpoint"])}
             for it in ADMIN["items"] if it["endpoint"] != "admin.index"]
+
+
+# --- Befehlssuche (Strg+K) -------------------------------------------------------------
+EXTRA_COMMANDS = [
+    # (Endpunkt, Text, Symbol, Rolle, Bedingung)
+    ("main.scan", N_("Kiste scannen"), "bi-qr-code-scan", ROLE_MITARBEITER, None),
+    ("main.batch_store", N_("Partie einlagern"), "bi-box-arrow-in-down", ROLE_MITARBEITER, None),
+    ("fuel.tank", N_("Tanken eintragen"), "bi-fuel-pump", ROLE_MITARBEITER, None),
+    ("main.tile_settings", N_("Startseite anpassen"), "bi-sliders", ROLE_BETRACHTER, None),
+    ("auth.account", N_("Mein Konto"), "bi-person-circle", ROLE_BETRACHTER, None),
+]
+
+
+def commands(user):
+    """Alle Seiten, die der Benutzer öffnen darf, als Liste für die Befehlssuche."""
+    from .i18n import gettext as _
+    out, seen = [], set()
+
+    def add(endpoint, label, icon, group, **args):
+        try:
+            url = url_for(endpoint, **args)
+        except Exception:                          # noqa: BLE001 – Endpunkt gibt es in dieser Version nicht
+            return
+        if url in seen:
+            return
+        seen.add(url)
+        out.append({"label": _(label), "icon": icon, "group": group, "url": url})
+
+    areas = [_only_area(user)] if user.restricted else [a for a in AREAS if _area_shown(a, user)]
+    for area in areas:
+        for it in _visible(area["items"], user):
+            add(it["endpoint"], it["label"], it["icon"], _(area["label"]))
+    if not user.restricted:
+        for endpoint, label, icon, role, cond in EXTRA_COMMANDS:
+            if user.has_role(role) and (cond is None or cond(user)):
+                add(endpoint, label, icon, _("Aktion"))
+    if user.is_admin:
+        for it in ADMIN["items"]:
+            add(it["endpoint"], it["label"], it["icon"], _(ADMIN["label"]))
+    return out

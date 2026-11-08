@@ -165,6 +165,7 @@ def create_app(config=None):
         bytes=utils.fmt_bytes,
         weekday=utils.fmt_weekday,
         textcolor=utils.text_color_for,
+        undo_data=utils.undo_data,
     )
 
     @app.context_processor

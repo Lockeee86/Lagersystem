@@ -210,6 +210,184 @@ window.App = (function () {
     openFold();
     window.addEventListener("hashchange", openFold);
 
+    // Wischen am Handy: [data-swipe] nach rechts = form.swipe-done abschicken, nach links = form.swipe-away
+    // (dessen Knopf mit data-confirm fragt vorher nach). Vertikales Scrollen bleibt unberührt.
+    document.querySelectorAll("[data-swipe]").forEach(function (row) {
+        var done = row.querySelector("form.swipe-done"), away = row.querySelector("form.swipe-away");
+        if (!done && !away) { return; }
+        if (done) { row.classList.add("can-done"); }
+        if (away) { row.classList.add("can-away"); }
+        var x0, y0, dx = 0, mode = null;
+        var reset = function () {
+            row.classList.remove("swiping", "swipe-right", "swipe-left", "swipe-armed");
+            row.style.removeProperty("--dx");
+            mode = null; dx = 0;
+        };
+        row.addEventListener("touchstart", function (e) {
+            if (e.touches.length !== 1 || e.target.closest("select, input, textarea")) { return; }
+            x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; mode = "start";
+        }, { passive: true });
+        row.addEventListener("touchmove", function (e) {
+            if (!mode) { return; }
+            var mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+            if (mode === "start") {
+                if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) { mode = null; return; }
+                if (Math.abs(mx) < 12) { return; }
+                mode = "swipe"; row.classList.add("swiping");
+            }
+            if ((mx > 0 && !done) || (mx < 0 && !away)) { mx = mx / 6; }          // ohne Aktion nur leicht nachgeben
+            dx = mx;
+            row.style.setProperty("--dx", dx + "px");
+            row.classList.toggle("swipe-right", dx > 0);
+            row.classList.toggle("swipe-left", dx < 0);
+            row.classList.toggle("swipe-armed", Math.abs(dx) > Math.min(110, row.offsetWidth * .35));
+        }, { passive: true });
+        row.addEventListener("touchend", function () {
+            if (mode !== "swipe") { mode = null; return; }
+            var armed = row.classList.contains("swipe-armed"), form = dx > 0 ? done : away, dir = dx;
+            reset();
+            if (armed && form) {
+                if (navigator.vibrate) { navigator.vibrate(12); }
+                var btn = form.querySelector("button");
+                if (form === done) {                    // erledigt: kurz hinausgleiten lassen, dann abschicken
+                    row.style.setProperty("--dx", (dir > 0 ? 1 : -1) * row.offsetWidth + "px");
+                    row.classList.add("swipe-right", "swipe-armed", "swipe-out");
+                    setTimeout(function () { if (btn) { btn.click(); } else { form.submit(); } }, 180);
+                } else if (btn) { btn.click(); } else { form.submit(); }
+            }
+        });
+        row.addEventListener("touchcancel", reset);
+    });
+
+    // Wochenleiste: seitlich wischen = Woche davor/danach
+    document.querySelectorAll(".week-strip").forEach(function (strip) {
+        var x0 = null, y0 = 0;
+        strip.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+        strip.addEventListener("touchend", function (e) {
+            if (x0 === null) { return; }
+            var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+            x0 = null;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) {
+                strip.classList.add(dx < 0 ? "leave-left" : "leave-right");
+                window.location.href = dx < 0 ? strip.dataset.next : strip.dataset.prev;
+            }
+        });
+    });
+
+    // Ladeanzeige: dünner Balken oben, sobald eine Seite länger als einen Augenblick braucht
+    var progress = document.querySelector(".nav-progress"), progressTimer;
+    var startProgress = function () {
+        if (!progress) { return; }
+        clearTimeout(progressTimer);
+        progressTimer = setTimeout(function () { progress.classList.add("run"); }, 150);
+    };
+    document.addEventListener("click", function (e) {
+        var a = e.target.closest("a[href]");
+        if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+        var href = a.getAttribute("href");
+        if (a.target || a.hasAttribute("download") || a.dataset.bsToggle || href.charAt(0) === "#" ||
+            a.origin !== window.location.origin || (a.pathname === window.location.pathname && a.hash)) { return; }
+        startProgress();
+    });
+    document.addEventListener("submit", function (e) {
+        if (!e.defaultPrevented && !(e.target.getAttribute("target"))) { startProgress(); }
+    });
+    window.addEventListener("pageshow", function () {
+        clearTimeout(progressTimer);
+        if (progress) { progress.classList.remove("run"); }
+    });
+
+    // Befehlssuche: Strg+K (Mac: ⌘K) öffnet eine Liste aller Seiten und Aktionen, Tippen filtert
+    var cmdData = document.getElementById("cmdData"), cmdModal = document.getElementById("cmdk");
+    if (cmdData && cmdModal) {
+        var cmd = JSON.parse(cmdData.textContent), input = cmdModal.querySelector(".cmdk-input"),
+            list = cmdModal.querySelector(".cmdk-list"), sel = 0, shown = [];
+        var norm = function (s) {
+            return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss");
+        };
+        var esc = function (s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; };
+        var render = function () {
+            var q = norm(input.value.trim()), words = q.split(/\s+/).filter(Boolean);
+            shown = (cmd.items || []).filter(function (it) {
+                var hay = norm(it.label + " " + it.group);
+                return words.every(function (w) { return hay.indexOf(w) >= 0; });
+            }).sort(function (a, b) {
+                return (norm(b.label).indexOf(q) === 0) - (norm(a.label).indexOf(q) === 0);
+            }).slice(0, 40);
+            if (q && cmd.search) {
+                shown.push({ label: cmd.searchLabel.replace("%Q%", input.value.trim()), icon: "bi-search", group: "",
+                             url: cmd.search + "?q=" + encodeURIComponent(input.value.trim()) });
+                if (/^[a-z]{1,2}-?[a-z]?\d/i.test(input.value.trim())) { shown.unshift(shown.pop()); }   // Code zuerst suchen
+            }
+            sel = Math.min(sel, Math.max(shown.length - 1, 0));
+            var html = "", group = null;
+            shown.forEach(function (it, i) {
+                if (it.group !== group && it.group) { html += '<div class="cmdk-group">' + esc(it.group) + "</div>"; }
+                group = it.group;
+                html += '<a class="cmdk-item' + (i === sel ? " active" : "") + '" role="option" href="' + esc(it.url) +
+                        '" data-i="' + i + '"><i class="bi ' + esc(it.icon) + '"></i><span>' + esc(it.label) + "</span></a>";
+            });
+            list.innerHTML = html || '<div class="cmdk-empty">' + esc(cmd.empty) + "</div>";
+        };
+        var move = function (d) {
+            if (!shown.length) { return; }
+            sel = (sel + d + shown.length) % shown.length;
+            render();
+            var act = list.querySelector(".cmdk-item.active");
+            if (act) { act.scrollIntoView({ block: "nearest" }); }
+        };
+        input.addEventListener("input", function () { sel = 0; render(); });
+        input.addEventListener("keydown", function (e) {
+            if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+            else if (e.key === "Enter" && shown[sel]) { e.preventDefault(); startProgress(); window.location.href = shown[sel].url; }
+        });
+        list.addEventListener("mousemove", function (e) {
+            var it = e.target.closest(".cmdk-item");
+            if (it && +it.dataset.i !== sel) { sel = +it.dataset.i; list.querySelectorAll(".cmdk-item").forEach(function (el) {
+                el.classList.toggle("active", +el.dataset.i === sel); }); }
+        });
+        cmdModal.addEventListener("shown.bs.modal", function () { input.focus(); input.select(); });
+        cmd.items = null;
+        var openCmd = function () {
+            input.value = ""; sel = 0;
+            bootstrap.Modal.getOrCreateInstance(cmdModal).show();
+            if (cmd.items) { render(); return; }
+            cmd.items = [];
+            render();
+            fetch(cmd.source, { credentials: "same-origin" }).then(function (r) { return r.json(); })
+                .then(function (items) { cmd.items = items; render(); })
+                .catch(function () { cmd.items = null; });
+        };
+        document.addEventListener("keydown", function (e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); openCmd(); }
+        });
+        document.querySelectorAll("[data-cmdk], .app-search-kbd").forEach(function (el) {
+            el.addEventListener("click", function (e) { e.preventDefault(); openCmd(); });
+        });
+    }
+
+    // Dezente Bewegung: Kennzahlen zählen hoch (ohne „weniger Bewegung“ in den Systemeinstellungen)
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.querySelectorAll(".kpi-value").forEach(function (el) {
+            var node = el.firstChild;
+            if (!node || node.nodeType !== 3) { return; }
+            var text = node.nodeValue.trim(), m = /^([\d.]+)(,(\d+))?$/.exec(text);
+            if (!m) { return; }
+            var target = parseFloat(m[1].replace(/\./g, "") + "." + (m[3] || "0")), digits = m[3] ? m[3].length : 0;
+            if (!target) { return; }
+            var t0 = null;
+            var fmt = function (v) { return v.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits }); };
+            var step = function (t) {
+                t0 = t0 || t;
+                var p = Math.min((t - t0) / 700, 1);
+                node.nodeValue = fmt(target * (1 - Math.pow(1 - p, 3)));
+                if (p < 1) { requestAnimationFrame(step); } else { node.nodeValue = text; }
+            };
+            requestAnimationFrame(step);
+        });
+    }
+
     // Hinweise unten (Erfolg/Info): nach 5 s ausblenden, Antippen/Wischen schließt sofort, Maus darüber hält an
     document.querySelectorAll(".app-toast").forEach(function (el, i) {
         var timer, close = function () {

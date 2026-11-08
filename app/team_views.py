@@ -12,7 +12,7 @@ from .instruction_pdf import render_instruction_record
 from .models import (Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, Plot, Setting, Task,
                      User)
 from .storage import StorageError
-from .utils import admin_required, back, back_target, editor_required, flash_error, form_date, form_int, form_str, local_tz
+from .utils import admin_required, back, back_target, editor_required, flash_error, flash_undo, form_date, form_int, form_str, local_tz
 
 bp = Blueprint("team", __name__)
 
@@ -121,7 +121,7 @@ def day_plan():
                         .group_by(Task.title).order_by(db.func.max(Task.id).desc()).limit(40)):
             recent.append(text)
     return render_template(
-        "team/day_plan.html", day=day, plan=plan, members=members, today=today, timedelta1=timedelta(days=1),
+        "team/day_plan.html", day=day, plan=plan, week=team.week_summary(day, current_user), members=members, today=today, timedelta1=timedelta(days=1),
         recent_texts=recent, sent=db.session.get(Setting, f"push_plan_sent_{day.isoformat()}") is not None,
         previous=team.last_planned_day(day) if current_user.is_planner else None,
         machines=Machine.query.filter_by(active=True).order_by(Machine.name).all() if current_user.is_planner else [],
@@ -183,6 +183,9 @@ def task_plan(task_id):
     try:
         team.plan_task(task, day, user, current_user)
         db.session.commit()
+        if user.id == current_user.id and not current_user.is_planner:
+            flash_undo(_("Übernommen: {title}", title=task.title), url_for("team.task_giveback", task_id=task.id),
+                       back=back_target() or "")
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
@@ -194,6 +197,19 @@ def task_plan(task_id):
 def task_unplan(task_id):
     """Aus dem Tagesplan zurück nach „Offen“."""
     task = _get(Task, task_id)
+    day = task.plan_day or _form_day()
+    team.unplan_task(task)
+    db.session.commit()
+    return _back_or_plan(day, "offen")
+
+
+@bp.route("/aufgabe/<int:task_id>/zuruecklegen", methods=["POST"])
+@editor_required
+def task_giveback(task_id):
+    """Eigenes „Mach ich“ zurücknehmen (Rückgängig im Hinweis) – nur offen und nur eigene."""
+    task = _get(Task, task_id)
+    if task.done_at or not task.plan_user or task.plan_user.id != current_user.id:
+        abort(403)
     day = task.plan_day or _form_day()
     team.unplan_task(task)
     db.session.commit()
@@ -265,6 +281,9 @@ def plan_check(task_id):
     try:
         team.toggle_plan_entry(task, current_user)
         db.session.commit()
+        if task.done_at:
+            flash_undo(_("Erledigt: {title}", title=task.title), url_for("team.plan_check", task_id=task.id),
+                       back=back_target() or "")
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
