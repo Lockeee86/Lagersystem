@@ -932,6 +932,16 @@ Eigenes Logo unter Verwaltung → Hof hochladen (PNG/JPEG/WebP): daraus entstehe
 Login-Seite, App-Icons (mit weißem Grund und Rand) und das Bild in Push-Nachrichten; „Standard-Logo verwenden“
 setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 
+### Auffrischung der Oberfläche (0.101.0)
+- Startseite: Kennzahlen-Leiste oben (Lager, BHKW, Eier, freie Plätze im Bestattungswald) mit Verlauf über 14 Tage,
+  am Handy seitlich wischbar, unter „Startseite anpassen“ abwählbar. Am PC entfallen dafür die doppelten Kästen
+  „Bestand“ und „Belegung“.
+- Leere Listen zeigen Symbol, einen erklärenden Satz und – wo sinnvoll – gleich den Knopf zum Anlegen.
+- Erfolgsmeldungen erscheinen kurz unten (über der Leiste bzw. unten rechts), Fehler bleiben oben stehen.
+- Statusfarben einheitlich (grün/gelb/rot/blau, Punkt + Wort) in der ganzen App.
+- Als Nächstes vorgesehen: Wischgesten (abhaken/abgeben), Wochenleiste im Fütterungs- und Tagesplan,
+  „Rückgängig“ im Hinweis, Befehlssuche (Strg+K).
+
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.

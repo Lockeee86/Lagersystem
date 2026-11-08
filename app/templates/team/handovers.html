@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import empty_state %}
 {% from "team/_macros.html" import handover_item, handover_form with context %}
 {% block title %}{{ _("Übergabe") }}{% endblock %}
 {% block content %}
@@ -13,6 +14,6 @@
 {% endif %}
 <div class="hub-list">
     {% for note in notes %}{{ handover_item(note, request.path) }}
-    {% else %}<div class="hub-row text-body-secondary">{{ _("Noch keine Übergabe-Notizen.") }}</div>{% endfor %}
+    {% else %}<div class="hub-row d-block">{{ empty_state("bi-chat-square-text", _("Noch keine Übergabe-Notizen.")) }}</div>{% endfor %}
 </div>
 {% endblock %}

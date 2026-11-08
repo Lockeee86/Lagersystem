@@ -45,7 +45,7 @@
         </span>
     </div>
     <div class="hub-list mb-4">
-        {% for b in past %}{{ burial_row(b) }}{% else %}<div class="hub-row text-body-secondary">{{ _("Keine Beisetzungen in diesem Jahr.") }}</div>{% endfor %}
+        {% for b in past %}{{ burial_row(b) }}{% else %}<div class="hub-row d-block">{{ empty_state("bi-calendar", _("Keine Beisetzungen in diesem Jahr.")) }}</div>{% endfor %}
     </div>
 </div>
 {% if current_user.can_edit %}

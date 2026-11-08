@@ -268,7 +268,7 @@ def dashboard():
         bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show,
         hens=chickens.summary(today) if "huehner" in show else None, show_order=show_order, strip=strip,
         price_configured=biogas.configured(),
-        kpis=kpis.cards(current_user, today, stock["stats"], stock["occupancy"]),
+        kpis=kpis.cards(current_user, today, stock["stats"], stock["occupancy"]) if "kennzahlen" in show else [],
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))
     if choice:

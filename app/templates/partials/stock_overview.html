@@ -1,7 +1,9 @@
 {# Lagerzahlen: Kennzahlen, Bestand je Sorte, Belegung je Lager, letzte Bewegungen.
    Braucht occupancy, varieties, max_kg, stats, recent, bulk_wares (views._stock_overview) #}
 {% from "macros.html" import movement_item, variety_chip %}
+{% set short = hide_totals is defined and hide_totals %}{# Startseite: Bestand/Belegung stehen schon in den Kennzahlen #}
 <div class="row g-3 mb-4">
+    {% if not short %}
     <div class="col-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-label"><i class="bi bi-basket"></i>{{ _("Bestand (geschätzt)") }}</div>
@@ -18,14 +20,15 @@
         </div>
     </div>
     {% endfor %}
-    <div class="col-6 col-lg-3">
+    {% endif %}
+    <div class="col-6 {{ 'col-lg-6' if short else 'col-lg-3' }}">
         <div class="stat-card">
             <div class="stat-label"><i class="bi bi-box"></i>{{ _("Leere Kisten") }}</div>
             <div class="stat-value">{{ stats.empty }}</div>
             <div class="stat-sub">{{ _("von {n} Kisten gesamt", n=stats.total) }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg-3">
+    <div class="col-6 {{ 'col-lg-6' if short else 'col-lg-3' }}">
         <a class="stat-card stat-link {% if stats.filled_not_stored %}stat-warn{% endif %}"
            href="{{ url_for('main.boxes', status='befuellt_nicht_eingelagert') }}">
             <div class="stat-label"><i class="bi bi-truck"></i>{{ _("Befüllt, nicht eingelagert") }}</div>

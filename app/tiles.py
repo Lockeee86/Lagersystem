@@ -100,6 +100,7 @@ def section(label, icon, role=ROLE_BETRACHTER, hint=None, show=None):
 
 
 SECTIONS = {
+    "kennzahlen": section(N_("Kennzahlen"), "bi-graph-up", hint=N_("Große Zahlen mit Verlauf: Lager, BHKW, Eier, freie Plätze")),
     "strompreis": section(N_("Strompreis-Ampel"), "bi-lightning", hint=N_("Day-Ahead-Preise heute und morgen (SKVE)"),
                           show=lambda u: u.sees_biogas),
     "wichtig": section(N_("Jetzt wichtig"), "bi-exclamation-circle"),
@@ -117,8 +118,8 @@ SECTIONS = {
 
 SECTION_DEFAULTS = {
     ROLE_ADMIN: list(SECTIONS),
-    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "aufgaben", "huehner", "woche", "wetter", "bestand"],
-    ROLE_BETRACHTER: ["wichtig", "uebergabe", "huehner", "woche", "wetter", "bestand"],
+    ROLE_MITARBEITER: ["kennzahlen", "wichtig", "plan", "uebergabe", "aufgaben", "huehner", "woche", "wetter", "bestand"],
+    ROLE_BETRACHTER: ["kennzahlen", "wichtig", "uebergabe", "huehner", "woche", "wetter", "bestand"],
 }
 
 
@@ -154,8 +155,10 @@ def save_section_default(role, keys):
 
 def section_order(user):
     """Reihenfolge: eigene (`User.home_order`), dann die der Voreinstellung, dann der Katalog."""
-    order = []
-    for key in _split_sections(user.home_order) + section_default(user.role) + list(SECTIONS):
+    own = _split_sections(user.home_order)
+    # Kennzahlen kamen später dazu – ohne eigene Reihenfolge dafür stehen sie oben
+    order = [] if "kennzahlen" in own else ["kennzahlen"]
+    for key in own + section_default(user.role) + list(SECTIONS):
         if key not in order:
             order.append(key)
     return order

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, empty_state %}
 {% from "team/_inst.html" import inst_status, topic_fields %}
 {% block title %}{{ _("Unterweisungen") }}{% endblock %}
 {% block content %}
@@ -59,7 +59,7 @@
         </a>
     </div>
     {% else %}
-    <div class="col-12"><div class="hub-list"><div class="hub-row text-body-secondary">{{ _("Noch keine Unterweisungen angelegt.") }}</div></div></div>
+    <div class="col-12"><div class="hub-list"><div class="hub-row d-block">{{ empty_state("bi-mortarboard", _("Noch keine Unterweisungen angelegt.")) }}</div></div></div>
     {% endfor %}
 </div>
 

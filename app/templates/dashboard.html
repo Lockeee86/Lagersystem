@@ -90,7 +90,15 @@
 </div>
 
 
-{% if kpis %}
+
+{% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
+{% from "tasks/_macros.html" import task_item with context %}
+{% from "agenda/_macros.html" import when %}
+{% set week_has = week|selectattr("events")|list %}
+
+{# Jeder Bereich wird erst erfasst und dann in der eingestellten Reihenfolge ausgegeben (tiles.sections_for). #}
+{% set sec_kennzahlen %}
+{% if "kennzahlen" in show and kpis %}
 <div class="kpi-row">
     {% for k in kpis %}
     <a class="kpi-card kpi-{{ k.key }}" href="{{ k.url }}">
@@ -103,13 +111,7 @@
     {% endfor %}
 </div>
 {% endif %}
-
-{% from "team/_macros.html" import handover_item, handover_form, plan_lines with context %}
-{% from "tasks/_macros.html" import task_item with context %}
-{% from "agenda/_macros.html" import when %}
-{% set week_has = week|selectattr("events")|list %}
-
-{# Jeder Bereich wird erst erfasst und dann in der eingestellten Reihenfolge ausgegeben (tiles.sections_for). #}
+{% endset %}
 {% set sec_strompreis %}
 {% if "strompreis" in show and price_configured %}
 {% from "partials/price_strip.html" import price_strip with context %}
@@ -321,14 +323,15 @@
 {% set sec_bestand %}
 {% if "bestand" in show %}
 <div class="d-none d-lg-block">
+{% set hide_totals = "kennzahlen" in show and kpis|selectattr("key", "equalto", "lager")|list %}
 {% include "partials/stock_overview.html" %}
 </div>
 {% endif %}
 {% endset %}
-{% set blocks = {"strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
+{% set blocks = {"kennzahlen": sec_kennzahlen, "strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
 {# Handy: untereinander in der eingestellten Reihenfolge. PC: Strompreis und Bestand über die volle Breite, die
    Bereiche dazwischen in derselben Reihenfolge auf zwei Spalten verteilt (ein einzelner nutzt die volle Breite). #}
-{% set wide = ["strompreis", "bestand"] %}
+{% set wide = ["kennzahlen", "strompreis", "bestand"] %}
 {% set ns = namespace(segments=[], current=[]) %}
 {% for key in show_order %}{% set html = blocks.get(key) %}{% if html and html|trim %}
 {% if key in wide %}

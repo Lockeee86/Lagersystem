@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import site_select %}
+{% from "macros.html" import site_select, empty_state %}
 {% from "machines/_place_macros.html" import place_badges, place_form with context %}
 {% block title %}{{ _("Technische Plätze") }}{% endblock %}
 {% block content %}
@@ -37,7 +37,7 @@
     </div>
 </div>
 {% elif not current_user.is_admin %}
-<div class="hub-list mb-3"><div class="hub-row text-body-secondary">{{ _("Noch keine technischen Plätze angelegt.") }}</div></div>
+<div class="hub-list mb-3"><div class="hub-row d-block">{{ empty_state("bi-diagram-3", _("Noch keine technischen Plätze angelegt.")) }}</div></div>
 {% endif %}
 
 {% if loose and current_user.is_admin %}
