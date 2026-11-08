@@ -28,7 +28,7 @@ from .i18n import CATALOGS, N_, gettext as _, ngettext
 from .models import (FILL_LEVELS, SORT_USAGES, Box, BoxType, Delivery, DeliveryItem, Movement, Plot, SeedClass,
                      Variety, Warehouse)
 from .storage import StorageError
-from .utils import to_local
+from .utils import excel_safe, to_local
 
 MAX_ROWS = 5000
 TEMPLATE_ROWS = 1000
@@ -107,7 +107,7 @@ def _style_header(ws, row=1):
 
 def _save(wb):
     buf = io.BytesIO()
-    wb.save(buf)
+    excel_safe(wb).save(buf)
     return buf.getvalue()
 
 

@@ -12,7 +12,7 @@ from .instruction_pdf import render_instruction_record
 from .models import (Handover, InstructionDocument, InstructionRecord, InstructionTopic, Machine, Plot, Setting, Task,
                      User)
 from .storage import StorageError
-from .utils import admin_required, back, editor_required, flash_error, form_date, form_int, form_str, local_tz
+from .utils import admin_required, back, back_target, editor_required, flash_error, form_date, form_int, form_str, local_tz
 
 bp = Blueprint("team", __name__)
 
@@ -139,8 +139,7 @@ def open_page():
 
 
 def _back_or_plan(day, anchor=None):
-    target = request.form.get("back", "")
-    if target.startswith("/") and not target.startswith("//"):
+    if target := back_target():
         return redirect(target)
     return _to_plan(day, anchor)
 

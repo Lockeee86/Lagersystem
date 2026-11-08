@@ -68,7 +68,7 @@ AREAS = [
     # Biogas: in der Benutzerverwaltung je Benutzer abwählbar (User.biogas)
     {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge",
      # Wer nur „BGA füttern“ hat (ohne Rubrik Biogas), sieht hier allein den Fütterungsplan
-     "show": lambda u: u.sees_biogas or (u.feeds_plant and not u.restricted), "items": [
+     "show": lambda u: u.sees_feeding, "items": [
         item("biogas.overview", N_("Jetzt"), "bi-lightning-charge", endpoints=("biogas.sync_now",), show=_biogas),
         item("biogas.budget_page", N_("Budget"), "bi-speedometer2", show=_biogas),
         item("biogas.maintenance_page", N_("Wartung"), "bi-wrench-adjustable", endpoints=("biogas.window_settings",),
@@ -154,7 +154,8 @@ def _visible(items, user):
 
 
 def _area_shown(area, user):
-    return area.get("show") is None or area["show"](user)
+    # nur mit mindestens einem sichtbaren Unterpunkt (der erste ist das Ziel des Reiters)
+    return (area.get("show") is None or area["show"](user)) and bool(_visible(area["items"], user))
 
 
 def resolve(endpoint, view_args=None):

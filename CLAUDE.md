@@ -150,7 +150,7 @@ docker compose up --build -d
 - `app/plant_feeding.py`: Fütterungsplan der Biogasanlage (Reiter Biogas → Fütterung, `biogas.feeding_page` `/biogas/fuetterung`,
   Routen `feeding_*` in `biogas_views.py`) – Standard je Wochentag + Feiertag `defaults()` (`settings` `feeding_defaults`),
   Abweichung je Tag `FeedingDay` (1×/2×), `FeedingShift` je Platz (1 = Früh bzw. einzige, 2 = Abend) mit Person und Abhaken;
-  füttern/eintragen/Erinnerungen nur mit Haken „BGA füttern“ `User.feeds_plant` (`is_member()`, **ohne** Rubrik Biogas nötig – dann
+  füttern/eintragen/Erinnerungen nur mit Haken „BGA füttern“ `User.feeds_plant` (eine Regel: `User.feeds_bga` / `plans_feeding` / `sees_feeding`, `is_member()`, **ohne** Rubrik Biogas nötig – dann
   zeigt Biogas nur diesen Reiter: `navigation.item(show=…)`, `biogas_views._only_with_biogas`), planen `is_planner()` auch ohne;
   `week()`, `take()` (selbst, Planer auch für andere; bis `WEEKS_AHEAD` Wochen), `give_up()` → `notify_free()`, `set_times()`
   (Planer jederzeit, am Tag selbst auch wer dann füttert; 2 → 1 lässt Früh, Abend rückt auf oder fällt weg → `notify_removed()`),
@@ -281,6 +281,8 @@ docker compose up --build -d
 - Zeitstempel in UTC speichern, Anzeige über die Jinja-Filter `|datetime` / `|date` (Europe/Berlin)
 - Rechte über `@editor_required` / `@admin_required` aus `app/utils.py`
 - Alle POST-Formulare brauchen `csrf_token`
+- Rücksprung aus dem Formularfeld `back` nur über `utils.back()` / `back_target()` (nie selbst prüfen);
+  Excel-Dateien vor dem Speichern durch `utils.excel_safe()` (Text mit „=“ wird sonst zur Formel)
 - Login-Sperre liegt im Speicher, daher Gunicorn mit **einem** Worker (Threads sind ok)
 - **Mehrsprachig (de/pl)** über `app/i18n.py`: jeder sichtbare Text als `_("Deutscher Text", platzhalter=...)`
   (in Python und Jinja), Plural mit `ngettext(...)`, Konstanten mit `N_()` markieren und bei der Anzeige

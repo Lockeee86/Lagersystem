@@ -144,10 +144,26 @@ def safe_next(default_endpoint="main.dashboard"):
     return target if _is_local_path(target) else url_for(default_endpoint)
 
 
+def back_target():
+    """Formularfeld `back`, wenn es ein lokaler Pfad ist (sonst None) – nie `/\\fremd.de` o. Ä."""
+    target = request.form.get("back", "")
+    return target if _is_local_path(target) else None
+
+
+def excel_safe(workbook):
+    """Text, der mit „=“ beginnt, schreibt openpyxl als Formel – aus Benutzereingaben (Notizen, Namen) soll aber
+    nie eine Formel werden. Vor dem Speichern alle solchen Zellen wieder auf Text stellen."""
+    for ws in workbook.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.data_type == "f" and isinstance(cell.value, str):
+                    cell.data_type = "s"
+    return workbook
+
+
 def back(default_endpoint="main.dashboard", **kwargs):
     """Zurück zur Seite aus dem Formularfeld `back` (nur lokale Pfade)."""
-    target = request.form.get("back", "")
-    return redirect(target if _is_local_path(target) else url_for(default_endpoint, **kwargs))
+    return redirect(back_target() or url_for(default_endpoint, **kwargs))
 
 
 def flash_error(message):

@@ -12,7 +12,7 @@ from .models import FeedPoint, Machine
 from .i18n import gettext as _, ngettext
 from .extensions import db
 from .storage import StorageError
-from .utils import admin_required, flash_error, form_int, form_str
+from .utils import admin_required, back_target, flash_error, form_int, form_str
 
 bp = Blueprint("biogas", __name__)
 
@@ -22,8 +22,7 @@ def _only_with_biogas():
     """Rubrik Biogas ist je Benutzer abwählbar (User.biogas)."""
     if current_user.is_authenticated and not current_user.sees_biogas:
         # „BGA füttern“ ohne Rubrik Biogas: nur der Fütterungsplan
-        if not (current_user.feeds_plant and not current_user.restricted
-                and (request.endpoint or "").startswith("biogas.feeding")):
+        if not (current_user.sees_feeding and (request.endpoint or "").startswith("biogas.feeding")):
             abort(404)
 
 
@@ -281,8 +280,7 @@ def plant_create():
 
 def _feeding_back(day=None):
     from . import plant_feeding
-    target = request.form.get("back", "")
-    if target.startswith("/") and not target.startswith("//"):
+    if target := back_target():
         return redirect(target)
     monday = plant_feeding.monday_of(day or date.today())
     return redirect(url_for("biogas.feeding_page", woche=monday.isoformat()) + (f"#t{day.isoformat()}" if day else ""))
@@ -349,7 +347,7 @@ def feeding_give_up(shift_id):
     try:
         info = plant_feeding.give_up(shift, current_user)
         db.session.commit()
-        plant_feeding.notify_free(info[0], info[1], current_user)
+        plant_feeding.notify_free(info[0], info[1], current_user, info[2])
         flash(_("Fütterung abgegeben – das Team bekommt Bescheid."), "success")
     except StorageError as e:
         db.session.rollback()

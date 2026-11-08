@@ -38,7 +38,8 @@ AREA_RE = re.compile(r"^Waldruhefl(?:ä|ae)che\s*([A-Za-z]{0,3})$", re.I)
 # --- Datei lesen ----------------------------------------------------------------------------------
 
 def _rows_spreadsheetml(data):
-    if b"<!DOCTYPE" in data[:4096] or b"<!ENTITY" in data[:4096]:
+    head = data.upper()
+    if b"<!DOCTYPE" in head or b"<!ENTITY" in head:
         raise StorageError(_("Die Datei konnte nicht gelesen werden."))
     try:
         root = ET.fromstring(data)

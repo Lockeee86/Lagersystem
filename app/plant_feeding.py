@@ -92,16 +92,16 @@ def slot_label(slot, times):
 def is_member(user):
     """Füttert die Anlage: Haken „BGA füttern“ in der Benutzerverwaltung (nicht nur Betrachter) – die Rubrik Biogas
     braucht es dafür nicht; ohne sie ist unter Biogas nur der Fütterungsplan zu sehen."""
-    return bool(user and user.is_authenticated and user.can_edit and user.feeds_plant and not user.restricted)
+    return bool(user and user.is_authenticated and user.feeds_bga)
 
 
 def is_planner(user):
     """Plant die Fütterung (andere eintragen, 1×/2× im Voraus) – auch ohne selbst zu füttern."""
-    return bool(user and user.is_authenticated and user.is_planner and user.sees_biogas)
+    return bool(user and user.is_authenticated and user.plans_feeding)
 
 
 def members():
-    return [u for u in User.query.filter_by(active=True) if u.can_edit and u.feeds_plant and not u.restricted]
+    return [u for u in User.query.filter_by(active=True, feeds_plant=True).order_by(User.id) if u.feeds_bga]
 
 
 def last_day(today=None):
@@ -295,14 +295,24 @@ def _where(day):
     return url_for("biogas.feeding_page", woche=monday_of(day).isoformat()) + f"#t{day.isoformat()}"
 
 
-def notify_free(day, slot, actor):
-    """Abgegeben oder durch Umstellen frei geworden: an das Biogas-Team (ohne den Auslöser)."""
+def notify_free(day, slot, actor, previous=None):
+    """Abgegeben oder durch Umstellen frei geworden: an das Biogas-Team (ohne den Auslöser). Hat ein Planer
+    jemand anderen ausgetragen, bekommt diese Person Bescheid und das Team erfährt, wer frei geworden ist."""
     if day < date.today():
         return 0
     label = _slots_msg([slot], times_on(day))
-    return push.notify(members(), "feeding_free", Msg("Fütterung frei: {day} {slot}", day=_day_label(day), slot=label),
-                       Msg("{name} hat die Fütterung abgegeben – wer übernimmt?", name=actor.name),
-                       _where(day), tag=f"feeding-free-{day.isoformat()}-{slot}", exclude=actor)
+    sent = 0
+    if previous is not None and previous.id != actor.id:
+        sent += push.notify([previous], "feeding_mine", Msg("Fütterung am {day} ausgetragen", day=_day_label(day)),
+                            Msg("{name} hat dich für {slot} ausgetragen.", name=actor.name, slot=label),
+                            _where(day), tag=f"feeding-removed-{day.isoformat()}-{slot}")
+        body = Msg("Die Fütterung von {name} ist frei geworden – wer übernimmt?", name=previous.name)
+        team = [u for u in members() if u.id != previous.id]
+    else:
+        body = Msg("{name} hat die Fütterung abgegeben – wer übernimmt?", name=actor.name)
+        team = members()
+    return sent + push.notify(team, "feeding_free", Msg("Fütterung frei: {day} {slot}", day=_day_label(day), slot=label),
+                              body, _where(day), tag=f"feeding-free-{day.isoformat()}-{slot}", exclude=actor)
 
 
 def notify_removed(user, day, actor):

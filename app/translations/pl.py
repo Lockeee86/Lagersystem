@@ -3474,4 +3474,8 @@ MESSAGES = {
     'Biogas nur Fütterung': 'Biogaz tylko karmienie',
     'BGA füttern (Fütterungsplan: eintragen und Erinnerungen – geht auch ohne Rubrik Biogas)': 'Karmienie biogazowni (plan karmienia: zapisy i przypomnienia – działa też bez działu Biogaz)',
     'Fütterungsplan': 'Plan karmienia',
+    'Fütterung am {day} ausgetragen': 'Karmienie {day} wypisane',
+    '{name} hat dich für {slot} ausgetragen.': '{name} wypisał(a) cię z: {slot}.',
+    'Die Fütterung von {name} ist frei geworden – wer übernimmt?': 'Karmienie osoby {name} jest wolne – kto przejmie?',
+    'Die KML-Datei ist zu groß.': 'Plik KML jest za duży.',
 }

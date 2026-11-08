@@ -11,7 +11,7 @@ from .i18n import gettext as _
 from .models import (DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Plot, Task, User,
                      Warehouse)
 from .storage import StorageError
-from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_str
+from .utils import admin_required, back_target, editor_required, flash_error, form_date, form_int, form_str
 
 bp = Blueprint("tasks", __name__)
 
@@ -68,8 +68,7 @@ def _fields_from_form():
 
 
 def _back(default):
-    target = request.form.get("back", "")
-    return redirect(target if target.startswith("/") and not target.startswith("//") else default)
+    return redirect(back_target() or default)
 
 
 @bp.route("/aufgaben")

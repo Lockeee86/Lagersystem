@@ -235,3 +235,39 @@ def test_feeder_without_biogas(app, db, team, as_worker):
     worker.feeds_plant = False
     db.session.commit()
     assert as_worker.get("/biogas/fuetterung").status_code == 404
+
+
+
+def test_feeding_rights_are_one_rule(app, db, team, as_viewer):
+    """Betrachter mit Haken füttern nicht; Admin ohne Rubrik Biogas, aber mit Haken, plant trotzdem."""
+    viewer, admin = team["viewer"], team["admin"]
+    viewer.biogas = False
+    viewer.feeds_plant = True
+    admin.biogas = False
+    db.session.commit()
+    pf.save_defaults([1] * 8)
+    db.session.commit()
+    assert not viewer.feeds_bga and not pf.is_member(viewer) and viewer not in pf.members()
+    assert "feeding_mine" not in viewer.push_topics()
+    assert as_viewer.get("/biogas/fuetterung").status_code == 404
+    items = agenda.events(MONDAY, MONDAY + timedelta(days=7), user=viewer)[0]
+    assert not any(e["kind"] == "fuetterung" for e in items)
+    assert pf.is_member(admin) and pf.is_planner(admin)
+
+
+def test_planner_gives_up_other_shift(app, db, team):
+    """Planer trägt jemanden aus: die Person bekommt Bescheid, das Team liest ihren Namen."""
+    anna, admin, worker = team["anna"], team["admin"], team["worker"]
+    pf.save_defaults([1] * 8)
+    day = date.today() + timedelta(days=2)
+    shift = pf.take(day, 1, anna)
+    db.session.commit()
+    info = pf.give_up(shift, admin)
+    db.session.commit()
+    with app.test_request_context():
+        pf.notify_free(info[0], info[1], admin, info[2])
+    to_anna = [m for m in push.outbox if m["user_id"] == anna.id]
+    to_worker = [m for m in push.outbox if m["user_id"] == worker.id]
+    assert len(to_anna) == 1 and "ausgetragen" in to_anna[0]["title"]
+    assert len(to_worker) == 1 and anna.name in to_worker[0]["body"]
+    assert not any(m["user_id"] == admin.id for m in push.outbox)

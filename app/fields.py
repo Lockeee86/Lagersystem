@@ -56,6 +56,8 @@ class FieldImportError(StorageError):
 
 # --- KML lesen ---------------------------------------------------------------
 
+KML_MAX_BYTES = 100 * 1024 * 1024        # entpackt – schützt vor Zip-Bomben
+
 def _kml_bytes(filename, data):
     if (filename or "").lower().endswith(".kmz") or data[:2] == b"PK":
         try:
@@ -63,6 +65,8 @@ def _kml_bytes(filename, data):
                 name = next((n for n in z.namelist() if n.lower().endswith(".kml")), None)
                 if name is None:
                     raise FieldImportError(_("In der KMZ-Datei ist keine KML-Datei."))
+                if z.getinfo(name).file_size > KML_MAX_BYTES:
+                    raise FieldImportError(_("Die KML-Datei ist zu groß."))
                 return z.read(name)
         except zipfile.BadZipFile:
             raise FieldImportError(_("Die Datei ist keine gültige KML- oder KMZ-Datei."))
@@ -105,7 +109,7 @@ def _decimal(text):
 def parse_kml(filename, data):
     """Liest alle Placemarks mit Polygon. Liefert eine Liste von dicts (Reihenfolge wie in der Datei)."""
     data = _kml_bytes(filename, data)
-    if b"<!DOCTYPE" in data[:2000].upper() or b"<!ENTITY" in data.upper():
+    if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
         raise FieldImportError(_("Die Datei ist keine gültige KML- oder KMZ-Datei."))
     try:
         root = ET.fromstring(data)

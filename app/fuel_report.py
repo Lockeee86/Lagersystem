@@ -19,6 +19,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from . import fuel
+from .utils import excel_safe
 from .models import FuelEntry
 
 KIND_TEXT = {"tanken": "Getankt", "lieferung": "Lieferung", "peilung": "Peilung"}
@@ -173,7 +174,7 @@ def build_xlsx(report, farm):
     ws.auto_filter.ref = ws.dimensions
 
     buf = io.BytesIO()
-    wb.save(buf)
+    excel_safe(wb).save(buf)
     return buf.getvalue()
 
 

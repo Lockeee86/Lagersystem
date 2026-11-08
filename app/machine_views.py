@@ -13,7 +13,7 @@ from .labels import LABEL_FORMATS, render_labels
 from .models import (ChpDay, COUNTER_UNITS, DOCUMENT_KINDS, FUEL_CATEGORIES, MACHINE_CATEGORIES, MACHINE_EVENT_KINDS, FuelEntry, Machine,
                      MachineDocument, MachineEvent, MachinePart, MaintenanceTask, Photo, TechPlace, User, Warehouse)
 from .storage import StorageError
-from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
+from .utils import admin_required, back_target, editor_required, flash_error, form_date, form_int, form_money, form_str
 
 bp = Blueprint("machines", __name__)
 
@@ -420,8 +420,7 @@ def machine_refuel(machine_id):
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    target = request.form.get("back", "")
-    if target.startswith("/") and not target.startswith("//"):
+    if target := back_target():
         return redirect(target)
     return _to_machine(machine, "diesel")
 
@@ -490,6 +489,8 @@ def document_upload(machine_id):
 @login_required
 def document(doc_id):
     doc = _get(MachineDocument, doc_id)
+    if not machines.can_see(doc.machine, current_user):
+        abort(404)
     ext = doc.filename.rsplit(".", 1)[-1]
     download = f"{doc.title[:80]}.{ext}"
     response = send_from_directory(uploads.document_dir(), doc.filename, mimetype=doc.mimetype, max_age=86400,

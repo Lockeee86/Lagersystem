@@ -208,6 +208,21 @@ class User(UserMixin, db.Model):
         return bool(self.biogas) and not self.restricted
 
     @property
+    def feeds_bga(self):
+        """Füttert die Biogasanlage: Haken „BGA füttern“, mindestens Mitarbeiter, nicht „nur eine Rubrik“ –
+        die Rubrik Biogas braucht es dafür nicht. Die eine Regel für Seite, Push, Kalender und Navigation."""
+        return bool(self.feeds_plant) and self.can_edit and not self.restricted
+
+    @property
+    def plans_feeding(self):
+        """Plant den Fütterungsplan (andere eintragen, 1×/2× im Voraus): Tagesplan-Recht und Zugang zur Fütterung."""
+        return self.is_planner and (self.sees_biogas or self.feeds_bga)
+
+    @property
+    def sees_feeding(self):
+        return self.sees_biogas or self.feeds_bga
+
+    @property
     def sees_forest(self):
         """Rubrik Bestattungswald (in der Benutzerverwaltung freigeschaltet)."""
         return (bool(self.forest) and not self.restricted) or self.only_forest
@@ -301,11 +316,11 @@ PUSH_TOPICS = {
     "coop_sensor": {"label": N_("Stall-Sensor: Frost, Hitze oder keine Verbindung"), "group": N_("Hühner"),
                     "who": lambda u: u.keeps_chickens},
     "feeding_mine": {"label": N_("Fütterung: abends Erinnerung, wenn ich morgen füttere"), "group": N_("Biogas"),
-                     "who": lambda u: u.can_edit and u.feeds_plant and not u.restricted and _feeding_active()},
+                     "who": lambda u: u.feeds_bga and _feeding_active()},
     "feeding_free": {"label": N_("Fütterung: Platz frei (morgen noch offen oder abgegeben)"), "group": N_("Biogas"),
-                     "who": lambda u: u.can_edit and u.feeds_plant and not u.restricted and _feeding_active()},
+                     "who": lambda u: u.feeds_bga and _feeding_active()},
     "feeding_missed": {"label": N_("Fütterung nicht abgehakt"), "group": N_("Biogas"),
-                       "who": lambda u: u.is_planner and u.sees_biogas and _feeding_active()},
+                       "who": lambda u: u.plans_feeding and _feeding_active()},
 }
 
 
