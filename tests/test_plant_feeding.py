@@ -211,3 +211,27 @@ def test_feeds_plant_flag(app, db, team, as_admin, as_worker):
                                            "active": "1", "biogas": "1", "feeds_plant": "1"})
     assert worker.feeds_plant and pf.is_member(worker)
     assert "BGA füttern" in as_admin.get("/admin/benutzer").get_data(as_text=True)
+
+
+def test_feeder_without_biogas(app, db, team, as_worker):
+    """„BGA füttern“ ohne Rubrik Biogas: Biogas zeigt nur den Fütterungsplan, eintragen und Erinnerungen gehen."""
+    worker = team["worker"]
+    worker.biogas = False
+    worker.feeds_plant = True
+    db.session.commit()
+    pf.save_defaults([1] * 8)
+    db.session.commit()
+    assert pf.is_member(worker) and worker in pf.members() and "feeding_mine" in worker.push_topics()
+    page = as_worker.get("/biogas/fuetterung").get_data(as_text=True)
+    assert "Ich übernehme" in page and "Noch niemand hat den Haken" not in page
+    assert 'href="/biogas/budget"' not in page                         # keine anderen Biogas-Reiter
+    for url in ("/biogas", "/biogas/budget", "/biogas/wartung", "/biogas/auswertung"):
+        assert as_worker.get(url).status_code == 404, url
+    as_worker.post("/biogas/fuetterung/eintragen", data={"tag": date.today().isoformat(), "slot": "1"})
+    assert FeedingShift.query.filter_by(user_id=worker.id).count() == 1
+    home = as_worker.get("/").get_data(as_text=True)
+    assert "Fütterung Biogas" in home and 'href="/biogas/fuetterung"' in home
+    # ohne „BGA füttern“ und ohne Biogas: gar nichts
+    worker.feeds_plant = False
+    db.session.commit()
+    assert as_worker.get("/biogas/fuetterung").status_code == 404

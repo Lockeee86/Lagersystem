@@ -21,7 +21,10 @@ bp = Blueprint("biogas", __name__)
 def _only_with_biogas():
     """Rubrik Biogas ist je Benutzer abwählbar (User.biogas)."""
     if current_user.is_authenticated and not current_user.sees_biogas:
-        abort(404)
+        # „BGA füttern“ ohne Rubrik Biogas: nur der Fütterungsplan
+        if not (current_user.feeds_plant and not current_user.restricted
+                and (request.endpoint or "").startswith("biogas.feeding")):
+            abort(404)
 
 
 def _page(template, tab, **context):

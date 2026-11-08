@@ -256,7 +256,7 @@ def events(start, end, today=None, user=None, mine_only=False):
     if user is None or user.sees_forest:                    # Beisetzungen im Bestattungswald
         from . import forest
         items += forest.calendar_events(start, end, _event)
-    if user is None or user.sees_biogas:                    # Fütterungsplan der Biogasanlage
+    if user is None or user.sees_biogas or user.feeds_plant:   # Fütterungsplan der Biogasanlage
         from . import plant_feeding
         items += plant_feeding.calendar_events(start, end, _event, user)
     if mine_only:

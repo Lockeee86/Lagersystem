@@ -3469,7 +3469,9 @@ MESSAGES = {
     'Gilt für alle Tage, die nicht einzeln umgestellt wurden.': 'Dotyczy wszystkich dni, których nie zmieniono osobno.',
     'Eintragen lassen sich nur Mitarbeiter mit dem Haken „BGA füttern“ (Benutzerverwaltung).': 'Zapisać można tylko pracowników z zaznaczonym „Karmienie biogazowni” (zarządzanie użytkownikami).',
     'BGA füttern': 'Karmienie biogazowni',
-    'BGA füttern (trägt sich in den Fütterungsplan ein, bekommt die Erinnerungen)': 'Karmienie biogazowni (zapisuje się do planu karmienia, dostaje przypomnienia)',
     'Noch niemand hat den Haken „BGA füttern“. Admins setzen ihn unter Verwaltung → Benutzer bei allen, die die Anlage füttern.': 'Nikt jeszcze nie ma zaznaczonego „Karmienie biogazowni”. Administratorzy zaznaczają to w Zarządzanie → Użytkownicy u wszystkich, którzy karmią instalację.',
     'Eintragen können sich alle mit dem Haken „BGA füttern“ in der Benutzerverwaltung.': 'Zapisywać się mogą wszyscy z zaznaczonym „Karmienie biogazowni” w zarządzaniu użytkownikami.',
+    'Biogas nur Fütterung': 'Biogaz tylko karmienie',
+    'BGA füttern (Fütterungsplan: eintragen und Erinnerungen – geht auch ohne Rubrik Biogas)': 'Karmienie biogazowni (plan karmienia: zapisy i przypomnienia – działa też bez działu Biogaz)',
+    'Fütterungsplan': 'Plan karmienia',
 }

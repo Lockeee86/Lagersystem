@@ -7,7 +7,8 @@
     <div>
         <h1>{{ _("Biogas") }}</h1>
         <p class="text-body-secondary mb-0">
-            {% if status %}{{ _("Letzter Abruf {date}", date=status.at|datetime) }}{% if not status.ok %} · <span class="text-danger">{{ status.message }}</span>{% endif %}
+            {% if not current_user.sees_biogas %}{{ _("Fütterungsplan") }}
+            {% elif status %}{{ _("Letzter Abruf {date}", date=status.at|datetime) }}{% if not status.ok %} · <span class="text-danger">{{ status.message }}</span>{% endif %}
             {% else %}{{ _("BHKW-Laufzeiten und Wartung aus der Speicher-Kraftwerk-API") }}{% endif %}
         </p>
     </div>
@@ -17,11 +18,13 @@
     </form>
     {% endif %}
 </div>
+{% if current_user.sees_biogas %}
 <nav class="view-switch view-switch-wide mb-3 d-lg-none" aria-label="{{ _('Biogas') }}">
     {% for key, endpoint, icon, label in [("jetzt", "biogas.overview", "bi-lightning-charge", _("Jetzt")), ("budget", "biogas.budget_page", "bi-speedometer2", _("Budget")), ("wartung", "biogas.maintenance_page", "bi-wrench-adjustable", _("Wartung")), ("auswertung", "biogas.analysis_page", "bi-graph-up", _("Auswertung")), ("fuetterung", "biogas.feeding_page", "bi-basket2", _("Fütterung"))] %}
     <a href="{{ url_for(endpoint) }}" class="{{ 'active' if tab == key }}" {% if tab == key %}aria-current="page"{% endif %}><i class="bi {{ icon }} me-1"></i>{{ label }}</a>
     {% endfor %}
     {% if current_user.is_admin %}<a href="{{ url_for('biogas.settings_page') }}" class="{{ 'active' if tab == 'einstellungen' }}" {% if tab == 'einstellungen' %}aria-current="page"{% endif %} aria-label="{{ _('Einstellungen') }}" title="{{ _('Einstellungen') }}"><i class="bi bi-gear"></i></a>{% endif %}
 </nav>
+{% endif %}
 {% block biogas %}{% endblock %}
 {% endblock %}

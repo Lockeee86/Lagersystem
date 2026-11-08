@@ -90,8 +90,9 @@ def slot_label(slot, times):
 # --- Rechte ---------------------------------------------------------------------------------------
 
 def is_member(user):
-    """Füttert die Anlage: Haken „BGA füttern“ in der Benutzerverwaltung (dazu Rubrik Biogas, nicht nur Betrachter)."""
-    return bool(user and user.is_authenticated and user.can_edit and user.sees_biogas and user.feeds_plant)
+    """Füttert die Anlage: Haken „BGA füttern“ in der Benutzerverwaltung (nicht nur Betrachter) – die Rubrik Biogas
+    braucht es dafür nicht; ohne sie ist unter Biogas nur der Fütterungsplan zu sehen."""
+    return bool(user and user.is_authenticated and user.can_edit and user.feeds_plant and not user.restricted)
 
 
 def is_planner(user):
@@ -100,7 +101,7 @@ def is_planner(user):
 
 
 def members():
-    return [u for u in User.query.filter_by(active=True) if u.can_edit and u.sees_biogas and u.feeds_plant]
+    return [u for u in User.query.filter_by(active=True) if u.can_edit and u.feeds_plant and not u.restricted]
 
 
 def last_day(today=None):

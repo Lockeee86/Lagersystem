@@ -10,9 +10,14 @@ from .i18n import N_
 from .models import ROLE_ADMIN, ROLE_BETRACHTER, ROLE_MITARBEITER
 
 
-def item(endpoint, label, icon, role=ROLE_BETRACHTER, endpoints=(), prefixes=(), badge=None):
+def item(endpoint, label, icon, role=ROLE_BETRACHTER, endpoints=(), prefixes=(), badge=None, show=None):
+    """`show(user)`: Unterpunkt nur für passende Benutzer (z. B. Biogas-Seiten nur mit Rubrik Biogas)."""
     return {"endpoint": endpoint, "label": label, "icon": icon, "role": role,
-            "endpoints": {endpoint, *endpoints}, "prefixes": prefixes, "badge": badge}
+            "endpoints": {endpoint, *endpoints}, "prefixes": prefixes, "badge": badge, "show": show}
+
+
+def _biogas(user):
+    return user.sees_biogas
 
 
 def _sensors_shown(user):
@@ -61,15 +66,18 @@ AREAS = [
         item("main.weather_page", N_("Wetter"), "bi-cloud-sun"),
     ]},
     # Biogas: in der Benutzerverwaltung je Benutzer abwählbar (User.biogas)
-    {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge", "show": lambda u: u.sees_biogas, "items": [
-        item("biogas.overview", N_("Jetzt"), "bi-lightning-charge", endpoints=("biogas.sync_now",)),
-        item("biogas.budget_page", N_("Budget"), "bi-speedometer2"),
-        item("biogas.maintenance_page", N_("Wartung"), "bi-wrench-adjustable", endpoints=("biogas.window_settings",)),
-        item("biogas.analysis_page", N_("Auswertung"), "bi-graph-up"),
+    {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge",
+     # Wer nur „BGA füttern“ hat (ohne Rubrik Biogas), sieht hier allein den Fütterungsplan
+     "show": lambda u: u.sees_biogas or (u.feeds_plant and not u.restricted), "items": [
+        item("biogas.overview", N_("Jetzt"), "bi-lightning-charge", endpoints=("biogas.sync_now",), show=_biogas),
+        item("biogas.budget_page", N_("Budget"), "bi-speedometer2", show=_biogas),
+        item("biogas.maintenance_page", N_("Wartung"), "bi-wrench-adjustable", endpoints=("biogas.window_settings",),
+             show=_biogas),
+        item("biogas.analysis_page", N_("Auswertung"), "bi-graph-up", show=_biogas),
         item("biogas.feeding_page", N_("Fütterung"), "bi-basket2"),
-        item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",)),
+        item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",), show=_biogas),
         item("biogas.settings_page", N_("Einstellungen"), "bi-gear", role=ROLE_ADMIN,
-             endpoints=("biogas.feed_import_preview",)),
+             endpoints=("biogas.feed_import_preview",), show=_biogas),
     ]},
     # Bestattungswald: nur für Benutzer, die in der Benutzerverwaltung dafür freigeschaltet sind
     {"key": "wald", "label": N_("Bestattungswald"), "icon": "bi-tree", "show": lambda u: u.sees_forest, "items": [
@@ -142,7 +150,7 @@ def _active(it, endpoint):
 
 
 def _visible(items, user):
-    return [it for it in items if user.has_role(it["role"])]
+    return [it for it in items if user.has_role(it["role"]) and (it.get("show") is None or it["show"](user))]
 
 
 def _area_shown(area, user):
