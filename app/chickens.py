@@ -6,7 +6,7 @@ Session; Push-Nachrichten (`evening_check`) laufen aus dem Zeitplan.
 Die Stallkontrolle nutzt den Rundgang (`CheckStation.area == "huehner"`), Aufgaben tragen `Task.area = "huehner"`.
 """
 import math
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, UTC
 from decimal import Decimal
 
 from flask import url_for
@@ -20,6 +20,7 @@ from .models import (FLOCK_REASONS, CheckStation, EggEntry, EggShare, FeedEntry,
 from .push import Msg
 from .machines import add_months
 from .storage import StorageError
+import itertools
 
 AREA = "huehner"
 EGGS_MAX = 500                                   # Plausibilität je Eintrag
@@ -258,7 +259,7 @@ def expected_rate(age_days):
     weeks = age_days / 7
     if weeks <= LAYING_CURVE[0][0]:
         return 0.0
-    for (w0, r0), (w1, r1) in zip(LAYING_CURVE, LAYING_CURVE[1:]):
+    for (w0, r0), (w1, r1) in itertools.pairwise(LAYING_CURVE):
         if weeks <= w1:
             return r0 + (r1 - r0) * (weeks - w0) / (w1 - w0)
     return float(LAYING_CURVE[-1][1])
@@ -844,7 +845,7 @@ def _sun(day, lat, lon, rising):
         return None
     ha = math.degrees(math.acos(cos_ha))
     minutes = 720 - 4 * (lon + ha if rising else lon - ha) - eqtime
-    return datetime.combine(day, time(), tzinfo=timezone.utc) + timedelta(minutes=minutes)
+    return datetime.combine(day, time(), tzinfo=UTC) + timedelta(minutes=minutes)
 
 
 def sunset(day, lat, lon):

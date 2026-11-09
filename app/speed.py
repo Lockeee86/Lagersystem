@@ -39,7 +39,7 @@ def init_app(app):
 def _pack(response):
     if (response.status_code != 200 or "gzip" not in request.headers.get("Accept-Encoding", "")
             or response.headers.get("Content-Encoding") or response.mimetype not in PACKABLE
-            or response.is_streamed and not response.direct_passthrough):
+            or (response.is_streamed and not response.direct_passthrough)):
         return response
     response.headers.add("Vary", "Accept-Encoding")
     key = None

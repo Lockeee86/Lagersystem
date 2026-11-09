@@ -326,7 +326,7 @@ def test_dxf(app, db, seed):
     assert ForestShape.query.count() == 4 and ForestShape.query.filter_by(layer="Parkplatz").count() == 1
     with app.test_request_context():
         items, legend = forest.map_background()
-    assert [i["color"] for i in items][0] == "#a8d08d"                            # Rasen zuerst (unten)
+    assert next(i["color"] for i in items) == "#a8d08d"                            # Rasen zuerst (unten)
     assert ("Parkplatz", "#9aa0a6") in legend and any(i["line"] for i in items)
 
 

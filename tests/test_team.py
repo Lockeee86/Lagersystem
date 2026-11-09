@@ -1,6 +1,6 @@
 import base64
 import io
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 
 import pytest
 from PIL import Image, ImageDraw
@@ -214,9 +214,9 @@ def test_workshop_screen(app, as_admin, as_worker, db, seed):
 
 
 def test_workshop_screen_price(app, as_admin, db, seed, monkeypatch):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
     from app import biogas, screen
-    start = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=6)
+    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(hours=6)
     series = [(start + timedelta(minutes=15 * i), 80.0 + (i % 40) * 5) for i in range(96)]
     monkeypatch.setattr(biogas, "live", lambda now=None, cached_only=False: {"price_series": series, "gas": None,
                                                                               "price_now": series[24][1]})
@@ -313,7 +313,7 @@ def test_plan_pages_and_push(as_admin, as_worker, as_viewer, db, seed):
     tomorrow = today + timedelta(days=1)
     html = as_admin.get(f"/tagesplan?datum={tomorrow.isoformat()}").get_data(as_text=True)
     assert 'action="/tagesplan/eintrag"' in html and '<option value="Sortieren Halle 2">' in html and "übernehmen" in html
-    Task.query.filter_by(title="Sortieren Halle 2").one().done_at = datetime.now(timezone.utc)
+    Task.query.filter_by(title="Sortieren Halle 2").one().done_at = datetime.now(UTC)
     db.session.commit()
     as_admin.post("/tagesplan/uebernehmen", data={"datum": tomorrow.isoformat()})
     assert len(team.plan_for(tomorrow)[worker.id]) == 1

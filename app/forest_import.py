@@ -28,6 +28,7 @@ from .extensions import db
 from .i18n import gettext as _
 from .models import ForestBurial, ForestContract, ForestPlace, ForestShape, ForestTree, Setting
 from .storage import StorageError
+import contextlib
 
 NS = "{urn:schemas-microsoft-com:office:spreadsheet}"
 SALUTATIONS = {"frau", "herrn", "herr", "familie", "eheleute", "firma", "fam.", "frau und herrn", "herrn und frau"}
@@ -65,7 +66,7 @@ def _rows_xlsx(data):
     import openpyxl
     try:
         book = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-    except Exception:                                      # noqa: BLE001 – kaputte Datei
+    except Exception:
         raise StorageError(_("Die Datei konnte nicht gelesen werden."))
     tables = []
     for sheet in book.worksheets:
@@ -247,7 +248,7 @@ def shape_kind(layer):
 
 def is_dxf(data):
     head = data[:400].lstrip().replace(b"\r", b"")
-    return head.startswith(b"0\nSECTION") or head.startswith(b"999\n")
+    return head.startswith((b"0\nSECTION", b"999\n"))
 
 
 def _utm_zone():
@@ -304,10 +305,8 @@ def parse_dxf(data, zone=None):
             elif code == "70" and not cur["vertex"]:
                 cur["closed"] = bool(int(value or 0) & 1)
             elif code in ("10", "11") and (cur["type"] != "POLYLINE" or cur["vertex"]):
-                try:
+                with contextlib.suppress(ValueError):
                     cur["xy"].append([float(value), None])
-                except ValueError:
-                    pass
             elif code in ("20", "21") and cur["xy"] and cur["xy"][-1][1] is None:
                 cur["xy"][-1][1] = float(value)
         i += 1

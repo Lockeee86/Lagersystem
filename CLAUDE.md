@@ -12,6 +12,8 @@ und den Phasenplan aktuell halten. Die Oberfläche und alle Texte sind auf Deuts
 
 ```sh
 pip install -r requirements-dev.txt
+ruff check .                             # Code-Prüfung (Regeln in pyproject.toml; läuft auch in GitHub Actions)
+npm install && npm run lint              # JavaScript prüfen (ESLint, nur Werkzeug – die App hat keinen Build-Schritt)
 pytest -n auto                           # Tests (SQLite in-memory, parallel; GitHub Actions `.github/workflows/tests.yml` bei jedem Push)
 flask --app wsgi db upgrade              # Migrationen anwenden
 flask --app wsgi db migrate -m "..."     # Migration nach Modelländerung erzeugen (immer mit committen)
@@ -296,6 +298,10 @@ docker compose up --build -d
 - Zeitstempel in UTC speichern, Anzeige über die Jinja-Filter `|datetime` / `|date` (Europe/Berlin)
 - Rechte über `@editor_required` / `@admin_required` aus `app/utils.py`
 - Alle POST-Formulare brauchen `csrf_token`
+- Strenge CSP: Inline-Skripte nur als `<script nonce="{{ csp_nonce() }}">`, **keine** Inline-Handler (`onclick=…`,
+  `onchange=…`) – stattdessen `data-autosubmit` (Formular bei Änderung abschicken), `data-select-all`, `data-confirm`
+  oder ein Listener im Skript; `tests/test_security.py` prüft alle Vorlagen. JavaScript: `const`/`let`, Pfeilfunktionen
+- Python 3.14 (Docker, CI); `datetime.UTC` statt `timezone.utc`
 - Rücksprung aus dem Formularfeld `back` nur über `utils.back()` / `back_target()` (nie selbst prüfen);
   Excel-Dateien vor dem Speichern durch `utils.excel_safe()` (Text mit „=“ wird sonst zur Formel)
 - Login-Sperre liegt im Speicher, daher Gunicorn mit **einem** Worker (Threads sind ok)

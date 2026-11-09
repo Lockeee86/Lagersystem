@@ -7,7 +7,6 @@ from app import machines, places
 from app.models import Machine, MaintenanceTask, TechPlace, Warehouse
 from app.storage import StorageError
 
-from .conftest import login, make_user
 
 
 def _tree(db, admin):

@@ -46,3 +46,25 @@ def test_kmz_too_big(monkeypatch):
         z.writestr("doc.kml", "<kml>" + " " * 100 + "</kml>")
     with pytest.raises(fields.FieldImportError):
         fields._kml_bytes("a.kmz", buf.getvalue())
+
+
+def test_csp_nonce_and_no_inline_handlers(app, db, seed, as_admin):
+    """Skripte laufen nur mit dem Einmal-Wert der Antwort; Inline-Handler gibt es in keiner Vorlage."""
+    import glob
+    import re
+    r = as_admin.get("/")
+    csp = r.headers["Content-Security-Policy"]
+    nonce = re.search(r"script-src 'self' 'nonce-([\w-]+)'", csp).group(1)
+    assert "'unsafe-inline'" not in csp.split("script-src")[1].split(";")[0]
+    assert "object-src 'none'" in csp and "base-uri 'self'" in csp and "form-action 'self'" in csp
+    page = r.get_data(as_text=True)
+    inline = re.findall(r"<script(?![^>]*\bsrc=)(?![^>]*application/json)([^>]*)>", page)
+    assert inline and all(f'nonce="{nonce}"' in attrs for attrs in inline)
+    assert nonce != re.search(r"'nonce-([\w-]+)'", as_admin.get("/").headers["Content-Security-Policy"]).group(1)
+    for path in glob.glob("app/templates/**/*.html", recursive=True):
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        assert not re.search(r"\son[a-z]+\s*=\s*[\"']", text), f"Inline-Handler in {path}"
+        assert "javascript:" not in text, path
+        for attrs in re.findall(r"<script(?![^>]*\bsrc=)(?![^>]*application/json)([^>]*)>", text):
+            assert "csp_nonce()" in attrs, f"<script> ohne nonce in {path}"

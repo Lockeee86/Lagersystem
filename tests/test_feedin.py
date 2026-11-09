@@ -1,5 +1,5 @@
 """Jahresbudget je Einspeisestelle (Höchstbemessungsleistung) – nur erfundene Zahlen."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from decimal import Decimal
 
 import pytest
@@ -68,7 +68,7 @@ def test_tight_and_ok(db, seed):
 
 
 def test_price_threshold():
-    start = datetime(2026, 1, 5, tzinfo=timezone.utc)
+    start = datetime(2026, 1, 5, tzinfo=UTC)
     outlook = [(start + timedelta(hours=h), float(h), False) for h in range(48)]
     assert feedin.price_threshold(6, outlook) == 36.0               # teuerste 12 von 48 Stunden
     assert feedin.price_threshold(24, outlook) is None and feedin.price_threshold(6, []) is None
@@ -124,7 +124,7 @@ def test_missing_months_are_extrapolated(db, seed):
     assert s["missing"] == [1, 2, 3, 4] and s["gap_days"] == 120
     assert s["estimated"] == pytest.approx(181 * 6800) and s["projected"] == pytest.approx(365 * 6800)
     assert s["level"] == "ok"                                      # 300 kW Schnitt wären 7200 kWh am Tag
-    feedin.save_months(point, 2025, {m_: "223200" for m_ in (1, 2, 3, 4)})
+    feedin.save_months(point, 2025, dict.fromkeys((1, 2, 3, 4), "223200"))
     assert feedin.status(point, 2025, today=date(2025, 7, 1))["missing"] == []
 
 
@@ -235,7 +235,7 @@ def test_plan_caps_at_capacity(db, seed):
 
 def test_loss_and_plant_checks(app, as_admin, as_worker, db, seed, plant):
     from app import biogas
-    from app.models import Machine, MachineEvent
+    from app.models import Machine
     motor = plant.machines.order_by(Machine.name).first()                         # Motor A, 6000 kWh am Tag
     today = date(2025, 7, 1)
     for d in range(60):

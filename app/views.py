@@ -14,11 +14,11 @@ from . import (agenda, backup, biogas, bulk, chickens, climate, fuel, irrigation
 from .extensions import db
 from .i18n import N_, gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
-from .models import (CheckStation, BOX_CONDITIONS, BOX_DEFECT, BOX_RETIRED, FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
+from .models import (CheckStation, BOX_DEFECT, BOX_RETIRED, FILL_LEVELS, MAP_VIEWS, SORT_USAGES, Box, BoxType, BulkStore, Delivery, Machine, Movement,
                      Photo, Plot, PlotYear, SeedClass, User, Variety, Warehouse)
 from .storage import StorageError
 from .utils import (admin_required, back, editor_required, flash_error, form_date, form_int,
-                    fmt_date, fmt_kg, fmt_num, form_str, local_tz)
+                    fmt_kg, fmt_num, form_str, local_tz)
 
 bp = Blueprint("main", __name__)
 

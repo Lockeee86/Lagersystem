@@ -4,7 +4,7 @@ Alle Zeitstempel werden in UTC gespeichert und erst bei der Anzeige
 in die lokale Zeitzone umgerechnet.
 """
 import secrets
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -14,7 +14,7 @@ from .i18n import DEFAULT_LANGUAGE, N_, gettext as _
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # --- Rollen -----------------------------------------------------------------

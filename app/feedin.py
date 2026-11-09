@@ -411,7 +411,7 @@ def price_threshold(hours_per_day, outlook):
     prices = sorted((p for p, _f in _quarters(outlook).values() if p is not None), reverse=True)
     if not prices:
         return None
-    take = max(int(round(len(prices) * hours_per_day / 24)), 1)
+    take = max(round(len(prices) * hours_per_day / 24), 1)
     return prices[min(take, len(prices)) - 1]
 
 

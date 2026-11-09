@@ -10,7 +10,7 @@ In Tests `assistant._client` ersetzen (kein Netz) – dort läuft `run()` sofort
 """
 import json
 import threading
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from decimal import Decimal
 
 from flask import current_app
@@ -70,7 +70,7 @@ def save_limit(value):
 
 def month_cost(today=None):
     today = today or date.today()
-    start = datetime(today.year, today.month, 1, tzinfo=timezone.utc)
+    start = datetime(today.year, today.month, 1, tzinfo=UTC)
     total = db.session.query(func.coalesce(func.sum(AssistantQuery.cost_usd), 0)) \
         .filter(AssistantQuery.created_at >= start).scalar()
     return Decimal(total or 0)
@@ -277,7 +277,7 @@ def call_tool(name, args):
     fn = TOOLS[name][0]
     try:
         result = fn(**{k: v for k, v in (args or {}).items() if k in TOOLS[name][2]})
-    except Exception as e:                      # noqa: BLE001 – der Agent soll weiterarbeiten können
+    except Exception as e:
         current_app.logger.warning("Daten-Agent: Werkzeug %s fehlgeschlagen: %s", name, e)
         db.session.rollback()
         return json.dumps({"fehler": "Daten konnten nicht gelesen werden."}), True
@@ -387,7 +387,7 @@ def run(query_id, lang="de"):
     except anthropic.APIStatusError as e:
         current_app.logger.warning("Daten-Agent: API-Fehler %s: %s", e.status_code, e.message)
         error = "api"
-    except Exception:                            # noqa: BLE001
+    except Exception:
         current_app.logger.exception("Daten-Agent: unerwarteter Fehler")
         error = "unexpected"
     query = db.session.get(AssistantQuery, query_id)
@@ -400,7 +400,7 @@ def run(query_id, lang="de"):
     query.input_tokens, query.output_tokens = totals["input"], totals["output"]
     query.cache_read_tokens, query.cache_write_tokens = totals["cache_read"], totals["cache_write"]
     query.cost_usd = cost.quantize(Decimal("0.0001"))
-    query.finished_at = datetime.now(timezone.utc)
+    query.finished_at = datetime.now(UTC)
     db.session.commit()
 
 
@@ -411,7 +411,7 @@ def recent(limit=30):
 
 def expire_stale(now=None):
     """Fragen, die nach einem Neustart nie fertig werden, als abgebrochen markieren. Committet."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     stale = AssistantQuery.query.filter(AssistantQuery.status == "laeuft",
                                         AssistantQuery.created_at < now - timedelta(minutes=STALE_MINUTES)).all()
     for q in stale:

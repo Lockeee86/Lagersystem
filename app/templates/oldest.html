@@ -10,14 +10,14 @@
 </div>
 <form method="get" class="row g-2 mb-3">
     <div class="col-6 col-md-3">
-        <select class="form-select" name="sorte" onchange="this.form.submit()" aria-label="{{ _('Sorte') }}">
+        <select class="form-select" name="sorte" data-autosubmit aria-label="{{ _('Sorte') }}">
             <option value="">{{ _("Alle Sorten") }}</option>
             {% for v in varieties %}<option value="{{ v.id }}" {% if variety_id == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
         </select>
     </div>
     {% if warehouses|length > 1 %}
     <div class="col-6 col-md-3">
-        <select class="form-select" name="lager" onchange="this.form.submit()" aria-label="{{ _('Lager') }}">
+        <select class="form-select" name="lager" data-autosubmit aria-label="{{ _('Lager') }}">
             <option value="">{{ _("Alle Lager") }}</option>
             {% for w in warehouses %}<option value="{{ w.id }}" {% if warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
         </select>

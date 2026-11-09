@@ -70,7 +70,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='vendor/html5-qrcode/html5-qrcode.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var startBtn = document.getElementById("startScan");
     var stopBtn = document.getElementById("stopScan");

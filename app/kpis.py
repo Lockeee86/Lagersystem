@@ -1,5 +1,5 @@
 """Kennzahlen-Leiste der Startseite: je Rubrik eine große Zahl und ein Verlauf der letzten 14 Tage."""
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta, UTC
 
 from flask import url_for
 from sqlalchemy import func
@@ -19,10 +19,10 @@ def _days(today):
 def _movement_series(today):
     days = _days(today)
     tz = local_tz()
-    start = datetime.combine(days[0], time.min, tz).astimezone(timezone.utc)
-    counts = {d: 0 for d in days}
+    start = datetime.combine(days[0], time.min, tz).astimezone(UTC)
+    counts = dict.fromkeys(days, 0)
     for (stamp,) in db.session.query(Movement.created_at).filter(Movement.created_at >= start):
-        day = (stamp if stamp.tzinfo else stamp.replace(tzinfo=timezone.utc)).astimezone(tz).date()
+        day = (stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)).astimezone(tz).date()
         if day in counts:
             counts[day] += 1
     return [counts[d] for d in days]

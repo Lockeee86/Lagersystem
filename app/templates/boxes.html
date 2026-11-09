@@ -54,35 +54,35 @@
         </div>
         <div class="collapse filter-more" id="boxFilters"><div class="row g-2">
         <div class="col-6 col-md">
-            <select class="form-select" name="sorte" onchange="this.form.submit()">
+            <select class="form-select" name="sorte" data-autosubmit>
                 <option value="">{{ _("Alle Sorten") }}</option>
                 {% for v in varieties %}<option value="{{ v.id }}" {% if args.get('sorte')|int == v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
             </select>
         </div>
         {% if plots %}
         <div class="col-6 col-md">
-            <select class="form-select" name="schlag" onchange="this.form.submit()">
+            <select class="form-select" name="schlag" data-autosubmit>
                 <option value="">{{ _("Alle Schläge") }}</option>
                 {% for p in plots %}<option value="{{ p.id }}" {% if args.get('schlag')|int == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
             </select>
         </div>
         {% endif %}
         <div class="col-6 col-md">
-            <select class="form-select" name="status" onchange="this.form.submit()">
+            <select class="form-select" name="status" data-autosubmit>
                 <option value="">{{ _("Alle Status") }}</option>
                 {% for key, (label, _filter) in filters.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         {% if warehouses|length > 1 %}
         <div class="col-6 col-md">
-            <select class="form-select" name="lager" onchange="this.form.submit()">
+            <select class="form-select" name="lager" data-autosubmit>
                 <option value="">{{ _("Alle Lager") }}</option>
                 {% for wh in warehouses %}<option value="{{ wh.id }}" {% if args.get('lager')|int == wh.id %}selected{% endif %}>{{ wh.name }}</option>{% endfor %}
             </select>
         </div>
         {% endif %}
         <div class="col-6 col-md">
-            <select class="form-select" name="sort" onchange="this.form.submit()">
+            <select class="form-select" name="sort" data-autosubmit>
                 {% for key, label in [('code', _('nach Code')), ('ernte', _('nach Ernte')), ('platz', _('nach Platz')), ('geaendert', _('zuletzt geändert'))] %}
                 <option value="{{ key }}" {% if args.get('sort', 'code') == key %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}

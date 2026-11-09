@@ -87,7 +87,7 @@
 </form>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.querySelectorAll('input[name="price_colors"]').forEach(function (radio) {
     radio.addEventListener("change", function () {
         document.querySelector(".price-demo").classList.toggle("reverse", radio.value === "erzeuger" && radio.checked);

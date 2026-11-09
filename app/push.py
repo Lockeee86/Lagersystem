@@ -11,7 +11,7 @@ import json
 import os
 import threading
 from contextlib import nullcontext
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from flask import current_app, has_app_context, has_request_context, request, url_for
@@ -142,7 +142,7 @@ def notify(users, topic, title, body=None, url=None, tag=None, exclude=None):
     Fehler beim Benachrichtigen dürfen das eigentliche Speichern nie stören – sie landen nur im Log."""
     try:
         return _notify(users, topic, title, body, url, tag, exclude)
-    except Exception:                            # noqa: BLE001
+    except Exception:
         if current_app.config.get("TESTING"):
             raise
         current_app.logger.exception("Push-Nachricht „%s“", topic)
@@ -185,7 +185,7 @@ def _send(app, jobs, vapid, claims_sub):
                 gone.append(sub_id)              # Gerät abgemeldet oder App gelöscht
             else:
                 app.logger.warning("Push an Abo %s fehlgeschlagen: %s", sub_id, e)
-        except Exception as e:                   # noqa: BLE001 – Netzfehler dürfen nichts kaputt machen
+        except Exception as e:
             app.logger.warning("Push an Abo %s fehlgeschlagen: %s", sub_id, e)
     if not gone and not delivered:
         return
@@ -197,7 +197,7 @@ def _send(app, jobs, vapid, claims_sub):
                 PushSubscription.query.filter(PushSubscription.id.in_(delivered)) \
                     .update({"last_sent_at": utcnow()}, synchronize_session=False)
             db.session.commit()
-        except Exception:                        # noqa: BLE001
+        except Exception:
             db.session.rollback()
             app.logger.exception("Push-Abos aktualisieren")
 

@@ -63,7 +63,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.querySelectorAll(".ask-example").forEach(function (btn) {
     btn.addEventListener("click", function () {
         var box = document.getElementById("frage");

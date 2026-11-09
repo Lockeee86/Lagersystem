@@ -17,11 +17,12 @@ import subprocess
 import tempfile
 import threading
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
 
 from flask import current_app
 from sqlalchemy.engine import make_url
+import contextlib
 
 KEEP_DAYS = 14
 KEEP_MONTHS = 12
@@ -123,7 +124,7 @@ def run_backup():
         raise BackupError("Es läuft bereits eine Sicherung.")
     started = time.monotonic()
     status = read_status()
-    status.update(last_run=datetime.now(timezone.utc).isoformat(), ok=False, error=None)
+    status.update(last_run=datetime.now(UTC).isoformat(), ok=False, error=None)
     try:
         db_dir = os.path.join(base, "db")
         os.makedirs(db_dir, exist_ok=True)
@@ -143,7 +144,7 @@ def run_backup():
                       size=os.path.getsize(final), files_copied=copied,
                       seconds=round(time.monotonic() - started, 1))
         current_app.logger.info("Datensicherung %s (%d neue Dateien)", status["file"], copied)
-    except Exception as e:              # noqa: BLE001 – jeder Fehler soll in der Verwaltung sichtbar werden
+    except Exception as e:
         status["error"] = str(e)[-500:] or e.__class__.__name__
         current_app.logger.exception("Datensicherung fehlgeschlagen")
     finally:
@@ -155,11 +156,8 @@ def run_backup():
 def run_in_background(app):
     """„Jetzt sichern“ aus der Verwaltung: läuft im Hintergrund, die Seite zeigt den Fortschritt."""
     def work():
-        with app.app_context():
-            try:
-                run_backup()
-            except BackupError:
-                pass
+        with app.app_context(), contextlib.suppress(BackupError):
+            run_backup()
     threading.Thread(target=work, name="backup-now", daemon=True).start()
 
 
@@ -208,7 +206,7 @@ def list_backups():
         if NAME_RE.match(name):
             st = os.stat(os.path.join(db_dir, name))
             items.append({"name": name, "size": st.st_size,
-                          "created": datetime.fromtimestamp(st.st_mtime, timezone.utc)})
+                          "created": datetime.fromtimestamp(st.st_mtime, UTC)})
     return sorted(items, key=lambda i: i["name"], reverse=True)
 
 
@@ -226,7 +224,7 @@ def overview():
     base = backup_dir()
     status = read_status()
     last_success = _parse(status.get("last_success"))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     info = {
         "configured": bool(base), "running": is_running(), "status": status,
         "last_run": _parse(status.get("last_run")), "last_success": last_success,
@@ -276,10 +274,8 @@ def tick(app):
         local = lambda ts: _parse(ts).astimezone(tz) if _parse(ts) else None   # noqa: E731
         if is_due(datetime.now(tz), local(status.get("last_success")), local(status.get("last_run")),
                   app.config.get("BACKUP_HOUR", 3)):
-            try:
+            with contextlib.suppress(BackupError):
                 run_backup()
-            except BackupError:
-                pass
 
 
 def restore(path):

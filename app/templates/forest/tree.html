@@ -133,7 +133,7 @@
 {% set outline = tree.outline_points %}
 {% if outline %}
 <script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var map = Schlagkarte.create(document.getElementById("areaMap"),
         [{ id: {{ tree.id }}, name: {{ tree.label|tojson }}, number: "", color: "#3f8f4f", rings: [{{ outline|tojson }}], point: null, ha: null }],
@@ -148,7 +148,7 @@
 </script>
 {% endif %}
 {% if wheel %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Kompass: Kreis so drehen, dass sein Norden zum echten Norden zeigt (Handy-Sensor, nur auf Knopfdruck)
 (function () {
     var box = document.getElementById("compassBox"), btn = document.getElementById("compassBtn");
@@ -220,7 +220,7 @@
 })();
 </script>
 {% endif %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Kreis um den Baum: Antippen kreuzt den Platz an (Baumauswahl / Reservieren), sonst Sprung zur Kachel
 (function () {
     function sync() {
@@ -243,7 +243,7 @@
 })();
 </script>
 {% if current_user.is_admin %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var btn = document.getElementById("locateBtn");
     if (!navigator.geolocation) { btn.disabled = true; return; }

@@ -6,7 +6,7 @@ Klima-Seite zum Zuordnen (Lager, wahlweise Reihe). Grenzwerte je Lager (`Warehou
 Wie die übrigen Logik-Module ändern die Funktionen nur die Session; `check()` läuft aus `push.daily`.
 """
 import re
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, UTC
 
 from flask import url_for
 
@@ -37,7 +37,7 @@ class SensorError(ValueError):
 
 
 def _aware(value):
-    return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value is not None and value.tzinfo is None else value
 
 
 def _number(data, key, low, high):
@@ -65,7 +65,7 @@ def record(data, now=None):
     at = now
     if data.get("at"):
         try:
-            at = datetime.fromtimestamp(float(data["at"]), timezone.utc)
+            at = datetime.fromtimestamp(float(data["at"]), UTC)
         except (TypeError, ValueError, OverflowError):
             raise SensorError("at: Unix-Zeit erwartet")
         if at > now + timedelta(minutes=5):
@@ -87,7 +87,7 @@ def record(data, now=None):
     if not sensor.active:
         return None
     if values["co2"] is not None:
-        values["co2"] = int(round(values["co2"]))
+        values["co2"] = round(values["co2"])
     reading = ClimateReading(sensor_id=sensor.id, at=at, **values)
     db.session.add(reading)
     db.session.flush()
@@ -230,7 +230,7 @@ def season_start(today=None):
     """Lagersaison ab 1. August (Ernte), sonst die des Vorjahres."""
     today = today or date.today()
     year = today.year if today.month >= 8 else today.year - 1
-    return datetime.combine(date(year, 8, 1), time(), tzinfo=timezone.utc)
+    return datetime.combine(date(year, 8, 1), time(), tzinfo=UTC)
 
 
 def series(sensor, key="24h", now=None):
@@ -276,7 +276,7 @@ def important(now=None):
 def check(now, done, mark):
     """Aus `push.daily`: je Sensor und Problem höchstens einmal am Tag eine Push-Nachricht."""
     today = now.date()
-    recipients = [u for u in push.editors()]
+    recipients = list(push.editors())
     for sensor in sensors():
         if sensor.warehouse is None:
             continue

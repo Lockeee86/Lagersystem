@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 from app import biogas, team, tiles
 from app.models import Setting
@@ -38,7 +38,7 @@ def test_sections_per_role_and_user(app, as_admin, as_worker, as_viewer, db, see
 
 def test_price_strip(app):
     tz = biogas.local_tz()
-    start = datetime(2026, 7, 15, 0, 0, tzinfo=tz).astimezone(timezone.utc)
+    start = datetime(2026, 7, 15, 0, 0, tzinfo=tz).astimezone(UTC)
     series = [(start + timedelta(minutes=15 * i), 50.0 + (i // 4) * 5) for i in range(96)]     # steigt über den Tag
     series += [(start + timedelta(days=1, minutes=15 * i), 20.0) for i in range(96)]           # morgen billig
     now = start + timedelta(hours=12)
@@ -63,7 +63,7 @@ def test_dashboard_strip_from_cache_only(app, as_admin, db, seed, monkeypatch):
     monkeypatch.setattr(biogas, "_get", lambda *a: called.append(a) or {})
     html = as_admin.get("/").get_data(as_text=True)
     assert 'id="strompreis"' in html and "gerade abgerufen" in html and not called       # wartet nie auf die API
-    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
     times = [int((now + timedelta(minutes=15 * i)).timestamp()) for i in range(-8, 40)]
     monkeypatch.setattr(biogas, "_get", lambda path, s, e: {"times": times, "values": [80.0] * len(times)})
     biogas.refresh_live(app)

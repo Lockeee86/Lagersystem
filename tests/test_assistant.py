@@ -1,6 +1,6 @@
 """Daten-Agent: Schleife mit nachgebautem Claude-Client (kein Netz, keine Kosten), Limit, Rechte, Datenschutz."""
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -105,7 +105,7 @@ def test_refusal_limit_and_errors(app, db, seed, as_admin, monkeypatch):
 
     # hängengebliebene Frage nach einem Neustart
     stuck = AssistantQuery(question="alt", status="laeuft",
-                           created_at=datetime.now(timezone.utc) - timedelta(minutes=assistant.STALE_MINUTES + 1))
+                           created_at=datetime.now(UTC) - timedelta(minutes=assistant.STALE_MINUTES + 1))
     db.session.add(stuck)
     db.session.commit()
     as_admin.get("/fragen")

@@ -13,7 +13,7 @@ import io
 import json
 import re
 import zipfile
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, UTC
 from decimal import Decimal
 
 from sqlalchemy import func
@@ -212,7 +212,7 @@ def plan(parsed):
 
 
 def _utc(naive):
-    return naive.replace(tzinfo=local_tz()).astimezone(timezone.utc) if naive else None
+    return naive.replace(tzinfo=local_tz()).astimezone(UTC) if naive else None
 
 
 def apply(parsed, chosen):

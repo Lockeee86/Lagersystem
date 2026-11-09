@@ -142,7 +142,7 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
     <div class="alerts" role="alert">{% for a in d.alerts %}<div><i class="bi bi-exclamation-triangle-fill"></i>{{ a }}</div>{% endfor %}</div>
     {% endif %}
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var screen = document.getElementById("screen"), clock = document.getElementById("clock");
     function fit() { screen.style.setProperty("--scale", Math.min(window.innerWidth / 800, window.innerHeight / 480)); }

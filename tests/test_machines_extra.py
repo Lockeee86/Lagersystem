@@ -1,6 +1,6 @@
 """Tankbuch, Ersatzteile, Dokumente, Lieferanten."""
 import io
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 import pytest

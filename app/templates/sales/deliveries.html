@@ -77,19 +77,19 @@
         <div class="col-12 d-flex justify-content-end d-lg-none">{{ filter_toggle("deliveryFilters", chips|length) }}</div>
         <div class="collapse filter-more" id="deliveryFilters"><div class="row g-2">
         <div class="col-12 col-md">
-            <select class="form-select" name="kunde" onchange="this.form.submit()">
+            <select class="form-select" name="kunde" data-autosubmit>
                 <option value="">{{ _("Alle Kunden") }}</option>
                 {% for c in customers %}<option value="{{ c.id }}" {% if args.get('kunde')|int == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
             </select>
         </div>
         <div class="col-6 col-md">
-            <select class="form-select" name="status" onchange="this.form.submit()">
+            <select class="form-select" name="status" data-autosubmit>
                 <option value="">{{ _("Alle") }}</option>
                 {% for key, label in statuses.items() %}<option value="{{ key }}" {% if args.get('status') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         <div class="col-6 col-md">
-            <select class="form-select" name="jahr" onchange="this.form.submit()">
+            <select class="form-select" name="jahr" data-autosubmit>
                 <option value="">{{ _("Alle Jahre") }}</option>
                 {% for y in years %}<option value="{{ y }}" {% if args.get('jahr')|int == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
             </select>

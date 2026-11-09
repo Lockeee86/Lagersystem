@@ -1434,3 +1434,14 @@ html[data-bg] .tower-box.is-part { background-image: repeating-linear-gradient(1
 [data-bs-theme="dark"] .btn-outline-secondary.active, [data-bs-theme="dark"] .btn-group > .btn-outline-secondary.active {
     background: rgba(var(--brand-rgb), .18); color: var(--brand); border-color: var(--brand);
 }
+
+/* Moderne Browser: weicher Seitenwechsel, ausgewogene Überschriften, ruhiger Rand bei Scrollbalken */
+@media (prefers-reduced-motion: no-preference) {
+    @view-transition { navigation: auto; }
+    ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
+}
+.app-header { view-transition-name: app-header; }
+.tabbar { view-transition-name: app-tabbar; }
+h1, h2, .hub-title, .empty-text { text-wrap: balance; }
+p, .empty-hint { text-wrap: pretty; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

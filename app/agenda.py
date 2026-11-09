@@ -8,7 +8,7 @@ Ein Termin ist ein dict: date, end (letzter Tag), time, end_time, kind, uid, tit
 """
 import calendar as _cal          # Standardbibliothek (Monatsraster)
 import secrets
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
 
 from flask import url_for
@@ -319,7 +319,7 @@ def _fold(line):
 
 
 def _utc(day, time_):
-    return datetime.combine(day, time_, BERLIN).astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return datetime.combine(day, time_, BERLIN).astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def _when(e):
@@ -340,7 +340,7 @@ def ics(name, base_url, user=None, today=None):
     today = today or date.today()
     items, _undated = events(today - timedelta(days=ICS_PAST_DAYS), today + timedelta(days=ICS_FUTURE_DAYS),
                              today, user)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     host = base_url.split("//", 1)[-1].split("/", 1)[0] or "lagersystem"
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Lagersystem//Kalender//DE", "CALSCALE:GREGORIAN",
              "METHOD:PUBLISH", f"X-WR-CALNAME:{_escape(name)}", "X-WR-TIMEZONE:Europe/Berlin",

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -64,7 +64,7 @@ def test_limits_and_alerts(app, as_admin, as_worker, db, seed, token, monkeypatc
     sensor = ClimateSensor(node="!bb", warehouse_id=wh.id)
     db.session.add(sensor)
     db.session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     climate.record({"node": "!bb", "temperature": 2.1, "humidity": 98, "co2": 6200}, now=now)
     db.session.commit()
     keys = [k for k, _t in climate.status(sensor)["issues"]]
@@ -94,7 +94,7 @@ def test_offline_and_series(db, seed):
     sensor = ClimateSensor(node="!cc", warehouse_id=seed["wh"].id)
     db.session.add(sensor)
     db.session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for i in range(48):
         climate.record({"node": "!cc", "temperature": 5 + (i % 4) * 0.5, "humidity": 92, "co2": 1200 + i},
                        now=now - timedelta(hours=3) - timedelta(minutes=30 * i))

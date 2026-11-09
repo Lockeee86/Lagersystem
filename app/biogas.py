@@ -18,7 +18,7 @@ import time as clock
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, UTC
 from decimal import Decimal
 
 from flask import current_app, has_app_context
@@ -28,6 +28,7 @@ from .extensions import db
 from .models import ChpDay, Machine, Setting, utcnow
 from .push import Msg
 from .utils import local_tz
+import itertools
 
 RUN_KW = 1.0                  # ab dieser Leistung läuft der Motor
 MAX_STEP_H = 1.0              # größere Lücken zwischen zwei Werten zählen nur bis hierhin
@@ -111,7 +112,7 @@ def _series(payload):
     result = []
     for ts, value in pairs:
         try:
-            result.append((datetime.fromtimestamp(int(ts), timezone.utc), float(value) if value is not None else None))
+            result.append((datetime.fromtimestamp(int(ts), UTC), float(value) if value is not None else None))
         except (TypeError, ValueError, OverflowError, OSError):
             continue
     return sorted(result)
@@ -211,7 +212,7 @@ def aggregate(points, price_map=None, until=None):
 
 
 def _midnight(day):
-    return datetime.combine(day, time()).replace(tzinfo=local_tz()).astimezone(timezone.utc)
+    return datetime.combine(day, time()).replace(tzinfo=local_tz()).astimezone(UTC)
 
 
 def _store_days(machine, days, first, last):
@@ -293,7 +294,7 @@ def sync(app, now=None, force=False):
     with nullcontext() if inside else app.app_context():
         if not configured():
             return None
-        now = (now or datetime.now(timezone.utc)).astimezone(local_tz())
+        now = (now or datetime.now(UTC)).astimezone(local_tz())
         today = now.date()
         done = db.session.get(Setting, SYNC_KEY)
         if not force and (now.hour < SYNC_HOUR or (done and done.value == today.isoformat())):
@@ -365,7 +366,7 @@ def live(now=None, cached_only=False):
     if not configured():
         return None if cached_only else {"configured": False}
     real_now = now is None
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     with _lock:
         cached = _cache.get("live")
         if cached_only:
@@ -417,7 +418,7 @@ def start_label(motor, today=None, now=None):
     """Nächster Start eines stehenden Motors für die Anzeige: {"day": "today"|"tomorrow"|date, "time": "17:30"}."""
     if not motor or motor.get("running") or not motor.get("next_start"):
         return None
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     if motor["next_start"] <= now:                     # Zwischenspeicher älter als der Start
         return None
     local = motor["next_start"].astimezone(local_tz())
@@ -541,14 +542,14 @@ def _intervals(machine, start, end, now):
     lo, hi = _midnight(start), min(_midnight(end + timedelta(days=1)), now)
     spans = []
     for event in machine.events.filter(MachineEvent.kind.in_(("stoerung", "wartung"))):
-        created = event.created_at if event.created_at.tzinfo else event.created_at.replace(tzinfo=timezone.utc)
+        created = event.created_at if event.created_at.tzinfo else event.created_at.replace(tzinfo=UTC)
         begin = created if created.astimezone(tz).date() == event.date else _midnight(event.date)
         if event.kind == "stoerung" and event.still_running:
             continue                               # läuft eingeschränkt weiter – kein Stillstand
         if event.kind == "stoerung":
             resolved = event.resolved_at
             if resolved is not None and resolved.tzinfo is None:
-                resolved = resolved.replace(tzinfo=timezone.utc)
+                resolved = resolved.replace(tzinfo=UTC)
             finish = resolved or now
         else:
             hours = (event.task.downtime_hours if event.task and event.task.downtime_hours else DEFAULT_DOWNTIME)
@@ -569,10 +570,10 @@ def _intervals(machine, start, end, now):
 
 def availability(machine, start, end, now=None):
     """Verfügbarkeit eines Motors laut Logbuch: {"hours", "fault_h", "service_h", "down_h", "percent", "faults"}."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     created = machine.created_at
     if created is not None and created.tzinfo is None:
-        created = created.replace(tzinfo=timezone.utc)
+        created = created.replace(tzinfo=UTC)
     since = created.astimezone(local_tz()).date() if created else None
     if since and since > start:
         start = since                          # vor dem Anlegen in der App gibt es kein Logbuch
@@ -664,7 +665,7 @@ def price_outlook(now=None):
     """[(UTC-Viertelstunde, €/MWh, Prognose?)] für die nächsten WINDOW_DAYS: Day-Ahead, wo es ihn schon gibt,
     sonst die SKVE-Preisprognose. Zwischengespeichert (OUTLOOK_TTL)."""
     real_now = now is None
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     with _lock:
         cached = _cache.get("outlook")
         if real_now and cached and clock.monotonic() - cached[0] < OUTLOOK_TTL:
@@ -739,7 +740,7 @@ def maintenance_windows(today=None, now=None):
     if not configured():
         return [], None
     given_now = now
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     today = today or now.astimezone(local_tz()).date()
     horizon = today + timedelta(days=WINDOW_DAYS)
     rows = []
@@ -848,11 +849,11 @@ AMPEL = ((0.0, (46, 158, 91)), (0.5, (232, 177, 58)), (1.0, (201, 64, 58)))   # 
 
 
 def _color(rank):
-    for (r0, c0), (r1, c1) in zip(AMPEL, AMPEL[1:]):
+    for (r0, c0), (r1, c1) in itertools.pairwise(AMPEL):
         if rank <= r1:
             t = (rank - r0) / (r1 - r0) if r1 > r0 else 0
-            return "#%02x%02x%02x" % tuple(round(a + (b - a) * t) for a, b in zip(c0, c1))
-    return "#%02x%02x%02x" % AMPEL[-1][1]
+            return "#{:02x}{:02x}{:02x}".format(*tuple(round(a + (b - a) * t) for a, b in zip(c0, c1)))
+    return "#{:02x}{:02x}{:02x}".format(*AMPEL[-1][1])
 
 
 PRICE_VIEW_KEY = "price_colors"
@@ -877,7 +878,7 @@ def price_strip(series, now=None, view=None):
     producer = view == "erzeuger"
     if not series:
         return None
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     tz = local_tz()
     points = [(ts, price) for ts, price in series if price is not None]
     if not points:

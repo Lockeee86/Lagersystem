@@ -287,7 +287,8 @@ def test_3d_data(as_worker, db, seed):
     storage.store_box(box, seed["wh"].id, 2, 4, seed["admin"])
     db.session.commit()
     html = as_worker.get("/lager?ansicht=3d").get_data(as_text=True)
-    import json, re
+    import json
+    import re
     data = json.loads(re.search(r'<script type="application/json" id="iso3dData">(.*?)</script>', html, re.S).group(1))
     assert data["rows"] == 10 and data["slots"] == 15 and data["levels"] == 5
     assert data["stacks"] == [[2, 4, [["#e6b422", seed["belana"].id, 100]], 0]]  # Farbe, Sorte, Füllstand; 0 = keine alte Ware

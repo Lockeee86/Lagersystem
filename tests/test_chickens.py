@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -174,7 +174,7 @@ def test_evening_push(app, db, seed, keeper, monkeypatch):
     db.session.commit()
     push.daily(app, datetime(2026, 10, 25, 19, 0, tzinfo=BERLIN))
     assert not [m for m in push.outbox if m["tag"].startswith("eggs-")]
-    assert set_at.tzinfo is not None and set_at.astimezone(timezone.utc)
+    assert set_at.tzinfo is not None and set_at.astimezone(UTC)
 
 
 def test_fair_order(as_worker, db, seed, keeper):

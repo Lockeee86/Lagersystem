@@ -5,7 +5,7 @@ import pytest
 from openpyxl import load_workbook
 
 from app import sales, storage
-from app.models import Certification, Customer, Delivery, DeliveryItem, Movement, SeedClass, Setting
+from app.models import Certification, Customer, Delivery, DeliveryItem, SeedClass, Setting
 from app.storage import StorageError
 
 

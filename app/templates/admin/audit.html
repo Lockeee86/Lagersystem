@@ -22,19 +22,19 @@
         </div>
         <div class="collapse filter-more" id="auditFilters"><div class="row g-2">
         <div class="col-12 col-md">
-            <select class="form-select" name="bereich" onchange="this.form.submit()" aria-label="{{ _('Bereich') }}">
+            <select class="form-select" name="bereich" data-autosubmit aria-label="{{ _('Bereich') }}">
                 <option value="">{{ _("Alle Bereiche") }}</option>
                 {% for key, label in areas|dictsort(by='value') %}<option value="{{ key }}" {% if args.get('bereich') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         <div class="col-6 col-md">
-            <select class="form-select" name="aktion" onchange="this.form.submit()" aria-label="{{ _('Aktion') }}">
+            <select class="form-select" name="aktion" data-autosubmit aria-label="{{ _('Aktion') }}">
                 <option value="">{{ _("Alle") }}</option>
                 {% for key, label in actions.items() %}<option value="{{ key }}" {% if args.get('aktion') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         <div class="col-6 col-md">
-            <select class="form-select" name="benutzer" onchange="this.form.submit()" aria-label="{{ _('Benutzer') }}">
+            <select class="form-select" name="benutzer" data-autosubmit aria-label="{{ _('Benutzer') }}">
                 <option value="">{{ _("Alle Benutzer") }}</option>
                 {% for u in users %}<option value="{{ u.id }}" {% if args.get('benutzer')|int == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
             </select>

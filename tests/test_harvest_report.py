@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app import push, storage

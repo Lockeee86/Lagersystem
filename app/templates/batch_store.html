@@ -155,7 +155,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.querySelectorAll(".stepper [data-step]").forEach(function (btn) {
     btn.addEventListener("click", function () {
         var input = btn.parentElement.querySelector("input");

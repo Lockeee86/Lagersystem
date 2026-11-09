@@ -56,7 +56,7 @@
                 <span class="form-label small mb-1 d-block">{{ _("Runder Knopf in der Mitte") }}</span>
                 <div class="btn-group mb-2" role="group" aria-label="{{ _('Runder Knopf in der Mitte') }}">
                     {% for key in center_choices %}
-                    <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %} onchange="this.form.submit()">
+                    <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %} data-autosubmit>
                     <label class="btn btn-outline-primary" for="mitte_{{ key }}"><i class="bi {{ center_items[key].icon }} me-1"></i>{{ _(center_items[key].label) }}</label>
                     {% endfor %}
                 </div>

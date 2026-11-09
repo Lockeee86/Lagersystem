@@ -18,7 +18,7 @@ def _biogas_rounds_only_with_biogas():
     """Der Rundgang der Biogasanlage gehört zur Rubrik Biogas (je Benutzer abwählbar); Stationen im Hühnerstall
     nicht."""
     if not current_user.is_authenticated:
-        return None
+        return
     args = request.view_args or {}
     station = None
     if "code" in args:
@@ -29,12 +29,12 @@ def _biogas_rounds_only_with_biogas():
     if station is not None and station.area == "wald":
         if not current_user.sees_forest:
             abort(404)
-        return None
+        return
     if current_user.sees_biogas:
-        return None
+        return
     if station is None or station.area != "huehner":
         abort(404)
-    return None
+    return
 
 
 def _home(station=None):

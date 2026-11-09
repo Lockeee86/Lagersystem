@@ -15,6 +15,7 @@ from .i18n import gettext as _
 from .models import Setting
 from .storage import StorageError
 from .uploads import upload_dir
+import contextlib
 
 # Name → (Kantenlänge, Hintergrund). Logos transparent, App-Icons mit weißem Grund und Rand
 # (Handys runden die Ecken ab bzw. schneiden bei „maskable“ bis zu 20 % weg).
@@ -82,10 +83,8 @@ def save(file_storage):
 def reset():
     folder = branding_dir()
     for name in SIZES:
-        try:
+        with contextlib.suppress(OSError):
             os.remove(os.path.join(folder, f"{name}.png"))
-        except OSError:
-            pass
     Setting.put("logo_version", None)
     g.pop("logo_version", None)
 

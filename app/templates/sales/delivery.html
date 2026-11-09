@@ -315,7 +315,7 @@
                 <li class="list-group-item">
                     <div class="small text-body-secondary mb-1">{{ label }}</div>
                     {% if image %}
-                    <img class="sign-img" src="{{ url_for('sales.delivery_sign_image', delivery_id=delivery.id, who=who) }}?v={{ at.timestamp()|int }}" alt="{{ _('Unterschrift') }}">
+                    <img loading="lazy" decoding="async" class="sign-img" src="{{ url_for('sales.delivery_sign_image', delivery_id=delivery.id, who=who) }}?v={{ at.timestamp()|int }}" alt="{{ _('Unterschrift') }}">
                     <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
                         <span class="small">{{ name }} · {{ at|datetime }}</span>
                         {% if current_user.is_admin and delivery.is_open %}
@@ -380,7 +380,7 @@
 <script src="{{ url_for('static', filename='js/signpad.js') }}"></script>
 {% endif %}
 {% if map_warehouse %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     // Lagerkarte: jedes Antippen nimmt eine Kiste mehr von oben; bei der letzten wieder auf 0
     var form = document.getElementById("loadMapForm");

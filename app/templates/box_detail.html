@@ -294,7 +294,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.querySelectorAll(".defect-chip").forEach(function (chip) {
     chip.addEventListener("click", function () {
         var input = document.getElementById("defectNote");

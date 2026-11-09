@@ -201,7 +201,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     // Feldnotiz: Standort des Handys übernehmen
     var btn = document.getElementById("noteLocate");
@@ -220,7 +220,7 @@
 </script>
 {% if map_data %}
 <script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 Schlagkarte.create(document.getElementById("fieldMap"), {{ map_data|tojson }}, { labels: false, aerial: {{ aerial|tojson }} });</script>
 {% endif %}
 {% endblock %}

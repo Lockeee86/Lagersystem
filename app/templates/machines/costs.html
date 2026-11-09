@@ -8,7 +8,7 @@
         <p class="text-body-secondary mb-0">{{ _("Summe {total}", total=total|money) }}{% if price is not none %} · {{ _("Diesel {price} € je Liter", price=price|num(3)) }}{% endif %}</p>
     </div>
     <form method="get">
-        <select class="form-select" name="jahr" onchange="this.form.submit()" aria-label="{{ _('Jahr') }}">
+        <select class="form-select" name="jahr" data-autosubmit aria-label="{{ _('Jahr') }}">
             {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
         </select>
     </form>

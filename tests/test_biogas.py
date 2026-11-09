@@ -1,5 +1,5 @@
 """Biogas/SKVE: die API wird durch `fake_api` ersetzt – erfundene Motoren und Werte, kein Netz."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -12,7 +12,7 @@ TZ = ZoneInfo("Europe/Berlin")
 
 def run_window(day):
     """Motor 11 läuft jeden Tag 06–14 Uhr Ortszeit mit 500 kW (8 h, 4.000 kWh)."""
-    start = datetime(day.year, day.month, day.day, 6, tzinfo=TZ).astimezone(timezone.utc)
+    start = datetime(day.year, day.month, day.day, 6, tzinfo=TZ).astimezone(UTC)
     return start, start + timedelta(hours=8)
 
 
@@ -181,7 +181,7 @@ def test_dashboard_card(app, as_viewer, db, seed, fake_api):
 
 
 def test_best_windows(app):
-    now = datetime(2026, 10, 24, 20, 0, tzinfo=TZ).astimezone(timezone.utc)          # Samstagabend
+    now = datetime(2026, 10, 24, 20, 0, tzinfo=TZ).astimezone(UTC)          # Samstagabend
     outlook = []
     t = now.replace(minute=0)
     while t < now + timedelta(days=3):
@@ -202,7 +202,7 @@ def test_best_windows(app):
     assert windows[1]["start"].date() == date(2026, 10, 26) and windows[1]["forecast"]       # je Tag einer
     assert len({w["start"].date() for w in windows}) == len(windows)
     # bis zum Fälligkeitstag: nur Samstag/Sonntag möglich
-    until = datetime(2026, 10, 26, 0, 0, tzinfo=TZ).astimezone(timezone.utc)
+    until = datetime(2026, 10, 26, 0, 0, tzinfo=TZ).astimezone(UTC)
     assert {w["start"].date() for w in biogas.best_windows(548, 4, outlook, now, until=until, work=(6, 18))} \
         == {date(2026, 10, 25)}
     # rund um die Uhr erlaubt → die negativen Preise in der Nacht gewinnen, Stillstand spart Geld
@@ -219,7 +219,7 @@ def test_maintenance_windows_page(app, as_admin, as_viewer, db, seed, fake_api):
     db.session.commit()
     rows, error = biogas.maintenance_windows()
     assert error is None and [r["task"].name for r in rows] == ["Ölwechsel"] and rows[0]["windows"]
-    assert all(6 <= w["start"].hour and w["end"].hour <= 18 for w in rows[0]["windows"])
+    assert all(w["start"].hour >= 6 and w["end"].hour <= 18 for w in rows[0]["windows"])
     html = as_viewer.get("/biogas/wartung").get_data(as_text=True)
     assert 'id="fenster"' in html and "BHKW Test 1: Ölwechsel" in html and "€/MWh" in html
     assert "Als Aufgabe" not in html and "Erlös" not in html                     # Geld nur für Admins
@@ -278,7 +278,7 @@ def test_next_start(app, db, seed, fake_api):
 def test_flex_quality(app, db, seed):
     """Fahrplan-Güte: Erlös gegenüber denselben kWh in den teuersten Viertelstunden des Tages."""
     day = date(2026, 7, 2)
-    midnight = datetime(2026, 7, 2, tzinfo=TZ).astimezone(timezone.utc)
+    midnight = datetime(2026, 7, 2, tzinfo=TZ).astimezone(UTC)
     prices = {midnight + timedelta(minutes=15 * i): (200.0 if 68 <= i < 76 else 50.0) for i in range(96)}  # 17–19 Uhr teuer
     morning = [(midnight + timedelta(hours=6, minutes=15 * i), 500.0) for i in range(8)] + \
         [(midnight + timedelta(hours=8), 0.0)]                                    # 2 h morgens zu 50 €
@@ -297,17 +297,17 @@ def test_availability(app, as_admin, as_viewer, db, seed):
     """Verfügbarkeit laut Logbuch: Störung bis „behoben“ und Wartung mit ihrem Stillstand."""
     from app.models import MachineEvent
     motor = make_bhkw(db, seed, 31, "BHKW Logbuch")
-    motor.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    motor.created_at = datetime(2026, 1, 1, tzinfo=UTC)
     start = datetime(2026, 9, 10, 8, tzinfo=TZ)
     db.session.add(MachineEvent(machine=motor, kind="stoerung", date=start.date(), user_id=seed["admin"].id,
-                                created_at=start.astimezone(timezone.utc),
-                                resolved_at=(start + timedelta(hours=12)).astimezone(timezone.utc)))
+                                created_at=start.astimezone(UTC),
+                                resolved_at=(start + timedelta(hours=12)).astimezone(UTC)))
     task = motor.tasks[0]
     task.downtime_hours = 6
     db.session.add(MachineEvent(machine=motor, kind="wartung", date=date(2026, 9, 20), task=task,
                                 user_id=seed["admin"].id))
     db.session.commit()
-    now = datetime(2026, 10, 27, 12, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 27, 12, tzinfo=UTC)
     sept = biogas.availability(motor, date(2026, 9, 1), date(2026, 9, 30), now)
     assert sept["fault_h"] == pytest.approx(12) and sept["service_h"] == pytest.approx(6) and sept["faults"] == 1
     assert sept["percent"] == pytest.approx(round(100 * (1 - 18 / 720), 1))

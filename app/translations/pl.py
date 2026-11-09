@@ -1010,7 +1010,6 @@ MESSAGES = {
     'Noch niemand zuständig': 'Nikt jeszcze nie jest odpowiedzialny',
     'Noch niemand kümmert sich darum.': 'Nikt się tym jeszcze nie zajmuje.',
     'Ich übernehme': 'Przejmuję',
-    'du': 'ty',
     '{name} kümmert sich darum.': '{name} się tym zajmuje.',
     '{name} kümmert sich bereits. Trotzdem selbst übernehmen?': '{name} już się tym zajmuje. Mimo to przejąć?',
     'Selbst übernehmen': 'Przejmij samodzielnie',

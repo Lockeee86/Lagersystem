@@ -12,6 +12,7 @@ from .models import (DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent
                      Warehouse)
 from .storage import StorageError
 from .utils import admin_required, back_target, editor_required, flash_error, form_date, form_int, form_str
+import contextlib
 
 bp = Blueprint("tasks", __name__)
 
@@ -107,10 +108,8 @@ def task_list():
                        maintenance_task_id=maintenance.id, important=status["state"] == "overdue",
                        due_on=status["due_on"] if status["due_on"] and status["due_on"] > date.today() else date.today())
         wanted = request.args.get("datum")                 # z. B. aus dem Wartungsfenster der Biogas-Seite
-        try:
+        with contextlib.suppress(ValueError):
             prefill["due_on"] = date.fromisoformat(wanted) if wanted else prefill["due_on"]
-        except ValueError:
-            pass
     return render_template(
         "tasks/list.html", groups=tasks.buckets(tasks.open_tasks(person)), done=tasks.recently_done(person),
         who=who, person=person, today=date.today(), prefill=prefill,

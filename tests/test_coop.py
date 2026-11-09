@@ -1,5 +1,5 @@
 import importlib.util
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -51,7 +51,7 @@ def test_api(client, db, seed, token):
     assert r.status_code == 200 and r.get_json()["reading"]
     assert post(client, {"door": "open"}, token).get_json()["door_changed"]
     assert not post(client, {"door": "open"}, token).get_json()["door_changed"]   # Wiederholung: keine Änderung
-    assert post(client, {"door": "closed", "at": datetime.now(timezone.utc).timestamp()}, token).get_json()["door_changed"]
+    assert post(client, {"door": "closed", "at": datetime.now(UTC).timestamp()}, token).get_json()["door_changed"]
     assert CoopReading.query.count() == 1 and CoopDoorEvent.query.count() == 2
     info = coop.status()
     assert info["temperature"] == 7.5 and info["humidity"] == 81 and info["state"] == "zu" and not info["offline"]
@@ -72,7 +72,7 @@ def test_pages(as_admin, as_worker, client, db, seed, token):
     assert as_worker.post("/sensoren/schluessel").status_code == 403
     token = coop.new_token()
     db.session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for i in range(6):
         coop.record({"temperature": 4 + i, "humidity": 70 + i, "at": (now - timedelta(hours=6 - i)).timestamp()})
     post(client, {"door": "open"}, token)
@@ -90,21 +90,21 @@ def test_evening_with_sensor(app, db, seed, monkeypatch):
     monkeypatch.setattr(chickens, "farm_sunset", lambda day: chickens.sunset(day, 52.4, 10.5))
     day = datetime(2026, 10, 20).date()
     evening = (chickens.sunset(day, 52.4, 10.5) + timedelta(minutes=20)).astimezone(BERLIN)
-    monkeypatch.setattr(coop, "utcnow", lambda: evening.astimezone(timezone.utc))
-    coop.record({"door": "closed", "temperature": 8}, now=evening.astimezone(timezone.utc))
+    monkeypatch.setattr(coop, "utcnow", lambda: evening.astimezone(UTC))
+    coop.record({"door": "closed", "temperature": 8}, now=evening.astimezone(UTC))
     db.session.commit()
     push.daily(app, evening)
     assert not [m for m in push.outbox if m["tag"].startswith("coop-2")]            # Sensor sagt zu → Ruhe
     # nächster Abend: offen → dringende Nachricht (auch ohne eingeschaltetes „Klappe zu?“)
     evening2 = evening + timedelta(days=1)
-    monkeypatch.setattr(coop, "utcnow", lambda: evening2.astimezone(timezone.utc))
-    coop.record({"door": "open", "temperature": 8}, now=evening2.astimezone(timezone.utc))
+    monkeypatch.setattr(coop, "utcnow", lambda: evening2.astimezone(UTC))
+    coop.record({"door": "open", "temperature": 8}, now=evening2.astimezone(UTC))
     db.session.commit()
     push.daily(app, evening2)
     assert [m["title"] for m in push.outbox if m["tag"].startswith("coop-2")] == ["Hühnerklappe ist noch offen!"]
     # Frost im Stall
     push.outbox.clear()
-    coop.record({"temperature": -2.0}, now=evening2.astimezone(timezone.utc))
+    coop.record({"temperature": -2.0}, now=evening2.astimezone(UTC))
     db.session.commit()
     push.daily(app, evening2 + timedelta(minutes=5))
     assert [m["title"] for m in push.outbox] == ["Hühnerstall: Frost (-2,0 °C)"]
@@ -141,7 +141,7 @@ def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
     db.session.add(PushSubscription(user_id=keeper.id, endpoint="https://push.example/w", p256dh="k", auth="a"))
     chickens.add_flock_event(datetime(2026, 10, 1).date(), "gekauft", 20, keeper)
     db.session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     coop.record({"door": "closed"}, now=now - timedelta(hours=3))
     assert coop.status(now)["state"] == "zu" and not coop.status(now)["has_top"]
     coop.record({"door": "open"}, now=now - timedelta(minutes=30))
@@ -165,14 +165,14 @@ def test_top_contact_and_morning(app, client, db, seed, token, monkeypatch):
     # Morgen: um 10 Uhr noch zu → Push (feste Zeit, damit es nicht von der Uhrzeit abhängt)
     push.outbox.clear()
     morning = datetime(2031, 3, 12, 9, 30, tzinfo=BERLIN)            # fern von „heute“
-    coop.record({"door": "closed"}, now=morning.astimezone(timezone.utc) - timedelta(minutes=1))
+    coop.record({"door": "closed"}, now=morning.astimezone(UTC) - timedelta(minutes=1))
     db.session.commit()
     monkeypatch.setattr(chickens, "farm_sunrise", lambda day: morning - timedelta(hours=2))
-    monkeypatch.setattr(coop, "utcnow", lambda: morning.astimezone(timezone.utc))
+    monkeypatch.setattr(coop, "utcnow", lambda: morning.astimezone(UTC))
     push.daily(app, morning)
     assert not [m for m in push.outbox if m["tag"].startswith("coop-morning")]     # erst um 10 Uhr
     ten = datetime(2031, 3, 12, 10, 2, tzinfo=BERLIN)
-    monkeypatch.setattr(coop, "utcnow", lambda: ten.astimezone(timezone.utc))
+    monkeypatch.setattr(coop, "utcnow", lambda: ten.astimezone(UTC))
     push.daily(app, ten)
     msgs = [m for m in push.outbox if m["tag"].startswith("coop-morning")]
     assert [m["title"] for m in msgs] == ["Hühnerklappe heute noch nicht aufgegangen"] and "10:00" in msgs[0]["body"]
@@ -251,7 +251,7 @@ def test_air_quality(app, as_worker, db, seed, monkeypatch):
     seed["worker"].chickens = True
     db.session.add(PushSubscription(user_id=seed["worker"].id, endpoint="https://push.example/w", p256dh="k", auth="a"))
     db.session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for h in range(8 * 24, 24, -6):                                    # Woche davor: sauber (hoher Widerstand)
         coop.record({"temperature": 10, "gas": 0.120, "pressure": 1013.2}, now=now - timedelta(hours=h))
     coop.record({"temperature": 10, "gas": 0.110}, now=now - timedelta(hours=20))
@@ -320,7 +320,7 @@ def test_co2(app, as_admin, client, db, seed, token):
     seed["admin"].chickens = True
     db.session.add(PushSubscription(user_id=seed["admin"].id, endpoint="https://push.example/x", p256dh="k", auth="a"))
     db.session.commit()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for i, ppm in enumerate((900, 1800, 2600, 3400)):
         post(client, {"co2": ppm, "temperature": 8, "at": (now - timedelta(hours=4 - i)).timestamp()}, token)
     info = coop.status()

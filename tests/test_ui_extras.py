@@ -58,7 +58,7 @@ def test_week_strip(app, db, seed, as_worker):
     done.done_at = done.created_at
     db.session.commit()
     week = team.week_summary(monday + timedelta(days=3), worker)
-    assert [w["day"] for w in week][0] == monday and len(week) == 7
+    assert next(w["day"] for w in week) == monday and len(week) == 7
     assert week[0]["done"] == 1 and week[0]["open"] == 1 and week[0]["mine"]
     html = as_worker.get(f"/tagesplan?datum={monday.isoformat()}").get_data(as_text=True)
     assert 'class="week-strip"' in html and "ws-dot ok" in html

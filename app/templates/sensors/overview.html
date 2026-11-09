@@ -207,7 +207,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 var target = location.hash && document.getElementById(location.hash.slice(1));
 if (target && target.tagName === "DETAILS") { target.open = true; }
 document.querySelectorAll(".sensor-form").forEach(function (form) {

@@ -354,7 +354,7 @@ def commands(user):
     def add(endpoint, label, icon, group, **args):
         try:
             url = url_for(endpoint, **args)
-        except Exception:                          # noqa: BLE001 – Endpunkt gibt es in dieser Version nicht
+        except Exception:
             return
         if url in seen:
             return

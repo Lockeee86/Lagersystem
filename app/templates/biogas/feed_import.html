@@ -2,7 +2,7 @@
 {% from "macros.html" import csrf %}
 {% block title %}{{ _("Abrechnungen importieren") }}{% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.querySelectorAll("select[data-new]").forEach(function (select) {
     var box = document.getElementById(select.dataset.new);
     function update() {

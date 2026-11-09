@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 
 from app import sales, storage
-from app.models import Box, Customer, Delivery, Movement, Plot, Variety
+from app.models import Box, Customer, Delivery, Movement
 from app.storage import StorageError
 
 ROW_C = 3

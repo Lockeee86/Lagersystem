@@ -110,7 +110,7 @@
 <div class="card shadow-sm mb-4" id="kosten">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-cash-coin me-1"></i>{{ _("Kosten {year}", year=year) }}</span>
-        <form method="get" action="#kosten"><select class="form-select form-select-sm" name="kosten" onchange="this.form.submit()" aria-label="{{ _('Jahr') }}">
+        <form method="get" action="#kosten"><select class="form-select form-select-sm" name="kosten" data-autosubmit aria-label="{{ _('Jahr') }}">
             {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
         </select></form>
     </div>

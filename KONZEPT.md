@@ -949,6 +949,16 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   aus, wenn das Gerät „weniger Bewegung“ eingestellt hat.
 - Dunkles Design durchgesehen (helle Abzeichen und aktive Knöpfe angeglichen).
 
+### Technik auf aktuellem Stand (0.103.0)
+- Browser-Sicherheit: Skripte laufen nur noch aus eigenen Dateien oder mit einem Einmal-Wert je Seitenaufruf (CSP mit
+  Nonce, keine Inline-Handler mehr); dazu `object-src`, `base-uri`, `form-action`, COOP und – über HTTPS – HSTS.
+- Python 3.14 in Docker und CI; JavaScript durchgehend `const`/`let` und Pfeilfunktionen (automatisch umgestellt).
+- Automatische Code-Prüfung: ruff (Python) und ESLint (JavaScript) laufen bei jedem Push mit den Tests.
+- Oberfläche: weicher Seitenwechsel (View Transitions), ausgewogene Überschriften, Bilder werden erst beim Sichtbarwerden geladen.
+- Bewusst nicht geändert: Datenbank-Abfragen im bisherigen Stil (`Model.query`, wird weiter unterstützt – ein Umbau von
+  rund 460 Stellen brächte Risiko ohne Nutzen), kein Wechsel auf ein JavaScript-Framework (die App bleibt ohne
+  Build-Schritt schnell und wartbar), PostgreSQL 16 bleibt (ein Sprung auf 18 braucht eine Datenumstellung am Server).
+
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.

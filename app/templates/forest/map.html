@@ -16,7 +16,7 @@
         {% if kinds_used|length > 1 %}
         <div class="d-flex flex-wrap gap-1" role="group" aria-label="{{ _('Art') }}">
             {% for key in kinds_used %}
-            <input type="checkbox" class="btn-check" name="art" value="{{ key }}" id="mart_{{ key }}" autocomplete="off" {{ 'checked' if key in chosen_kinds }} onchange="this.form.submit()">
+            <input type="checkbox" class="btn-check" name="art" value="{{ key }}" id="mart_{{ key }}" autocomplete="off" {{ 'checked' if key in chosen_kinds }} data-autosubmit>
             <label class="btn btn-sm btn-outline-primary" for="mart_{{ key }}">{{ _(kinds[key]) }}</label>
             {% endfor %}
         </div>
@@ -25,7 +25,7 @@
         <div style="min-width: 12rem">{{ multi_pick([(none, species_items)], chosen_species, _("Alle Baumarten"), "baumart", _("Baumart"), _("Baumart suchen …")) }}</div>
         {% endif %}
         <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" role="switch" id="mapFree" name="frei" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()">
+            <input class="form-check-input" type="checkbox" role="switch" id="mapFree" name="frei" value="1" {{ 'checked' if only_free }} data-autosubmit>
             <label class="form-check-label text-nowrap" for="mapFree">{{ _("nur mit freien Plätzen") }}</label>
         </div>
         <button class="btn btn-sm btn-primary">{{ _("Anzeigen") }}</button>
@@ -63,7 +63,7 @@
 {% block scripts %}
 {% if items or background %}
 <script src="{{ url_for('static', filename='js/schlagkarte.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var aerial = {{ aerial|tojson }};
     if (aerial) aerial.on = true;

@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from app import machines, purchases
-from app.models import MachineEvent, PurchaseRequest, Setting, Task, User
+from app.models import MachineEvent, PurchaseRequest, Setting, Task
 from app.storage import StorageError
 
 from .conftest import login, make_user

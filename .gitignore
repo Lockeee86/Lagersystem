@@ -7,3 +7,6 @@ instance/
 venv/
 .pytest_cache/
 data/
+node_modules/
+package-lock.json
+.ruff_cache/

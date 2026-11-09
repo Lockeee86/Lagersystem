@@ -114,7 +114,7 @@ def _who():
     try:
         if has_request_context() and current_user.is_authenticated:
             return current_user.id
-    except Exception:     # noqa: BLE001 – ohne Login-Kontext (Zeitplan, Konsole)
+    except Exception:
         pass
     return None
 

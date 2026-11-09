@@ -97,7 +97,7 @@ def _project(crs, lon, lat):
 def _html_title(data):
     """Antwortet der Dienst mit einer Webseite (z. B. „Wartungsarbeiten“), deren Titel – sonst None."""
     head = data[:3000].lstrip().lower()
-    if not (head.startswith(b"<html") or head.startswith(b"<!doctype html")):
+    if not (head.startswith((b"<html", b"<!doctype html"))):
         return None
     m = re.search(rb"<title[^>]*>(.*?)</title>", data[:3000], re.IGNORECASE | re.DOTALL)
     title = m.group(1).decode("utf-8", "replace").strip() if m else ""
@@ -221,7 +221,7 @@ def _timed(label, fn):
     try:
         result = fn()
         return result, f"{label}: in Ordnung ({time.monotonic() - start:.1f} s)", True
-    except Exception as e:                     # noqa: BLE001 – Diagnose soll alles zeigen
+    except Exception as e:
         return None, f"{label}: FEHLER nach {time.monotonic() - start:.1f} s – {type(e).__name__}: {e}", False
 
 
@@ -374,7 +374,7 @@ def _warp(data, quad, width, height):
 def _download(url):
     """Lädt das Bild (in Tests ersetzen). Liefert (bytes, content_type)."""
     request = urllib.request.Request(url, headers={"User-Agent": "Lagersystem-Hofapp/1.0"})
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:     # noqa: S310 – feste https-Quellen
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
         return response.read(30 * 1024 * 1024), response.headers.get("Content-Type", "")
 
 

@@ -41,7 +41,7 @@
 {% endblock %}
 {% block scripts %}
 {% if query.status == "laeuft" %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var box = document.getElementById("waiting");
     function poll() {

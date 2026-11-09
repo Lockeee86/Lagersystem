@@ -13,6 +13,7 @@ from sqlalchemy import func
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .models import BOX_DEFECT, BOX_RETIRED, Box, Movement, Warehouse, utcnow
+from datetime import UTC
 
 CODE_PREFIX = "K-"
 CODE_RE = re.compile(r"^K-(\d+)$")
@@ -716,9 +717,9 @@ def oldest_boxes(variety_id=None, warehouse_id=None, limit=200):
     if warehouse_id:
         query = query.filter(Box.warehouse_id == warehouse_id)
     boxes = query.order_by(Box.harvest_date, Box.warehouse_id, Box.row, Box.slot, Box.level.desc()).limit(limit).all()
-    heights = dict(((w, r, s), n) for w, r, s, n in db.session.query(Box.warehouse_id, Box.row, Box.slot,
+    heights = {(w, r, s): n for w, r, s, n in db.session.query(Box.warehouse_id, Box.row, Box.slot,
                                                                      func.count(Box.id))
-                   .filter(Box.warehouse_id.isnot(None)).group_by(Box.warehouse_id, Box.row, Box.slot))
+                   .filter(Box.warehouse_id.isnot(None)).group_by(Box.warehouse_id, Box.row, Box.slot)}
     limits = age_limits()
     return [{"box": b, "on_top": heights.get((b.warehouse_id, b.row, b.slot)) == b.level,
              "level": age_level(b, limits)} for b in boxes]
@@ -729,9 +730,9 @@ def oldest_boxes(variety_id=None, warehouse_id=None, limit=200):
 def harvest_report(day, tz):
     """Was an einem Tag befüllt wurde (leere Kiste → befüllt; Ernte-Modus oder von Hand): Kisten und geschätzte kg
     je Sorte, je Schlag, je Reihe (wo die Kisten jetzt stehen) und je Benutzer."""
-    from datetime import datetime, time, timedelta, timezone
+    from datetime import datetime, time, timedelta
     from .models import BoxType, Plot, User, Variety
-    start = datetime.combine(day, time.min, tz).astimezone(timezone.utc)
+    start = datetime.combine(day, time.min, tz).astimezone(UTC)
     end = start + timedelta(days=1)
     moves = (Movement.query.filter(Movement.action == "befuellt", Movement.created_at >= start,
                                    Movement.created_at < end, Movement.fill_after > 0)

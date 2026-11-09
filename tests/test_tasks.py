@@ -96,7 +96,7 @@ def test_pages_and_rights(as_admin, as_worker, as_viewer, db, seed):
     follow = Task.query.filter_by(previous_id=foreign.id).one()
     as_admin.post(f"/aufgabe/{foreign.id}/loeschen")
     assert db.session.get(Task, foreign.id) is None and follow.previous_id is None
-    assert as_admin.get("/aufgaben?neu=1&maschine=%d" % m.id).status_code == 200
+    assert as_admin.get(f"/aufgaben?neu=1&maschine={m.id}").status_code == 200
 
 
 def test_task_from_fault_and_maintenance(as_admin, as_worker, db, seed):

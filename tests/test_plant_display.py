@@ -1,6 +1,6 @@
 """Anzeige der Biogasanlage (800×480 bzw. Farb-E-Paper) – ohne Anmeldung über geheimen Link."""
 import io
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 from PIL import Image
 
@@ -11,7 +11,7 @@ PALETTE = {(0, 0, 0), (255, 255, 255), (255, 0, 0), (255, 255, 0), (0, 255, 0), 
 
 
 def _fake_live(monkeypatch, motor_id, gas=95):
-    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
     series = [(now + timedelta(minutes=15 * i), 40 + (i % 8) * 20) for i in range(-8, 40)]
     data = {"configured": True, "error": None, "price_now": 60.0, "price_series": series,
             "gas": {"now": gas, "min": 70, "max": 98, "plan": []},

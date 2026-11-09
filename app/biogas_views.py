@@ -59,7 +59,7 @@ def budget_page():
     if budget and biogas.configured() and budget_year == date.today().year:
         try:
             outlook = biogas.price_outlook()
-        except Exception:                                  # noqa: BLE001 – ohne Preise nur ohne Preis-Hinweis
+        except Exception:
             outlook = []
     for s in budget:
         s["plan"] = feedin.plan(s)
@@ -298,7 +298,6 @@ def _form_day():
 def feeding_page():
     """Reiter „Fütterung“: Kalenderwoche mit 1×/2× je Tag, eintragen, abgeben, abhaken."""
     from . import plant_feeding
-    from .models import User
     today = date.today()
     try:
         start = date.fromisoformat(request.args.get("woche", ""))

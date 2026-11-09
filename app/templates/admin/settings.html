@@ -78,7 +78,7 @@
                 <a href="{{ url_for('fields.aerial_test', info=1) }}" target="_blank">{{ _("Dienst prüfen") }}</a></div>
         </div>
     </div>
-    <script>
+    <script nonce="{{ csp_nonce() }}">
     (function () {
         var sel = document.getElementById("aerial_source"), box = document.getElementById("aerialWms");
         function sync() { box.hidden = sel.value !== "wms"; }

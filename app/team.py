@@ -13,7 +13,7 @@ from . import push, signatures
 from .extensions import db
 from .i18n import N_, gettext as _
 from .machines import add_months
-from .models import (Handover, InstructionRecord, InstructionTopic, Machine, MachineEvent, MaintenanceTask, Plot, Task,
+from .models import (Handover, InstructionRecord, InstructionTopic, Machine, Plot, Task,
                      User, utcnow)
 from .push import Msg
 from .storage import StorageError
@@ -310,7 +310,7 @@ def add_suggestion(day, user, key, actor):
 def send_plan(day, actor):
     """Jedem Eingeteilten seinen Plan aufs Handy schicken (nach dem Commit). Gibt die Zahl der Empfänger zurück."""
     sent = 0
-    for user_id, entries in plan_for(day).items():
+    for entries in plan_for(day).values():
         user = entries[0].plan_user
         lines = [e.title + (f" ({', '.join(m.name for m in e.machine_list)})" if e.machine_list else "")
                  for e in entries if not e.is_done]

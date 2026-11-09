@@ -7,34 +7,34 @@
 window.Lager3D = (function () {
     "use strict";
 
-    var SVG = "http://www.w3.org/2000/svg";
-    var BLANK = "#8a8476";  // leere Kiste
+    const SVG = "http://www.w3.org/2000/svg";
+    const BLANK = "#8a8476";  // leere Kiste
 
     function shade(hex, f) {
-        var n = parseInt(hex.slice(1), 16);
-        return "rgb(" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
+        const n = parseInt(hex.slice(1), 16);
+        return "rgb(" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
             return Math.min(255, Math.round(v * f));
         }).join(",") + ")";
     }
 
     function el(name, attrs) {
-        var node = document.createElementNS(SVG, name);
-        Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+        const node = document.createElementNS(SVG, name);
+        Object.keys(attrs).forEach((k) => { node.setAttribute(k, attrs[k]); });
         return node;
     }
 
     function create(container, data, opts) {
-        var rot = 0, zoom = 1, filter = "", selected = null;
-        var byPos = {};
-        var oldPos = {};
-        data.stacks.forEach(function (st) { byPos[st[0] + ":" + st[1]] = st[2]; if (st[3]) oldPos[st[0] + ":" + st[1]] = 1; });
+        let rot = 0, zoom = 1, filter = "", selected = null;
+        const byPos = {};
+        const oldPos = {};
+        data.stacks.forEach((st) => { byPos[st[0] + ":" + st[1]] = st[2]; if (st[3]) oldPos[st[0] + ":" + st[1]] = 1; });
 
         try { rot = parseInt(localStorage.getItem("lager3dRot"), 10) || 0; } catch (e) {}
 
         // Reihe r / Platz s (1-basiert) → Bodenkoordinaten je nach Blickrichtung
         function place(r, s) {
             // „Erste Reihe unten“ (Verwaltung): Reihe A vorne, sonst hinten – wie in Karte und Liste
-            var R = data.rows, S = data.slots, x = s - 1, y = data.bottomUp ? R - r : r - 1;
+            const R = data.rows, S = data.slots, x = s - 1, y = data.bottomUp ? R - r : r - 1;
             if (rot === 1) return [R - 1 - y, x];
             if (rot === 2) return [S - 1 - x, R - 1 - y];
             if (rot === 3) return [y, S - 1 - x];
@@ -42,61 +42,61 @@ window.Lager3D = (function () {
         }
 
         function render() {
-            var W = rot % 2 ? data.rows : data.slots;
-            var H = rot % 2 ? data.slots : data.rows;
-            var m = 24;
-            var fit = (container.clientWidth - 2 * m) / (W + H);
-            var a = Math.max(5, Math.min(30, fit)) * zoom;   // halbe Kachelbreite
-            var hh = a * 1.15;                               // Kistenhöhe
-            var ox = H * a + m, oy = data.levels * hh + m;
-            var w = Math.round((W + H) * a + 2 * m);
-            var h = Math.round((W + H) * a / 2 + data.levels * hh + 2 * m);
+            const W = rot % 2 ? data.rows : data.slots;
+            const H = rot % 2 ? data.slots : data.rows;
+            const m = 24;
+            const fit = (container.clientWidth - 2 * m) / (W + H);
+            const a = Math.max(5, Math.min(30, fit)) * zoom;   // halbe Kachelbreite
+            const hh = a * 1.15;                               // Kistenhöhe
+            const ox = H * a + m, oy = data.levels * hh + m;
+            const w = Math.round((W + H) * a + 2 * m);
+            const h = Math.round((W + H) * a / 2 + data.levels * hh + 2 * m);
 
             function iso(px, py, z) {
                 return ((px - py) * a + ox).toFixed(1) + "," + ((px + py) * a / 2 - z * hh + oy).toFixed(1);
             }
 
-            var svg = el("svg", { width: w, height: h, viewBox: "0 0 " + w + " " + h, role: "img", "aria-label": container.dataset.aria || "" });
-            var cells = [];
-            for (var r = 1; r <= data.rows; r++) {
-                for (var s = 1; s <= data.slots; s++) {
-                    var p = place(r, s);
-                    cells.push({ r: r, s: s, gx: p[0], gy: p[1] });
+            const svg = el("svg", { width: w, height: h, viewBox: "0 0 " + w + " " + h, role: "img", "aria-label": container.dataset.aria || "" });
+            const cells = [];
+            for (let r = 1; r <= data.rows; r++) {
+                for (let s = 1; s <= data.slots; s++) {
+                    const p = place(r, s);
+                    cells.push({ r, s, gx: p[0], gy: p[1] });
                 }
             }
             // Von hinten nach vorne zeichnen, damit vordere Stapel hintere verdecken
-            cells.sort(function (c, d) { return (c.gx + c.gy) - (d.gx + d.gy) || c.gx - d.gx; });
+            cells.sort((c, d) => { return (c.gx + c.gy) - (d.gx + d.gy) || c.gx - d.gx; });
 
-            cells.forEach(function (c) {
-                var sel = selected === c.r + ":" + c.s;
+            cells.forEach((c) => {
+                const sel = selected === c.r + ":" + c.s;
                 svg.appendChild(el("polygon", {
                     points: [iso(c.gx, c.gy, 0), iso(c.gx + 1, c.gy, 0), iso(c.gx + 1, c.gy + 1, 0), iso(c.gx, c.gy + 1, 0)].join(" "),
                     "class": "iso-floor" + (sel ? " is-selected" : ""), "data-r": c.r, "data-s": c.s
                 }));
             });
 
-            var inset = 0.07;
-            cells.forEach(function (c) {
-                var boxes = byPos[c.r + ":" + c.s];
+            const inset = 0.07;
+            cells.forEach((c) => {
+                const boxes = byPos[c.r + ":" + c.s];
                 if (!boxes) return;
-                var sel = selected === c.r + ":" + c.s;
-                var full = boxes.length >= data.levels;
-                var g = el("g", { "data-r": c.r, "data-s": c.s, "class": "iso-stack" + (sel ? " is-selected" : "") });
-                boxes.forEach(function (b, l) {
-                    var color = b[0] || BLANK;
-                    var dim = filter && (filter === "free" ? full : filter === "old" ? !oldPos[c.r + ":" + c.s]
+                const sel = selected === c.r + ":" + c.s;
+                const full = boxes.length >= data.levels;
+                const g = el("g", { "data-r": c.r, "data-s": c.s, "class": "iso-stack" + (sel ? " is-selected" : "") });
+                boxes.forEach((b, l) => {
+                    const color = b[0] || BLANK;
+                    const dim = filter && (filter === "free" ? full : filter === "old" ? !oldPos[c.r + ":" + c.s]
                                                                    : "v" + b[1] !== filter);
-                    var x0 = c.gx + inset, x1 = c.gx + 1 - inset, y0 = c.gy + inset, y1 = c.gy + 1 - inset;
-                    var z0 = l + 0.05, z1 = l + 0.95;
-                    var attrs = dim ? { opacity: "0.15" } : {};
-                    var fill = b[2] == null ? 100 : b[2];
-                    var prism = function (top, extra) {
+                    const x0 = c.gx + inset, x1 = c.gx + 1 - inset, y0 = c.gy + inset, y1 = c.gy + 1 - inset;
+                    const z0 = l + 0.05, z1 = l + 0.95;
+                    const attrs = dim ? { opacity: "0.15" } : {};
+                    const fill = b[2] == null ? 100 : b[2];
+                    const prism = function (top, extra) {
                         [
                             [[iso(x0, y1, top), iso(x1, y1, top), iso(x1, y1, z0), iso(x0, y1, z0)], shade(color, 0.72)],
                             [[iso(x1, y0, top), iso(x1, y1, top), iso(x1, y1, z0), iso(x1, y0, z0)], shade(color, 0.52)],
                             [[iso(x0, y0, top), iso(x1, y0, top), iso(x1, y1, top), iso(x0, y1, top)], color]
-                        ].forEach(function (face) {
-                            var poly = el("polygon", Object.assign({ points: face[0].join(" "), fill: face[1] }, attrs, extra || {}));
+                        ].forEach((face) => {
+                            const poly = el("polygon", Object.assign({ points: face[0].join(" "), fill: face[1] }, attrs, extra || {}));
                             g.appendChild(poly);
                         });
                     };
@@ -113,10 +113,10 @@ window.Lager3D = (function () {
             });
 
             // Reihenbuchstaben zuletzt, damit kein Stapel sie verdeckt
-            for (var i = 0; i < data.rows; i++) {
-                var lp = place(i + 1, 0);
-                var pt = iso(lp[0] + 0.5, lp[1] + 0.5, 0).split(",");
-                var t = el("text", { x: pt[0], y: pt[1], "class": "iso-label", "text-anchor": "middle", "dominant-baseline": "middle" });
+            for (let i = 0; i < data.rows; i++) {
+                const lp = place(i + 1, 0);
+                const pt = iso(lp[0] + 0.5, lp[1] + 0.5, 0).split(",");
+                const t = el("text", { x: pt[0], y: pt[1], "class": "iso-label", "text-anchor": "middle", "dominant-baseline": "middle" });
                 t.textContent = data.rowLabels[i];
                 svg.appendChild(t);
             }
@@ -125,16 +125,16 @@ window.Lager3D = (function () {
             if (opts.label) opts.label.textContent = opts.views[rot];
         }
 
-        container.addEventListener("click", function (e) {
-            var hit = e.target.closest("[data-r]");
+        container.addEventListener("click", (e) => {
+            const hit = e.target.closest("[data-r]");
             if (!hit) return;
             selected = hit.dataset.r + ":" + hit.dataset.s;
             render();
             opts.onStack(data.stackUrl.replace("/stapel/0/0", "/stapel/" + hit.dataset.r + "/" + hit.dataset.s));
         });
 
-        var resizeTimer = null;
-        window.addEventListener("resize", function () {
+        let resizeTimer = null;
+        window.addEventListener("resize", () => {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(render, 150);
         });
@@ -142,21 +142,21 @@ window.Lager3D = (function () {
         render();
 
         return {
-            rotate: function () {
+            rotate () {
                 rot = (rot + 1) % 4;
                 try { localStorage.setItem("lager3dRot", String(rot)); } catch (e) {}
                 render();
             },
-            zoom: function (factor) {
+            zoom (factor) {
                 zoom = Math.max(0.6, Math.min(3, zoom * factor));
                 render();
             },
-            setFilter: function (f) {
+            setFilter (f) {
                 filter = f;
                 render();
             }
         };
     }
 
-    return { create: create };
+    return { create };
 })();

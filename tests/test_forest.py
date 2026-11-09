@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 
 import pytest
 
@@ -45,8 +45,8 @@ def test_trees_and_places(db, woods):
         forest.save_tree(tree, 2, None, None, "familie", 6, "200", "10", None)  # Breite unmöglich
     db.session.rollback()
 
-    rows = forest.parse_trees_csv("nummer;baumart;abschnitt;art;plaetze;breite;laenge\n"
-                                  "3;Ahorn;Senke;Familie;8;52.1;10.2\n20;Buche;;;;;\n21;Eiche;;Einzelbaum;1;;\n".encode())
+    rows = forest.parse_trees_csv(b"nummer;baumart;abschnitt;art;plaetze;breite;laenge\n"
+                                  b"3;Ahorn;Senke;Familie;8;52.1;10.2\n20;Buche;;;;;\n21;Eiche;;Einzelbaum;1;;\n")
     assert forest.apply_trees(rows) == (2, 1)
     assert _tree(21).kind == "einzel" and _tree(21).kind_label == "Einzelbaum" and len(_tree(21).places) == 1
     assert _tree(3).kind == "familie" and _tree(20).kind == "gemeinschaft"
@@ -105,7 +105,7 @@ def test_storm_push(app, db, woods, monkeypatch):
     from app import weather
     db.session.add(PushSubscription(user=woods["worker"], endpoint="https://push.example/1", p256dh="a", auth="b"))
     db.session.commit()
-    now = datetime(2030, 2, 3, 6, 0, tzinfo=timezone.utc)
+    now = datetime(2030, 2, 3, 6, 0, tzinfo=UTC)
     monkeypatch.setattr(weather, "get_weather", lambda: {"days": [{"date": date(2030, 2, 2), "gust": 95.0}]})
     marks = set()
     with app.test_request_context():
@@ -144,7 +144,6 @@ def test_pages(app, db, woods, as_admin, as_worker, as_viewer):
 
 def test_forest_only_user(app, db, woods, as_admin, as_worker):
     """Benutzer „nur Bestattungswald“: sieht ausschließlich den Wald, seine Aufgaben und die Baumkontrolle."""
-    from app import rounds
     from app.models import CheckStation, PUSH_TOPICS
     worker = woods["worker"]
     as_admin.post("/admin/benutzer", data={"id": worker.id, "username": "max", "role": "mitarbeiter",
@@ -512,7 +511,7 @@ def test_tree_photos(app, db, woods, as_admin, as_worker):
     db.session.add(other)
     db.session.commit()
     assert as_worker.get(f"/foto/{other.id}").status_code in (403, 404)       # keine fremden Fotos
-    assert upload(as_worker, f"/fotos/kiste/1").status_code in (403, 404)
+    assert upload(as_worker, "/fotos/kiste/1").status_code in (403, 404)
     assert as_worker.post(f"/foto/{photo.id}/loeschen", data={"back": "/wald"}).status_code == 302
     assert len(tree.photos) == 1
 

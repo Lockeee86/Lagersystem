@@ -163,7 +163,7 @@ def legacy_import():
                 parts.append(_("Grundkarte: {n} Formen in {layers} Ebenen", n=drawn["shapes"], layers=drawn["layers"]))
             if parsed:
                 stats = forest_import.apply(parsed, current_user, with_people=bool(request.form.get("with_people")))
-                parts.append(_("Bäume: {new} neu, {known} vorhanden · neue Plätze: {places} · Verträge: {contracts} · Beisetzungen: {burials} · vorgesehene Personen: {persons} · schon vergeben, übersprungen: {skipped}",  # noqa: E501
+                parts.append(_("Bäume: {new} neu, {known} vorhanden · neue Plätze: {places} · Verträge: {contracts} · Beisetzungen: {burials} · vorgesehene Personen: {persons} · schon vergeben, übersprungen: {skipped}",
                                new=stats.get("trees_new", 0), known=stats.get("trees_known", 0),
                                places=stats.get("places_new", 0), contracts=stats.get("contracts", 0),
                                burials=stats.get("burials", 0), persons=stats.get("persons", 0),

@@ -134,7 +134,7 @@
                 {% else %}
                 <a class="btn btn-primary btn-sm mb-2" href="{{ webcal_url }}"><i class="bi bi-calendar-plus me-1"></i>{{ _("Jetzt abonnieren") }}</a>
                 <p class="mb-1 text-body-secondary">{{ _("iPhone: Knopf antippen → „Abonnieren“. Android/Google: Link kopieren und am PC in Google Kalender unter „Weitere Kalender → Per URL“ einfügen.") }}</p>
-                <input class="form-control form-control-sm font-monospace mb-2" readonly value="{{ feed_url }}" onclick="this.select()" aria-label="{{ _('Abo-Link') }}">
+                <input class="form-control form-control-sm font-monospace mb-2" readonly value="{{ feed_url }}" data-select-all aria-label="{{ _('Abo-Link') }}">
                 <p class="text-body-secondary">{{ _("Der Link ist persönlich – wer ihn kennt, sieht die Termine. Nicht weitergeben.") }}</p>
                 <form method="post" action="{{ url_for('agenda.subscribe') }}">{{ csrf() }}
                     <button class="btn btn-outline-secondary btn-sm" name="neu" value="1" data-confirm="{{ _('Neuen Link erstellen? Der alte hört dann auf zu funktionieren.') }}">{{ _("Neuen Link erstellen") }}</button></form>

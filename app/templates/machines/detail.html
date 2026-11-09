@@ -7,7 +7,7 @@
 <div class="machine-hero mb-3">
     {% if machine.image %}
     <a href="{{ url_for('machines.machine_image', machine_id=machine.id) }}" target="_blank" class="machine-hero-img">
-        <img src="{{ url_for('machines.machine_image', machine_id=machine.id) }}" alt="{{ machine.name }}">
+        <img loading="lazy" decoding="async" src="{{ url_for('machines.machine_image', machine_id=machine.id) }}" alt="{{ machine.name }}">
     </a>
     {% elif current_user.can_edit %}
     <div class="machine-hero-empty"><i class="bi {{ machine.icon }}"></i></div>
@@ -717,7 +717,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var btn = document.getElementById("copySame");
     if (btn) btn.addEventListener("click", function () {
@@ -727,7 +727,7 @@
     });
 })();
 </script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     // „Störung melden“ / „Eintrag“ wählen die passende Art vor
     document.querySelectorAll("[data-kind]").forEach(function (btn) {

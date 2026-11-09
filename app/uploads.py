@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from .i18n import gettext as _
 from .storage import StorageError
+import contextlib
 
 MAX_SIDE = 1600
 MAX_PHOTOS = 6
@@ -75,10 +76,8 @@ def save_photos(files):
 
 def delete_files(names):
     for name in names:
-        try:
+        with contextlib.suppress(OSError):
             os.remove(os.path.join(upload_dir(), name))
-        except OSError:
-            pass
 
 
 # --- Dokumente (PDF, Bilder) – unverändert gespeichert ------------------------------
@@ -150,10 +149,8 @@ def save_document(file_storage, office=False):
 
 
 def delete_document(name):
-    try:
+    with contextlib.suppress(OSError):
         os.remove(os.path.join(document_dir(), name))
-    except OSError:
-        pass
 
 
 # Fotos, die (auch über cascade) aus der Datenbank gelöscht werden, verlieren nach dem Commit ihre Datei;

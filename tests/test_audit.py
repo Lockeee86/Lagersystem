@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 from app import audit, storage
 from app.models import AuditEntry, Plot, Setting, Variety
@@ -80,7 +80,7 @@ def test_paused_import_and_cleanup(app, db, seed):
     assert entries("plots")[-1].changes == {"note": ["aus dem Import", "von Hand"]}
 
     old = AuditEntry(action="geaendert", table="plots", label="alt",
-                     created_at=datetime.now(timezone.utc) - timedelta(days=audit.KEEP_DAYS + 5))
+                     created_at=datetime.now(UTC) - timedelta(days=audit.KEEP_DAYS + 5))
     db.session.add(old)
     db.session.commit()
     assert audit.cleanup(app) == 1 and audit.cleanup(app) == 0                     # einmal am Tag

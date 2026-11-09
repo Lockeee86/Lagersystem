@@ -8,11 +8,11 @@
     </div>
     <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
         <label class="small text-body-secondary" for="von">{{ _("ab") }}</label>
-        <select class="form-select form-select-sm w-auto" id="von" name="von" onchange="this.form.submit()">
+        <select class="form-select form-select-sm w-auto" id="von" name="von" data-autosubmit>
             {% for y in first_options %}<option value="{{ y }}" {% if y == first %}selected{% endif %}>{{ y }}</option>{% endfor %}
         </select>
         <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="onlyPotatoes" name="kartoffeln" value="1" {% if only_potatoes %}checked{% endif %} onchange="this.form.submit()">
+            <input class="form-check-input" type="checkbox" id="onlyPotatoes" name="kartoffeln" value="1" {% if only_potatoes %}checked{% endif %} data-autosubmit>
             <label class="form-check-label small" for="onlyPotatoes">{{ _("nur Schläge mit Kartoffeln") }}</label>
         </div>
     </form>

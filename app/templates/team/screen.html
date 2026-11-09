@@ -223,7 +223,7 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
         </div>
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var screen = document.getElementById("screen"), clock = document.getElementById("clock");
     function fit() { screen.style.setProperty("--scale", Math.min(window.innerWidth / 1920, window.innerHeight / 1080)); }

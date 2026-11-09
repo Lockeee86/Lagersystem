@@ -13,12 +13,25 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: requirements*.txt
       - name: Schrift für die E-Paper-Bilder
         run: sudo apt-get install -y --no-install-recommends fonts-dejavu-core
       - name: Abhängigkeiten
         run: pip install -r requirements-dev.txt
+      - name: Code-Prüfung (ruff)
+        run: ruff check .
       - name: Tests
         run: pytest -q -n auto
+
+  javascript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint

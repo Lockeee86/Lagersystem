@@ -25,7 +25,7 @@ def start(app):
             for name, job in _jobs():
                 try:
                     job(app)
-                except Exception:     # noqa: BLE001 – der Thread darf nie sterben
+                except Exception:
                     app.logger.exception("Zeitplan: %s", name)
             time.sleep(CHECK_EVERY)
     thread = threading.Thread(target=loop, name="scheduler", daemon=True)

@@ -7,7 +7,7 @@
 - Eintragen bis `WEEKS_AHEAD` Wochen im Voraus; eine Person darf beide Plätze eines Tages haben.
 Committet nicht (außer `check()` aus dem Zeitplan); Push nach dem Commit über die `notify_*`-Funktionen.
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, UTC
 
 from flask import url_for
 
@@ -255,7 +255,7 @@ def mark_done(shift, actor, note=None, now=None, today=None):
         raise StorageError(_("Abhaken kann nur, wer eingetragen ist – oder ein Planer."))
     if shift.day > today:
         raise StorageError(_("Erst am Tag der Fütterung abhaken."))
-    shift.done_at = now or datetime.now(timezone.utc)
+    shift.done_at = now or datetime.now(UTC)
     shift.done_by_id = actor.id
     if note is not None:
         shift.note = note.strip()[:300] or None

@@ -8,7 +8,7 @@ zuordnet. Committet nicht.
 import base64
 import re
 import secrets
-from datetime import timedelta, timezone
+from datetime import timedelta, UTC
 
 import segno
 
@@ -277,7 +277,7 @@ def record(data, now=None):
 # --- Anzeige ------------------------------------------------------------------------------
 
 def _aware(value):
-    return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value is not None and value.tzinfo is None else value
 
 
 def info(mesh, now=None):

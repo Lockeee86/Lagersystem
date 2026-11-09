@@ -13,7 +13,7 @@ def health():
     try:
         db.session.execute(text("SELECT 1"))
         return jsonify(status="ok")
-    except Exception:  # noqa: BLE001 – Healthcheck soll nie mit 500 abbrechen
+    except Exception:
         return jsonify(status="error", detail="database"), 503
 
 

@@ -80,7 +80,7 @@
                     <button class="btn btn-sm btn-primary"><i class="bi bi-hand-index-thumb me-1"></i>{{ _("Ich übernehme") }}</button></form>{% endif %}
                 {% if members %}
                 <form method="post" action="{{ url_for('biogas.feeding_take') }}" class="d-flex gap-1">{{ csrf() }}<input type="hidden" name="tag" value="{{ d.day.isoformat() }}"><input type="hidden" name="slot" value="{{ s.slot }}"><input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
-                    <select class="form-select form-select-sm" name="user_id" aria-label="{{ _('Person eintragen') }}" onchange="this.form.submit()">
+                    <select class="form-select form-select-sm" name="user_id" aria-label="{{ _('Person eintragen') }}" data-autosubmit>
                         <option value="">{{ _("Jemanden eintragen …") }}</option>
                         {% for u in members if u.id != current_user.id %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
                     </select></form>

@@ -7,7 +7,7 @@ Wie die übrigen Logik-Module ändern die Funktionen nur die Session; `alerts()`
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta, UTC
 
 from flask import url_for
 
@@ -99,7 +99,7 @@ def record(data, now=None):
     at = now
     if data.get("at"):
         try:
-            at = datetime.fromtimestamp(float(data["at"]), timezone.utc)
+            at = datetime.fromtimestamp(float(data["at"]), UTC)
         except (TypeError, ValueError, OverflowError):
             raise SensorError("at: Unix-Zeit erwartet")
         if at > now + timedelta(minutes=5):
@@ -116,7 +116,7 @@ def record(data, now=None):
     result = {"reading": None, "door": None}
     for key in ("iaq", "co2"):
         if values[key] is not None:
-            values[key] = int(round(values[key]))
+            values[key] = round(values[key])
     if any(v is not None for v in values.values()):
         result["reading"] = CoopReading(at=at, node=node, **values)
         db.session.add(result["reading"])
@@ -152,7 +152,7 @@ def combined(bottom, top):
 
 
 def _aware(value):
-    return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
+    return value.replace(tzinfo=UTC) if value is not None and value.tzinfo is None else value
 
 
 def last_seen():

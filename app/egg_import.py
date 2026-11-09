@@ -71,7 +71,7 @@ def parse_file(data):
     import openpyxl
     try:
         book = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-    except Exception:                                        # noqa: BLE001 – kaputte/fremde Datei
+    except Exception:
         raise EggImportError(_("Die Datei lässt sich nicht lesen. Bitte eine Excel-Datei (.xlsx) wählen."))
     rows, warnings, seen = [], [], set()
     for sheet in book.worksheets:

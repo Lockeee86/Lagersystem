@@ -17,13 +17,13 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <select class="form-select" name="aktion" onchange="this.form.submit()">
+            <select class="form-select" name="aktion" data-autosubmit>
                 <option value="">{{ _("Alle Aktionen") }}</option>
                 {% for key, (label, _icon) in actions.items() %}<option value="{{ key }}" {% if args.get('aktion') == key %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
             </select>
         </div>
         <div class="col-6 col-md-3">
-            <select class="form-select" name="benutzer" onchange="this.form.submit()">
+            <select class="form-select" name="benutzer" data-autosubmit>
                 <option value="">{{ _("Alle Benutzer") }}</option>
                 {% for u in users %}<option value="{{ u.id }}" {% if args.get('benutzer')|int == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
             </select>

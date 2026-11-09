@@ -1,6 +1,6 @@
 import threading
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from functools import wraps
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
@@ -195,7 +195,7 @@ def to_local(value):
     if value is None:
         return None
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
+        value = value.replace(tzinfo=UTC)
     return value.astimezone(local_tz())
 
 

@@ -22,7 +22,7 @@ from .extensions import db
 from .i18n import gettext as _, ngettext
 from .machines import add_months
 from .models import (FOREST_KINDS, ForestBurial, ForestContract, ForestPlace, ForestSelection, ForestTree, Setting,
-                     Task, User)
+                     User)
 from .push import Msg
 from .storage import StorageError
 

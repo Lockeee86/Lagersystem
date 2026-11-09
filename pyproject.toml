@@ -1,0 +1,35 @@
+[project]
+name = "lagersystem"
+description = "Lagersystem für Kartoffelkisten und Hof-App (Flask + PostgreSQL)"
+requires-python = ">=3.13"
+dynamic = ["version"]
+
+[tool.ruff]
+line-length = 125
+target-version = "py313"
+extend-exclude = ["migrations", "data", "instance"]
+
+[tool.ruff.lint]
+# Fehler und veraltete Schreibweisen finden – bewusst kein Umformatieren des ganzen Codes
+select = ["E", "F", "W", "B", "UP", "S", "SIM", "C4", "PIE", "RET", "DTZ", "PERF", "RUF"]
+ignore = [
+    "E501",     # lange Zeilen: einzelne Ausnahmen (Übersetzungen, Vorlagen-Texte) sind in Ordnung
+    "RUF001", "RUF002", "RUF003",   # deutsche Typografie („…“, –, ×) ist gewollt
+    "S101",     # assert in Tests
+    "SIM108",   # if/else statt Bedingungsausdruck bleibt lesbarer
+    "RET504", "RET505",
+    "DTZ001", "DTZ005", "DTZ007", "DTZ011",   # Ortszeit des Hofs ist gewollt (Container läuft mit TZ=Europe/Berlin); gespeichert wird UTC
+    "B904", "B905", "E741", "PERF401", "RUF005", "RUF059", "C408",   # Stilfragen ohne Nutzen für diesen Code
+    "S310", "S603", "S607",   # feste https-Adressen (Wetter, SKVE, Luftbild) bzw. pg_dump mit festen Argumenten
+    "B023",     # kleine Helfer in Schleifen werden sofort im selben Durchlauf benutzt
+    "S105", "S610", "S704", "S110",   # Fehlalarme: Namen von Einstellungen, eigenes `extra()`, Markup nach escape()
+    "RET503", "RUF012", "SIM102", "SIM103", "PERF403", "B007",
+    "S314",     # XML-Importe lehnen DOCTYPE/ENTITY vorher ab (tests/test_security.py)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "DTZ", "B", "PERF", "F841"]
+"bridge/*" = ["S"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

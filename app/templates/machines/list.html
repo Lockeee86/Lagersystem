@@ -167,7 +167,7 @@
 {% endfor %}
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     // Zähler passend zur Art vorbelegen (Schlepper: Stunden, Fahrzeug: km …)
     var cat = document.getElementById("m_category");

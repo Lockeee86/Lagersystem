@@ -87,7 +87,7 @@ def _measure(kind, cols):
     def amount(i):
         return _number(cols[i])
     m = {"kind": kind, "done_on": _date(cols[0]), "bbch": None, "area_ha": None, "amount": None, "unit": None,
-         "note": None, **{k: None for k in NUTRIENTS}}
+         "note": None, **dict.fromkeys(NUTRIENTS)}
     if kind == "aussaat":
         m.update(name=cols[1], area_ha=amount(2), amount=amount(3), unit=cols[4], note=cols[5])
     elif kind == "duengung":

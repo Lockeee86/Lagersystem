@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import timedelta
 
 from flask import Flask, abort, g, redirect, request, url_for
@@ -236,17 +237,32 @@ def create_app(config=None):
     from . import speed
     speed.init_app(app)
 
+    def csp_nonce():
+        """Einmal-Wert je Anfrage (am Request, nicht an `g`: das lebt in Tests und Konsole länger als eine Anfrage)."""
+        nonce = request.environ.get("lager.csp_nonce")
+        if nonce is None:
+            nonce = request.environ["lager.csp_nonce"] = secrets.token_urlsafe(16)
+        return nonce
+
+    app.jinja_env.globals["csp_nonce"] = csp_nonce
+
     @app.after_request
     def security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self)")
+        # Skripte nur aus eigenen Dateien oder mit dem Einmal-Wert dieser Antwort (`csp_nonce()` im Template) –
+        # eingeschleuster Code und Inline-Handler (onclick=…) laufen damit nicht
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
-            "script-src 'self' 'unsafe-inline'; media-src 'self' blob:; frame-ancestors 'none'",
+            f"script-src 'self' 'nonce-{csp_nonce()}'; media-src 'self' blob:; object-src 'none'; "
+            "base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
         )
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        if request.is_secure:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
         return response
 
     from flask import render_template

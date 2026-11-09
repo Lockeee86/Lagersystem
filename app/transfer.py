@@ -240,7 +240,7 @@ def read_file(filename, data):
     if name.endswith(".xlsx"):
         try:
             wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-        except Exception as e:  # noqa: BLE001 – kaputte/fremde Datei
+        except Exception as e:
             raise TransferError(_("Die Excel-Datei konnte nicht gelesen werden.")) from e
         preferred = {_norm(n) for n in ["Kisten", *(c.get("Kisten", "Kisten") for c in CATALOGS.values())]}
         sheet = next((wb[n] for n in wb.sheetnames if _norm(n) in preferred), wb.worksheets[0])
@@ -258,7 +258,7 @@ def read_file(filename, data):
             dialect = csv.Sniffer().sniff(text[:4096], delimiters=";,\t")
         except csv.Error:
             dialect = SemicolonDialect
-        return _rows_from_table([r for r in csv.reader(io.StringIO(text), dialect)])
+        return _rows_from_table(list(csv.reader(io.StringIO(text), dialect)))
     raise TransferError(_("Bitte eine Excel-Datei (.xlsx) oder CSV-Datei hochladen."))
 
 

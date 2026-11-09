@@ -217,7 +217,7 @@
 {% block scripts %}
 {% if view == "3d" %}<script src="{{ url_for('static', filename='js/lager3d.js') }}"></script>{% endif %}
 {% if view == "karte" %}<script src="{{ url_for('static', filename='js/mapzoom.js') }}"></script>{% endif %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     var modalEl = document.getElementById("stackModal");
     var modal = new bootstrap.Modal(modalEl);

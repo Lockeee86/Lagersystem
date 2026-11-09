@@ -1,0 +1,7 @@
+{
+  "name": "lagersystem",
+  "private": true,
+  "description": "Nur Werkzeug: prüft das JavaScript der App (kein Build-Schritt, die App lädt die Dateien direkt)",
+  "scripts": { "lint": "eslint app/static/js --max-warnings 30" },
+  "devDependencies": { "eslint": "^9.39.0", "globals": "^17.14.0" }
+}
