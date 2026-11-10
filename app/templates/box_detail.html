@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf, condition_badge %}
+{% from "macros.html" import variety_chip, fill_bar, location_badge, movement_item, csrf, condition_badge, page_tabs %}
 {% from "macros.html" import photo_strip with context %}
 {% from "macros.html" import size_select %}
 {% block title %}{{ box.code }}{% endblock %}
@@ -64,8 +64,9 @@
 </div>
 {% endif %}
 
+{{ page_tabs([("kiste", _("Kiste"), "bi-box"), ("zustand", _("Zustand & Fotos"), "bi-camera"), ("verlauf", _("Verlauf"), "bi-clock-history")]) }}
 {% if current_user.can_edit %}
-<div class="card shadow-sm mb-4 jump-target" id="fuellstand">
+<div data-tab="kiste" class="card shadow-sm mb-4 jump-target" id="fuellstand">
     <div class="card-header"><i class="bi bi-speedometer2 me-1"></i>{{ _("Füllstand") }}</div>
     <div class="card-body">
         <form method="post" action="{{ url_for('main.box_fill', code=box.code) }}" class="fill-picker">
@@ -81,7 +82,7 @@
 </div>
 {% endif %}
 
-<div class="row g-4">
+<div data-tab="kiste" class="row g-4">
     <div class="col-lg-6">
         <div class="card shadow-sm mb-4 jump-target" id="lagerplatz">
             <div class="card-header"><i class="bi bi-geo-alt me-1"></i>{{ _("Lagerplatz") }}</div>
@@ -233,7 +234,7 @@
 </div>
 
 {% if current_user.can_edit and not box.condition %}
-<div class="card shadow-sm mb-4" id="zustand">
+<div data-tab="zustand" class="card shadow-sm mb-4" id="zustand">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Zustand") }}</span>
         <span class="small text-success"><i class="bi bi-check2 me-1"></i>{{ _("in Ordnung") }}</span>
@@ -261,12 +262,12 @@
 </div>
 {% endif %}
 
-<div class="card shadow-sm mb-4">
+<div data-tab="zustand" class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-camera me-1"></i>{{ _("Fotos") }}</div>
     <div class="card-body">{{ photo_strip(box.photos, url_for('main.photos_add', kind='kiste', owner_id=box.id), url_for('main.box_detail', code=box.code) ~ '#fotos') }}</div>
 </div>
 
-<div class="card shadow-sm mb-4">
+<div data-tab="verlauf" class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-clock-history me-1"></i>{{ _("Verlauf") }}</div>
     <div class="card-body">
         {% if movements %}
@@ -276,7 +277,7 @@
 </div>
 
 {% if current_user.is_admin and not box.is_stored %}
-<form method="post" action="{{ url_for('main.box_delete', code=box.code) }}" class="text-end mb-4">
+<form data-tab="verlauf" method="post" action="{{ url_for('main.box_delete', code=box.code) }}" class="text-end mb-4">
     {{ csrf() }}
     <button class="btn btn-sm btn-link text-danger" data-confirm="{{ _('{code} mit gesamtem Verlauf endgültig löschen?', code=box.code) }}"><i class="bi bi-trash me-1"></i>{{ _("Kiste löschen") }}</button>
 </form>

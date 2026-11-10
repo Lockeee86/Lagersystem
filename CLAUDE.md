@@ -288,7 +288,16 @@ docker compose up --build -d
   Live-Aktualisierung: `app/live.py` zählt je Thema (`TOPICS`: Tabelle → Thema) bei jedem Commit mit Änderung, `/api/version`
   liefert die Zähler, Seiten aus `live.PAGES` (`<main data-live>`) laden neu, wenn ihr Thema weiterzählt und gerade niemand
   tippt (`App.autoRefresh(canReload, interval, topics)`). Neue gemeinsam genutzte Listen dort eintragen.
-  Umsortieren per Ziehen: `App.sortable(liste, eintrag, griff)` (Startseite anpassen)
+  Umsortieren per Ziehen: `App.sortable(liste, eintrag, griff)` (Startseite anpassen).
+  Aufräumrunde 0.106: feste Stil-Stufen in `style.css` (`--r-xs/sm/md/lg` für Ecken, `--fs-2xs … --fs-xl` für Schrift) –
+  neue Bausteine nehmen diese Variablen, keine eigenen rem-Werte. Menü in Gruppen: `navigation.item(group=…)`
+  (`G_STOCK`, `G_WORK` …; `grouped()` für Bereichsseiten, Zwischenüberschriften in Seitenleiste und Verwaltung) – keine
+  Rubrik soll mehr als etwa sechs Punkte je Gruppe haben; Sensoren stehen unter Feld & Hof → Technik.
+  Startseite: `tiles.SECTION_DEFAULTS` ist je Rolle bewusst kurz, der Rest über „Alle Bereiche anzeigen“ (`?alle=1`,
+  `tiles.more_for()`, speichert nichts). Mein Konto: Darstellung, Benachrichtigungen, Konto, „Erweitert“ eingeklappt
+  (`#erweitert`; ein Sprung auf ein Ziel darin klappt auf – app.js `openHashTarget`). Lange Detailseiten mit Reitern:
+  `macros.page_tabs([(schlüssel, titel, symbol)])` + `data-tab="schlüssel"` an den Karten (Kiste, Maschine, Lieferschein,
+  Baum); ein Anker (`#logbuch`) öffnet den Reiter, in dem das Ziel liegt – Rücksprünge mit Anker funktionieren weiter
 - `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen

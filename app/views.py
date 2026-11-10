@@ -248,6 +248,10 @@ def dashboard():
         order = {"danger": 0, "warning": 1, "success": 2}
         important = sorted(important + _feeding_important(today), key=lambda i: order[i["level"]])
     show_order = tiles.sections_for(current_user)
+    more = tiles.more_for(current_user)
+    show_all = bool(request.args.get("alle")) and bool(more)
+    if show_all:                                   # „Alle Bereiche anzeigen“: einmalig alles, ohne etwas zu speichern
+        show_order = show_order + more
     show = set(show_order)
     strip = None
     if "strompreis" in show:
@@ -268,6 +272,7 @@ def dashboard():
         bhkw=biogas.dashboard(today) if "bhkw" in show else None, show=show,
         hens=chickens.summary(today) if "huehner" in show else None, show_order=show_order, strip=strip,
         price_configured=biogas.configured(),
+        more_sections=more, show_all=show_all, section_labels=tiles.SECTIONS,
         kpis=kpis.cards(current_user, today, stock["stats"], stock["occupancy"]) if "kennzahlen" in show else [],
         has_varieties=Variety.query.first() is not None,
         has_plots=Plot.query.first() is not None))

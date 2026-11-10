@@ -45,6 +45,7 @@
         {% if side_open and nav["items"]|length > 1 %}
         <div class="side-items">
             {% for it in nav["items"] %}
+            {% if it.group and (loop.first or it.group != loop.previtem.group) %}<span class="side-group">{{ _(it.group) }}</span>{% endif %}
             <a href="{{ url_for(it.endpoint) }}" class="{{ 'active' if nav.active == it.endpoint }}"><i class="bi {{ it.icon }}"></i><span>{{ _(it.label) }}</span>{% if it.badge == "tasks" and my_task_count %}<span class="side-count">{{ my_task_count }}</span>{% elif it.badge == "purchases" and purchase_count %}<span class="side-count">{{ purchase_count }}</span>{% endif %}</a>
             {% endfor %}
         </div>
@@ -56,6 +57,7 @@
         {% if side_open %}
         <div class="side-items">
             {% for it in nav["items"] %}
+            {% if it.group and (loop.first or it.group != loop.previtem.group) %}<span class="side-group">{{ _(it.group) }}</span>{% endif %}
             <a href="{{ url_for(it.endpoint) }}" class="{{ 'active' if nav.active == it.endpoint }}"><i class="bi {{ it.icon }}"></i><span>{{ _(it.label) }}</span></a>
             {% endfor %}
         </div>
@@ -133,6 +135,7 @@
     <nav class="app-subnav d-none d-lg-block" aria-label="{{ _(nav.area.label) }}">
         <div class="container-xl">
             {% for it in nav["items"] %}
+            {% if it.group and not loop.first and it.group != loop.previtem.group %}<span class="subnav-sep" aria-hidden="true"></span>{% endif %}
             <a href="{{ url_for(it.endpoint) }}" class="{% if nav.active == it.endpoint %}active{% endif %}"><i class="bi {{ it.icon }}"></i>{{ _(it.label) }}{% if it.badge == "tasks" and my_task_count %}<span class="badge rounded-pill text-bg-danger">{{ my_task_count }}</span>{% endif %}{% if it.badge == "purchases" and purchase_count %}<span class="badge rounded-pill text-bg-danger">{{ purchase_count }}</span>{% endif %}</a>
             {% endfor %}
         </div>

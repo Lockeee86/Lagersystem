@@ -10,9 +10,10 @@ from .i18n import N_
 from .models import ROLE_ADMIN, ROLE_BETRACHTER, ROLE_MITARBEITER
 
 
-def item(endpoint, label, icon, role=ROLE_BETRACHTER, endpoints=(), prefixes=(), badge=None, show=None):
-    """`show(user)`: Unterpunkt nur für passende Benutzer (z. B. Biogas-Seiten nur mit Rubrik Biogas)."""
-    return {"endpoint": endpoint, "label": label, "icon": icon, "role": role,
+def item(endpoint, label, icon, role=ROLE_BETRACHTER, endpoints=(), prefixes=(), badge=None, show=None, group=None):
+    """`show(user)`: Unterpunkt nur für passende Benutzer (z. B. Biogas-Seiten nur mit Rubrik Biogas).
+    `group`: Zwischenüberschrift in langen Rubriken (Seitenleiste, Bereichsseite am Handy, Verwaltung)."""
+    return {"endpoint": endpoint, "label": label, "icon": icon, "role": role, "group": group,
             "endpoints": {endpoint, *endpoints}, "prefixes": prefixes, "badge": badge, "show": show}
 
 
@@ -24,6 +25,11 @@ def _sensors_shown(user):
     from .sensors import any_in_use
     return user.is_admin or any_in_use()
 
+
+# Zwischenüberschriften der langen Rubriken
+G_STOCK, G_WORK, G_REPORT = N_("Bestand"), N_("Arbeiten"), N_("Auswertung")
+G_FIELD, G_TECH = N_("Acker"), N_("Technik")
+G_FARM, G_MASTER, G_SYSTEM = N_("Betrieb"), N_("Stammdaten"), N_("System")
 
 AREAS = [
     {"key": "start", "label": N_("Übersicht"), "icon": "bi-speedometer2", "items": [
@@ -37,33 +43,38 @@ AREAS = [
         item("assistant.ask_page", N_("Fragen"), "bi-stars", role=ROLE_ADMIN, prefixes=("assistant.",)),
     ]},
     {"key": "lager", "label": N_("Lager"), "icon": "bi-grid-3x3-gap", "items": [
-        # Übersicht mit den zwei Teilen Kartoffellager und Schüttlager, danach die Kartoffel-Seiten, dann Schüttlager
-        item("main.storage_home", N_("Übersicht"), "bi-grid-1x2"),
-        item("main.warehouse_map", N_("Lagerkarte"), "bi-grid-3x3-gap", endpoints=("main.stack_view",)),
-        item("main.batch_store", N_("Einlagern"), "bi-box-arrow-in-down", role=ROLE_MITARBEITER),
-        item("main.lots_page", N_("Partien"), "bi-stack"),
-        item("main.boxes", N_("Kisten"), "bi-boxes", endpoints=("main.box_detail",)),
-        item("main.history", N_("Verlauf"), "bi-clock-history"),
-        item("main.harvest", N_("Ernte"), "bi-basket", role=ROLE_MITARBEITER),
-        item("main.oldest", N_("Älteste Ware"), "bi-hourglass-split"),
-        item("climate.overview_page", N_("Klima"), "bi-thermometer-half", prefixes=("climate.",)),
-        item("main.repairs", N_("Kisten-Reparatur"), "bi-wrench-adjustable"),
-        item("main.harvest_report_page", N_("Erntebericht"), "bi-clipboard-data"),
-        item("main.labels", N_("Etiketten"), "bi-qr-code", role=ROLE_ADMIN),
-        item("bulk.store_list", N_("Schüttlager"), "bi-minecart-loaded", prefixes=("bulk.",)),
-        item("main.scan", N_("Scannen"), "bi-qr-code-scan", role=ROLE_MITARBEITER),
+        # in Gruppen, damit niemand in 14 Punkten suchen muss; der erste Punkt ist das Ziel der Rubrik
+        item("main.storage_home", N_("Übersicht"), "bi-grid-1x2", group=G_STOCK),
+        item("main.warehouse_map", N_("Lagerkarte"), "bi-grid-3x3-gap", endpoints=("main.stack_view",), group=G_STOCK),
+        item("main.boxes", N_("Kisten"), "bi-boxes", endpoints=("main.box_detail",), group=G_STOCK),
+        item("main.lots_page", N_("Partien"), "bi-stack", group=G_STOCK),
+        item("bulk.store_list", N_("Schüttlager"), "bi-minecart-loaded", prefixes=("bulk.",), group=G_STOCK),
+        item("main.batch_store", N_("Einlagern"), "bi-box-arrow-in-down", role=ROLE_MITARBEITER, group=G_WORK),
+        item("main.scan", N_("Scannen"), "bi-qr-code-scan", role=ROLE_MITARBEITER, group=G_WORK),
+        item("main.harvest", N_("Ernte"), "bi-basket", role=ROLE_MITARBEITER, group=G_WORK),
+        item("main.repairs", N_("Kisten-Reparatur"), "bi-wrench-adjustable", group=G_WORK),
+        item("main.history", N_("Verlauf"), "bi-clock-history", group=G_REPORT),
+        item("main.oldest", N_("Älteste Ware"), "bi-hourglass-split", group=G_REPORT),
+        item("main.harvest_report_page", N_("Erntebericht"), "bi-clipboard-data", group=G_REPORT),
+        item("climate.overview_page", N_("Klima"), "bi-thermometer-half", prefixes=("climate.",), group=G_REPORT),
+        item("main.labels", N_("Etiketten"), "bi-qr-code", role=ROLE_ADMIN, group=G_REPORT),
     ]},
     {"key": "feld", "label": N_("Feld & Hof"), "icon": "bi-map", "items": [
-        item("fields.field_map", N_("Schläge"), "bi-map", endpoints=("fields.field_detail", "fields.field_year_save")),
-        item("fields.rotation_page", N_("Fruchtfolge"), "bi-arrow-repeat"),
-        item("fields.yields_page", N_("Erträge"), "bi-bar-chart"),
-        item("fields.irrigation_page", N_("Beregnung"), "bi-droplet", endpoints=("admin.irrigation_preview",)),
-        item("fields.protection", N_("Pflanzenschutz"), "bi-shield-plus", endpoints=("fields.protection_product",)),
-        item("machines.machine_list", N_("Maschinen"), "bi-gear-wide-connected", prefixes=("machines.",)),
+        item("fields.field_map", N_("Schläge"), "bi-map", endpoints=("fields.field_detail", "fields.field_year_save"),
+             group=G_FIELD),
+        item("fields.rotation_page", N_("Fruchtfolge"), "bi-arrow-repeat", group=G_FIELD),
+        item("fields.yields_page", N_("Erträge"), "bi-bar-chart", group=G_FIELD),
+        item("fields.irrigation_page", N_("Beregnung"), "bi-droplet", endpoints=("admin.irrigation_preview",), group=G_FIELD),
+        item("fields.protection", N_("Pflanzenschutz"), "bi-shield-plus", endpoints=("fields.protection_product",),
+             group=G_FIELD),
+        item("main.weather_page", N_("Wetter"), "bi-cloud-sun", group=G_FIELD),
+        item("machines.machine_list", N_("Maschinen"), "bi-gear-wide-connected", prefixes=("machines.",), group=G_TECH),
         item("machines.place_list", N_("Technische Plätze"), "bi-diagram-3",
-             endpoints=("machines.place_detail",)),
-        item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",)),
-        item("main.weather_page", N_("Wetter"), "bi-cloud-sun"),
+             endpoints=("machines.place_detail",), group=G_TECH),
+        item("fuel.tank", N_("Tankbuch"), "bi-fuel-pump", prefixes=("fuel.",), group=G_TECH),
+        # Meshtastic-Knoten (Stall, Lagerklima): für Admins immer, sonst sobald ein Sensor in Betrieb ist
+        item("sensors.overview_page", N_("Sensoren"), "bi-broadcast", prefixes=("sensors.",), show=_sensors_shown,
+             group=G_TECH),
     ]},
     # Biogas: in der Benutzerverwaltung je Benutzer abwählbar (User.biogas)
     {"key": "biogas", "label": N_("Biogas"), "icon": "bi-lightning-charge",
@@ -98,10 +109,6 @@ AREAS = [
         item("chickens.feed", N_("Futter"), "bi-bag"),
         item("chickens.log", N_("Stallbuch"), "bi-journal-medical"),
     ]},
-    # Meshtastic-Knoten (Stall, Lagerklima): für Admins immer, sonst sobald ein Sensor in Betrieb ist
-    {"key": "sensoren", "label": N_("Sensoren"), "icon": "bi-broadcast", "show": _sensors_shown, "items": [
-        item("sensors.overview_page", N_("Sensoren"), "bi-broadcast", prefixes=("sensors.",)),
-    ]},
     {"key": "verkauf", "label": N_("Verkauf"), "icon": "bi-truck", "items": [
         item("sales.deliveries", N_("Lieferscheine"), "bi-truck",
              endpoints=("sales.delivery_detail", "sales.delivery_load")),
@@ -111,21 +118,23 @@ AREAS = [
 ]
 
 ADMIN = {"key": "admin", "label": N_("Verwaltung"), "icon": "bi-sliders", "items": [
-    item("admin.index", N_("Start"), "bi-sliders"),
-    item("admin.settings", N_("Hof"), "bi-house-gear"),
-    item("admin.site_list", N_("Betriebsstätten"), "bi-house-gear"),
-    item("admin.warehouses", N_("Kartoffellager"), "bi-buildings"),
-    item("admin.varieties", N_("Sorten"), "bi-palette"),
+    item("admin.index", N_("Start"), "bi-sliders", group=G_FARM),
+    item("admin.settings", N_("Hof"), "bi-house-gear", group=G_FARM),
+    item("admin.site_list", N_("Betriebsstätten"), "bi-house-gear", group=G_FARM),
+    item("admin.users", N_("Benutzer"), "bi-people", group=G_FARM),
+    item("team.instructions", N_("Unterweisungen"), "bi-person-check", prefixes=("team.instruction",), group=G_FARM),
+    item("admin.warehouses", N_("Kartoffellager"), "bi-buildings", group=G_MASTER),
+    item("admin.varieties", N_("Sorten"), "bi-palette", group=G_MASTER),
     item("admin.plots", N_("Schläge"), "bi-map", endpoints=("admin.plots_kml_preview", "admin.plots_csv_preview",
-                                                             "admin.plots_plan_preview")),
-    item("admin.seed_classes", N_("Stufen"), "bi-award"),
-    item("admin.box_types", N_("Kistentypen"), "bi-box"),
-    item("admin.users", N_("Benutzer"), "bi-people"),
-    item("team.instructions", N_("Unterweisungen"), "bi-person-check", prefixes=("team.instruction",)),
-    item("admin.data", N_("Import / Export"), "bi-arrow-down-up", endpoints=("admin.import_preview", "admin.import_apply")),
-    item("admin.tile_defaults", N_("Startseite"), "bi-grid-1x2"),
-    item("admin.backups", N_("Datensicherung"), "bi-shield-check", endpoints=("admin.backup_now", "admin.backup_download")),
-    item("admin.audit_log", N_("Protokoll"), "bi-journal-text"),
+                                                             "admin.plots_plan_preview"), group=G_MASTER),
+    item("admin.seed_classes", N_("Stufen"), "bi-award", group=G_MASTER),
+    item("admin.box_types", N_("Kistentypen"), "bi-box", group=G_MASTER),
+    item("admin.tile_defaults", N_("Startseite"), "bi-grid-1x2", group=G_SYSTEM),
+    item("admin.data", N_("Import / Export"), "bi-arrow-down-up", endpoints=("admin.import_preview", "admin.import_apply"),
+         group=G_SYSTEM),
+    item("admin.backups", N_("Datensicherung"), "bi-shield-check", endpoints=("admin.backup_now", "admin.backup_download"),
+         group=G_SYSTEM),
+    item("admin.audit_log", N_("Protokoll"), "bi-journal-text", group=G_SYSTEM),
 ]}
 # Kurzbeschreibungen für die Kacheln der Verwaltungs-Startseite
 ADMIN_HINTS = {
@@ -260,6 +269,16 @@ def tab_for(endpoint, view_args=None, user=None):
     return key if key in tabs else "mehr"
 
 
+def grouped(items):
+    """Unterpunkte nach ihrer Zwischenüberschrift bündeln: [{"label", "items"}] (ohne Gruppen eine Liste ohne Titel)."""
+    groups = []
+    for it in items:
+        if not groups or groups[-1]["label"] != it.get("group"):
+            groups.append({"label": it.get("group"), "items": []})
+        groups[-1]["items"].append(it)
+    return groups
+
+
 def hub(key, user):
     """Gruppen der Bereichsseite: [{"label", "items": [...]}] – nur, was die Rolle darf."""
     by_key = {a["key"]: a for a in AREAS}
@@ -273,7 +292,7 @@ def hub(key, user):
         if not _area_shown(area, user):
             return []
         items = [it for it in _visible(area["items"], user) if it["endpoint"] != "main.scan"]
-        return [{"label": None, "items": items}]
+        return grouped(items)
     tabs = _tabs(user)
     start = [it for it in _visible(by_key["start"]["items"], user) if it["endpoint"] != "main.dashboard"]
     groups = [{"label": None, "items": start}]
@@ -282,7 +301,7 @@ def hub(key, user):
                  "args": {} if k == "lager" else {"key": k}}
                 for k in ("lager", "feld") if k not in tabs and _visible(by_key[k]["items"], user)]
     groups.append({"label": None, "items": overview})
-    for k in ("verkauf", "biogas", "wald", "huehner", "sensoren"):
+    for k in ("verkauf", "biogas", "wald", "huehner"):
         if k in tabs or not _area_shown(by_key[k], user):
             continue
         items = _visible(by_key[k]["items"], user)
@@ -331,8 +350,8 @@ def crumb(endpoint, view_args=None, user=None):
 
 
 def admin_tiles():
-    return [{**it, "hint": ADMIN_HINTS.get(it["endpoint"]), "url": url_for(it["endpoint"])}
-            for it in ADMIN["items"] if it["endpoint"] != "admin.index"]
+    return [{**it, "hint": ADMIN_HINTS.get(it["endpoint"]), "url": url_for(it["endpoint"]), "pos": pos}
+            for pos, it in enumerate(ADMIN["items"]) if it["endpoint"] != "admin.index"]
 
 
 # --- Befehlssuche (Strg+K) -------------------------------------------------------------

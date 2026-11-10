@@ -970,6 +970,18 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Aufräumrunde (0.106.0)
+Die App ist auf rund 130 Seiten gewachsen – kein Redesign, aber Ordnung:
+- Menü in Gruppen: Lager (Bestand · Arbeiten · Auswertung), Feld & Hof (Acker · Technik, dort auch Sensoren),
+  Verwaltung (Betrieb · Stammdaten · System). Kein Punkt entfällt, keine Liste ist länger als sechs Einträge.
+- Startseite je Rolle kurz (Mitarbeiter: Wichtig, Meine Aufgaben, Übergabe, Offen; Admin zusätzlich Kennzahlen und Woche;
+  Betrachter: Kennzahlen, Wichtig, Übergabe, Woche). Alles Weitere unter „Alle Bereiche anzeigen“ oder dauerhaft über
+  „Startseite anpassen“. Wer seine Startseite schon selbst eingestellt hat, behält sie.
+- Mein Konto: Darstellung, Benachrichtigungen (Themen je Gruppe gebündelt), Sprache/Passwort; Seltenes unter „Erweitert“.
+- Kiste, Maschine, Lieferschein und Baum mit Reitern statt einer langen Seite.
+- Einheitliche Stufen für Ecken und Schriftgrößen in der Stildatei.
+- Offen: echte Nutzung messen (welche Seiten täglich gebraucht werden), danach das Menü noch einmal schärfen.
+
 ### Technik auf aktuellem Stand (0.103.0)
 - Browser-Sicherheit: Skripte laufen nur noch aus eigenen Dateien oder mit einem Einmal-Wert je Seitenaufruf (CSP mit
   Nonce, keine Inline-Handler mehr); dazu `object-src`, `base-uri`, `form-action`, COOP und – über HTTPS – HSTS.

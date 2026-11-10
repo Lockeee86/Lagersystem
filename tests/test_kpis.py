@@ -37,8 +37,8 @@ def test_cards_per_area(app, db, seed):
     assert list(_cards(app, worker)) == ["lager"]                 # ohne Rubriken nur das Lager
 
 
-def test_section_on_top_and_can_be_hidden(app, db, seed, as_worker):
-    worker = seed["worker"]
+def test_section_on_top_and_can_be_hidden(app, db, seed, as_admin):
+    worker, as_worker = seed["admin"], as_admin                       # Kennzahlen stehen in der Voreinstellung der Admins
     assert tiles.sections_for(worker)[0] == "kennzahlen"
     assert 'class="kpi-row"' in as_worker.get("/").get_data(as_text=True)
     keys = [k for k in tiles.sections_for(worker) if k != "kennzahlen"]

@@ -1,5 +1,5 @@
 {% extends "forest/_layout.html" %}
-{% from "macros.html" import csrf, photo_strip with context %}
+{% from "macros.html" import csrf, photo_strip, page_tabs with context %}
 {% block subtitle %}<p class="text-body-secondary mb-0">{{ tree.label }} · {{ tree.code }}{% if tree.species %} · {{ tree.species }}{% endif %}{% if tree.category %} · {{ _("Kategorie {c}", c=tree.category) }}{% endif %}{% if tree.trunk_cm %} · {{ _("Stamm Ø {cm} cm", cm=tree.trunk_cm) }}{% endif %}{% if tree.section %} · {{ tree.section }}{% endif %} · {{ tree.kind_label }}{% if not tree.active %} · <span class="badge text-bg-secondary">{{ _("inaktiv") }}</span>{% endif %}</p>{% endblock %}
 {% block forest %}
 <div class="d-flex flex-wrap gap-2 mb-3">
@@ -32,7 +32,8 @@
 <form method="get" action="{{ url_for('forest.contract_detail') }}">
 <input type="hidden" name="baum" value="{{ tree.name }}">
 {% endif %}
-<div class="forest-layout {{ 'has-wheel' if wheel }}">
+{{ page_tabs([("plaetze", _("Plätze"), "bi-bullseye"), ("daten", _("Fotos & Daten"), "bi-camera")]) }}
+<div data-tab="plaetze" class="forest-layout {{ 'has-wheel' if wheel }}">
 {% if wheel %}
 <figure class="forest-wheel mb-3" aria-label="{{ _('Lage der Plätze um den Baum') }}">
     <svg viewBox="{{ -wheel.size }} {{ -wheel.size - 16 }} {{ wheel.size * 2 }} {{ wheel.size * 2 + 16 }}" role="img" aria-labelledby="wheelTitle">
@@ -98,12 +99,12 @@
 </div>
 {% endif %}
 </form>
-<div class="card shadow-sm mb-3">
+<div data-tab="daten" class="card shadow-sm mb-3">
     <div class="card-body py-2">{{ photo_strip(tree.photos, url_for('main.photos_add', kind='baum', owner_id=tree.id), url_for('forest.tree_detail', key=tree.key) ~ '#fotos', title=_("Fotos vom Baum")) }}</div>
 </div>
 
 {% if current_user.is_admin %}
-<div class="card shadow-sm mb-4">
+<div data-tab="daten" class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Baum bearbeiten") }}</div>
     <form class="card-body" method="post" action="{{ url_for('forest.tree_save', key=tree.key) }}">
         {{ csrf() }}

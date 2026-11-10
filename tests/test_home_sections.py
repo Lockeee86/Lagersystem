@@ -11,7 +11,7 @@ def test_sections_per_role_and_user(app, as_admin, as_worker, as_viewer, db, see
     # eigene Auswahl: Strompreis dazu, Aufgaben weg
     as_worker.post("/startseite/kacheln", data={"section": ["wichtig", "strompreis", "woche"], "tile": ["aufgaben"]})
     assert set(tiles.sections_for(worker)) == {"wichtig", "strompreis", "woche"}
-    assert worker.home_add == "strompreis" and "aufgaben" in worker.home_hide.split(",")
+    assert worker.home_add == "strompreis,woche" and "aufgaben" in worker.home_hide.split(",")
     html = as_worker.get("/").get_data(as_text=True)
     assert "Jetzt wichtig" in html and "Neue Aufgabe" not in html and "Diese Woche" in html
     # zurücksetzen
@@ -61,13 +61,14 @@ def test_dashboard_strip_from_cache_only(app, as_admin, db, seed, monkeypatch):
     biogas.clear_cache()
     called = []
     monkeypatch.setattr(biogas, "_get", lambda *a: called.append(a) or {})
-    html = as_admin.get("/").get_data(as_text=True)
+    assert 'id="strompreis"' not in as_admin.get("/").get_data(as_text=True)             # nicht in der kurzen Voreinstellung
+    html = as_admin.get("/?alle=1").get_data(as_text=True)
     assert 'id="strompreis"' in html and "gerade abgerufen" in html and not called       # wartet nie auf die API
     now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
     times = [int((now + timedelta(minutes=15 * i)).timestamp()) for i in range(-8, 40)]
     monkeypatch.setattr(biogas, "_get", lambda path, s, e: {"times": times, "values": [80.0] * len(times)})
     biogas.refresh_live(app)
-    html = as_admin.get("/").get_data(as_text=True)
+    html = as_admin.get("/?alle=1").get_data(as_text=True)
     assert "price-bar" in html and "80 €/MWh" in html
     biogas.clear_cache()
 
@@ -75,12 +76,12 @@ def test_dashboard_strip_from_cache_only(app, as_admin, db, seed, monkeypatch):
 def test_section_order(app, as_worker, db, seed):
     worker = seed["worker"]
     default = tiles.sections_for(worker)
-    assert default[:3] == ["kennzahlen", "wichtig", "plan"]
+    assert default[:2] == ["wichtig", "plan"] and "kennzahlen" not in default and "woche" in tiles.more_for(worker)
     html = as_worker.get("/startseite/kacheln").get_data(as_text=True)
     assert 'name="order" value="wichtig"' in html and "nach oben" in html
     # Aufgaben ganz nach oben, Wetter vor Woche
     order = ["aufgaben", "kennzahlen", "strompreis", "wichtig", "plan", "uebergabe", "bhkw", "wetter", "woche", "bestand"]
-    as_worker.post("/startseite/kacheln", data={"section": default, "order": order})
+    as_worker.post("/startseite/kacheln", data={"section": [*default, "woche"], "order": order})
     shown = tiles.sections_for(worker)
     assert shown[0] == "aufgaben" and shown.index("wetter") < shown.index("woche")
     assert worker.home_order.startswith("aufgaben,")
@@ -99,7 +100,7 @@ def test_new_section_after_saved_default(db, seed):
     worker = seed["worker"]
     Setting.put("home_mitarbeiter", "wichtig,aufgaben")                  # gespeichert vor dem Bereich Hühner
     db.session.commit()
-    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "kennzahlen", "huehner"]
+    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "huehner"]
     assert "huehner" not in tiles.sections_for(worker)                    # nur mit Freischaltung
     worker.chickens = True
     assert "huehner" in tiles.sections_for(worker)

@@ -2,8 +2,10 @@
 {% block title %}{{ _("Verwaltung") }}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ _("Verwaltung") }}</h1></div>
+{% for group, items in tiles|groupby("group", default="")|sort(attribute="1.0.pos") %}
+{% if group %}<h2 class="hub-heading">{{ _(group) }}</h2>{% endif %}
 <div class="area-tiles area-tiles-wide">
-    {% for t in tiles %}
+    {% for t in items|sort(attribute="pos") %}
     <a class="area-tile" href="{{ t.url }}">
         <i class="bi {{ t.icon }}"></i>
         <span class="t">{{ _(t.label) }}{% if counts.get(t.endpoint) is not none %} <span class="text-body-secondary fw-normal">({{ counts[t.endpoint] }})</span>{% endif %}</span>
@@ -11,4 +13,5 @@
     </a>
     {% endfor %}
 </div>
+{% endfor %}
 {% endblock %}

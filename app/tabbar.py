@@ -11,7 +11,7 @@ from .extensions import db
 from .i18n import N_
 from .models import Setting
 
-CHOICES = ("lager", "feld", "biogas", "wald", "huehner", "sensoren", "verkauf")
+CHOICES = ("lager", "feld", "biogas", "wald", "huehner", "verkauf")
 DEFAULT = ("lager", "feld")
 SLOTS = 2
 

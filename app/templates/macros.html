@@ -300,3 +300,11 @@
     <a class="week-strip-nav" href="{{ next_url }}" aria-label="{{ _('Folgewoche') }}"><i class="bi bi-chevron-right"></i></a>
 </nav>
 {%- endmacro %}
+
+{# Reiter auf langen Detailseiten: tabs = [(Schlüssel, Titel, Symbol), …]; alles mit data-tab="Schlüssel" gehört zum Reiter,
+   der Rest der Seite bleibt immer sichtbar. Ohne JavaScript steht einfach alles untereinander (app.js blendet aus). #}
+{% macro page_tabs(tabs) -%}
+<nav class="page-tabs" data-page-tabs aria-label="{{ _('Abschnitte') }}">
+    {% for key, label, icon in tabs %}<button type="button" class="page-tab" data-tab-key="{{ key }}" role="tab"><i class="bi {{ icon }}"></i><span>{{ label }}</span></button>{% endfor %}
+</nav>
+{%- endmacro %}

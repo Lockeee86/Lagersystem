@@ -522,3 +522,5 @@ html[data-bg] .side-nav { border-width: 0 1px 0 0; border-radius: 0; background:
 html[data-bg] .side-area.active, html[data-bg] .side-items a.active { background: rgba(255, 255, 255, .18); color: #fff; }
 html[data-bg] .side-area.active i { color: #fff; }
 html[data-bg] .side-area:hover, html[data-bg] .side-items a:hover, html[data-bg] .side-toggle:hover { background: rgba(255, 255, 255, .1); }
+html[data-bg] .page-tabs { background: var(--glass); border-color: var(--glass-edge); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); }
+html[data-bg] .page-tab.active { background: rgba(255, 255, 255, .2); color: #fff; }

@@ -628,6 +628,73 @@ window.App = (function () {
         });
     }
 
+    // Reiter auf Detailseiten (macros.page_tabs): zeigt je Reiter nur die Elemente mit passendem data-tab
+    const tabNav = document.querySelector("[data-page-tabs]");
+    if (tabNav) {
+        const parts = Array.from(document.querySelectorAll("[data-tab]"));
+        const buttons = Array.from(tabNav.querySelectorAll("[data-tab-key]")).filter((b) => {
+            const used = parts.some((el) => el.dataset.tab === b.dataset.tabKey);
+            if (!used) { b.remove(); }
+            return used;
+        });
+        if (buttons.length < 2) {
+            tabNav.remove();
+        } else {
+            const memory = `reiter:${window.location.pathname}`;
+            const keys = buttons.map((b) => b.dataset.tabKey);
+            const show = (key) => {
+                parts.forEach((el) => { el.hidden = el.dataset.tab !== key; });
+                buttons.forEach((b) => {
+                    const on = b.dataset.tabKey === key;
+                    b.classList.toggle("active", on);
+                    b.setAttribute("aria-selected", on ? "true" : "false");
+                });
+                try { sessionStorage.setItem(memory, key); } catch (err) { /* privat */ }
+            };
+            const fromHash = () => {                 // #logbuch → Reiter, in dem das Ziel liegt; #teile → Reiter selbst
+                const id = decodeURIComponent(window.location.hash.slice(1));
+                if (!id) { return null; }
+                if (keys.includes(id)) { return { key: id, target: null }; }
+                const target = document.getElementById(id);
+                const part = target && target.closest("[data-tab]");
+                return part ? { key: part.dataset.tab, target } : null;
+            };
+            const go = () => {
+                const hit = fromHash();
+                if (!hit) { return false; }
+                show(hit.key);
+                if (hit.target) { hit.target.scrollIntoView({ block: "start" }); }
+                return true;
+            };
+            let saved = null;
+            try { saved = sessionStorage.getItem(memory); } catch (err) { /* privat */ }
+            if (!go()) { show(keys.includes(saved) ? saved : keys[0]); }
+            window.addEventListener("hashchange", go);
+            tabNav.addEventListener("click", (e) => {
+                const b = e.target.closest("[data-tab-key]");
+                if (b) { show(b.dataset.tabKey); }
+            });
+            // Fehlermeldung im Formular eines verborgenen Reiters: Reiter mit dem ungültigen Feld zeigen
+            document.addEventListener("invalid", (e) => {
+                const part = e.target.closest && e.target.closest("[data-tab]");
+                if (part && part.hidden) { show(part.dataset.tab); }
+            }, true);
+        }
+    }
+
+    // Sprungziel in einem eingeklappten Bereich (z. B. Mein Konto → Erweitert): aufklappen und hinscrollen
+    const openHashTarget = () => {
+        if (window.location.hash.length < 2) { return; }
+        let target = null;
+        try { target = document.querySelector(window.location.hash); } catch (err) { return; }
+        const box = target && target.closest(".collapse:not(.show):not(.filter-more)");
+        if (!box || box.closest(".fold-card")) { return; }
+        bootstrap.Collapse.getOrCreateInstance(box, { toggle: false }).show();
+        box.addEventListener("shown.bs.collapse", () => target.scrollIntoView({ block: "start" }), { once: true });
+    };
+    openHashTarget();
+    window.addEventListener("hashchange", openHashTarget);
+
     // Seitenleiste am PC ein-/ausklappen (je Gerät gemerkt)
     const sideToggle = document.getElementById("sideToggle");
     if (sideToggle) {

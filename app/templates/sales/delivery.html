@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf, variety_chip, site_select, size_select, sign_modal %}
+{% from "macros.html" import csrf, variety_chip, site_select, size_select, sign_modal, page_tabs %}
 {% from "macros.html" import photo_strip with context %}
 {% from "partials/pick_map.html" import pick_map %}
 {% block title %}{{ delivery.number }}{% endblock %}
@@ -21,9 +21,10 @@
     </div>
 </div>
 
+{{ page_tabs([("positionen", _("Positionen"), "bi-list-ul"), ("verladen", _("Verladen"), "bi-truck")]) }}
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card shadow-sm mb-4" id="positionen">
+        <div data-tab="positionen" class="card shadow-sm mb-4" id="positionen">
             <div class="card-header d-flex justify-content-between">
                 <span><i class="bi bi-list-check me-1"></i>{{ _("Ware") }}</span>
                 <span class="text-body-secondary small">{{ ngettext("{n} Kiste", "{n} Kisten", delivery.box_count) }} · ≈ {{ delivery.estimated_kg|kg }}</span>
@@ -63,7 +64,7 @@
         </div>
 
         {% if delivery.items %}
-        <div class="card shadow-sm mb-4">
+        <div data-tab="positionen" class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-boxes me-1"></i>{{ _("Positionen im Einzelnen") }}</div>
             <ul class="list-group list-group-flush">
                 {% for item in delivery.items %}
@@ -96,7 +97,7 @@
         {% endif %}
 
         {% if map_warehouse %}
-        <div class="card shadow-sm mb-4" id="karte">
+        <div data-tab="verladen" class="card shadow-sm mb-4" id="karte">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <span><i class="bi bi-grid-3x3-gap me-1"></i>{{ _("Aus der Lagerkarte verladen") }}</span>
                 {% if map_warehouses|length > 1 %}
@@ -119,7 +120,7 @@
         {% endif %}
 
         {% if delivery.is_open and current_user.can_edit and lots %}
-        <div class="card shadow-sm mb-4" id="partie">
+        <div data-tab="verladen" class="card shadow-sm mb-4" id="partie">
             <div class="card-header"><i class="bi bi-stack me-1"></i>{{ _("Aus Partie verladen") }} <span class="small text-body-secondary">· {{ _("ohne Scannen") }}</span></div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('sales.delivery_add_lot', delivery_id=delivery.id) }}" class="row g-2 align-items-end">
@@ -142,7 +143,7 @@
         {% endif %}
 
         {% if delivery.is_open and current_user.can_edit and bulk_stores %}
-        <div class="card shadow-sm mb-4" id="schuettgut">
+        <div data-tab="verladen" class="card shadow-sm mb-4" id="schuettgut">
             <div class="card-header"><i class="bi bi-minecart-loaded me-1"></i>{{ _("Schüttgut verladen") }}</div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('sales.delivery_add_bulk', delivery_id=delivery.id) }}" class="row g-2 align-items-end">
@@ -178,7 +179,7 @@
         {% endif %}
 
         {% if editable %}
-        <div class="card shadow-sm mb-4">
+        <div data-tab="verladen" class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-bag me-1"></i>{{ _("Abgepackte Ware hinzufügen (Säcke, Big Bags …)") }}</div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('sales.delivery_add_quantity', delivery_id=delivery.id) }}" class="row g-2 align-items-end">

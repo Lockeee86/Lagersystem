@@ -345,5 +345,16 @@
 {% for key in segment %}<div class="home-block home-{{ key }}">{{ blocks[key] }}</div>{% endfor %}
 </div>
 {% endfor %}
+{% if more_sections %}
+<div class="home-more">
+    {% if show_all %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}"><i class="bi bi-chevron-up me-1"></i>{{ _("Weniger anzeigen") }}</a>
+    <a class="btn btn-link" href="{{ url_for('main.tile_settings') }}">{{ _("Dauerhaft anpassen") }}</a>
+    {% else %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard', alle=1) }}#mehr" id="mehr"><i class="bi bi-chevron-down me-1"></i>{{ _("Alle Bereiche anzeigen") }}</a>
+    <span class="small text-body-secondary">{% for key in more_sections[:5] %}{{ _(section_labels[key].label) }}{{ " · " if not loop.last }}{% endfor %}{% if more_sections|length > 5 %} …{% endif %}</span>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}
 

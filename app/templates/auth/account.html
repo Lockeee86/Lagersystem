@@ -3,104 +3,6 @@
 {% block content %}
 <div class="page-head"><h1>{{ _("Einstellungen") }}</h1></div>
 <div class="row g-4" style="max-width: 1040px">
-    <div class="col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-header"><i class="bi bi-translate me-1"></i>{{ _("Sprache") }}</div>
-            <div class="card-body">
-                <p class="text-body-secondary small">{{ _("Die Sprache gilt für dein Konto auf allen Geräten.") }}</p>
-                <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-picker">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="next" value="{{ url_for('auth.account') }}">
-                    {% for code, label in languages.items() %}
-                    <button name="lang" value="{{ code }}" class="lang-option {% if current_user.language == code %}active{% endif %}">
-                        <span class="lang-flag">{{ flags[code] }}</span>
-                        <span>{{ label }}</span>
-                        {% if current_user.language == code %}<i class="bi bi-check-circle-fill ms-auto"></i>{% endif %}
-                    </button>
-                    {% endfor %}
-                </form>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-header"><i class="bi bi-key me-1"></i>{{ _("Passwort ändern") }}</div>
-            <div class="card-body">
-                <p class="text-body-secondary small">{{ _("Angemeldet als {name} ({role}). Nach der Änderung werden alle anderen Geräte abgemeldet.", name=current_user.username, role=current_user.role_label) }}</p>
-                <form method="post">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="mb-3">
-                        <label class="form-label" for="current_password">{{ _("Aktuelles Passwort") }}</label>
-                        <input class="form-control" id="current_password" name="current_password" type="password" required autocomplete="current-password">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="password">{{ _("Neues Passwort") }} <span class="text-body-tertiary">({{ _("min. 8 Zeichen") }})</span></label>
-                        <input class="form-control" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label" for="password2">{{ _("Neues Passwort wiederholen") }}</label>
-                        <input class="form-control" id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
-                    </div>
-                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {% if current_user.restricted and center_choices|length > 1 %}
-    <div class="col-12" id="leiste">
-        <div class="card shadow-sm">
-            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
-            <form class="card-body" method="post" action="{{ url_for('auth.tabbar_save') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <span class="form-label small mb-1 d-block">{{ _("Runder Knopf in der Mitte") }}</span>
-                <div class="btn-group mb-2" role="group" aria-label="{{ _('Runder Knopf in der Mitte') }}">
-                    {% for key in center_choices %}
-                    <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %} data-autosubmit>
-                    <label class="btn btn-outline-primary" for="mitte_{{ key }}"><i class="bi {{ center_items[key].icon }} me-1"></i>{{ _(center_items[key].label) }}</label>
-                    {% endfor %}
-                </div>
-                <noscript><button class="btn btn-primary">{{ _("Speichern") }}</button></noscript>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-    {% if not current_user.restricted %}
-    <div class="col-12" id="leiste">
-        <div class="card shadow-sm">
-            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('auth.tabbar_save') }}" class="row g-2 align-items-end" style="max-width: 40rem">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="col-12 small text-body-secondary">{{ _("Heute · [Platz 1] · [Mitte] · [Platz 2] · Mehr. Was nicht in der Leiste steht, findest du unter „Mehr“.") }}</div>
-                    {% if center_choices|length > 1 %}
-                    <div class="col-12">
-                        <span class="form-label small mb-1 d-block">{{ _("Runder Knopf in der Mitte") }}</span>
-                        <div class="btn-group" role="group" aria-label="{{ _('Runder Knopf in der Mitte') }}">
-                            {% for key in center_choices %}
-                            <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %}>
-                            <label class="btn btn-outline-primary" for="mitte_{{ key }}"><i class="bi {{ center_items[key].icon }} me-1"></i>{{ _(center_items[key].label) }}</label>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% for slot in range(2) %}
-                    <div class="col-6 col-md-4"><label class="form-label small mb-1" for="tab{{ slot }}">{{ _("Platz {n}", n=slot + 1) }}</label>
-                        <select class="form-select" id="tab{{ slot }}" name="tab">
-                            {% for key in tab_choices %}<option value="{{ key }}" {% if tab_keys[slot] == key %}selected{% endif %}>{{ _(tab_labels[key]) }}</option>{% endfor %}
-                        </select></div>
-                    {% endfor %}
-                    <div class="col-12 col-md-4 d-flex gap-2">
-                        <button class="btn btn-primary">{{ _("Speichern") }}</button>
-                        {% if current_user.tabbar or current_user.tab_center %}<button class="btn btn-outline-secondary" name="reset" value="1">{{ _("Voreinstellung") }}</button>{% endif %}
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {% endif %}
-
     <div class="col-12" id="schrift">
         <div class="card shadow-sm">
             <div class="card-header"><i class="bi bi-type me-1"></i>{{ _("Darstellung") }}</div>
@@ -135,43 +37,6 @@
                         </div>
                     </div>
                     <p class="small text-body-secondary mb-0">{{ _("Gilt für die ganze App auf allen deinen Geräten.") }}</p>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12" id="hintergrund">
-        <div class="card shadow-sm">
-            <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Hintergrund") }}</div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('auth.background_save') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="bg-pick mb-3">
-                        {% for key, label in bg_special.items() %}
-                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
-                        <label for="bg_{{ key }}"><span class="bg-swatch bg-swatch-{{ key }}"><i class="bi {{ 'bi-clock' if key == 'auto' else 'bi-layout-text-window' }}"></i></span>{{ _(label) }}</label>
-                        {% endfor %}
-                        {% for key, label in bg_choices.items() %}{% set p = bg_previews[key] %}
-                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
-                        <label for="bg_{{ key }}"><span class="bg-swatch {{ 'bg-swatch-' ~ key if key in ('sterne', 'milchstrasse') }}" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
-                        {% endfor %}
-                    </div>
-                    <div class="row g-2 align-items-center mb-3" style="max-width: 32rem">
-                        <div class="col-auto"><label class="form-label mb-0" for="bgStrength">{{ _("Farbstärke") }}</label></div>
-                        <div class="col"><input type="range" class="form-range" id="bgStrength" name="strength" min="20" max="100" step="5" value="{{ bg_strength }}"></div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-label mb-1">{{ _("Klassisch: hell oder dunkel") }}</div>
-                        <div class="d-flex flex-wrap gap-2" role="group" aria-label="{{ _('Klassisch: hell oder dunkel') }}">
-                            {% for key, label in theme_modes.items() %}
-                            <input type="radio" class="btn-check" name="theme_mode" id="tm_{{ key }}" value="{{ key }}" {% if theme_current == key %}checked{% endif %}>
-                            <label class="btn btn-outline-secondary btn-sm" for="tm_{{ key }}"><i class="bi {{ {'auto': 'bi-clock', 'light': 'bi-sun', 'dark': 'bi-moon-stars', 'system': 'bi-phone'}[key] }} me-1"></i>{{ _(label) }}</label>
-                            {% endfor %}
-                        </div>
-                        <div class="form-text">{{ _("„Nach Tageszeit“: hell zwischen Sonnenaufgang und Sonnenuntergang am Hof, sonst dunkel.") }}</div>
-                    </div>
-                    <p class="small text-body-secondary">{{ _("Gilt nur für dich. „Klassisch“ ist das Standard-Aussehen. Die Glas-Hintergründe sind immer dunkel; „Glas nach Tageszeit“: morgens Sonnenaufgang, tagsüber Wiese, abends Abend, nachts Nacht.") }}</p>
-                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
                 </form>
             </div>
         </div>
@@ -228,8 +93,11 @@
                         <h3 class="h6">{{ _("Worüber möchtest du benachrichtigt werden?") }}</h3>
                         <form method="post" action="{{ url_for('push.topics') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            {% set ns = namespace(group=none) %}
-                            {% for key in current_user.push_topics() %}
+                            {# Themen derselben Gruppe zusammen (Reihenfolge der Gruppen = erstes Vorkommen) #}
+                            {% set ns = namespace(group=none, groups=[], keys=[]) %}
+                            {% for key in current_user.push_topics() %}{% if push_topics[key].group not in ns.groups %}{% set ns.groups = ns.groups + [push_topics[key].group] %}{% endif %}{% endfor %}
+                            {% for g in ns.groups %}{% for key in current_user.push_topics() %}{% if push_topics[key].group == g %}{% set ns.keys = ns.keys + [key] %}{% endif %}{% endfor %}{% endfor %}
+                            {% for key in ns.keys %}
                             {% set topic = push_topics[key] %}
                             {% if topic.group != ns.group %}<div class="small text-body-secondary fw-semibold mt-3 mb-1">{{ _(topic.group) }}</div>{% set ns.group = topic.group %}{% endif %}
                             <div class="form-check form-switch">
@@ -245,6 +113,150 @@
             </div>
         </div>
     </div>
+
+    {# Konto: Sprache und Passwort #}
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-translate me-1"></i>{{ _("Sprache") }}</div>
+            <div class="card-body">
+                <p class="text-body-secondary small">{{ _("Die Sprache gilt für dein Konto auf allen Geräten.") }}</p>
+                <form method="post" action="{{ url_for('auth.set_language') }}" class="lang-picker">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ url_for('auth.account') }}">
+                    {% for code, label in languages.items() %}
+                    <button name="lang" value="{{ code }}" class="lang-option {% if current_user.language == code %}active{% endif %}">
+                        <span class="lang-flag">{{ flags[code] }}</span>
+                        <span>{{ label }}</span>
+                        {% if current_user.language == code %}<i class="bi bi-check-circle-fill ms-auto"></i>{% endif %}
+                    </button>
+                    {% endfor %}
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-key me-1"></i>{{ _("Passwort ändern") }}</div>
+            <div class="card-body">
+                <p class="text-body-secondary small">{{ _("Angemeldet als {name} ({role}). Nach der Änderung werden alle anderen Geräte abgemeldet.", name=current_user.username, role=current_user.role_label) }}</p>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="current_password">{{ _("Aktuelles Passwort") }}</label>
+                        <input class="form-control" id="current_password" name="current_password" type="password" required autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password">{{ _("Neues Passwort") }} <span class="text-body-tertiary">({{ _("min. 8 Zeichen") }})</span></label>
+                        <input class="form-control" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" for="password2">{{ _("Neues Passwort wiederholen") }}</label>
+                        <input class="form-control" id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
+                    </div>
+                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# Selten gebraucht: untere Leiste, Hintergrund/Glas, Hell/Dunkel – eingeklappt; ein Sprung auf #leiste / #hintergrund klappt auf (app.js) #}
+    <div class="col-12">
+        <button class="btn btn-outline-secondary w-100 text-start d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#erweitert" aria-expanded="false" aria-controls="erweitert">
+            <i class="bi bi-sliders2 me-2"></i><span>{{ _("Erweitert") }}<span class="d-block small text-body-secondary fw-normal">{{ _("Untere Leiste am Handy, Hintergrund, Hell/Dunkel") }}</span></span><i class="bi bi-chevron-down ms-auto"></i>
+        </button>
+    </div>
+    <div class="collapse col-12" id="erweitert"><div class="row g-4">
+    {% if current_user.restricted and center_choices|length > 1 %}
+    <div class="col-12" id="leiste">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
+            <form class="card-body" method="post" action="{{ url_for('auth.tabbar_save') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <span class="form-label small mb-1 d-block">{{ _("Runder Knopf in der Mitte") }}</span>
+                <div class="btn-group mb-2" role="group" aria-label="{{ _('Runder Knopf in der Mitte') }}">
+                    {% for key in center_choices %}
+                    <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %} data-autosubmit>
+                    <label class="btn btn-outline-primary" for="mitte_{{ key }}"><i class="bi {{ center_items[key].icon }} me-1"></i>{{ _(center_items[key].label) }}</label>
+                    {% endfor %}
+                </div>
+                <noscript><button class="btn btn-primary">{{ _("Speichern") }}</button></noscript>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    {% if not current_user.restricted %}
+    <div class="col-12" id="leiste">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Untere Leiste am Handy") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('auth.tabbar_save') }}" class="row g-2 align-items-end" style="max-width: 40rem">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="col-12 small text-body-secondary">{{ _("Heute · [Platz 1] · [Mitte] · [Platz 2] · Mehr. Was nicht in der Leiste steht, findest du unter „Mehr“.") }}</div>
+                    {% if center_choices|length > 1 %}
+                    <div class="col-12">
+                        <span class="form-label small mb-1 d-block">{{ _("Runder Knopf in der Mitte") }}</span>
+                        <div class="btn-group" role="group" aria-label="{{ _('Runder Knopf in der Mitte') }}">
+                            {% for key in center_choices %}
+                            <input type="radio" class="btn-check" name="mitte" id="mitte_{{ key }}" value="{{ key }}" {% if center_key == key %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="mitte_{{ key }}"><i class="bi {{ center_items[key].icon }} me-1"></i>{{ _(center_items[key].label) }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% for slot in range(2) %}
+                    <div class="col-6 col-md-4"><label class="form-label small mb-1" for="tab{{ slot }}">{{ _("Platz {n}", n=slot + 1) }}</label>
+                        <select class="form-select" id="tab{{ slot }}" name="tab">
+                            {% for key in tab_choices %}<option value="{{ key }}" {% if tab_keys[slot] == key %}selected{% endif %}>{{ _(tab_labels[key]) }}</option>{% endfor %}
+                        </select></div>
+                    {% endfor %}
+                    <div class="col-12 col-md-4 d-flex gap-2">
+                        <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                        {% if current_user.tabbar or current_user.tab_center %}<button class="btn btn-outline-secondary" name="reset" value="1">{{ _("Voreinstellung") }}</button>{% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+
+    <div class="col-12" id="hintergrund">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Hintergrund") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('auth.background_save') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="bg-pick mb-3">
+                        {% for key, label in bg_special.items() %}
+                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
+                        <label for="bg_{{ key }}"><span class="bg-swatch bg-swatch-{{ key }}"><i class="bi {{ 'bi-clock' if key == 'auto' else 'bi-layout-text-window' }}"></i></span>{{ _(label) }}</label>
+                        {% endfor %}
+                        {% for key, label in bg_choices.items() %}{% set p = bg_previews[key] %}
+                        <input type="radio" class="btn-check" name="background" id="bg_{{ key }}" value="{{ key }}" {% if bg_current == key %}checked{% endif %}>
+                        <label for="bg_{{ key }}"><span class="bg-swatch {{ 'bg-swatch-' ~ key if key in ('sterne', 'milchstrasse') }}" style="background: radial-gradient(circle at 25% 30%, {{ p[1] }} 0, transparent 60%), radial-gradient(circle at 80% 75%, {{ p[2] }} 0, transparent 55%), {{ p[0] }}"></span>{{ _(label) }}</label>
+                        {% endfor %}
+                    </div>
+                    <div class="row g-2 align-items-center mb-3" style="max-width: 32rem">
+                        <div class="col-auto"><label class="form-label mb-0" for="bgStrength">{{ _("Farbstärke") }}</label></div>
+                        <div class="col"><input type="range" class="form-range" id="bgStrength" name="strength" min="20" max="100" step="5" value="{{ bg_strength }}"></div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-label mb-1">{{ _("Klassisch: hell oder dunkel") }}</div>
+                        <div class="d-flex flex-wrap gap-2" role="group" aria-label="{{ _('Klassisch: hell oder dunkel') }}">
+                            {% for key, label in theme_modes.items() %}
+                            <input type="radio" class="btn-check" name="theme_mode" id="tm_{{ key }}" value="{{ key }}" {% if theme_current == key %}checked{% endif %}>
+                            <label class="btn btn-outline-secondary btn-sm" for="tm_{{ key }}"><i class="bi {{ {'auto': 'bi-clock', 'light': 'bi-sun', 'dark': 'bi-moon-stars', 'system': 'bi-phone'}[key] }} me-1"></i>{{ _(label) }}</label>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">{{ _("„Nach Tageszeit“: hell zwischen Sonnenaufgang und Sonnenuntergang am Hof, sonst dunkel.") }}</div>
+                    </div>
+                    <p class="small text-body-secondary">{{ _("Gilt nur für dich. „Klassisch“ ist das Standard-Aussehen. Die Glas-Hintergründe sind immer dunkel; „Glas nach Tageszeit“: morgens Sonnenaufgang, tagsüber Wiese, abends Abend, nachts Nacht.") }}</p>
+                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    </div></div>
 </div>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/push.js') }}"></script>{% endblock %}

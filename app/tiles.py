@@ -116,10 +116,12 @@ SECTIONS = {
     "bestand": section(N_("Lager und Bestand"), "bi-grid-3x3-gap", hint=N_("Belegung, Bestand je Sorte, letzte Bewegungen")),
 }
 
+# Bewusst kurz: was die Rolle täglich braucht. Alles Weitere steht unter „Alle Bereiche anzeigen“ (`more_for`)
+# und lässt sich unter „Startseite anpassen“ dauerhaft dazunehmen.
 SECTION_DEFAULTS = {
-    ROLE_ADMIN: list(SECTIONS),
-    ROLE_MITARBEITER: ["kennzahlen", "wichtig", "plan", "uebergabe", "aufgaben", "huehner", "woche", "wetter", "bestand"],
-    ROLE_BETRACHTER: ["kennzahlen", "wichtig", "uebergabe", "huehner", "woche", "wetter", "bestand"],
+    ROLE_ADMIN: ["kennzahlen", "wichtig", "plan", "uebergabe", "aufgaben", "woche", "wetter"],
+    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "aufgaben", "huehner", "wetter"],
+    ROLE_BETRACHTER: ["kennzahlen", "wichtig", "uebergabe", "woche", "wetter"],
 }
 
 
@@ -170,6 +172,13 @@ def sections_for(user):
     base -= set(_split_sections(user.home_hide))
     allowed = set(allowed_sections(user))
     return [key for key in section_order(user) if key in base and key in allowed]
+
+
+def more_for(user):
+    """Erlaubte Bereiche, die gerade nicht auf der Startseite stehen – für „Alle Bereiche anzeigen“."""
+    shown = set(sections_for(user))
+    allowed = set(allowed_sections(user))
+    return [key for key in section_order(user) if key in allowed and key not in shown]
 
 
 def save_user_sections(user, keys, order=None):
