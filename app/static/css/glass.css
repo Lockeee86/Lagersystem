@@ -228,8 +228,8 @@ html[data-bg] hr { border-color: var(--line); opacity: 1; }
 /* Figtree läuft etwas breiter: Bereiche oben enger, damit der Hofname Platz behält */
 @media (min-width: 992px) {
     html[data-bg] .app-areas a { padding: .45rem .65rem; gap: .35rem; }
-    html[data-bg] .app-search { width: 12rem; }
-    html[data-bg] .app-brand { flex-shrink: 0; max-width: 14rem; }
+    html[data-bg] .app-search { flex-basis: 12rem; }
+    html[data-bg] .app-brand { max-width: 14rem; }   /* schrumpft wie im klassischen Design, wenn es eng wird */
 }
 
 /* --- Startseite ---------------------------------------------------------------------------- */

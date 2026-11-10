@@ -949,6 +949,17 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   aus, wenn das Gerät „weniger Bewegung“ eingestellt hat.
 - Dunkles Design durchgesehen (helle Abzeichen und aktive Knöpfe angeglichen).
 
+### Auffrischung, Teil 3 (0.104.0)
+- Kistenseite am Handy: vier große Tasten über der unteren Leiste (Einlagern/Umlagern, Füllstand, Inhalt, Nächste scannen).
+- Ziehen zum Aktualisieren auf Startseite, Tagesplan, Fütterung, Meldungen, Hühner- und Wald-Übersicht.
+- Diagramme zeigen beim Antippen den Wert (Kennzahlen, Strompreis, Stall-Sensor, Lagerklima).
+- Lagerkarte: Farbe nach Sorte, Alter, Füllstand oder Verwendung mit eigener Legende; die Wahl bleibt je Gerät gemerkt.
+- Tabellen am PC: Klick auf die Spalte sortiert, die Kopfzeile bleibt beim Scrollen stehen (Listen ohne Blättern).
+- Schriftgröße je Benutzer (Normal, Groß, Sehr groß) unter „Mein Konto“.
+- Glas-Design durchgesehen: Kopfzeile am PC (Hofname weicht, wenn es eng wird), Befehlssuche, Füllstand-Farben.
+- Glocke mit allen Nachrichten der letzten 30 Tage zum Nachlesen – auch für Benutzer ohne Push am Handy.
+- „Erste Schritte“: beim ersten Öffnen vier kurze Hinweise (Scannen, Aufgaben, Suche, Meldungen).
+
 ### Technik auf aktuellem Stand (0.103.0)
 - Browser-Sicherheit: Skripte laufen nur noch aus eigenen Dateien oder mit einem Einmal-Wert je Seitenaufruf (CSP mit
   Nonce, keine Inline-Handler mehr); dazu `object-src`, `base-uri`, `form-action`, COOP und – über HTTPS – HSTS.

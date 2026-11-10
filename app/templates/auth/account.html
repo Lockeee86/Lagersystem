@@ -101,6 +101,24 @@
 
     {% endif %}
 
+    <div class="col-12" id="schrift">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-type me-1"></i>{{ _("Schriftgröße") }}</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('auth.font_save') }}" class="d-flex flex-wrap align-items-center gap-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="btn-group" role="group" aria-label="{{ _('Schriftgröße') }}">
+                        {% for key, label in font_sizes.items() %}
+                        <input type="radio" class="btn-check" name="font_size" id="fs_{{ key or 'normal' }}" value="{{ key }}" {{ 'checked' if current_user.font_size == key }} data-autosubmit>
+                        <label class="btn btn-outline-primary font-pick font-pick-{{ key or 'normal' }}" for="fs_{{ key or 'normal' }}">{{ _(label) }}</label>
+                        {% endfor %}
+                    </div>
+                    <span class="small text-body-secondary">{{ _("Gilt für die ganze App auf allen deinen Geräten – praktisch draußen in der Sonne.") }}</span>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="col-12" id="hintergrund">
         <div class="card shadow-sm">
             <div class="card-header"><i class="bi bi-image me-1"></i>{{ _("Hintergrund") }}</div>

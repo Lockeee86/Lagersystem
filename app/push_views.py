@@ -1,7 +1,8 @@
 """Push-Nachrichten einschalten/ausschalten, Themen wählen, Service-Worker ausliefern."""
 import json
 
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, request, send_from_directory, url_for
+from flask import (Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request,
+                   send_from_directory, url_for)
 from flask_login import current_user, login_required
 
 from . import branding, push
@@ -18,6 +19,18 @@ def service_worker():
     response = send_from_directory(current_app.static_folder, "js/sw.js", mimetype="text/javascript", max_age=0)
     response.headers["Cache-Control"] = "no-cache"
     return response
+
+
+@bp.route("/meldungen")
+@login_required
+def notices_page():
+    """Alle Nachrichten der letzten Wochen zum Nachlesen; das Öffnen markiert sie als gelesen."""
+    items = push.notices(current_user)
+    unread = {n.id for n in items if n.read_at is None}
+    if unread:
+        push.mark_read(current_user)
+        db.session.commit()
+    return render_template("notices.html", items=items, unread=unread, days=push.NOTICE_DAYS)
 
 
 @bp.route("/manifest.webmanifest")

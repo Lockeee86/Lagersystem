@@ -75,7 +75,7 @@
 {% endif %}
 <div class="card shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table-sort table-sticky table table-hover align-middle mb-0">
             <thead><tr>{% if any_sites() %}<th class="text-center" style="width: 2rem"><input class="form-check-input" type="checkbox" aria-label="{{ _('Alle markieren') }}" data-check-all="plot_ids"></th>{% endif %}<th>{{ _("Schlag") }}</th><th class="text-end">{{ _("Fläche") }}</th><th class="text-end">{{ _("Befüllte Kisten") }}</th><th class="d-none d-md-table-cell">{{ _("Notiz") }}</th><th></th></tr></thead>
             <tbody>
             {% for p in items %}

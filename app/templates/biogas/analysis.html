@@ -54,7 +54,7 @@
 <div class="card shadow-sm mb-4" id="verfuegbarkeit">
     <div class="card-header"><i class="bi bi-shield-check me-1"></i>{{ _("Verfügbarkeit laut Logbuch") }}</div>
     <div class="table-responsive">
-        <table class="table table-sm small align-middle mb-0">
+        <table class="table-sort table-sticky table table-sm small align-middle mb-0">
             <thead><tr><th>{{ _("Motor") }}</th><th class="text-end">{{ _("30 Tage") }}</th>{% if current_user.is_admin and availability|selectattr("loss_year")|list %}<th class="text-end">{{ _("Ausfall {year}", year=today.year) }}</th>{% endif %}{% for m, a in availability[0].months %}<th class="text-end {{ 'd-none d-md-table-cell' if loop.index > 3 }}">{{ m.strftime("%m/%Y") }}</th>{% endfor %}</tr></thead>
             <tbody>
             {% for row in availability %}{% set a = row.recent %}

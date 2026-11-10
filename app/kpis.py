@@ -16,6 +16,10 @@ def _days(today):
     return [today - timedelta(days=DAYS - 1 - i) for i in range(DAYS)]
 
 
+def _labels(today):
+    return [d.strftime("%d.%m.") for d in _days(today)]
+
+
 def _movement_series(today):
     days = _days(today)
     tz = local_tz()
@@ -50,6 +54,7 @@ def cards(user, today, stats, occupancy):
                     "value": _num(stats["kg"] / 1000, 1), "unit": "t",
                     "sub": _("{n} Kisten · {p} % belegt", n=stats["filled"], p=percent),
                     "series": _movement_series(today), "series_label": _("Bewegungen je Tag"),
+                    "labels": _labels(today), "series_unit": "",
                     "url": url_for("main.warehouse_map")})
     if user.sees_biogas:
         hours = _by_day(ChpDay.day, ChpDay.hours, today)
@@ -62,6 +67,7 @@ def cards(user, today, stats, occupancy):
                         "value": _num(hours[last], 1), "unit": "h",
                         "sub": _("{mwh} MWh erzeugt", mwh=_num(kwh[last] / 1000, 1)),
                         "series": hours[:-1], "series_label": _("Laufstunden je Tag"),
+                        "labels": _labels(today)[:-1], "series_unit": "h",
                         "url": url_for("biogas.analysis_page")})
     if user.chickens:
         eggs = _by_day(EggEntry.day, EggEntry.eggs, today, EggEntry.imported.is_(False))
@@ -69,7 +75,8 @@ def cards(user, today, stats, occupancy):
         out.append({"key": "huehner", "icon": "bi-egg", "label": _("Eier heute"),
                     "value": _num(eggs[-1]), "unit": "",
                     "sub": ngettext("{n} Ei in 7 Tagen", "{n} Eier in 7 Tagen", int(week)),
-                    "series": eggs, "series_label": _("Eier je Tag"), "url": url_for("chickens.overview")})
+                    "series": eggs, "series_label": _("Eier je Tag"),
+                    "labels": _labels(today), "series_unit": "", "url": url_for("chickens.overview")})
     if user.sees_forest:
         total = db.session.query(func.count(ForestPlace.id)).join(ForestTree).filter(ForestTree.active.is_(True)).scalar() or 0
         used = db.session.query(ForestBurial.place_id).distinct()

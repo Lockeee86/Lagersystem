@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "macros.html" import empty_state %}
+{% block title %}{{ _("Meldungen") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Meldungen") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Alle Nachrichten der letzten {n} Tage zum Nachlesen.", n=days) }} <a href="{{ url_for('auth.account') }}#push">{{ _("Themen wählen") }}</a></p>
+    </div>
+</div>
+<div class="hub-list">
+    {% for n in items %}
+    <a class="hub-row notice-row {{ 'is-new' if n.id in unread }}" href="{{ n.url or '/' }}">
+        <span class="dot {{ 'dot-success' if n.id in unread else 'dot-none' }}"></span>
+        <span class="hub-text">
+            <span class="hub-title">{{ n.title }}</span>
+            {% if n.body %}<span class="hub-status">{{ n.body }}</span>{% endif %}
+            <span class="notice-time">{{ n.created_at|datetime }}</span>
+        </span>
+        <i class="bi bi-chevron-right hub-chevron"></i>
+    </a>
+    {% else %}
+    <div class="hub-row d-block">{{ empty_state("bi-bell", _("Noch keine Meldungen."), _("Hier erscheint alles, was die App dir schickt – neue Aufgaben, Störungen, freie Fütterungen, Warnungen.")) }}</div>
+    {% endfor %}
+</div>
+{% endblock %}

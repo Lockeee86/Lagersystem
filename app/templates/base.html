@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ get_locale() }}"{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% elif classic_theme %} data-bs-theme="{{ classic_theme }}" data-theme-fixed="1"{% endif %}>
+<html lang="{{ get_locale() }}"{% if current_user.is_authenticated and current_user.font_size %} data-font="{{ current_user.font_size }}"{% endif %}{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% elif classic_theme %} data-bs-theme="{{ classic_theme }}" data-theme-fixed="1"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -55,6 +55,9 @@
                 <i class="bi bi-list-check"></i>{% if my_task_count %}<span class="count">{{ my_task_count }}</span>{% endif %}
             </a>
             {% endif %}
+            <a class="btn btn-icon icon-count {% if request.endpoint == 'push.notices_page' %}active{% endif %}" href="{{ url_for('push.notices_page') }}" title="{{ _('Meldungen') }}" aria-label="{{ _('Meldungen') }}">
+                <i class="bi bi-bell"></i>{% if notice_count %}<span class="count">{{ notice_count if notice_count < 100 else "99+" }}</span>{% endif %}
+            </a>
             <button class="btn btn-icon d-lg-none" type="button" data-cmdk title="{{ _('Befehlssuche') }}" aria-label="{{ _('Befehlssuche') }}"><i class="bi bi-search"></i></button>
             {% if current_user.is_admin %}
             <a class="btn btn-icon {% if nav.area and nav.area.key == 'admin' %}active{% endif %}" href="{{ url_for('admin.index') }}" title="{{ _('Verwaltung') }}"><i class="bi bi-sliders"></i></a>
@@ -102,7 +105,7 @@
 </header>
 {% endif %}
 
-<main class="container-xl py-3 py-lg-4">
+<main class="container-xl py-3 py-lg-4"{% if request.endpoint in ("main.dashboard", "team.day_plan", "biogas.feeding_page", "push.notices_page", "chickens.overview", "forest.overview") %} data-ptr="{{ _('Loslassen zum Aktualisieren') }}"{% endif %}>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {# Erfolg/Info: kurzer Hinweis unten (über der Leiste), Fehler und Warnungen bleiben oben stehen #}
@@ -169,6 +172,28 @@
         </div>
     </div>
 </div>
+{% if not current_user.onboarded and request.endpoint in ("main.dashboard", "chickens.overview", "forest.overview") %}
+<div class="modal fade" id="welcome" tabindex="-1" aria-labelledby="welcomeTitle" aria-hidden="true" data-done="{{ url_for('auth.onboarding_done') }}" data-csrf="{{ csrf_token() }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content welcome">
+            <div class="modal-body">
+                <h2 class="h5 mb-3" id="welcomeTitle">{{ _("Willkommen, {name}!", name=current_user.name) }}</h2>
+                <div class="welcome-steps">
+                    {% if current_user.can_edit and not current_user.restricted %}
+                    <div class="welcome-step"><span class="welcome-icon"><i class="bi bi-qr-code-scan"></i></span><div><strong>{{ _("Scannen") }}</strong><span>{{ _("Der runde Knopf unten in der Mitte: Kiste, Lagerort oder Station scannen – die App öffnet gleich die passende Seite.") }}</span></div></div>
+                    {% endif %}
+                    {% if current_user.can_edit %}
+                    <div class="welcome-step"><span class="welcome-icon"><i class="bi bi-check2-square"></i></span><div><strong>{{ _("Aufgaben") }}</strong><span>{{ _("Auf der Startseite steht, was heute für dich ansteht. Am Handy: nach rechts wischen = erledigt.") }}</span></div></div>
+                    {% endif %}
+                    <div class="welcome-step"><span class="welcome-icon"><i class="bi bi-search"></i></span><div><strong>{{ _("Alles finden") }}</strong><span>{{ _("Die Lupe oben (am PC Strg+K) findet jede Seite und jede Kiste.") }}</span></div></div>
+                    <div class="welcome-step"><span class="welcome-icon"><i class="bi bi-bell"></i></span><div><strong>{{ _("Meldungen") }}</strong><span>{{ _("Unter der Glocke stehen alle Nachrichten zum Nachlesen. Push aufs Handy schaltest du unter „Mein Konto“ ein.") }}</span></div></div>
+                </div>
+                <button type="button" class="btn btn-primary w-100 mt-3" data-bs-dismiss="modal">{{ _("Los geht's") }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 <script type="application/json" id="cmdData">{{ {"source": url_for('main.commands'), "search": url_for('main.search') if not current_user.restricted else none, "searchLabel": _("Suchen nach „{q}“", q="%Q%"), "empty": _("Nichts gefunden.")}|tojson }}</script>
 {% endif %}
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>

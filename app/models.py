@@ -132,6 +132,9 @@ class User(UserMixin, db.Model):
     background = db.Column(db.String(20), nullable=False, default="klassisch", server_default="klassisch")
     theme_mode = db.Column(db.String(10), nullable=False, default="auto", server_default="auto")   # klassisch: Hell/Dunkel
     bg_strength = db.Column(db.Integer, nullable=False, default=80, server_default="80")
+    font_size = db.Column(db.String(10), nullable=False, default="", server_default="")     # "" | gross | sehr (FONT_SIZES)
+    # „Erste Schritte“ gesehen (drei kurze Hinweise nach dem ersten Anmelden)
+    onboarded = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
     session_token = db.Column(db.String(64), unique=True, nullable=False,
                               default=lambda: secrets.token_urlsafe(32))
@@ -1682,6 +1685,30 @@ class CalendarEntry(db.Model):
 
     def can_edit(self, user):
         return user.is_admin or (user.can_edit and self.created_by_id == user.id)
+
+
+# --- Meldungen zum Nachlesen -------------------------------------------------------
+
+FONT_SIZES = {"": N_("Normal"), "gross": N_("Groß"), "sehr": N_("Sehr groß")}
+
+
+class Notice(db.Model):
+    """Jede Nachricht, die ein Benutzer bekommen hat (auch ohne eingeschaltete Push-Nachrichten) – zum Nachlesen unter
+    der Glocke. Der Text steht fertig in der Sprache des Empfängers da (wie er aufs Handy ging); nach
+    `push.NOTICE_DAYS` Tagen wird aufgeräumt."""
+    __tablename__ = "notices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    topic = db.Column(db.String(40))
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.String(500))
+    url = db.Column(db.String(300))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    read_at = db.Column(db.DateTime(timezone=True))
+
+    user = db.relationship("User", backref=db.backref("notices", cascade="all, delete-orphan", passive_deletes=True,
+                                                      lazy="dynamic"))
 
 
 # --- Änderungsprotokoll -----------------------------------------------------------

@@ -65,7 +65,7 @@
 {% endif %}
 
 {% if current_user.can_edit %}
-<div class="card shadow-sm mb-4">
+<div class="card shadow-sm mb-4 jump-target" id="fuellstand">
     <div class="card-header"><i class="bi bi-speedometer2 me-1"></i>{{ _("Füllstand") }}</div>
     <div class="card-body">
         <form method="post" action="{{ url_for('main.box_fill', code=box.code) }}" class="fill-picker">
@@ -83,7 +83,7 @@
 
 <div class="row g-4">
     <div class="col-lg-6">
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4 jump-target" id="lagerplatz">
             <div class="card-header"><i class="bi bi-geo-alt me-1"></i>{{ _("Lagerplatz") }}</div>
             <div class="card-body">
                 {% if box.is_stored %}
@@ -143,7 +143,7 @@
     </div>
 
     <div class="col-lg-6">
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4 jump-target" id="inhalt">
             <div class="card-header"><i class="bi bi-basket me-1"></i>{{ _("Inhalt") }}</div>
             <div class="card-body">
                 {% if current_user.can_edit %}
@@ -292,6 +292,16 @@
         </div>
     </div>
 </div>
+{% if current_user.can_edit and not box.is_retired %}
+{# Handy: die häufigsten Schritte nach dem Scannen als große Tasten in Daumenreichweite #}
+<div class="thumb-spacer d-lg-none"></div>
+<nav class="thumb-bar d-lg-none" aria-label="{{ _('Schnell zu') }}">
+    <a href="#lagerplatz"><i class="bi {{ 'bi-arrow-left-right' if box.is_stored else 'bi-box-arrow-in-down' }}"></i><span>{{ _("Umlagern") if box.is_stored else _("Einlagern") }}</span></a>
+    <a href="#fuellstand"><i class="bi bi-speedometer2"></i><span>{{ _("Füllstand") }}</span></a>
+    <a href="#inhalt"><i class="bi bi-basket"></i><span>{{ _("Inhalt") }}</span></a>
+    <a href="{{ url_for('main.scan') }}" class="thumb-next"><i class="bi bi-qr-code-scan"></i><span>{{ _("Nächste") }}</span></a>
+</nav>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script nonce="{{ csp_nonce() }}">

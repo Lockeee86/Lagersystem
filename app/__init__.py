@@ -169,6 +169,14 @@ def create_app(config=None):
         undo_data=utils.undo_data,
     )
 
+    def _notice_count():
+        if not current_user.is_authenticated:
+            return 0
+        if "notice_count" not in g:
+            from . import push
+            g.notice_count = push.unread_count(current_user)
+        return g.notice_count
+
     @app.context_processor
     def inject_globals():
         if "farm" not in g:
@@ -198,6 +206,7 @@ def create_app(config=None):
             "only_area": area_only.config(current_user)
             if current_user.is_authenticated and current_user.restricted else None,
             "glass_bg": backgrounds.effective(current_user),
+            "notice_count": _notice_count(),
             "glass_strength": backgrounds.strength(current_user),
             "classic_theme": backgrounds.theme(current_user if current_user.is_authenticated else None),
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),

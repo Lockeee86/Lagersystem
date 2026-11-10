@@ -52,12 +52,12 @@ FIELDS = {
     "wait_days": N_("Wartezeit"), "plate": N_("Kennzeichen"), "model": N_("Modell"), "manufacturer": N_("Hersteller"),
 }
 
-SKIP_TABLES = {"audit_log", "movements", "push_subscriptions", "feedings", "assistant_queries"}   # Fütterung: tägliches Antippen
+SKIP_TABLES = {"audit_log", "movements", "push_subscriptions", "feedings", "assistant_queries", "notices"}   # Fütterung: tägliches Antippen
 # Spalten, deren Änderung nicht zählt (Zeitstempel, persönliche Einstellungen, Zähler …)
 SKIP_COLUMNS = {
     "*": {"updated_at", "created_at"},
     "users": {"last_login", "map_view", "tiles_add", "tiles_hide", "home_add", "home_hide", "home_order", "push_off", "push_on", "session_token",
-              "calendar_token", "language", "tabbar", "background", "bg_strength", "theme_mode"},
+              "calendar_token", "language", "tabbar", "background", "bg_strength", "theme_mode", "font_size", "onboarded"},
     # Meshtastic-Knoten: letzte Werte ändern sich mit jedem Paket – protokolliert wird nur die Zuordnung
     "mesh_nodes": {"last_seen", "temperature", "humidity", "co2", "battery", "voltage", "rssi", "snr"},
     # Platz und Inhalt der Kisten stehen im Verlauf (Movement) – hier nur andere Felder und das Löschen

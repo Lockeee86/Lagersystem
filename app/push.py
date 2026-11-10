@@ -18,7 +18,7 @@ from flask import current_app, has_app_context, has_request_context, request, ur
 
 from .extensions import db
 from .i18n import force_locale, gettext, ngettext
-from .models import PushSubscription, Setting, User, utcnow
+from .models import Notice, PushSubscription, Setting, User, utcnow
 
 TTL = 12 * 3600                      # so lange hält der Push-Dienst eine Nachricht für ein ausgeschaltetes Handy
 MORNING_HOUR = 6
@@ -131,7 +131,7 @@ def _recipients(users, topic, exclude):
         if user is None or user.id in seen or user.id in excluded or not user.active:
             continue
         seen.add(user.id)
-        if (topic is None or user.wants_push(topic)) and user.push_subscriptions:
+        if topic is None or user.wants_push(topic):
             result.append(user)
     return result
 
@@ -152,14 +152,21 @@ def notify(users, topic, title, body=None, url=None, tag=None, exclude=None):
 
 def _notify(users, topic, title, body, url, tag, exclude):
     jobs = []
-    recipients = _recipients(users, topic, exclude)
-    for user in recipients:
+    audience = _recipients(users, topic, exclude)             # alle, die das Thema wollen – auch ohne Push am Gerät
+    recipients = [u for u in audience if u.push_subscriptions]
+    for user in audience:
         with force_locale(user.language):
-            payload = json.dumps({"title": _render(title), "body": _render(body) or "", "url": url or "/",
-                                  "tag": tag or topic or "lager"})
+            data = {"title": _render(title), "body": _render(body) or "", "url": url or "/",
+                    "tag": tag or topic or "lager"}
+        # zum Nachlesen unter der Glocke (Seite „Meldungen“)
+        db.session.add(Notice(user_id=user.id, topic=topic, title=str(data["title"])[:200],
+                              body=str(data["body"])[:500] or None, url=data["url"][:300]))
+        payload = json.dumps(data)
         for sub in user.push_subscriptions:
             jobs.append((sub.id, {"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
                          payload, user.id))
+    if audience:
+        db.session.commit()
     if not jobs:
         return 0
     app = current_app._get_current_object()
@@ -380,6 +387,29 @@ def _harvest_report(today, tz):
                   url_for("main.harvest_report_page", datum=today.isoformat()), tag="harvest-report")
 
 
+NOTICE_DAYS = 30
+
+
+def unread_count(user):
+    return Notice.query.filter_by(user_id=user.id, read_at=None).count()
+
+
+def notices(user, limit=60):
+    return Notice.query.filter_by(user_id=user.id).order_by(Notice.created_at.desc(), Notice.id.desc()).limit(limit).all()
+
+
+def mark_read(user):
+    Notice.query.filter_by(user_id=user.id, read_at=None).update({"read_at": utcnow()}, synchronize_session=False)
+
+
+def cleanup_notices(now=None):
+    """Meldungen älter als `NOTICE_DAYS` Tage löschen (aus `daily`)."""
+    limit = (now or utcnow()) - timedelta(days=NOTICE_DAYS)
+    n = Notice.query.filter(Notice.created_at < limit).delete(synchronize_session=False)
+    db.session.commit()
+    return n
+
+
 def daily(app, now=None):
     """Aus dem Zeitplan alle paar Minuten aufgerufen; jede Aufgabe läuft höchstens einmal am Tag."""
     # Anfrage-Kontext nur für url_for() (die Links in den Nachrichten sind relativ);
@@ -390,6 +420,7 @@ def daily(app, now=None):
         today = now.date()
         if now.hour >= MORNING_HOUR and not _job_done("morning", today):
             _mark_job("morning", today)          # vorher markieren: lieber eine Nachricht verpassen als doppelt
+            cleanup_notices()
             grave_refresh(None, today)           # Wald: Grab-Aufgaben an die Vertretung, wenn die Person abwesend ist
             _morning_tasks(today)
             _maintenance(today)

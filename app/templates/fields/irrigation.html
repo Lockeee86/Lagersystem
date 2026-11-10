@@ -60,7 +60,7 @@
     <div class="card-header"><i class="bi bi-map me-1"></i>{{ _("Schläge {year}", year=year) }}</div>
     {% if data.plots %}
     <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+        <table class="table-sort table-sticky table table-sm align-middle mb-0">
             <thead><tr><th>{{ _("Schlag") }}</th><th class="text-end">{{ _("mm") }}</th><th class="text-end">m³</th><th class="text-end d-none d-sm-table-cell">{{ _("Einsätze") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Stunden") }}</th><th class="d-none d-md-table-cell">{{ _("Zuletzt") }}</th></tr></thead>
             <tbody>
                 {% for p in data.plots %}

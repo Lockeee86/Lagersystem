@@ -264,7 +264,18 @@ docker compose up --build -d
   seitlich wischen = Woche wechseln. Befehlssuche Strg+K / Lupe am Handy (`#cmdk` in `base.html`, Liste
   `navigation.commands(user)` über `main.commands` `/befehle.json`, erst beim Öffnen geladen; Zusatz-Aktionen
   `navigation.EXTRA_COMMANDS`). Ladebalken `.nav-progress` (app.js). Bewegungen nur unter
-  `prefers-reduced-motion: no-preference`
+  `prefers-reduced-motion: no-preference`.
+  Meldungen zum Nachlesen: `Notice` (jede `push.notify()`-Nachricht je Empfänger, auch ohne Push am Gerät; Text fertig in
+  dessen Sprache, `push.NOTICE_DAYS` Tage, `cleanup_notices()` aus `push.daily`), Glocke in der Kopfzeile (`notice_count`),
+  Seite `push.notices_page` `/meldungen` (Öffnen = gelesen) – `push.notify()` committet dafür selbst (weiter **nach** dem
+  eigenen Commit aufrufen). Schriftgröße `User.font_size` (`models.FONT_SIZES`, `html[data-font]`, `auth.font_save`).
+  Erste Schritte: `User.onboarded`, Fenster `#welcome` in `base.html` auf der Startseite, `auth.onboarding_done`.
+  Kistenseite am Handy: große Tasten `.thumb-bar` (Sprung zu `#lagerplatz`/`#fuellstand`/`#inhalt`, „Nächste“ = Scannen).
+  Ziehen zum Aktualisieren: `<main data-ptr>` (Liste der Endpunkte in `base.html`). Diagramme: Wert beim Antippen über
+  `data-tip`, SVG-`<title>` oder `svg[data-points='[[x 0..1, "Text"], …]']` (Makro `sparkline(values, label, labels, unit)`,
+  Stall- und Lagerklima). Tabellen: `table-sort` (Klick sortiert, `data-sort` am `<td>` für den Sortierwert, nur ohne
+  Blättern) und `table-sticky` (Kopfzeile bleibt am PC stehen). Lagerkarte: „Farbe nach“ Sorte/Alter/Füllstand/Verwendung
+  (`data-sorte|alter|fuell|verw` an `.lvl`, gemerkt in `localStorage` `lagerFarbe`)
 - `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen

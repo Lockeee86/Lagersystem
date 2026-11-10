@@ -21,7 +21,7 @@
 {% if rows %}
 <div class="card shadow-sm mb-4">
     <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+        <table class="table-sort table-sticky table table-sm align-middle mb-0">
             <thead><tr><th>{{ _("Schlag") }}</th><th class="d-none d-md-table-cell">{{ _("Kultur") }}</th><th>{{ _("Letzte Anwendung") }}</th><th class="text-end d-none d-sm-table-cell">{{ _("Anwendungen") }}</th><th>{{ _("Wartezeit bis") }}</th></tr></thead>
             <tbody>
             {% for r in rows %}
@@ -56,7 +56,7 @@
 <p class="small text-body-secondary">{{ _("Die Wartezeit kommt aus der Bemerkung in Myfarm24 („Wartezeit 14 Tage“, „Wartezeit F“). Fehlt sie dort, gilt die Angabe hier. Wartezeiten hängen von der Kultur ab – im Zweifel die Gebrauchsanleitung prüfen. F = durch den Anwendungszeitpunkt abgedeckt.") }}</p>
 <div class="card shadow-sm">
     <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+        <table class="table-sort table-sticky table table-sm align-middle mb-0">
             <thead><tr><th>{{ _("Mittel") }}</th><th class="text-end">{{ _("Anwendungen") }}</th><th class="text-end d-none d-sm-table-cell">{{ _("Fläche") }}</th><th class="text-end d-none d-md-table-cell">{{ _("Menge") }}</th><th>{{ _("Wartezeit") }}</th></tr></thead>
             <tbody>
             {% for u in used %}

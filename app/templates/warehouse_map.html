@@ -66,6 +66,19 @@
 {% if view == "karte" %}
 <div class="card shadow-sm">
     <div class="card-body p-2 p-md-3">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2" id="mapColor">
+            <span class="small text-body-secondary"><i class="bi bi-palette me-1"></i>{{ _("Farbe nach") }}</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="{{ _('Farbe nach') }}">
+                <button type="button" class="btn btn-outline-secondary active" data-color="sorte">{{ _("Sorte") }}</button>
+                <button type="button" class="btn btn-outline-secondary" data-color="alter">{{ _("Alter") }}</button>
+                <button type="button" class="btn btn-outline-secondary" data-color="fuell">{{ _("Füllstand") }}</button>
+                <button type="button" class="btn btn-outline-secondary" data-color="verw">{{ _("Verwendung") }}</button>
+            </div>
+            <span class="map-color-legend small" id="mapColorLegend"
+                  data-alter='{{ {"ok": _("frisch"), "warn": _("ab {n} Monaten", n=age_limits[0]), "old": _("ab {n} Monaten", n=age_limits[1])}|tojson|forceescape }}'
+                  data-fuell='{{ {"25": "¼", "50": "½", "75": "¾", "100": _("voll")}|tojson|forceescape }}'
+                  data-verw='{{ {"speise": _("Speise"), "pflanzgut": _("Saat"), "futter": _("Futter"), "sonstiges": _("Sonstiges"), "": _("ohne Angabe")}|tojson|forceescape }}'></span>
+        </div>
         <div class="map-zoom-tools d-lg-none">
             <span class="small text-body-secondary flex-grow-1">{{ _("Mit zwei Fingern zoomen, antippen zeigt die Kisten.") }}</span>
             <div class="btn-group btn-group-sm">
@@ -101,7 +114,7 @@
                                     {% for lvl in range(warehouse.max_levels, 0, -1) %}
                                     {% set b = boxes[lvl - 1] if boxes|length >= lvl else none %}
                                     <span class="lvl {% if b %}{% if b.color %}has-box{% else %}has-box is-blank{% endif %}{% if 0 < b.fill < 100 %} is-part{% endif %}{% endif %}"
-                                          {% if b and b.color %}style="--c: {{ b.color }}; --f: {{ b.fill }}%"{% endif %}></span>
+                                          {% if b and b.color %}style="--c: {{ b.color }}; --f: {{ b.fill }}%" data-sorte="{{ b.color }}" data-alter="{{ box_age(b) }}" data-fuell="{{ b.fill }}" data-verw="{{ b.effective_usage or '' }}"{% endif %}></span>
                                     {% endfor %}
                                 </span>
                                 <span class="stack-count">{{ boxes|length or '' }}</span>
@@ -300,6 +313,49 @@
         });
         if (iso) iso.setFilter(f);
     });
+
+    // Farbe nach Sorte / Alter / Füllstand / Verwendung (gemerkt je Gerät)
+    var colorBox = document.getElementById("mapColor");
+    if (colorBox) {
+        var palettes = {
+            alter: { ok: "#3f8f4f", warn: "#e0a800", old: "#c8553d" },
+            verw: { speise: "#c9962a", pflanzgut: "#3f8f4f", futter: "#8a6d4b", sonstiges: "#6f7f93", "": "#b9b3a3" }
+        };
+        // heller Grund: voller = dunkler; dunkler Grund (Dunkel/Glas): voller = heller
+        var darkUi = document.documentElement.getAttribute("data-bs-theme") === "dark";
+        var fillColor = function (f) { return "hsl(95, 50%, " + Math.round(darkUi ? 22 + 0.48 * f : 82 - 0.5 * f) + "%)"; };
+        var legend = document.getElementById("mapColorLegend");
+        var applyColor = function (mode) {
+            var used = {};
+            document.querySelectorAll(".lager-map .lvl[data-sorte]").forEach(function (el) {
+                var c;
+                if (mode === "sorte") { c = el.dataset.sorte; }
+                else if (mode === "fuell") { c = fillColor(+el.dataset.fuell); used[el.dataset.fuell >= 100 ? "100" : el.dataset.fuell >= 75 ? "75" : el.dataset.fuell >= 50 ? "50" : "25"] = 1; }
+                else { var key = el.dataset[mode] || ""; c = palettes[mode][key] || palettes.verw[""]; used[key] = 1; }
+                el.style.setProperty("--c", c);
+                el.classList.toggle("flat-color", mode === "fuell");
+            });
+            var html = "";
+            if (mode !== "sorte") {
+                var labels = JSON.parse(legend.dataset[mode]);
+                Object.keys(labels).forEach(function (key) {
+                    if (!used[key]) { return; }
+                    var c = mode === "fuell" ? fillColor(+key) : palettes[mode][key];
+                    html += '<span><i style="background:' + c + '"></i>' + labels[key].replace(/</g, "&lt;") + "</span>";
+                });
+            }
+            legend.innerHTML = html;
+            colorBox.querySelectorAll("[data-color]").forEach(function (b) { b.classList.toggle("active", b.dataset.color === mode); });
+            try { localStorage.setItem("lagerFarbe", mode); } catch (err) { /* privat */ }
+        };
+        colorBox.addEventListener("click", function (e) {
+            var b = e.target.closest("[data-color]");
+            if (b) { applyColor(b.dataset.color); }
+        });
+        var saved = null;
+        try { saved = localStorage.getItem("lagerFarbe"); } catch (err) { /* privat */ }
+        if (saved && saved !== "sorte" && colorBox.querySelector('[data-color="' + saved + '"]')) { applyColor(saved); }
+    }
 
     App.autoRefresh(function () { return !modalEl.classList.contains("show") && !sheetEl.classList.contains("show"); });
 })();

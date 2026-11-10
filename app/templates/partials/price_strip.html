@@ -14,7 +14,7 @@
     {% if strip %}
     <div class="hub-list"><div class="hub-row d-block">
         <div class="price-bar" role="img" aria-label="{{ _('Strompreis heute und morgen, von {min} bis {max} €/MWh', min=strip.min|num(0), max=strip.max|num(0)) }}">
-            {% for seg in strip.segments %}<span style="width: {{ seg.width|round(3) }}%; background: {{ seg.color }}" title="{{ seg.start.strftime('%d.%m. %H:%M') }}: {{ seg.price|num(0) }} €/MWh"></span>{% endfor %}
+            {% for seg in strip.segments %}<span style="width: {{ seg.width|round(3) }}%; background: {{ seg.color }}" data-tip="{{ seg.start.strftime('%d.%m. %H:%M') }}: {{ seg.price|num(0) }} €/MWh ({{ (seg.price / 10)|num(1) }} ct/kWh)"></span>{% endfor %}
             {% if strip.now_pct is not none %}<i class="price-now" style="left: {{ strip.now_pct|round(2) }}%"></i>{% endif %}
             {% for d in strip.days[1:] %}<i class="price-day" style="left: {{ d.pct|round(2) }}%"></i>{% endfor %}
         </div>

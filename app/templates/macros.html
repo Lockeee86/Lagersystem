@@ -267,14 +267,16 @@
 {%- endmacro %}
 
 {# Kleiner Verlauf als SVG (Werte von links = alt nach rechts = heute) #}
-{% macro sparkline(values, label="") -%}
+{% macro sparkline(values, label="", labels=none, unit="") -%}
 {%- set w, h = 120, 34 -%}
 {%- set top = values|max if values else 0 -%}
 {%- set n = values|length -%}
 {%- if n > 1 -%}
 {%- set ns = namespace(pts=[]) -%}
 {%- for v in values -%}{%- set ns.pts = ns.pts + ["%.1f,%.1f"|format(loop.index0 * w / (n - 1), h - 3 - (v / top * (h - 6) if top else 0))] -%}{%- endfor -%}
-<svg class="spark" viewBox="0 0 {{ w }} {{ h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}">
+{%- set pts = [] -%}
+{%- if labels -%}{%- for v in values -%}{%- set _unused = pts.append([loop.index0 / (n - 1), labels[loop.index0] ~ ": " ~ v|num(1 if v != v|int else 0) ~ (" " ~ unit if unit else "")]) -%}{%- endfor -%}{%- endif -%}
+<svg class="spark" viewBox="0 0 {{ w }} {{ h }}" preserveAspectRatio="none" role="img" aria-label="{{ label }}"{% if pts %} data-points='{{ pts|tojson|forceescape }}'{% endif %}>
     <polygon class="spark-area" points="0,{{ h }} {{ ns.pts|join(' ') }} {{ w }},{{ h }}"/>
     <polyline class="spark-line" points="{{ ns.pts|join(' ') }}"/>
     <circle class="spark-dot" cx="{{ ns.pts[-1].split(',')[0] }}" cy="{{ ns.pts[-1].split(',')[1] }}" r="2.6"/>

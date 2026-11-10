@@ -293,7 +293,8 @@ window.App = (function () {
     };
     document.addEventListener("click", (e) => {
         const a = e.target.closest("a[href]");
-        if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+        if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ||
+            e.target.closest("svg[data-points]")) { return; }
         const href = a.getAttribute("href");
         if (a.target || a.hasAttribute("download") || a.dataset.bsToggle || href.charAt(0) === "#" ||
             a.origin !== window.location.origin || (a.pathname === window.location.pathname && a.hash)) { return; }
@@ -396,6 +397,173 @@ window.App = (function () {
             };
             requestAnimationFrame(step);
         });
+    }
+
+    // Ziehen zum Aktualisieren (Handy, nur auf Seiten mit <main data-ptr>): ganz oben nach unten ziehen lädt neu
+    const ptrMain = document.querySelector("main[data-ptr]");
+    if (ptrMain && window.matchMedia("(pointer: coarse)").matches) {
+        const ptr = document.createElement("div");
+        ptr.className = "ptr";
+        ptr.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        ptr.setAttribute("aria-hidden", "true");
+        document.body.appendChild(ptr);
+        let y0 = null, x0 = 0, pull = 0;
+        const LIMIT = 90;
+        const set = (v) => {
+            pull = v;
+            ptr.style.setProperty("--pull", `${Math.min(v, LIMIT + 30)}px`);
+            ptr.style.setProperty("--turn", `${Math.min(v / LIMIT, 1) * 270}deg`);
+            ptr.classList.toggle("armed", v >= LIMIT);
+            ptr.classList.toggle("show", v > 8);
+        };
+        document.addEventListener("touchstart", (e) => {
+            y0 = null;
+            if (window.scrollY > 0 || e.touches.length !== 1 || document.querySelector(".modal.show, .offcanvas.show") ||
+                e.target.closest("[data-swipe], input, textarea, select, .week-strip, .kpi-row")) { return; }
+            y0 = e.touches[0].clientY; x0 = e.touches[0].clientX;
+        }, { passive: true });
+        document.addEventListener("touchmove", (e) => {
+            if (y0 === null) { return; }
+            const dy = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
+            if (dy < 0 || window.scrollY > 0 || Math.abs(dx) > Math.abs(dy)) { y0 = null; set(0); return; }
+            set(dy * .55);
+        }, { passive: true });
+        const end = () => {
+            if (y0 === null) { return; }
+            y0 = null;
+            if (pull >= LIMIT) {
+                ptr.classList.add("loading");
+                if (navigator.vibrate) { navigator.vibrate(10); }
+                window.location.reload();
+            } else { set(0); }
+        };
+        document.addEventListener("touchend", end);
+        document.addEventListener("touchcancel", () => { y0 = null; set(0); });
+    }
+
+    // Diagramme anfassbar: Elemente mit <title> (SVG) oder data-tip zeigen ihren Wert beim Antippen bzw. Überfahren
+    const tip = document.createElement("div");
+    tip.className = "chart-tip";
+    tip.setAttribute("role", "status");
+    document.body.appendChild(tip);
+    let tipFor = null;
+    const tipText = (el) => {
+        if (el.dataset && el.dataset.tip) { return el.dataset.tip; }
+        const t = el.querySelector && el.querySelector(":scope > title");
+        return t ? t.textContent : "";
+    };
+    const tipTarget = (node) => {
+        for (let el = node; el && el !== document.body; el = el.parentNode) {
+            if (el.nodeType === 1 && ((el.dataset && el.dataset.tip) || (el.namespaceURI === "http://www.w3.org/2000/svg" &&
+                el.querySelector(":scope > title")))) { return el; }
+        }
+        return null;
+    };
+    const showTip = (el, x, y) => {
+        const text = tipText(el);
+        if (!text) { return; }
+        tipFor = el;
+        tip.textContent = text;
+        tip.classList.add("show");
+        const w = tip.offsetWidth, h = tip.offsetHeight;
+        tip.style.left = `${Math.max(8, Math.min(x - w / 2, window.innerWidth - w - 8))}px`;
+        tip.style.top = `${Math.max(8, y - h - 14)}px`;
+    };
+    const hideTip = () => { tipFor = null; tip.classList.remove("show"); };
+    document.addEventListener("pointerover", (e) => {
+        if (e.pointerType === "touch") { return; }
+        const el = tipTarget(e.target);
+        if (el) { showTip(el, e.clientX, e.clientY); } else if (tipFor) { hideTip(); }
+    });
+    document.addEventListener("pointermove", (e) => {
+        if (e.pointerType !== "touch" && tipFor) { showTip(tipFor, e.clientX, e.clientY); }
+    });
+    document.addEventListener("click", (e) => {
+        if (e.target.closest && e.target.closest("svg[data-points]")) { e.preventDefault(); return; }   // Wert zeigen statt Link folgen
+        const el = tipTarget(e.target);
+        if (el && el !== tipFor) { showTip(el, e.clientX, e.clientY); } else { hideTip(); }
+    });
+    window.addEventListener("scroll", hideTip, { passive: true });
+    // Linien-Diagramme: <svg data-points='[[x 0..1, "Text"], …]'> zeigt den nächsten Messpunkt mit einer Hilfslinie
+    document.querySelectorAll("svg[data-points]").forEach((svg) => {
+        let points;
+        try { points = JSON.parse(svg.dataset.points); } catch (err) { return; }
+        if (!points.length) { return; }
+        const box = svg.viewBox.baseVal;
+        const cursor = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        cursor.setAttribute("class", "chart-cursor");
+        cursor.setAttribute("y1", box.y); cursor.setAttribute("y2", box.y + box.height);
+        cursor.style.display = "none";
+        svg.appendChild(cursor);
+        svg.classList.add("has-points");
+        const at = (e) => {
+            const rect = svg.getBoundingClientRect();
+            const f = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            let best = points[0];
+            for (const p of points) { if (Math.abs(p[0] - f) < Math.abs(best[0] - f)) { best = p; } }
+            const x = box.x + best[0] * box.width;
+            cursor.setAttribute("x1", x); cursor.setAttribute("x2", x);
+            cursor.style.display = "";
+            svg.dataset.tip = best[1];
+            showTip(svg, rect.left + best[0] * rect.width, rect.top);
+        };
+        const off = () => { cursor.style.display = "none"; delete svg.dataset.tip; hideTip(); };
+        svg.addEventListener("pointermove", at);
+        svg.addEventListener("pointerdown", at);
+        svg.addEventListener("pointerleave", (e) => { if (e.pointerType !== "touch") { off(); } });
+    });
+
+    // Tabellen am PC: Klick auf die Spaltenüberschrift sortiert (nur <table class="table-sort">, ohne Blättern)
+    document.querySelectorAll("table.table-sort").forEach((table) => {
+        const body = table.tBodies[0];
+        if (!body) { return; }
+        const value = (row, i) => {
+            const cell = row.cells[i];
+            if (!cell) { return ""; }
+            return cell.dataset.sort !== undefined ? cell.dataset.sort : cell.textContent.trim();
+        };
+        const number = (s) => {
+            const m = /^-?[\d.]+(,\d+)?/.exec(s.replace(/\s/g, ""));
+            return m ? parseFloat(m[0].replace(/\./g, "").replace(",", ".")) : NaN;
+        };
+        const date = (s) => {
+            const m = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(s);
+            return m ? +(m[3] + m[2] + m[1]) : NaN;
+        };
+        table.querySelectorAll("thead th").forEach((th, i) => {
+            if (th.dataset.nosort !== undefined || !th.textContent.trim()) { return; }
+            th.classList.add("sortable");
+            th.setAttribute("role", "button");
+            th.tabIndex = 0;
+            const sort = () => {
+                const dir = th.classList.contains("sort-asc") ? -1 : 1;
+                table.querySelectorAll("thead th").forEach((o) => o.classList.remove("sort-asc", "sort-desc"));
+                th.classList.add(dir === 1 ? "sort-asc" : "sort-desc");
+                const rows = Array.from(body.rows);
+                const key = (r) => {
+                    const s = value(r, i), d = date(s), n = number(s);
+                    return !isNaN(d) ? d : !isNaN(n) && th.dataset.text === undefined ? n : s.toLowerCase();
+                };
+                rows.sort((a, b) => {
+                    const x = key(a), y = key(b);
+                    if (typeof x === "number" && typeof y === "number") { return (x - y) * dir; }
+                    return String(x).localeCompare(String(y), document.documentElement.lang || "de", { numeric: true }) * dir;
+                });
+                rows.forEach((r) => body.appendChild(r));
+            };
+            th.addEventListener("click", sort);
+            th.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sort(); } });
+        });
+    });
+
+    // Erste Schritte: einmal zeigen, beim Schließen am Benutzer merken
+    const welcome = document.getElementById("welcome");
+    if (welcome) {
+        welcome.addEventListener("hidden.bs.modal", () => {
+            const body = new URLSearchParams({ csrf_token: welcome.dataset.csrf });
+            fetch(welcome.dataset.done, { method: "POST", body, credentials: "same-origin", headers: { "X-Requested-With": "fetch" } });
+        });
+        bootstrap.Modal.getOrCreateInstance(welcome).show();
     }
 
     // Hinweise unten (Erfolg/Info): nach 5 s ausblenden, Antippen/Wischen schließt sofort, Maus darüber hält an

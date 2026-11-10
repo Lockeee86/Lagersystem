@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from .extensions import db
 from .i18n import LANGUAGE_FLAGS, LANG_COOKIE, LANGUAGES, get_locale, gettext as _, set_request_locale
-from .models import PUSH_TOPICS, ROLE_ADMIN, BoxType, User, Warehouse, utcnow
+from .models import FONT_SIZES, PUSH_TOPICS, ROLE_ADMIN, BoxType, User, Warehouse, utcnow
 from .utils import flash_error, form_int, form_str, login_throttle, safe_next
 
 bp = Blueprint("auth", __name__)
@@ -122,7 +122,7 @@ def account():
                 flash(_("Passwort geändert. Andere Geräte wurden abgemeldet."), "success")
                 return redirect(url_for("auth.account"))
     from . import backgrounds, tabbar
-    return render_template("auth/account.html", languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS,
+    return render_template("auth/account.html", font_sizes=FONT_SIZES, languages=LANGUAGES, flags=LANGUAGE_FLAGS, push_topics=PUSH_TOPICS,
                            tab_choices=tabbar.available(current_user), tab_keys=tabbar.keys_for(current_user),
                            tab_labels=tabbar.labels(), center_choices=tabbar.center_choices(current_user),
                            center_key=tabbar.center_key(current_user), center_items=tabbar.CENTER, bg_choices=backgrounds.CHOICES, bg_special=backgrounds.SPECIAL,
@@ -172,6 +172,25 @@ def theme_save():
         return "", 204
     flash(_("Darstellung gespeichert."), "success")
     return redirect(url_for("auth.account") + "#hintergrund")
+
+
+@bp.route("/konto/schrift", methods=["POST"])
+@login_required
+def font_save():
+    """Schriftgröße der ganzen Oberfläche (nur für einen selbst)."""
+    size = request.form.get("font_size", "")
+    current_user.font_size = size if size in FONT_SIZES else ""
+    db.session.commit()
+    flash(_("Schriftgröße gespeichert."), "success")
+    return redirect(url_for("auth.account") + "#schrift")
+
+
+@bp.route("/konto/erste-schritte", methods=["POST"])
+@login_required
+def onboarding_done():
+    current_user.onboarded = True
+    db.session.commit()
+    return "", 204
 
 
 @bp.route("/sprache", methods=["POST"])

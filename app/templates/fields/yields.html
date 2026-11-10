@@ -46,7 +46,7 @@
 {% if plots %}
 <div class="card shadow-sm">
     <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle mb-0 yield-table">
+        <table class="table-sort table-sticky table table-sm table-hover align-middle mb-0 yield-table">
             <thead><tr><th>{{ _("Schlag") }}</th>{% for y in years %}<th class="text-end">{{ y }}</th>{% endfor %}</tr></thead>
             <tbody>
             {% for p in plots %}

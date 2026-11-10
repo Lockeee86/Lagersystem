@@ -634,7 +634,8 @@ def warehouse_map(warehouse_id=None):
                            tech=places.for_warehouse(warehouse, current_user),
                            stacks=stacks, rows=rows, view=view, views=MAP_VIEWS, data3d=data3d,
                            shorts=shorts, varieties=[v for v in varieties if v.id in used], ages=ages,
-                           age_limits=limits, any_old=any(ages.values()))
+                           age_limits=limits, any_old=any(ages.values()),
+                           box_age=lambda b: storage.age_level(b, limits) or "ok")
 
 
 @bp.route("/lager/aelteste")

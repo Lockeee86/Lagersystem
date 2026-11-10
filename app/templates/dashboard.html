@@ -105,7 +105,7 @@
         <span class="kpi-label"><i class="bi {{ k.icon }}"></i>{{ k.label }}</span>
         <span class="kpi-value">{{ k.value }}{% if k.unit %}<small>{{ k.unit }}</small>{% endif %}</span>
         <span class="kpi-sub">{{ k.sub }}</span>
-        {% if k.series %}{{ sparkline(k.series, k.series_label) }}
+        {% if k.series %}{{ sparkline(k.series, k.series_label, k.labels, k.series_unit) }}
         {% elif k.bar is defined %}<span class="kpi-bar"><span style="width: {{ k.bar }}%"></span></span>{% endif %}
     </a>
     {% endfor %}
