@@ -96,6 +96,7 @@ html[data-bg] .hub-list,
 html[data-bg] .list-group:not(.list-group-flush),
 html[data-bg] .tower-box,
 html[data-bg] .app-header,
+html[data-bg] .side-nav,
 html[data-bg] .tabbar {
     background: var(--glass);
     border: 1px solid var(--glass-edge);
@@ -515,3 +516,9 @@ html[data-bg] .rev-flex { background: #ff9a6a; } html[data-bg] .rev-sonstige { b
 html[data-bg] :is(.card, .list-group-item, .glass) .dropdown-menu {
     background: color-mix(in srgb, var(--bg-solid) 94%, transparent);
 }
+
+/* Seitenleiste am PC */
+html[data-bg] .side-nav { border-width: 0 1px 0 0; border-radius: 0; background: rgba(255, 255, 255, .08); }
+html[data-bg] .side-area.active, html[data-bg] .side-items a.active { background: rgba(255, 255, 255, .18); color: #fff; }
+html[data-bg] .side-area.active i { color: #fff; }
+html[data-bg] .side-area:hover, html[data-bg] .side-items a:hover, html[data-bg] .side-toggle:hover { background: rgba(255, 255, 255, .1); }

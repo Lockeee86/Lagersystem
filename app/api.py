@@ -21,8 +21,9 @@ def health():
 @login_required
 def version():
     """Letzte Bewegungs-ID. Seiten fragen das regelmäßig ab und laden bei Änderung neu."""
+    from . import live
     latest = db.session.query(func.max(Movement.id)).scalar() or 0
-    return jsonify(movement=latest)
+    return jsonify(movement=latest, live=live.stamps())
 
 
 def _bridge_token_ok():

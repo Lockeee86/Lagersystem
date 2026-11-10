@@ -960,6 +960,16 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Glocke mit allen Nachrichten der letzten 30 Tage zum Nachlesen – auch für Benutzer ohne Push am Handy.
 - „Erste Schritte“: beim ersten Öffnen vier kurze Hinweise (Scannen, Aufgaben, Suche, Meldungen).
 
+### Auffrischung, Teil 4 (0.105.0)
+- Menü am PC als einklappbare Seitenleiste links (alle Rubriken, Unterpunkte der aktuellen aufgeklappt); wer die Leisten
+  oben lieber mag, stellt unter „Mein Konto → Darstellung“ zurück.
+- Geteilte Ansicht am PC und Tablet quer: Kisten, Maschinen, Lieferscheine, Bestellungen, Aufgaben, Bäume und Verträge
+  öffnen den angeklickten Eintrag rechts neben der Liste; „Ganze Seite öffnen“ und Esc/× schließen.
+- Live-Aktualisierung: Startseite, Tagesplan, Offen, Aufgabenliste, Übergabe, Fütterung und Bestellungen laden von selbst
+  neu, sobald ein Kollege etwas ändert (alle 8 s geprüft, nicht während man tippt).
+- Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
+- Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
+
 ### Technik auf aktuellem Stand (0.103.0)
 - Browser-Sicherheit: Skripte laufen nur noch aus eigenen Dateien oder mit einem Einmal-Wert je Seitenaufruf (CSP mit
   Nonce, keine Inline-Handler mehr); dazu `object-src`, `base-uri`, `form-action`, COOP und – über HTTPS – HSTS.

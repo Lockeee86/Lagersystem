@@ -94,19 +94,29 @@ window.App = (function () {
     });
 
     // --- Automatisch neu laden, wenn jemand anderes etwas gebucht hat ------------
-    function autoRefresh(canReload, interval) {
+    // `topics`: worauf die Seite hört – "movement" (Kistenbewegungen) und die Themen aus live.py (tasks, feeding …)
+    function autoRefresh(canReload, interval, topics) {
         let last = null;
+        topics = topics || ["movement"];
         canReload = canReload || function () { return true; };
+        const busy = () => {
+            const el = document.activeElement;
+            return (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && el.type !== "checkbox" && el.type !== "radio") ||
+                !!document.querySelector("form[data-dirty], .modal.show, .offcanvas.show, .is-dragging, .swiping");
+        };
         function check() {
             if (document.hidden) return;
             fetch("/api/version", { credentials: "same-origin", headers: { "Accept": "application/json" } })
                 .then((r) => { return r.ok ? r.json() : null; })
                 .then((data) => {
                     if (!data) return;
-                    if (last !== null && data.movement !== last && canReload() && !document.querySelector("form[data-dirty]")) {
+                    const now = topics.map((t) => (t === "movement" ? data.movement : (data.live || {})[t])).join("/");
+                    if (last !== null && now !== last) {
+                        if (!canReload() || busy()) { return; }             // später noch einmal versuchen, `last` bleibt
                         window.location.reload();
+                        return;
                     }
-                    last = data.movement;
+                    last = now;
                 })
                 .catch(() => {});
         }
@@ -556,6 +566,77 @@ window.App = (function () {
         });
     });
 
+    // Live-Aktualisierung: <main data-live="tasks,feeding"> lädt neu, sobald jemand anderes etwas geändert hat
+    const liveMain = document.querySelector("main[data-live]");
+    if (liveMain) { autoRefresh(null, 8000, liveMain.dataset.live.split(",")); }
+
+    // Geteilte Ansicht (PC/Tablet quer): Klick auf einen Eintrag der Liste öffnet ihn rechts daneben (iframe, die Seite
+    // erkennt das am Header Sec-Fetch-Dest und lässt Kopfzeile und Leisten weg)
+    const splitMain = document.querySelector("main[data-split]");
+    if (splitMain) {
+        const pattern = new RegExp(splitMain.dataset.split);
+        const wide = window.matchMedia("(min-width: 1200px)");
+        let pane = null, frame = null, full = null, active = null;
+        const close = () => {
+            if (!pane) { return; }
+            pane.remove(); pane = frame = full = null;
+            splitMain.classList.remove("split-open");
+            if (active) { active.classList.remove("split-active"); active = null; }
+        };
+        const open = (link) => {
+            if (!pane) {
+                pane = document.createElement("aside");
+                pane.className = "split-pane";
+                pane.innerHTML = '<div class="split-bar"><a class="btn btn-sm btn-outline-secondary split-full"><i class="bi bi-box-arrow-up-right me-1"></i></a>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary split-close"><i class="bi bi-x-lg"></i></button></div><iframe></iframe>';
+                full = pane.querySelector(".split-full"); frame = pane.querySelector("iframe");
+                full.appendChild(document.createTextNode(splitMain.dataset.splitOpen));
+                pane.querySelector(".split-close").setAttribute("aria-label", splitMain.dataset.splitClose);
+                pane.querySelector(".split-close").addEventListener("click", close);
+                frame.addEventListener("load", () => {            // nach Aktionen im Fenster: „Ganze Seite“ folgt mit
+                    try { full.href = frame.contentWindow.location.pathname + frame.contentWindow.location.search; } catch (err) { /* fremd */ }
+                });
+                splitMain.appendChild(pane);
+                splitMain.classList.add("split-open");
+            }
+            if (active) { active.classList.remove("split-active"); }
+            active = link; link.classList.add("split-active");
+            full.href = link.getAttribute("href");
+            frame.title = link.textContent.trim().slice(0, 80);
+            frame.src = link.href;
+        };
+        splitMain.addEventListener("click", (e) => {
+            const link = e.target.closest("a[href]");
+            if (!link || !wide.matches || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ||
+                link.target || link.closest(".split-pane") || link.hash || !pattern.test(link.pathname)) { return; }
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            open(link);
+        }, true);
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pane && !document.querySelector(".modal.show")) { close(); } });
+        wide.addEventListener("change", () => { if (!wide.matches) { close(); } });
+    }
+    // Im Fenster der geteilten Ansicht: Links führen auf die ganze Seite (Formulare bleiben im Fenster)
+    if (document.body.classList.contains("is-embed") && window.top !== window) {
+        document.addEventListener("click", (e) => {
+            const link = e.target.closest("a[href]");
+            if (!link || e.defaultPrevented || link.target || link.dataset.bsToggle || link.hasAttribute("download")) { return; }
+            const href = link.getAttribute("href");
+            if (href.charAt(0) === "#" || (link.pathname === window.location.pathname && link.hash)) { return; }
+            e.preventDefault();
+            window.top.location.href = link.href;
+        });
+    }
+
+    // Seitenleiste am PC ein-/ausklappen (je Gerät gemerkt)
+    const sideToggle = document.getElementById("sideToggle");
+    if (sideToggle) {
+        sideToggle.addEventListener("click", () => {
+            const narrow = document.documentElement.classList.toggle("side-collapsed");
+            try { localStorage.setItem("seitenleiste", narrow ? "schmal" : "breit"); } catch (err) { /* privat */ }
+        });
+    }
+
     // Erste Schritte: einmal zeigen, beim Schließen am Benutzer merken
     const welcome = document.getElementById("welcome");
     if (welcome) {
@@ -585,5 +666,42 @@ window.App = (function () {
         requestAnimationFrame(() => { el.classList.add("show"); start(); });
     });
 
-    return { autoRefresh, initForms };
+    // Liste per Ziehen am Griff umsortieren (Maus und Finger); die Reihenfolge im DOM ist das Ergebnis
+    function sortable(list, itemSelector, handleSelector) {
+        if (!list) { return; }
+        let item = null;
+        list.addEventListener("pointerdown", (e) => {
+            const handle = e.target.closest(handleSelector);
+            if (!handle || (e.pointerType === "mouse" && e.button !== 0)) { return; }
+            item = handle.closest(itemSelector);
+            if (!item) { return; }
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            item.classList.add("is-dragging");
+            list.classList.add("is-sorting");
+        });
+        list.addEventListener("pointermove", (e) => {
+            if (!item) { return; }
+            const others = Array.from(list.querySelectorAll(itemSelector)).filter((el) => el !== item);
+            let before = null;
+            for (const el of others) {
+                const r = el.getBoundingClientRect();
+                if (e.clientY < r.top + r.height / 2) { before = el; break; }
+            }
+            if (before) { if (item.nextElementSibling !== before) { list.insertBefore(item, before); } }
+            else if (list.lastElementChild !== item) { list.appendChild(item); }
+            const edge = 70;                                   // am Rand mitscrollen
+            if (e.clientY < edge) { window.scrollBy(0, -12); } else if (e.clientY > window.innerHeight - edge) { window.scrollBy(0, 12); }
+        });
+        const drop = () => {
+            if (!item) { return; }
+            item.classList.remove("is-dragging");
+            list.classList.remove("is-sorting");
+            item = null;
+        };
+        list.addEventListener("pointerup", drop);
+        list.addEventListener("pointercancel", drop);
+    }
+
+    return { autoRefresh, initForms, sortable };
 })();

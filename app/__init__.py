@@ -8,7 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .extensions import csrf, db, login_manager, migrate
 from .models import FILL_LEVELS, ROLES, SORT_USAGES, Setting, User
-from . import area_only, backgrounds, branding, navigation, tabbar, utils
+from . import area_only, backgrounds, branding, live, navigation, tabbar, utils
 from .i18n import LANGUAGE_FLAGS, LANGUAGES, get_locale, gettext, ngettext
 
 
@@ -207,6 +207,10 @@ def create_app(config=None):
             if current_user.is_authenticated and current_user.restricted else None,
             "glass_bg": backgrounds.effective(current_user),
             "notice_count": _notice_count(),
+            "split_links": navigation.SPLIT.get(request.endpoint) if current_user.is_authenticated else None,
+            # Seite läuft im rechten Fenster der geteilten Ansicht (iframe) → ohne Kopfzeile und Leisten
+            "embed": request.headers.get("Sec-Fetch-Dest") == "iframe",
+            "live_topics": live.PAGES.get(request.endpoint) if current_user.is_authenticated else None,
             "glass_strength": backgrounds.strength(current_user),
             "classic_theme": backgrounds.theme(current_user if current_user.is_authenticated else None),
             "app_name": g.farm["farm_name"] or gettext("Lagersystem"),
@@ -258,7 +262,7 @@ def create_app(config=None):
     @app.after_request
     def security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self)")
         # Skripte nur aus eigenen Dateien oder mit dem Einmal-Wert dieser Antwort (`csp_nonce()` im Template) –
@@ -267,7 +271,7 @@ def create_app(config=None):
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
             f"script-src 'self' 'nonce-{csp_nonce()}'; media-src 'self' blob:; object-src 'none'; "
-            "base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+            "base-uri 'self'; form-action 'self'; frame-ancestors 'self'",   # eigene Seiten im Fenster der geteilten Ansicht
         )
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         if request.is_secure:

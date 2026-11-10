@@ -275,7 +275,20 @@ docker compose up --build -d
   `data-tip`, SVG-`<title>` oder `svg[data-points='[[x 0..1, "Text"], …]']` (Makro `sparkline(values, label, labels, unit)`,
   Stall- und Lagerklima). Tabellen: `table-sort` (Klick sortiert, `data-sort` am `<td>` für den Sortierwert, nur ohne
   Blättern) und `table-sticky` (Kopfzeile bleibt am PC stehen). Lagerkarte: „Farbe nach“ Sorte/Alter/Füllstand/Verwendung
-  (`data-sorte|alter|fuell|verw` an `.lvl`, gemerkt in `localStorage` `lagerFarbe`)
+  (`data-sorte|alter|fuell|verw` an `.lvl`, gemerkt in `localStorage` `lagerFarbe`).
+  Menü am PC: Seitenleiste `.side-nav` in `base.html` (alle Rubriken, Unterpunkte der aktuellen aufgeklappt, einklappbar –
+  `localStorage` `seitenleiste`); `User.nav_layout` "" = links, "oben" = alte Leisten (`models.NAV_LAYOUTS`). Akzentfarbe
+  `User.accent` (`models.ACCENTS`, `html[data-accent]` überschreibt `--brand*` für hell/dunkel/Glas); beides mit der
+  Schriftgröße über `auth.font_save` (Mein Konto → Darstellung). In `base.html` keine allgemeinen Variablennamen setzen
+  (`open`, `items` …) – sie überdecken die der Seiten.
+  Geteilte Ansicht (ab 1200 px): `navigation.SPLIT` = Liste → Muster der Detail-Adressen; Klick öffnet den Eintrag rechts im
+  iframe (`<main data-split>`, app.js). Die Seite erkennt das am Header `Sec-Fetch-Dest: iframe` (`embed` im Template,
+  `body.is-embed`) und lässt Kopfzeile und Leisten weg – auch nach Formularen im Fenster; Links führen auf die ganze Seite.
+  Deshalb `frame-ancestors 'self'` / `X-Frame-Options: SAMEORIGIN`.
+  Live-Aktualisierung: `app/live.py` zählt je Thema (`TOPICS`: Tabelle → Thema) bei jedem Commit mit Änderung, `/api/version`
+  liefert die Zähler, Seiten aus `live.PAGES` (`<main data-live>`) laden neu, wenn ihr Thema weiterzählt und gerade niemand
+  tippt (`App.autoRefresh(canReload, interval, topics)`). Neue gemeinsam genutzte Listen dort eintragen.
+  Umsortieren per Ziehen: `App.sortable(liste, eintrag, griff)` (Startseite anpassen)
 - `app/speed.py`: statische Dateien mit `?v=` (automatisch über `url_for`) ein Jahr zwischenspeichern, Text mit gzip packen.
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen

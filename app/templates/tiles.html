@@ -11,7 +11,7 @@
 <form method="post" style="max-width: 48rem">
     {{ csrf() }}
     <h2 class="h6 mt-2">{{ _("Bereiche") }}</h2>
-    <p class="small text-body-secondary mb-2">{{ _("Antippen = ein- oder ausblenden, mit den Pfeilen die Reihenfolge ändern.") }}</p>
+    <p class="small text-body-secondary mb-2">{{ _("Antippen = ein- oder ausblenden. Reihenfolge: am Griff ziehen oder die Pfeile nutzen.") }}</p>
     <div class="tile-pick tile-pick-wide section-order mb-2" id="sectionOrder">
         {% for key in section_order %}
         {% set sec = sections[key] %}
@@ -20,6 +20,7 @@
             <input class="btn-check" type="checkbox" name="section" value="{{ key }}" id="sec_{{ key }}" {% if key in chosen_sections %}checked{% endif %}>
             <label for="sec_{{ key }}"><i class="bi {{ sec.icon }}"></i><span>{{ _(sec.label) }}{% if sec.hint %}<span class="d-block small text-body-secondary fw-normal">{{ _(sec.hint) }}</span>{% endif %}</span>
                 {% if key in section_defaults %}<i class="bi bi-star-fill ms-auto small text-body-tertiary" style="font-size: .7rem" title="{{ _('Voreinstellung') }}"></i>{% endif %}</label>
+            <span class="drag-handle align-self-center" title="{{ _('Ziehen zum Verschieben') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
             <span class="section-move">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-move="-1" aria-label="{{ _('{name} nach oben', name=_(sec.label)) }}"><i class="bi bi-chevron-up"></i></button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-move="1" aria-label="{{ _('{name} nach unten', name=_(sec.label)) }}"><i class="bi bi-chevron-down"></i></button>
@@ -63,6 +64,7 @@
         }
         btn.focus();
     });
+    App.sortable(list, ".section-item", ".drag-handle");
 })();
 </script>
 {% endblock %}

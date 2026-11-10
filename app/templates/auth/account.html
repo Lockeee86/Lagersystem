@@ -103,17 +103,38 @@
 
     <div class="col-12" id="schrift">
         <div class="card shadow-sm">
-            <div class="card-header"><i class="bi bi-type me-1"></i>{{ _("Schriftgröße") }}</div>
+            <div class="card-header"><i class="bi bi-type me-1"></i>{{ _("Darstellung") }}</div>
             <div class="card-body">
-                <form method="post" action="{{ url_for('auth.font_save') }}" class="d-flex flex-wrap align-items-center gap-2">
+                <form method="post" action="{{ url_for('auth.font_save') }}" class="look-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="btn-group" role="group" aria-label="{{ _('Schriftgröße') }}">
-                        {% for key, label in font_sizes.items() %}
-                        <input type="radio" class="btn-check" name="font_size" id="fs_{{ key or 'normal' }}" value="{{ key }}" {{ 'checked' if current_user.font_size == key }} data-autosubmit>
-                        <label class="btn btn-outline-primary font-pick font-pick-{{ key or 'normal' }}" for="fs_{{ key or 'normal' }}">{{ _(label) }}</label>
-                        {% endfor %}
+                    <div class="look-row">
+                        <span class="look-label">{{ _("Schriftgröße") }}</span>
+                        <div class="btn-group" role="group" aria-label="{{ _('Schriftgröße') }}">
+                            {% for key, label in font_sizes.items() %}
+                            <input type="radio" class="btn-check" name="font_size" id="fs_{{ key or 'normal' }}" value="{{ key }}" {{ 'checked' if current_user.font_size == key }} data-autosubmit>
+                            <label class="btn btn-outline-primary font-pick font-pick-{{ key or 'normal' }}" for="fs_{{ key or 'normal' }}">{{ _(label) }}</label>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <span class="small text-body-secondary">{{ _("Gilt für die ganze App auf allen deinen Geräten – praktisch draußen in der Sonne.") }}</span>
+                    <div class="look-row">
+                        <span class="look-label">{{ _("Farbe") }}</span>
+                        <div class="accent-pick" role="group" aria-label="{{ _('Farbe') }}">
+                            {% for key, (label, color) in accents.items() %}
+                            <input type="radio" class="btn-check" name="accent" id="ac_{{ key or 'gruen' }}" value="{{ key }}" {{ 'checked' if current_user.accent == key }} data-autosubmit>
+                            <label class="accent-dot" for="ac_{{ key or 'gruen' }}" style="--dot: {{ color }}" title="{{ _(label) }}"><span class="visually-hidden">{{ _(label) }}</span></label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="look-row d-none d-lg-flex">
+                        <span class="look-label">{{ _("Menü am PC") }}</span>
+                        <div class="btn-group" role="group" aria-label="{{ _('Menü am PC') }}">
+                            {% for key, label in nav_layouts.items() %}
+                            <input type="radio" class="btn-check" name="nav_layout" id="nl_{{ key or 'seite' }}" value="{{ key }}" {{ 'checked' if current_user.nav_layout == key }} data-autosubmit>
+                            <label class="btn btn-outline-primary" for="nl_{{ key or 'seite' }}"><i class="bi {{ 'bi-layout-sidebar' if not key else 'bi-window' }} me-1"></i>{{ _(label) }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <p class="small text-body-secondary mb-0">{{ _("Gilt für die ganze App auf allen deinen Geräten.") }}</p>
                 </form>
             </div>
         </div>

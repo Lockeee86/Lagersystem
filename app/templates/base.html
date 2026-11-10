@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ get_locale() }}"{% if current_user.is_authenticated and current_user.font_size %} data-font="{{ current_user.font_size }}"{% endif %}{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% elif classic_theme %} data-bs-theme="{{ classic_theme }}" data-theme-fixed="1"{% endif %}>
+<html lang="{{ get_locale() }}"{% if current_user.is_authenticated and current_user.font_size %} data-font="{{ current_user.font_size }}"{% endif %}{% if current_user.is_authenticated and current_user.accent %} data-accent="{{ current_user.accent }}"{% endif %}{% if glass_bg %} data-bg="{{ glass_bg }}" data-bs-theme="dark" style="--bg-strength: {{ glass_strength / 100 }}"{% elif classic_theme %} data-bs-theme="{{ classic_theme }}" data-theme-fixed="1"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -12,6 +12,7 @@
             if (root.hasAttribute("data-bg") || root.hasAttribute("data-theme-fixed")) return;   // Glas immer dunkel, sonst vom Server
             root.setAttribute("data-bs-theme", window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
         })();
+        try { if (localStorage.getItem("seitenleiste") === "schmal") document.documentElement.classList.add("side-collapsed"); } catch (e) {}
     </script>
     {% if custom_logo %}<link rel="icon" href="{{ logo_url('logo-64') }}" type="image/png">
     {% else %}<link rel="icon" href="{{ logo_url('logo-32') }}" type="image/svg+xml">{% endif %}
@@ -26,10 +27,45 @@
     {% if glass_bg %}<link rel="stylesheet" href="{{ url_for('static', filename='css/glass.css') }}">{% endif %}
     {% block styles %}{% endblock %}
 </head>
-<body class="{% if current_user.is_authenticated %}has-tabbar{% endif %}">
+{% set side_nav = current_user.is_authenticated and current_user.nav_layout != "oben" and not embed %}
+<body class="{% if current_user.is_authenticated %}has-tabbar{% endif %}{% if side_nav %} has-side{% endif %}{% if embed %} is-embed{% endif %}">
 {% if glass_bg %}<div class="app-backdrop" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span><span class="sun"></span><span class="hill h1"></span><span class="hill h2"></span><span class="hill h3"></span></div>{% endif %}
 {% set ep = request.endpoint or '' %}
-{% if current_user.is_authenticated %}
+{% if side_nav %}
+{# PC: alle Rubriken links, die Unterpunkte der aktuellen Rubrik aufgeklappt; einklappbar auf Symbole #}
+<aside class="side-nav d-none d-lg-flex" aria-label="{{ _('Bereiche') }}">
+    <a class="side-brand" href="{{ url_for('main.dashboard') }}">
+        <img src="{{ logo_url('logo-64') }}" alt="" width="32" height="32" class="app-logo">
+        <span class="side-label text-truncate">{{ app_name }}</span>
+    </a>
+    <nav class="side-list">
+        {% for a in nav.areas %}
+        {% set side_open = nav.area and nav.area.key == a.key %}
+        <a href="{{ a.href }}" class="side-area {{ 'active' if side_open }}" title="{{ _(a.label) }}"><i class="bi {{ a.icon }}"></i><span class="side-label">{{ _(a.label) }}</span>{% if a.key == "start" and (my_task_count or purchase_count) %}<span class="side-count">{{ my_task_count + purchase_count }}</span>{% endif %}</a>
+        {% if side_open and nav["items"]|length > 1 %}
+        <div class="side-items">
+            {% for it in nav["items"] %}
+            <a href="{{ url_for(it.endpoint) }}" class="{{ 'active' if nav.active == it.endpoint }}"><i class="bi {{ it.icon }}"></i><span>{{ _(it.label) }}</span>{% if it.badge == "tasks" and my_task_count %}<span class="side-count">{{ my_task_count }}</span>{% elif it.badge == "purchases" and purchase_count %}<span class="side-count">{{ purchase_count }}</span>{% endif %}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% if current_user.is_admin %}
+        {% set side_open = nav.area and nav.area.key == "admin" %}
+        <a href="{{ url_for('admin.index') }}" class="side-area side-admin {{ 'active' if side_open }}" title="{{ _('Verwaltung') }}"><i class="bi bi-sliders"></i><span class="side-label">{{ _("Verwaltung") }}</span></a>
+        {% if side_open %}
+        <div class="side-items">
+            {% for it in nav["items"] %}
+            <a href="{{ url_for(it.endpoint) }}" class="{{ 'active' if nav.active == it.endpoint }}"><i class="bi {{ it.icon }}"></i><span>{{ _(it.label) }}</span></a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+    </nav>
+    <button type="button" class="side-toggle" id="sideToggle" title="{{ _('Leiste ein- oder ausklappen') }}" aria-label="{{ _('Leiste ein- oder ausklappen') }}"><i class="bi bi-layout-sidebar"></i><span class="side-label">{{ _("Einklappen") }}</span></button>
+</aside>
+{% endif %}
+{% if current_user.is_authenticated and not embed %}
 <header class="app-header sticky-top">
     <div class="container-xl app-header-row">
         <a class="app-brand" href="{{ url_for('main.dashboard') }}">
@@ -105,7 +141,7 @@
 </header>
 {% endif %}
 
-<main class="container-xl py-3 py-lg-4"{% if request.endpoint in ("main.dashboard", "team.day_plan", "biogas.feeding_page", "push.notices_page", "chickens.overview", "forest.overview") %} data-ptr="{{ _('Loslassen zum Aktualisieren') }}"{% endif %}>
+<main class="container-xl py-3 py-lg-4"{% if live_topics %} data-live="{{ live_topics }}"{% endif %}{% if split_links and not embed %} data-split="{{ split_links }}" data-split-open="{{ _('Ganze Seite öffnen') }}" data-split-close="{{ _('Schließen') }}"{% endif %}{% if request.endpoint in ("main.dashboard", "team.day_plan", "biogas.feeding_page", "push.notices_page", "chickens.overview", "forest.overview") %} data-ptr="{{ _('Loslassen zum Aktualisieren') }}"{% endif %}>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {# Erfolg/Info: kurzer Hinweis unten (über der Leiste), Fehler und Warnungen bleiben oben stehen #}

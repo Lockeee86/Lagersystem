@@ -133,6 +133,8 @@ class User(UserMixin, db.Model):
     theme_mode = db.Column(db.String(10), nullable=False, default="auto", server_default="auto")   # klassisch: Hell/Dunkel
     bg_strength = db.Column(db.Integer, nullable=False, default=80, server_default="80")
     font_size = db.Column(db.String(10), nullable=False, default="", server_default="")     # "" | gross | sehr (FONT_SIZES)
+    accent = db.Column(db.String(12), nullable=False, default="", server_default="")        # Akzentfarbe (ACCENTS), "" = Grün
+    nav_layout = db.Column(db.String(8), nullable=False, default="", server_default="")     # PC: "" = Leiste links | oben
     # „Erste Schritte“ gesehen (drei kurze Hinweise nach dem ersten Anmelden)
     onboarded = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Wechselt bei Passwortänderung/Sperre → alle bestehenden Anmeldungen werden ungültig
@@ -1690,6 +1692,10 @@ class CalendarEntry(db.Model):
 # --- Meldungen zum Nachlesen -------------------------------------------------------
 
 FONT_SIZES = {"": N_("Normal"), "gross": N_("Groß"), "sehr": N_("Sehr groß")}
+# Akzentfarbe je Benutzer: Schlüssel → (Name, Farbe für die Auswahl); die Farbwerte stehen in style.css (html[data-accent])
+ACCENTS = {"": (N_("Grün"), "#4f6f2f"), "blau": (N_("Blau"), "#2f5f8f"), "tuerkis": (N_("Türkis"), "#1f7a70"),
+           "violett": (N_("Violett"), "#6a4c93"), "ziegel": (N_("Ziegelrot"), "#a3472f"), "bernstein": (N_("Bernstein"), "#9a6a12")}
+NAV_LAYOUTS = {"": N_("Leiste links"), "oben": N_("Leiste oben")}
 
 
 class Notice(db.Model):

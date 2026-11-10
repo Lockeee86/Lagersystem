@@ -373,3 +373,16 @@ def commands(user):
         for it in ADMIN["items"]:
             add(it["endpoint"], it["label"], it["icon"], _(ADMIN["label"]))
     return out
+
+
+# --- Geteilte Ansicht am PC ------------------------------------------------------------
+# Liste → Muster der Detail-Adressen, die rechts neben der Liste aufgehen (app.js, <main data-split>)
+SPLIT = {
+    "main.boxes": r"^/kiste/[^/]+$",
+    "machines.machine_list": r"^/maschine/\d+$",
+    "sales.deliveries": r"^/lieferschein/\d+$",
+    "purchases.purchase_list": r"^/bestellung/\d+$",
+    "tasks.task_list": r"^/aufgabe/\d+$",
+    "forest.trees": r"^/wald/baum/[^/]+$",
+    "forest.contracts_page": r"^/wald/vertrag/\d+$",
+}
