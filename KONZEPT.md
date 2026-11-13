@@ -992,6 +992,24 @@ Die App ist auf rund 130 Seiten gewachsen – kein Redesign, aber Ordnung:
   rund 460 Stellen brächte Risiko ohne Nutzen), kein Wechsel auf ein JavaScript-Framework (die App bleibt ohne
   Build-Schritt schnell und wartbar), PostgreSQL 16 bleibt (ein Sprung auf 18 braucht eine Datenumstellung am Server).
 
+## Später (zurückgestellt)
+
+- **Nabisy (BLE) – Nachhaltigkeitsnachweise der Biogasanlage.** Erst klären, was genau gemeldet wird (wer die
+  Basisnachweise ausstellt, Zertifizierungssystem, Meldetakt, Annahmefrist für Biogas-Strom). Stand der Recherche
+  (Handbuch für Anlagenbetreiber, 03/2024): keine Schnittstelle, alles über Web-Formulare; zurück kommt nur der
+  Kontoauszug als CSV je Quartal. Ideen: Reiter „Nachweise“ unter Biogas mit CSV-Import des Kontoauszugs, Teilungs-Hilfe
+  je Quartal aus den eingespeisten Mengen (Felder wie im Formular, Verbindungsdokument max. 50 Zeichen ohne Umlaute),
+  Abgleich weitergegeben ↔ eingespeist, MaStR-Nummer und Wirkungsgrade am BHKW, Ablage der Nachweis-PDFs je
+  Antragsnummer, Erinnerungen (Quartalsende, Annahme, Passwort alle 90 Tage). Optional später: Substrat-Eingangsbuch mit
+  Nabisy-Biomassecode je Substrat (Codes ändern sich gelegentlich, siehe Infoschreiben 25) und Massenbilanz für den
+  Zertifizierer. Für den Import fehlt noch die Kopfzeile eines echten Kontoauszugs.
+- Mehrstrom-Rechner: Bezeichnung „Verringerung“ prüfen (negative Preise) und Feld „Was wäre wenn“.
+- Fütterungsplan: Mengen je Fütterung.
+- Offline-Modus, Beisetzungs-Tagesblatt, Fehlerprotokoll für Admins, Probe-Wiederherstellung der Datensicherung.
+- Spracheingabe, Foto-Markierung, lange drücken für Schnellaktionen, Zahl und Schnellzugriffe am App-Symbol,
+  Teilen in die App, Kontrast-Modus für draußen.
+- Zählung der Seitenaufrufe, um das Menü nach echter Nutzung zu schärfen.
+
 ## Noch offen
 
 1. Mehrere Kistengrößen? Das System unterstützt beliebig viele Kistentypen.
