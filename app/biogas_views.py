@@ -100,7 +100,8 @@ def settings_page():
     return _page("biogas/settings.html", "einstellungen", budget=feedin.overview(budget_year),
                  budget_year=budget_year, feed_candidates=feedin.candidates(), month_names=feedin.MONTH_NAMES,
                  display_token=plant_display.token(), manual_rows=feedin.manual_rows(budget_year),
-                 manual_categories=feedin.MANUAL_CATEGORIES, manual_label=feedin.manual_label)
+                 manual_categories=feedin.MANUAL_CATEGORIES, manual_label=feedin.manual_label,
+                 statements=feedin.statements(budget_year), statement_fields=feedin.STATEMENT_FIELDS)
 
 
 # --- Anzeige an der Anlage (Display 800×480 bzw. Farb-E-Paper) – ohne Anmeldung über geheimen Link ---------------
@@ -287,6 +288,41 @@ def revenue_manual():
         return redirect(target)
     flash(_("Erlös gespeichert."), "success")
     return redirect(target)
+
+
+@bp.route("/biogas/gutschrift", methods=["POST"])
+@admin_required
+def flex_statement_save():
+    """Monats-Gutschrift des Flex-Vermarkters (Handel über dem Marktwert) abtippen."""
+    point = db.session.get(FeedPoint, form_int("point") or 0)
+    year = form_int("jahr")
+    target = url_for("biogas.settings_page", jahr=year) + "#gutschrift"
+    if point is None:
+        flash_error(_("Bitte eine Einspeisestelle wählen."))
+        return redirect(target)
+    try:
+        row = feedin.save_statement(point, year, form_int("monat"),
+                                    {key: form_str(key, 20) for key, _label in feedin.STATEMENT_FIELDS})
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
+        return redirect(target)
+    flash(_("Gutschrift gespeichert: {eur} € ausgezahlt.", eur=f"{row.net_eur:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")),
+          "success")
+    return redirect(target)
+
+
+@bp.route("/biogas/gutschrift/<int:row_id>/loeschen", methods=["POST"])
+@admin_required
+def flex_statement_delete(row_id):
+    from .models import FlexStatement
+    row = db.get_or_404(FlexStatement, row_id)
+    year = row.year
+    db.session.delete(row)
+    db.session.commit()
+    flash(_("Gutschrift gelöscht."), "success")
+    return redirect(url_for("biogas.settings_page", jahr=year) + "#gutschrift")
 
 
 @bp.route("/biogas/erloese/<int:row_id>/loeschen", methods=["POST"])

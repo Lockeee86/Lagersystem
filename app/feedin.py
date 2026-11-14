@@ -16,7 +16,7 @@ from sqlalchemy import extract, func
 
 from .extensions import db
 from .i18n import N_
-from .models import ChpDay, FeedMonth, FeedPoint, FeedRevenue, Machine
+from .models import ChpDay, FeedMonth, FeedPoint, FeedRevenue, FlexStatement, Machine
 from .storage import StorageError
 
 TIGHT = 0.98          # Prognose ab 98 % des Budgets: „knapp“
@@ -109,6 +109,7 @@ def months(point, year, today=None):
     today = today or date.today()
     stored = {m.month: m for m in point.months.filter_by(year=year)}
     actual = {k: float(m.kwh) for k, m in stored.items() if k}
+    metered = {s.month: float(s.kwh) for s in point.flex_statements.filter_by(year=year) if s.month}
     ids = [m.id for m in point.machines]
     planned = {}
     if ids:
@@ -123,6 +124,9 @@ def months(point, year, today=None):
         past = min(length, max((min(today, last + timedelta(days=1)) - date(year, month, 1)).days, 0))
         if month in actual:
             result.append({"month": month, "kwh": actual[month], "source": "abrechnung", "days": length, "past": length})
+        elif month in metered:                       # Zählermenge aus der Gutschrift des Vermarkters
+            result.append({"month": month, "kwh": metered[month], "source": "abrechnung", "days": length, "past": length,
+                           "statement": True})
         elif month in planned:
             kwh, days = planned[month]
             result.append({"month": month, "kwh": kwh, "source": "fahrplan", "days": days, "past": past})
@@ -357,12 +361,13 @@ def revenue(point, year):
     Strom gezahlt wurde (Erlös − Entgelt) → `dv`; dazu `paid` = beides zusammen und `gain` = Direktvermarktung −
     Marktwert (was der flexible Fahrplan über dem Monatsmarktwert gebracht hat)."""
     rows = point.revenues.filter_by(year=year).all()
-    if not rows:
+    flex = {s.month: s for s in point.flex_statements.filter_by(year=year)}
+    if not rows and not flex:
         return None
     by_month, dv_month = {}, {}
     for r in rows:
         (dv_month if r.source == "dv" else by_month).setdefault(r.month, []).append(r)
-    for month in dv_month:
+    for month in list(dv_month) + list(flex):
         by_month.setdefault(month, [])
     volumes = {m.month: m for m in point.months.filter_by(year=year)}
     planned = plan_revenue(point, year)
@@ -373,16 +378,25 @@ def revenue(point, year):
         vol = volumes.get(month)
         info = _month_revenue(by_month[month], float(vol.kwh) if vol else _volume_from_rows(by_month[month]),
                               float(vol.reduced_kwh) if vol and vol.reduced_kwh else 0.0)
-        dv = dv_month.get(month)
-        if dv:
-            info["dv"] = sum(float(r.eur) for r in dv)
-            info["dv_kwh"] = sum(float(r.kwh) for r in dv if r.category == "erloes")
+        dv, st = dv_month.get(month), flex.get(month)
+        if not info["kwh"] and st:
+            info["kwh"] = float(st.kwh)
+        if dv or st:
+            info["dv"] = sum(float(r.eur) for r in dv or [])
+            info["dv_kwh"] = sum(float(r.kwh) for r in dv or [] if r.category == "erloes")
+            if st:              # Marktwert zahlt der Direktvermarkter, der Flex-Vermarkter den Anteil am Überschuss
+                info["dv"] += float(st.market_eur) + st.net_eur
+                info["dv_kwh"] = info["dv_kwh"] or float(st.kwh)
             info["dv_ct"] = 100 * info["dv"] / info["dv_kwh"] if info["dv_kwh"] else None
             info["paid"] = info["netz"] + info["dv"]
-            info["gain"] = info["dv"] - info["market"] if info["market"] else None
+            if st:
+                info["gain"] = st.net_eur                       # = Direktvermarktung − Marktwert
+            else:
+                info["gain"] = info["dv"] - info["market"] if info["market"] else None
         else:
             info.update(dv=None, dv_kwh=0.0, dv_ct=None, paid=None, gain=None)
         info["plan"] = planned.get(month) if month else (sum(planned.values()) or None)
+        info["statement"] = st
         info["month"] = month
         months_.append(info)
     with_dv = [m for m in months_ if m["dv"] is not None]
@@ -395,6 +409,17 @@ def revenue(point, year):
              "paid": sum(m["paid"] for m in with_dv) if with_dv else None,
              "gain": sum(m["gain"] for m in with_dv if m["gain"] is not None) if any(m["gain"] is not None for m in with_dv) else None,
              "plan_dv": sum(m["plan"] for m in with_dv if m["plan"]) or None}
+    sts = [m["statement"] for m in months_ if m["statement"]]
+    total["flex"] = {key: sum(float(getattr(s, key)) for s in sts) for key in
+                     ("kwh", "spot_eur", "market_eur", "intraday_eur", "fee_eur", "share_eur", "bonus_eur")} if sts else None
+    if sts:
+        f = total["flex"]
+        f["result_eur"] = f["spot_eur"] - f["market_eur"] + f["intraday_eur"]
+        f["surplus_eur"] = f["result_eur"] - f["fee_eur"]
+        f["net_eur"] = f["share_eur"] + f["bonus_eur"]
+        f["kept_eur"] = f["surplus_eur"] - f["share_eur"] + f["fee_eur"]
+        f["plan_eur"] = sum(m["plan"] for m in months_ if m["statement"] and m["plan"]) or None
+        f["ct"] = 100 * f["net_eur"] / f["kwh"] if f["kwh"] else None
     total["ct"] = 100 * total["total"] / total["kwh"] if total["kwh"] else None
     total["dv_ct"] = 100 * total["dv"] / total["dv_kwh"] if total["dv"] is not None and total["dv_kwh"] else None
     total["paid_ct"] = 100 * total["paid"] / total["kwh"] if total["paid"] is not None and total["kwh"] else None
@@ -476,6 +501,47 @@ def manual_rows(year):
 def manual_label(row):
     """Anzeige einer Position (Kategorie-Schlüssel der Direktvermarktung → Text, noch nicht übersetzt)."""
     return DV_LABELS.get(row.category, row.category) if row.source == "dv" else row.category
+
+
+STATEMENT_FIELDS = (
+    ("kwh", N_("Eingespeiste Strommenge (kWh)")),
+    ("spot_eur", N_("Handelsumsatz Day-Ahead (€)")),
+    ("market_eur", N_("Monatsmarktwert (€)")),
+    ("intraday_eur", N_("Viertelstundenhandel (€, auch minus)")),
+    ("fee_eur", N_("Gebühr Fahrplanmanagement (€)")),
+    ("share_eur", N_("Anteil am Handelsüberschuss (€)")),
+    ("bonus_eur", N_("Bonusprogramm (€)")),
+)
+
+
+def save_statement(point, year, month, values):
+    """Gutschrift des Flex-Vermarkters eintragen bzw. ersetzen. `values`: Texte wie auf der Gutschrift (deutsche Zahlen,
+    Vorzeichen bei Marktwert und Gebühr egal). Pflicht: Menge, Day-Ahead, Marktwert und Anteil."""
+    if not (2000 <= (year or 0) <= 2100) or not (1 <= (month or 0) <= 12):
+        raise StorageError(N_("Bitte Jahr und Monat angeben."))
+    parsed = {}
+    for key, _label in STATEMENT_FIELDS:
+        parsed[key] = _amount(values.get(key), N_("Bitte nur Zahlen eintragen, z. B. 12.345,67."))
+    if any(parsed[k] is None for k in ("kwh", "spot_eur", "market_eur", "share_eur")):
+        raise StorageError(N_("Bitte mindestens Strommenge, Handelsumsatz, Monatsmarktwert und Anteil eintragen."))
+    if not 0 < parsed["kwh"] <= 1e10 or any(abs(v) > 1e9 for v in parsed.values() if v is not None):
+        raise StorageError(N_("Bitte nur Zahlen eintragen, z. B. 12.345,67."))
+    row = point.flex_statements.filter_by(year=year, month=month).first()
+    if row is None:
+        row = FlexStatement(feed_point_id=point.id, year=year, month=month)
+        db.session.add(row)
+    for key in ("market_eur", "fee_eur"):
+        parsed[key] = abs(parsed[key] or 0)
+    for key, value in parsed.items():
+        setattr(row, key, Decimal(str(round(value or 0, 1 if key == "kwh" else 2))))
+    db.session.flush()
+    return row
+
+
+def statements(year):
+    """Gutschriften aller Einspeisestellen eines Jahres (Liste in den Einstellungen)."""
+    return (FlexStatement.query.filter_by(year=year)
+            .order_by(FlexStatement.feed_point_id, FlexStatement.month).all())
 
 
 def delete_manual(row):

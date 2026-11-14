@@ -43,7 +43,7 @@
                     {{ csrf() }}<input type="hidden" name="jahr" value="{{ budget_year }}">
                     {% for m in s.months %}
                     <div class="col-4 col-md-2"><label class="form-label small mb-0" for="m{{ p.id }}_{{ m.month }}">{{ _(month_names[m.month - 1]) }} (kWh)</label>
-                        <input class="form-control form-control-sm" id="m{{ p.id }}_{{ m.month }}" name="m{{ m.month }}" inputmode="decimal" maxlength="15" value="{{ m.kwh|round(0)|int if m.source == 'abrechnung' else '' }}" placeholder="{{ (m.kwh|round(0)|int) if m.kwh is not none else '' }}"></div>
+                        <input class="form-control form-control-sm" id="m{{ p.id }}_{{ m.month }}" name="m{{ m.month }}" inputmode="decimal" maxlength="15" value="{{ m.kwh|round(0)|int if m.source == 'abrechnung' and not m.statement else '' }}" placeholder="{{ (m.kwh|round(0)|int) if m.kwh is not none else '' }}"></div>
                     {% endfor %}
                     <div class="col-12"><button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button> <span class="text-body-secondary ms-2">{{ _("Leer = Wert aus dem Fahrplan (grau vorgeschlagen).") }}</span></div>
                 </form>
@@ -100,6 +100,50 @@
 </div>
 
 {% if current_user.is_admin and budget %}
+<div class="card shadow-sm mb-4" id="gutschrift">
+    <div class="card-header"><i class="bi bi-receipt me-1"></i>{{ _("Gutschrift Flex-Vermarkter {year}", year=budget_year) }}</div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('biogas.flex_statement_save') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-12 col-md-4"><label class="form-label small mb-0" for="gs_point">{{ _("Einspeisestelle") }}</label>
+                <select class="form-select form-select-sm" id="gs_point" name="point" required>{% for s in budget %}<option value="{{ s.point.id }}">{{ s.point.name }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0" for="gs_month">{{ _("Monat") }}</label>
+                <select class="form-select form-select-sm" id="gs_month" name="monat">{% for name in month_names %}<option value="{{ loop.index }}"{% if loop.index == today.month - 1 or (today.month == 1 and loop.index == 12) %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0" for="gs_year">{{ _("Jahr") }}</label>
+                <input class="form-control form-control-sm" id="gs_year" name="jahr" inputmode="numeric" value="{{ budget_year }}" required></div>
+            <div class="w-100"></div>
+            {% for key, label in statement_fields %}
+            <div class="col-6 col-md-3"><label class="form-label small mb-0" for="gs_{{ key }}">{{ _(label) }}</label>
+                <input class="form-control form-control-sm text-end" id="gs_{{ key }}" name="{{ key }}" inputmode="decimal" maxlength="20"{% if key in ("kwh", "spot_eur", "market_eur", "share_eur") %} required{% endif %}></div>
+            {% endfor %}
+            <div class="col-12 col-md-3"><button class="btn btn-sm btn-primary w-100"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button></div>
+        </form>
+        <div class="form-text">{{ _("Zahlen so abtippen, wie sie auf der Monats-Gutschrift stehen (Minus bei Marktwert und Gebühr ist egal). Handelsergebnis, Überschuss und Prozente rechnet die App selbst. Den Monatsmarktwert zahlt der Direktvermarkter – er zählt bei „ausgezahlt gesamt“ mit. Die Strommenge vom Zähler ersetzt im Budget den Fahrplan-Wert, bis die Abrechnung des Netzbetreibers da ist.") }}</div>
+        {% if statements %}
+        <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>{{ _("Einspeisestelle") }}</th><th>{{ _("Monat") }}</th><th class="text-end">kWh</th><th class="text-end">{{ _("Handelsergebnis") }}</th><th class="text-end">{{ _("Überschuss") }}</th><th class="text-end">{{ _("Anteil") }}</th><th class="text-end">{{ _("ausgezahlt") }}</th><th class="text-end">ct/kWh</th><th></th></tr></thead>
+                <tbody>
+                {% for st in statements %}
+                <tr>
+                    <td>{{ st.feed_point.name }}</td>
+                    <td>{{ _(month_names[st.month - 1]) }}</td>
+                    <td class="text-end">{{ st.kwh|num(0) }}</td>
+                    <td class="text-end">{{ st.result_eur|num(2) }}</td>
+                    <td class="text-end">{{ st.surplus_eur|num(2) }}</td>
+                    <td class="text-end">{{ st.share_pct|num(1) if st.share_pct is not none else "–" }} %</td>
+                    <td class="text-end fw-semibold">{{ st.net_eur|num(2) }}</td>
+                    <td class="text-end">{{ st.ct(st.net_eur)|num(2) if st.kwh else "–" }}</td>
+                    <td class="text-end"><form method="post" action="{{ url_for('biogas.flex_statement_delete', row_id=st.id) }}">{{ csrf() }}<button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('Diese Gutschrift löschen?') }}" aria-label="{{ _('Löschen') }}"><i class="bi bi-trash"></i></button></form></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="card shadow-sm mb-4" id="erloese-hand">
     <div class="card-header"><i class="bi bi-cash-coin me-1"></i>{{ _("Erlöse von Hand und Direktvermarktung {year}", year=budget_year) }}</div>
     <div class="card-body">

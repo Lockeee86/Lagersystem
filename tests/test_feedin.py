@@ -346,3 +346,36 @@ def test_direct_marketing_revenue(app, as_admin, as_worker, db, seed, plant):
     imported = FeedRevenue.query.filter_by(year=2026, manual=False).first()
     with pytest.raises(StorageError):
         feedin.delete_manual(imported)
+
+
+def test_flex_statement(app, as_admin, db, seed, plant):
+    """Monats-Gutschrift des Flex-Vermarkters (erfundene Zahlen): Rechnung, Budget-Menge, Erlöse."""
+    data = {"point": plant.id, "jahr": "2025", "monat": "3", "kwh": "100.000", "spot_eur": "20.000,00",
+            "market_eur": "-14.000,00", "intraday_eur": "500,00", "fee_eur": "-100,00", "share_eur": "4.480,00",
+            "bonus_eur": "288,00"}
+    r = as_admin.post("/biogas/gutschrift", data=data, follow_redirects=True)
+    assert "Gutschrift gespeichert: 4.768,00 € ausgezahlt." in r.get_data(as_text=True)
+    st = plant.flex_statements.one()
+    assert (st.result_eur, st.surplus_eur, st.net_eur) == (6500, 6400, 4768)
+    assert st.share_pct == pytest.approx(70) and st.kept_eur == pytest.approx(2020)
+    # Zählermenge ersetzt im Budget den Fahrplan für März
+    march = feedin.months(plant, 2025, today=date(2025, 12, 31))[2]
+    assert march["kwh"] == 100000 and march["source"] == "abrechnung" and march["statement"]
+    # Erlöse: Marktwert (Direktvermarkter) + Auszahlung; Mehrerlös = Auszahlung; Fahrplan-Erlös März zum Vergleich
+    for d in ChpDay.query.filter(ChpDay.day >= date(2025, 3, 1), ChpDay.day < date(2025, 4, 1)):
+        d.revenue_eur = Decimal("100")
+    db.session.commit()
+    y = feedin.revenue(plant, 2025)["year"]
+    assert y["dv"] == pytest.approx(14000 + 4768) and y["gain"] == pytest.approx(4768)
+    assert y["flex"]["net_eur"] == pytest.approx(4768) and y["flex"]["plan_eur"] == pytest.approx(6200)
+    # nochmal = ersetzen; Pflichtfelder fehlen = Fehler
+    as_admin.post("/biogas/gutschrift", data={**data, "share_eur": "4.000"})
+    assert plant.flex_statements.one().net_eur == 4288
+    with pytest.raises(StorageError):
+        feedin.save_statement(plant, 2025, 4, {"kwh": "1000"})
+    html = as_admin.get("/biogas/einstellungen?jahr=2025").get_data(as_text=True)
+    assert "Gutschrift Flex-Vermarkter 2025" in html and "4.288,00" in html
+    html = as_admin.get("/biogas/budget?jahr=2025").get_data(as_text=True)
+    assert "Flex-Vermarktung laut Gutschrift" in html and "Beim Vermarkter" in html
+    as_admin.post(f"/biogas/gutschrift/{st.id}/loeschen")
+    assert plant.flex_statements.count() == 0

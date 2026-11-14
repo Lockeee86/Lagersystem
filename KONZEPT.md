@@ -970,6 +970,15 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Gutschrift Flex-Vermarkter (0.110.0)
+- Die Monats-Gutschrift des Vermarkters (Day-Ahead-Umsatz, Monatsmarktwert, Viertelstundenhandel, Gebühr, Anteil am
+  Handelsüberschuss, Bonus) wird unter Biogas → Einstellungen → „Gutschrift Flex-Vermarkter“ abgetippt; Handelsergebnis,
+  Überschuss, Anteil in %, was beim Vermarkter bleibt und ct/kWh rechnet die App.
+- Ausgezahlt wird dort nur der Anteil + Bonus, den Monatsmarktwert zahlt der Direktvermarkter. Unter Budget → Erlöse:
+  Block „Flex-Vermarktung laut Gutschrift“ mit Vergleich zum Day-Ahead-Erlös laut Fahrplan.
+- Die Zählermenge der Gutschrift ersetzt im Budget den Fahrplan, bis die Abrechnung des Netzbetreibers kommt.
+- Später: PDF-Gutschrift hochladen statt abtippen bzw. über die SKVE-API.
+
 ### Erlöse Direktvermarktung und von Hand (0.109.0)
 - Unter Biogas → Einstellungen „Erlöse von Hand und Direktvermarktung“: je Einspeisestelle und Monat (oder Jahr) die
   Gutschrift des Direktvermarkters (Stromerlös, Vermarktungsentgelt, Sonstiges) und – ohne CSV – Positionen des

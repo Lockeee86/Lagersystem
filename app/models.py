@@ -1966,6 +1966,56 @@ class FeedRevenue(db.Model):
         return f"{self.category} {self.month:02d}/{self.year}"
 
 
+class FlexStatement(db.Model):
+    """Monats-Gutschrift des Flex-Vermarkters (z. B. SKVE) je Einspeisestelle: Handel am Spotmarkt über dem
+    Monatsmarktwert. Ausgezahlt wird nur der Anteil am Handelsüberschuss + Bonus; den Marktwert zahlt der
+    Direktvermarkter. Beträge wie auf der Gutschrift, aber ohne Vorzeichen (Marktwert und Gebühr werden abgezogen)."""
+    __tablename__ = "flex_statements"
+    __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", name="uq_flex_statement"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="CASCADE"), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    kwh = db.Column(db.Numeric(12, 1), nullable=False)               # eingespeiste Strommenge (Zähler)
+    spot_eur = db.Column(db.Numeric(12, 2), nullable=False)          # Handelsumsatz Day-Ahead nach Zählereinspeisung
+    market_eur = db.Column(db.Numeric(12, 2), nullable=False)        # Monatsmarktwert (wird abgezogen)
+    intraday_eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)   # Viertelstundenhandel (+/−)
+    fee_eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)        # Gebühr Fahrplanmanagement
+    share_eur = db.Column(db.Numeric(12, 2), nullable=False)         # Anteil am verbleibenden Handelsüberschuss
+    bonus_eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)      # Bonusprogramm
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    feed_point = db.relationship("FeedPoint", backref=db.backref("flex_statements", lazy="dynamic",
+                                                                  cascade="all, delete-orphan", passive_deletes=True))
+
+    @property
+    def result_eur(self):
+        """Handelsergebnis = Day-Ahead − Marktwert + Viertelstundenhandel."""
+        return float(self.spot_eur) - float(self.market_eur) + float(self.intraday_eur)
+
+    @property
+    def surplus_eur(self):
+        return self.result_eur - float(self.fee_eur)
+
+    @property
+    def net_eur(self):
+        """Ausgezahlt (netto) = Anteil + Bonus."""
+        return float(self.share_eur) + float(self.bonus_eur)
+
+    @property
+    def kept_eur(self):
+        """Was beim Vermarkter bleibt: Überschuss − Anteil + Gebühr."""
+        return self.surplus_eur - float(self.share_eur) + float(self.fee_eur)
+
+    @property
+    def share_pct(self):
+        return 100 * float(self.share_eur) / self.surplus_eur if self.surplus_eur else None
+
+    def ct(self, eur):
+        return 100 * eur / float(self.kwh) if self.kwh else None
+
+
 class ChpDay(db.Model):
     """Ein Tag eines BHKW-Motors aus dem SKVE-Fahrplan: Laufstunden, erzeugte kWh und Erlös zum Day-Ahead-Preis."""
     __tablename__ = "chp_days"

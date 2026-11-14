@@ -53,7 +53,7 @@
             <div class="budget-months mt-3">
                 {% set top = [s.months|map(attribute='kwh')|reject('none')|max if s.months|map(attribute='kwh')|reject('none')|list else 1, 1]|max %}
                 {% for m in s.months %}
-                <div class="budget-month {{ 'is-billed' if m.source == 'abrechnung' }}" title="{{ _(month_names[m.month - 1]) }}: {{ ((m.kwh or 0) / 1000)|num(0) }} MWh{% if m.source == 'abrechnung' %} · {{ _('Abrechnung') }}{% elif m.source %} · {{ _('Fahrplan') }}{% endif %}">
+                <div class="budget-month {{ 'is-billed' if m.source == 'abrechnung' }}" title="{{ _(month_names[m.month - 1]) }}: {{ ((m.kwh or 0) / 1000)|num(0) }} MWh{% if m.statement %} · {{ _('Gutschrift (Zähler)') }}{% elif m.source == 'abrechnung' %} · {{ _('Abrechnung') }}{% elif m.source %} · {{ _('Fahrplan') }}{% endif %}">
                     <span class="budget-month-bar"><span style="height: {{ (100 * (m.kwh or 0) / top)|round|int }}%"></span></span>
                     <span class="budget-month-name">{{ _(month_names[m.month - 1]) }}</span>
                 </div>
@@ -108,6 +108,16 @@
                 {% endif %}
                 {% if y.lost %}<div><span>{{ _("Entgangen durch Verringerung") }}</span><strong class="text-danger">≈ {{ y.lost|num(0) }} €</strong><small>{{ _("kWh über der Höchstbemessungsleistung") }}</small></div>{% endif %}
             </div>
+            {% set f = y.flex %}
+            {% if f %}
+            <div class="small fw-semibold text-body-secondary mt-3 mb-1"><i class="bi bi-receipt me-1"></i>{{ _("Flex-Vermarktung laut Gutschrift") }}</div>
+            <div class="budget-facts">
+                <div><span>{{ _("Handelsumsatz Day-Ahead") }}</span><strong>{{ f.spot_eur|num(0) }} €</strong><small>{{ _("{n} ct/kWh", n=(100 * f.spot_eur / f.kwh)|num(2)) }}{% if f.plan_eur %} · {{ _("Fahrplan {eur} €", eur=f.plan_eur|num(0)) }}{% endif %}</small></div>
+                <div><span>{{ _("Handelsergebnis") }}</span><strong>{{ f.result_eur|num(0) }} €</strong><small>{{ _("über dem Marktwert, Viertelstunden {eur} €", eur=f.intraday_eur|num(0)) }}</small></div>
+                <div><span>{{ _("Ausgezahlt") }}</span><strong class="text-success">{{ f.net_eur|num(0) }} €</strong><small>{{ _("{n} ct/kWh", n=f.ct|num(2)) }} · {{ _("Anteil + Bonus {eur} €", eur=f.bonus_eur|num(0)) }}</small></div>
+                <div><span>{{ _("Beim Vermarkter") }}</span><strong>{{ f.kept_eur|num(0) }} €</strong><small>{{ _("Gebühr {fee} € + Anteil", fee=f.fee_eur|num(0)) }}</small></div>
+            </div>
+            {% endif %}
             {% if not r.annual_only %}
             <div class="revenue-chart mt-3" role="img" aria-label="{{ _('Erlös je Monat nach Bestandteilen') }}">
                 {% for m in r.months %}
