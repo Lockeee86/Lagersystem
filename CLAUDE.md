@@ -254,7 +254,7 @@ docker compose up --build -d
   Keine Links in Links (z. B. `location_badge(box, link=false)` in Listenzeilen)
   „Neu …“-Formulare unter langen Listen über `macros.fold_card(id, icon, titel, open, pc_open)` (am Handy oben eingeklappt,
   rechte Spalte `order-first order-lg-last`; `#id` in der Adresse klappt auf – `app.js`). Untere Leiste: `overscroll-behavior-y: none`,
-  `--vv-shift` wird beim Nachfedern nicht neu berechnet
+  `--vv-shift` nur aus `visualViewport` (offsetTop + height − innerHeight), die Leiste nie selbst messen (iOS meldet beim Nachschwingen veraltete Werte)
 - `app/kpis.py`: Kennzahlen-Leiste der Startseite (Bereich `kennzahlen` in `tiles.SECTIONS`, steht oben, abwählbar) –
   `cards(user, today, stats, occupancy)` je Rubrik große Zahl + Verlauf `DAYS` Tage (Makro `macros.sparkline`); am PC
   fallen dann im Lagerblock „Bestand“/„Belegung“ weg (`hide_totals` in `partials/stock_overview.html`)

@@ -185,34 +185,33 @@ window.App = (function () {
         }, 50);
     });
 
-    // iOS: Nach dem Schließen der Tastatur (und beim Ein-/Ausblenden der Adressleiste) bleibt die fest stehende
-    // Leiste manchmal mitten auf dem Bildschirm hängen und wandert beim Scrollen. Darum an den sichtbaren
-    // Bildschirmrand (visualViewport) heften.
+    // iOS: Nach dem Schließen der Tastatur bleibt die fest stehende Leiste manchmal versetzt hängen. Früher wurde
+    // dafür die Leiste selbst gemessen – beim Nachschwingen meldet iOS aber veraltete Werte, die Leiste sprang dann
+    // mitten auf den Bildschirm. Jetzt nur noch aus den Viewport-Werten rechnen (ohne Messen) und nach dem Schließen
+    // der Tastatur die Lage neu erzwingen.
     const tabbar = document.querySelector(".tabbar");
     const vv = window.visualViewport;
     if (tabbar && vv) {
         let pending = false;
-        const pin = function () {
+        const pin = () => {
             pending = false;
-            // wo die Leiste ohne Korrektur stünde vs. wo der sichtbare Bereich endet (beides in Seitenkoordinaten)
-            const current = parseFloat(tabbar.style.getPropertyValue("--vv-shift")) || 0;
-            const base = tabbar.getBoundingClientRect().bottom - current;
-            let shift = Math.round(vv.offsetTop + vv.height - base);
-            // Nachfedern am Seitenanfang/-ende (iOS „Gummiband“): dort nichts verschieben, sonst springt die Leiste
-            const maxY = document.documentElement.scrollHeight - window.innerHeight;
-            const bouncing = window.scrollY < 0 || window.scrollY > maxY + 1;
-            if (bouncing) { pending = false; return; }
-            if (document.body.classList.contains("typing") || Math.abs(shift) > window.innerHeight / 2) shift = 0;
-            tabbar.style.setProperty("--vv-shift", shift + "px");
+            let shift = Math.round(vv.offsetTop + vv.height - window.innerHeight);
+            // Zoom, Tastatur oder unplausible Werte: Leiste einfach unten lassen
+            if (vv.scale > 1.01 || document.body.classList.contains("typing") || shift > 0 || shift < -120) shift = 0;
+            tabbar.style.setProperty("--vv-shift", `${shift}px`);
         };
-        const schedule = function () {
+        const schedule = () => {
             if (!pending) { pending = true; requestAnimationFrame(pin); }
         };
         vv.addEventListener("resize", schedule);
-        vv.addEventListener("scroll", schedule);
-        window.addEventListener("scroll", schedule, { passive: true });
         window.addEventListener("orientationchange", schedule);
-        document.addEventListener("focusout", () => { setTimeout(schedule, 300); });
+        document.addEventListener("focusout", () => {
+            setTimeout(() => {
+                schedule();
+                // iOS legt fest stehende Elemente erst nach einem Scroll-Ereignis wieder richtig hin
+                window.scrollTo(window.scrollX, window.scrollY);
+            }, 300);
+        });
         schedule();
     }
 
