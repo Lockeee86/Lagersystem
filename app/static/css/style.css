@@ -1655,3 +1655,11 @@ body.is-embed main { padding-top: 1rem !important; padding-bottom: 1.5rem !impor
 body:not(.has-side) .page-tabs { --tabs-top: 6.7rem; }
 body.is-embed .page-tabs { --tabs-top: .5rem; }
 @media (max-width: 991.98px) { .page-tabs { --tabs-top: 3.6rem !important; } .page-tab { padding: .5rem .7rem; } }
+
+/* Fütterungsplan: Mengen in kg */
+.feeding-amounts { display: flex; flex-wrap: wrap; gap: .2rem .9rem; font-size: var(--fs-sm); color: var(--bs-secondary-color); }
+.feeding-kg-toggle { font-size: var(--fs-sm); }
+.feeding-kg { padding: .6rem; margin-top: .2rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
+.feeding-kg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .5rem .75rem; }
+.feeding-kg-field { display: flex; flex-direction: column; gap: .15rem; font-size: var(--fs-sm); font-weight: 600; }
+.feeding-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem 2rem; }

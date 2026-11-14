@@ -158,7 +158,12 @@ docker compose up --build -d
   (Planer jederzeit, am Tag selbst auch wer dann füttert; 2 → 1 lässt Früh, Abend rückt auf oder fällt weg → `notify_removed()`),
   `mark_done()`/`undo_done()`, Push `check()` aus `push.daily` (16 Uhr frei morgen, 19 Uhr Erinnerung, 12 Uhr / 8 Uhr nicht
   abgehakt an Planer; Themen `feeding_*`), Startseite (`views._feeding_important`, „Meine Aufgaben heute“), Kalender
-  `calendar_events()`, Werkstatt-Bildschirm, Anlagen-Display (Hinweis); committet nicht (außer über `push.daily`)
+  `calendar_events()`, Werkstatt-Bildschirm, Anlagen-Display (Hinweis); committet nicht (außer über `push.daily`).
+  Mengen je Fütterung in **Kilogramm** je Substrat: `FeedingSubstrate` (pflegt ein Admin unter `#substrate`, benutzte nur
+  abschalten – `delete_substrate()` lehnt ab), `FeedingAmount` (`shift.amounts`, `total_kg`), `save_amounts()` (wer eingetragen
+  ist/abgehakt hat oder Planer, nicht für künftige Tage; 0/leer entfernt), `parse_kg()` („12.500“), Summen `totals()` /
+  `month_totals()`, Excel `amounts_export()`; Routen `feeding_amounts`, `feeding_substrates`, `feeding_export`; beim Abhaken
+  gleich mitschicken (`kg_<id>`), ohne Mengen springt die Seite auf `#m<id>` (Formular klappt auf); Filter `|kg_exact`
 - `app/rounds.py`: Rundgang – `CheckStation` (Code `R-01`, `normalize_code`, `/scan` erkennt ihn) und `StationCheck`
   (Ergebnis je Prüfpunkt, Fotos über `Photo.check_id`), `record_check()` / `resolve()` / `status()` / `overview()`,
   Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint

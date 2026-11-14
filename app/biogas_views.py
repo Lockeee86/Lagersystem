@@ -310,7 +310,13 @@ def feeding_page():
         absent = {d["day"] for d in days if not d["past"] and plant_feeding.absent_warning(current_user, d["day"])}
     members = sorted(plant_feeding.members(), key=lambda u: u.name.casefold()) \
         if plant_feeding.is_planner(current_user) else []
+    sunday = monday + timedelta(days=6)
+    year = sunday.year
     return _page("biogas/feeding.html", "fuetterung", days=days, monday=monday,
+                 substrates=plant_feeding.substrates(), all_substrates=plant_feeding.substrates(active_only=False)
+                 if current_user.is_admin else [],
+                 week_totals=plant_feeding.totals(monday, sunday), year=year,
+                 year_totals=plant_feeding.month_totals(year), month_names=feedin.MONTH_NAMES,
                  week_no=monday.isocalendar()[1], prev=monday - timedelta(days=7), next=monday + timedelta(days=7),
                  last_day=plant_feeding.last_day(today), member=plant_feeding.is_member(current_user),
                  planner=plant_feeding.is_planner(current_user), feeders=len(plant_feeding.members()),
@@ -365,14 +371,92 @@ def feeding_done(shift_id):
             plant_feeding.undo_done(shift, current_user)
         else:
             plant_feeding.mark_done(shift, current_user, request.form.get("note"))
+            values = _kg_values(plant_feeding)
+            if values:                                  # Mengen gleich beim Abhaken mitgeschickt
+                plant_feeding.save_amounts(shift, current_user, values)
         db.session.commit()
         if shift.done_at:
             flash_undo(_("Fütterung abgehakt."), url_for("biogas.feeding_done", shift_id=shift.id), zurueck="1",
                        back=back_target() or "")
+            # Abgehakt ohne Mengen (Knopf/Wischen) auf der Fütterungsseite: gleich das Mengen-Feld aufklappen
+            target = back_target() or ""
+            if not shift.amounts and plant_feeding.substrates() and target.startswith(url_for("biogas.feeding_page")):
+                return redirect(target.split("#")[0] + f"#m{shift.id}")
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
     return _feeding_back(shift.day)
+
+
+def _kg_values(plant_feeding):
+    """Formularfelder kg_<Substrat-id> → {id: kg oder None} (nur die mitgeschickten)."""
+    values = {}
+    for key, raw in request.form.items():
+        if key.startswith("kg_") and key[3:].isdigit():
+            values[int(key[3:])] = plant_feeding.parse_kg(raw)
+    return values
+
+
+@bp.route("/biogas/fuetterung/<int:shift_id>/mengen", methods=["POST"])
+@login_required
+def feeding_amounts(shift_id):
+    """Mengen in kg je Substrat eintragen oder ändern (auch nachträglich)."""
+    from . import plant_feeding
+    from .models import FeedingShift
+    shift = db.session.get(FeedingShift, shift_id) or abort(404)
+    try:
+        plant_feeding.save_amounts(shift, current_user, _kg_values(plant_feeding))
+        db.session.commit()
+        from .utils import fmt_kg_exact
+        flash(_("Mengen gespeichert: {kg}.", kg=fmt_kg_exact(shift.total_kg)), "success")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    if target := back_target():
+        return redirect(target)
+    monday = plant_feeding.monday_of(shift.day)
+    return redirect(url_for("biogas.feeding_page", woche=monday.isoformat()) + f"#t{shift.day.isoformat()}")
+
+
+@bp.route("/biogas/fuetterung/substrate", methods=["POST"])
+@admin_required
+def feeding_substrates():
+    """Substrate für die Mengen: anlegen, umbenennen, an/aus, verschieben, löschen (nur unbenutzte)."""
+    from . import plant_feeding
+    from .models import FeedingSubstrate
+    try:
+        action = request.form.get("aktion", "")
+        if action == "neu":
+            substrate = plant_feeding.add_substrate(request.form.get("name"))
+            flash(_("Substrat „{name}“ angelegt.", name=substrate.name), "success")
+        else:
+            substrate = db.session.get(FeedingSubstrate, form_int("substrate_id") or 0) or abort(404)
+            if action == "loeschen":
+                name = substrate.name
+                plant_feeding.delete_substrate(substrate)
+                flash(_("Substrat „{name}“ gelöscht.", name=name), "success")
+            elif action in ("hoch", "runter"):
+                plant_feeding.update_substrate(substrate, move=-1 if action == "hoch" else 1)
+            elif action == "schalten":
+                plant_feeding.update_substrate(substrate, active=not substrate.active)
+            else:
+                plant_feeding.update_substrate(substrate, name=request.form.get("name", ""))
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("biogas.feeding_page") + "#substrate")
+
+
+@bp.route("/biogas/fuetterung/mengen.xlsx")
+@login_required
+def feeding_export():
+    """Alle Fütterungen mit Mengen eines Jahres als Excel."""
+    from . import plant_feeding
+    year = min(max(request.args.get("jahr", type=int) or date.today().year, 2000), 2100)
+    data = plant_feeding.amounts_export(year)
+    return Response(data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="fuetterung_mengen_{year}.xlsx"'})
 
 
 @bp.route("/biogas/fuetterung/tag", methods=["POST"])

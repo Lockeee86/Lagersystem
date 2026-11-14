@@ -159,6 +159,7 @@ def create_app(config=None):
         date=utils.fmt_date,
         time=utils.fmt_time,
         kg=utils.fmt_kg,
+        kg_exact=utils.fmt_kg_exact,
         money=utils.fmt_money,
         euro=utils.fmt_euro,
         num=utils.fmt_num,

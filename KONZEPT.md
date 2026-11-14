@@ -970,6 +970,11 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Fütterungsmengen (0.107.0)
+- Beim Abhaken einer Fütterung (oder nachträglich) die Mengen in Kilogramm je Substrat eintragen; Summen je Woche und
+  Jahr (Monate aufklappbar) und Excel-Liste je Jahr auf der Fütterungsseite. Die Substrate legt ein Admin dort an; schon
+  benutzte lassen sich nur abschalten. Grundlage für eine spätere Massenbilanz (siehe Nabisy unter „Später“).
+
 ### Aufräumrunde (0.106.0)
 Die App ist auf rund 130 Seiten gewachsen – kein Redesign, aber Ordnung:
 - Menü in Gruppen: Lager (Bestand · Arbeiten · Auswertung), Feld & Hof (Acker · Technik, dort auch Sensoren),
@@ -1004,7 +1009,6 @@ Die App ist auf rund 130 Seiten gewachsen – kein Redesign, aber Ordnung:
   Nabisy-Biomassecode je Substrat (Codes ändern sich gelegentlich, siehe Infoschreiben 25) und Massenbilanz für den
   Zertifizierer. Für den Import fehlt noch die Kopfzeile eines echten Kontoauszugs.
 - Mehrstrom-Rechner: Bezeichnung „Verringerung“ prüfen (negative Preise) und Feld „Was wäre wenn“.
-- Fütterungsplan: Mengen je Fütterung.
 - Offline-Modus, Beisetzungs-Tagesblatt, Fehlerprotokoll für Admins, Probe-Wiederherstellung der Datensicherung.
 - Spracheingabe, Foto-Markierung, lange drücken für Schnellaktionen, Zahl und Schnellzugriffe am App-Symbol,
   Teilen in die App, Kontrast-Modus für draußen.

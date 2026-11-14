@@ -239,6 +239,15 @@ def fmt_bytes(value):
         value /= 1000
 
 
+def fmt_kg_exact(value):
+    """12500 → "12.500 kg" – genaue Menge ohne Umrechnung in Tonnen (Fütterungsmengen)."""
+    if value is None:
+        return "–"
+    from .i18n import get_locale
+    thousands = "\u00a0" if get_locale() == "pl" else "."
+    return f"{int(value):,} kg".replace(",", thousands)
+
+
 def fmt_num(value, digits=0):
     """12.34 → "12" bzw. mit digits=1 → "12,3" (deutsches Komma)"""
     if value is None:

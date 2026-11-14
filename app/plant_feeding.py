@@ -5,6 +5,8 @@
 - `FeedingShift` je Platz (1 = Früh bzw. die einzige Fütterung, 2 = Abend) mit Person und Abhaken.
 - Umstellen 1×/2×: Planer/Admins jederzeit, am Tag selbst auch wer an dem Tag eingetragen ist.
 - Eintragen bis `WEEKS_AHEAD` Wochen im Voraus; eine Person darf beide Plätze eines Tages haben.
+- Mengen je Fütterung in Kilogramm je Substrat (`FeedingAmount`, Substrate `FeedingSubstrate` pflegt ein Admin):
+  `save_amounts()`, Summen `totals()` / `month_totals()`.
 Committet nicht (außer `check()` aus dem Zeitplan); Push nach dem Commit über die `notify_*`-Funktionen.
 """
 from datetime import date, datetime, timedelta, UTC
@@ -14,7 +16,9 @@ from flask import url_for
 from . import push
 from .extensions import db
 from .i18n import gettext as _
-from .models import FEEDING_SLOTS, FeedingDay, FeedingShift, Setting, User
+from sqlalchemy import extract, func
+
+from .models import FEEDING_SLOTS, FeedingAmount, FeedingDay, FeedingShift, FeedingSubstrate, Setting, User
 from .push import Msg
 from .storage import StorageError
 
@@ -137,6 +141,12 @@ def week(monday, user=None, today=None):
     holidays = _holidays(monday, sunday)
     values = defaults()
     days = []
+    # Mengen gleich mitladen (eine Abfrage statt je Fütterung)
+    if shifts:
+        from sqlalchemy.orm import selectinload
+        ids = [s.id for s in shifts.values()]
+        FeedingShift.query.filter(FeedingShift.id.in_(ids)).options(
+            selectinload(FeedingShift.amounts).joinedload(FeedingAmount.substrate)).all()
     for i in range(7):
         day = monday + timedelta(days=i)
         entry = entries.get(day)
@@ -268,6 +278,161 @@ def undo_done(shift, actor):
     shift.done_at = None
     shift.done_by_id = None
     db.session.flush()
+
+
+# --- Mengen (kg je Substrat) ----------------------------------------------------------------
+
+MAX_KG = 1_000_000                  # je Substrat und Fütterung – schützt vor Tippfehlern (Komma vergessen …)
+
+
+def substrates(active_only=True):
+    query = FeedingSubstrate.query
+    if active_only:
+        query = query.filter_by(active=True)
+    return query.order_by(FeedingSubstrate.position, FeedingSubstrate.id).all()
+
+
+def add_substrate(name):
+    name = " ".join((name or "").split())[:60]
+    if not name:
+        raise StorageError(_("Bitte einen Namen für das Substrat eingeben."))
+    if any(s.name.casefold() == name.casefold() for s in substrates(active_only=False)):
+        raise StorageError(_("Das Substrat „{name}“ gibt es schon.", name=name))
+    last = db.session.query(func.max(FeedingSubstrate.position)).scalar() or 0
+    substrate = FeedingSubstrate(name=name, position=last + 1)
+    db.session.add(substrate)
+    db.session.flush()
+    return substrate
+
+
+def update_substrate(substrate, name=None, active=None, move=0):
+    """Umbenennen, an-/abschalten (benutzte bleiben in den Summen), in der Reihenfolge verschieben (−1/+1)."""
+    if name is not None:
+        name = " ".join(name.split())[:60]
+        if not name:
+            raise StorageError(_("Bitte einen Namen für das Substrat eingeben."))
+        if any(s.id != substrate.id and s.name.casefold() == name.casefold() for s in substrates(active_only=False)):
+            raise StorageError(_("Das Substrat „{name}“ gibt es schon.", name=name))
+        substrate.name = name
+    if active is not None:
+        substrate.active = bool(active)
+    if move:
+        ordered = substrates(active_only=False)
+        i = ordered.index(substrate)
+        j = i + (1 if move > 0 else -1)
+        if 0 <= j < len(ordered):
+            ordered[i], ordered[j] = ordered[j], ordered[i]
+            for pos, s in enumerate(ordered, start=1):
+                s.position = pos
+    db.session.flush()
+
+
+def delete_substrate(substrate):
+    """Nur löschen, solange keine Menge damit gebucht ist – sonst abschalten."""
+    if FeedingAmount.query.filter_by(substrate_id=substrate.id).first() is not None:
+        raise StorageError(_("„{name}“ ist schon in Fütterungen gebucht – bitte abschalten statt löschen.", name=substrate.name))
+    db.session.delete(substrate)
+    db.session.flush()
+
+
+def can_record(shift, user):
+    """Mengen eintragen/ändern: wer eingetragen ist, wer abgehakt hat, oder ein Planer."""
+    return bool(user and user.is_authenticated and
+                (user.id in (shift.user_id, shift.done_by_id) or is_planner(user)))
+
+
+def parse_kg(raw):
+    """„12.500“, „12500“, „12 500“ → 12500; leer → None. Kommazahlen werden auf ganze kg gerundet."""
+    text = (raw or "").strip().replace(" ", "").replace("\u202f", "").replace("kg", "")
+    if not text:
+        return None
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif text.count(".") >= 1 and all(len(part) == 3 for part in text.split(".")[1:]):
+        text = text.replace(".", "")                      # Tausenderpunkte
+    try:
+        value = round(float(text))
+    except ValueError:
+        raise StorageError(_("„{value}“ ist keine Menge in Kilogramm.", value=raw)) from None
+    if value < 0 or value > MAX_KG:
+        raise StorageError(_("Bitte eine Menge zwischen 0 und {max} kg eingeben.", max=f"{MAX_KG:,}".replace(",", ".")))
+    return value
+
+
+def save_amounts(shift, actor, values, today=None):
+    """`values` = {Substrat-id: kg oder None}. 0/leer entfernt die Menge. Nur für abgehakte oder heutige/vergangene
+    Fütterungen; fehlende Substrate bleiben unverändert."""
+    today = today or date.today()
+    if not can_record(shift, actor):
+        raise StorageError(_("Mengen eintragen kann nur, wer eingetragen ist oder abgehakt hat – oder ein Planer."))
+    if shift.day > today:
+        raise StorageError(_("Mengen erst am Tag der Fütterung eintragen."))
+    known = {s.id: s for s in substrates(active_only=False)}
+    current = {a.substrate_id: a for a in shift.amounts}
+    for substrate_id, kg in values.items():
+        if substrate_id not in known:
+            continue
+        row = current.get(substrate_id)
+        if not kg:
+            if row is not None:
+                shift.amounts.remove(row)
+            continue
+        if row is None:
+            shift.amounts.append(FeedingAmount(substrate_id=substrate_id, kg=kg))
+        else:
+            row.kg = kg
+    db.session.flush()
+
+
+def totals(start, end):
+    """[(Substrat, kg)] im Zeitraum (beide Tage eingeschlossen), Reihenfolge wie die Substrat-Liste; nur mit Menge."""
+    rows = dict(db.session.query(FeedingAmount.substrate_id, func.sum(FeedingAmount.kg))
+                .join(FeedingShift).filter(FeedingShift.day >= start, FeedingShift.day <= end)
+                .group_by(FeedingAmount.substrate_id).all())
+    return [(s, int(rows[s.id])) for s in substrates(active_only=False) if rows.get(s.id)]
+
+
+def month_totals(year):
+    """Jahresübersicht: {"substrates": [...], "rows": [(Monat 1–12, {Substrat-id: kg}, Summe)], "sum": {id: kg}, "total"}."""
+    data = (db.session.query(extract("month", FeedingShift.day), FeedingAmount.substrate_id, func.sum(FeedingAmount.kg))
+            .join(FeedingShift).filter(extract("year", FeedingShift.day) == year)
+            .group_by(extract("month", FeedingShift.day), FeedingAmount.substrate_id).all())
+    by_month, used = {}, set()
+    for month, substrate_id, kg in data:
+        by_month.setdefault(int(month), {})[substrate_id] = int(kg)
+        used.add(substrate_id)
+    subs = [s for s in substrates(active_only=False) if s.id in used]
+    rows = [(m, by_month.get(m, {}), sum(by_month.get(m, {}).values())) for m in range(1, 13)]
+    summe = {s.id: sum(r[1].get(s.id, 0) for r in rows) for s in subs}
+    return {"substrates": subs, "rows": rows, "sum": summe, "total": sum(summe.values())}
+
+
+def amounts_export(year):
+    """Excel-Liste aller Fütterungen mit Mengen eines Jahres (eine Zeile je Fütterung, eine Spalte je Substrat)."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    from .utils import excel_safe
+    shifts = (FeedingShift.query.filter(extract("year", FeedingShift.day) == year, FeedingShift.amounts.any())
+              .order_by(FeedingShift.day, FeedingShift.slot).all())
+    used = {a.substrate_id for s in shifts for a in s.amounts}
+    subs = [s for s in substrates(active_only=False) if s.id in used]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = _("Fütterung {year}", year=year)[:31]
+    ws.append([_("Datum"), _("Fütterung"), _("Person"), *[f"{s.name} (kg)" for s in subs], _("Summe (kg)")])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    for s in shifts:
+        kg = {a.substrate_id: a.kg for a in s.amounts}
+        ws.append([s.day, slot_label(s.slot, times_on(s.day)), s.user.name if s.user else "",
+                   *[kg.get(sub.id) for sub in subs], sum(kg.values())])
+        ws.cell(row=ws.max_row, column=1).number_format = "DD.MM.YYYY"
+    for col, width in zip("ABC", (12, 12, 18), strict=False):
+        ws.column_dimensions[col].width = width
+    buf = io.BytesIO()
+    excel_safe(wb).save(buf)
+    return buf.getvalue()
 
 
 def absent_warning(user, day):

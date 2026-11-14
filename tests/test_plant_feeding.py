@@ -271,3 +271,78 @@ def test_planner_gives_up_other_shift(app, db, team):
     assert len(to_anna) == 1 and "ausgetragen" in to_anna[0]["title"]
     assert len(to_worker) == 1 and anna.name in to_worker[0]["body"]
     assert not any(m["user_id"] == admin.id for m in push.outbox)
+
+
+def test_amounts_in_kg(app, db, team, as_worker, as_admin):
+    """Mengen je Substrat in kg: beim Abhaken oder nachträglich, Summen je Woche/Jahr, Excel, Substrate nur abschalten."""
+    import io
+    from openpyxl import load_workbook
+    from app.models import FeedingAmount
+    worker, admin = team["worker"], team["admin"]
+    pf.save_defaults([1] * 8)
+    mais = pf.add_substrate("Maissilage")
+    gras = pf.add_substrate("Grassilage")
+    db.session.commit()
+    with pytest.raises(StorageError):
+        pf.add_substrate("maissilage")                                    # gibt es schon
+    today = date.today()
+    shift = pf.take(today, 1, worker)
+    db.session.commit()
+    # Abhaken mit Mengen in einem Schritt, Tausenderpunkte erlaubt
+    as_worker.post(f"/biogas/fuetterung/{shift.id}/erledigt", data={f"kg_{mais.id}": "12.500", f"kg_{gras.id}": ""})
+    assert shift.done_at is not None and [(a.substrate_id, a.kg) for a in shift.amounts] == [(mais.id, 12500)]
+    # nachträglich ändern: Gras dazu, Mais auf 0 = entfernt
+    as_worker.post(f"/biogas/fuetterung/{shift.id}/mengen", data={f"kg_{mais.id}": "0", f"kg_{gras.id}": "3 200"})
+    assert [(a.substrate_id, a.kg) for a in shift.amounts] == [(gras.id, 3200)] and shift.total_kg == 3200
+    # Unsinn wird abgelehnt, nichts geändert
+    as_worker.post(f"/biogas/fuetterung/{shift.id}/mengen", data={f"kg_{gras.id}": "viel"})
+    as_worker.post(f"/biogas/fuetterung/{shift.id}/mengen", data={f"kg_{gras.id}": "5000000"})
+    assert shift.total_kg == 3200
+    # fremde Fütterung: nur Planer
+    other = pf.take(today - timedelta(days=1), 1, team["anna"], today=today - timedelta(days=1))
+    db.session.commit()
+    with pytest.raises(StorageError):
+        pf.save_amounts(other, worker, {gras.id: 100})
+    pf.save_amounts(other, admin, {mais.id: 900})
+    db.session.commit()
+    # Zukunft: noch keine Mengen
+    future = pf.take(today + timedelta(days=2), 1, worker)
+    db.session.commit()
+    with pytest.raises(StorageError):
+        pf.save_amounts(future, worker, {mais.id: 1})
+    # Summen
+    monday = pf.monday_of(today)
+    week = {s.name: kg for s, kg in pf.totals(monday - timedelta(days=1), monday + timedelta(days=6))}
+    assert week["Grassilage"] == 3200 and week["Maissilage"] == 900
+    year = pf.month_totals(today.year)
+    assert year["total"] >= 3200 and {s.name for s in year["substrates"]} >= {"Grassilage"}
+    page = as_worker.get(f"/biogas/fuetterung?woche={today.isoformat()}").get_data(as_text=True)
+    assert "3.200 kg Grassilage" in page and 'id="mengen"' in page and f'id="m{shift.id}"' in page
+    assert 'id="substrate"' not in page                                   # Substrate pflegt nur ein Admin
+    # Excel
+    r = as_worker.get(f"/biogas/fuetterung/mengen.xlsx?jahr={today.year}")
+    ws = load_workbook(io.BytesIO(r.data)).active
+    header = [c.value for c in ws[1]]
+    assert "Grassilage (kg)" in header and ws.max_row >= 2
+    # benutztes Substrat: löschen geht nicht, abschalten schon (bleibt in den Summen)
+    as_admin.post("/biogas/fuetterung/substrate", data={"aktion": "loeschen", "substrate_id": gras.id})
+    assert db.session.get(type(gras), gras.id) is not None
+    as_admin.post("/biogas/fuetterung/substrate", data={"aktion": "schalten", "substrate_id": gras.id})
+    assert not gras.active and gras not in pf.substrates() and FeedingAmount.query.filter_by(substrate_id=gras.id).count()
+    unused = pf.add_substrate("Mist")
+    db.session.commit()
+    as_admin.post("/biogas/fuetterung/substrate", data={"aktion": "loeschen", "substrate_id": unused.id})
+    assert db.session.get(type(unused), unused.id) is None
+    # Abgeben löscht die Fütterung samt Mengen
+    pf.save_amounts(future, worker, {mais.id: 1}, today=future.day)
+    db.session.commit()
+    pf.give_up(future, worker)
+    db.session.commit()
+    assert FeedingAmount.query.filter_by(shift_id=future.id).count() == 0
+
+
+def test_parse_kg():
+    assert pf.parse_kg("12.500") == 12500 and pf.parse_kg("12 500 kg") == 12500 and pf.parse_kg("12500") == 12500
+    assert pf.parse_kg("1,4") == 1 and pf.parse_kg("") is None and pf.parse_kg("0") == 0
+    with pytest.raises(StorageError):
+        pf.parse_kg("-5")

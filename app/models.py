@@ -2595,6 +2595,37 @@ class FeedingShift(db.Model):
 
     user = db.relationship("User", foreign_keys=[user_id])
     done_by = db.relationship("User", foreign_keys=[done_by_id])
+    amounts = db.relationship("FeedingAmount", back_populates="shift", cascade="all, delete-orphan",
+                              order_by="FeedingAmount.id")
 
     __table_args__ = (db.UniqueConstraint("day", "slot", name="uq_feeding_shifts_day_slot"),)
+
+    @property
+    def total_kg(self):
+        return sum(a.kg for a in self.amounts)
+
+
+class FeedingSubstrate(db.Model):
+    """Substrat für die Fütterungsmengen (Maissilage, Grassilage, Mist …). Im Verlauf benutzte nur deaktivieren."""
+    __tablename__ = "feeding_substrates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(60), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+
+
+class FeedingAmount(db.Model):
+    """Gefütterte Menge eines Substrats bei einer Fütterung – in Kilogramm."""
+    __tablename__ = "feeding_amounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    shift_id = db.Column(db.Integer, db.ForeignKey("feeding_shifts.id", ondelete="CASCADE"), nullable=False, index=True)
+    substrate_id = db.Column(db.Integer, db.ForeignKey("feeding_substrates.id"), nullable=False, index=True)
+    kg = db.Column(db.Integer, nullable=False)
+
+    shift = db.relationship("FeedingShift", back_populates="amounts")
+    substrate = db.relationship("FeedingSubstrate")
+
+    __table_args__ = (db.UniqueConstraint("shift_id", "substrate_id", name="uq_feeding_amounts_shift_substrate"),)
 

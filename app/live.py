@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 # Tabelle → Thema (in `base.html` steht je Seite, auf welche Themen sie hört: <main data-live="…">)
 TOPICS = {"tasks": "tasks", "handovers": "handover", "feeding_shifts": "feeding", "feeding_days": "feeding",
+          "feeding_amounts": "feeding",
           "purchase_requests": "purchases"}
 # Seite → Themen ("movement" = Kistenbewegungen, wie bisher)
 PAGES = {

@@ -73,6 +73,22 @@
                 {% endif %}
             </span>
             {% endif %}
+            {% set can_rec = sh.user_id == current_user.id or planner or sh.done_by_id == current_user.id %}
+            {% if sh.amounts %}<span class="feeding-amounts w-100">{% for a in sh.amounts %}<span><i class="bi bi-basket me-1"></i>{{ a.kg|kg_exact }} {{ a.substrate.name }}</span>{% endfor %}{% if sh.amounts|length > 1 %}<span class="fw-semibold">Σ {{ sh.total_kg|kg_exact }}</span>{% endif %}</span>{% endif %}
+            {% if substrates and can_rec and d.day <= today %}
+            <button class="btn btn-sm btn-link px-0 feeding-kg-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#m{{ sh.id }}" aria-expanded="false" aria-controls="m{{ sh.id }}"><i class="bi bi-pencil-square me-1"></i>{{ _("Mengen ändern") if sh.amounts else _("Mengen eintragen (kg)") }}</button>
+            <form class="collapse w-100 feeding-kg" id="m{{ sh.id }}" method="post" action="{{ url_for('biogas.feeding_amounts' if sh.done_at else 'biogas.feeding_done', shift_id=sh.id) }}">
+                {{ csrf() }}<input type="hidden" name="back" value="{{ here }}#t{{ d.day.isoformat() }}">
+                {% set kg = {} %}{% for a in sh.amounts %}{% set _unused = kg.update({a.substrate_id: a.kg}) %}{% endfor %}
+                <div class="feeding-kg-grid">
+                    {% for s in substrates %}
+                    <label class="feeding-kg-field"><span>{{ s.name }}</span>
+                        <span class="input-group input-group-sm"><input class="form-control text-end" name="kg_{{ s.id }}" inputmode="numeric" pattern="[0-9 .,]*" autocomplete="off" value="{{ kg.get(s.id, '') }}" placeholder="0"><span class="input-group-text">kg</span></span></label>
+                    {% endfor %}
+                </div>
+                <button class="btn btn-sm {{ 'btn-primary' if sh.done_at else 'btn-success' }} mt-2"><i class="bi bi-check-lg me-1"></i>{{ _("Mengen speichern") if sh.done_at else _("Erledigt mit Mengen") }}</button>
+            </form>
+            {% endif %}
             {% else %}
             {% if (member or members) and d.open %}
             <span class="feeding-actions">
@@ -97,9 +113,72 @@
 </div>
 {% endfor %}
 </div>
+{% if week_totals or year_totals.total %}
+<div class="card shadow-sm mb-3" id="mengen">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span><i class="bi bi-basket me-1"></i>{{ _("Gefütterte Mengen") }}</span>
+        <a class="small" href="{{ url_for('biogas.feeding_export', jahr=year) }}"><i class="bi bi-file-earmark-excel me-1"></i>{{ _("Excel {year}", year=year) }}</a>
+    </div>
+    <div class="card-body">
+        <div class="feeding-totals">
+            <div><span class="small text-body-secondary">{{ _("KW {n}", n=week_no) }}</span>
+                {% for s, kg in week_totals %}<div class="d-flex justify-content-between gap-3"><span>{{ s.name }}</span><strong>{{ kg|kg_exact }}</strong></div>
+                {% else %}<div class="text-body-secondary small">{{ _("Diese Woche noch nichts eingetragen.") }}</div>{% endfor %}
+                {% if week_totals|length > 1 %}<div class="d-flex justify-content-between gap-3 border-top mt-1 pt-1"><span>{{ _("Summe") }}</span><strong>{{ week_totals|sum(attribute=1)|kg_exact }}</strong></div>{% endif %}
+            </div>
+            <div><span class="small text-body-secondary">{{ _("Jahr {year}", year=year) }}</span>
+                {% for s in year_totals.substrates %}<div class="d-flex justify-content-between gap-3"><span>{{ s.name }}</span><strong>{{ (year_totals.sum[s.id] / 1000)|num(1) }} t</strong></div>{% endfor %}
+                {% if year_totals.substrates|length > 1 %}<div class="d-flex justify-content-between gap-3 border-top mt-1 pt-1"><span>{{ _("Summe") }}</span><strong>{{ (year_totals.total / 1000)|num(1) }} t</strong></div>{% endif %}
+            </div>
+        </div>
+        {% if year_totals.total %}
+        <button class="btn btn-sm btn-link px-0 mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#mengenJahr" aria-expanded="false" aria-controls="mengenJahr">{{ _("Monate anzeigen") }}</button>
+        <div class="collapse" id="mengenJahr"><div class="table-responsive mt-2">
+            <table class="table table-sm small align-middle mb-0 text-nowrap">
+                <thead><tr><th>{{ _("Monat") }}</th>{% for s in year_totals.substrates %}<th class="text-end">{{ s.name }}</th>{% endfor %}<th class="text-end">{{ _("Summe") }}</th></tr></thead>
+                <tbody>
+                {% for month, kg, total in year_totals.rows if total %}
+                <tr><td>{{ _(month_names[month - 1]) }}</td>{% for s in year_totals.substrates %}<td class="text-end">{{ (kg.get(s.id, 0) / 1000)|num(1) }} t</td>{% endfor %}<td class="text-end fw-semibold">{{ (total / 1000)|num(1) }} t</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div></div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 <p class="small text-body-secondary">{{ _("Eintragen geht bis {date} ({n} Wochen im Voraus). 1×/2× stellen Planer und Admins um – am Tag selbst auch, wer dann füttert.", date=last_day|date, n=weeks_ahead) }}</p>
 
 {% if current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="substrate">
+    <div class="card-header"><i class="bi bi-basket me-1"></i>{{ _("Substrate für die Mengen") }}</div>
+    <div class="card-body">
+        <p class="small text-body-secondary">{{ _("Was beim Füttern in Kilogramm eingetragen werden kann. Schon gebuchte Substrate lassen sich nur abschalten – die Summen bleiben erhalten.") }}</p>
+        {% for s in all_substrates %}
+        <div class="d-flex flex-wrap align-items-center gap-2 py-1 {{ 'border-top' if not loop.first }} {{ 'opacity-50' if not s.active }}">
+            <form method="post" action="{{ url_for('biogas.feeding_substrates') }}" class="d-flex gap-2 flex-grow-1">
+                {{ csrf() }}<input type="hidden" name="substrate_id" value="{{ s.id }}"><input type="hidden" name="aktion" value="name">
+                <input class="form-control form-control-sm" name="name" value="{{ s.name }}" maxlength="60" required aria-label="{{ _('Name') }}">
+                <button class="btn btn-sm btn-outline-secondary" title="{{ _('Speichern') }}" aria-label="{{ _('Speichern') }}"><i class="bi bi-check-lg"></i></button>
+            </form>
+            <form method="post" action="{{ url_for('biogas.feeding_substrates') }}" class="btn-group btn-group-sm">
+                {{ csrf() }}<input type="hidden" name="substrate_id" value="{{ s.id }}">
+                <button class="btn btn-outline-secondary" name="aktion" value="hoch" {{ 'disabled' if loop.first }} aria-label="{{ _('{name} nach oben', name=s.name) }}"><i class="bi bi-chevron-up"></i></button>
+                <button class="btn btn-outline-secondary" name="aktion" value="runter" {{ 'disabled' if loop.last }} aria-label="{{ _('{name} nach unten', name=s.name) }}"><i class="bi bi-chevron-down"></i></button>
+                <button class="btn btn-outline-secondary" name="aktion" value="schalten">{{ _("Abschalten") if s.active else _("Einschalten") }}</button>
+                <button class="btn btn-outline-danger" name="aktion" value="loeschen" data-confirm="{{ _('„{name}“ löschen?', name=s.name) }}" aria-label="{{ _('Löschen') }}"><i class="bi bi-trash"></i></button>
+            </form>
+        </div>
+        {% else %}
+        <div class="small text-body-secondary mb-2">{{ _("Noch keine Substrate – ohne sie gibt es keine Mengen-Eingabe.") }}</div>
+        {% endfor %}
+        <form method="post" action="{{ url_for('biogas.feeding_substrates') }}" class="d-flex gap-2 mt-3">
+            {{ csrf() }}<input type="hidden" name="aktion" value="neu">
+            <input class="form-control" name="name" maxlength="60" required placeholder="{{ _('z. B. Maissilage') }}" aria-label="{{ _('Neues Substrat') }}">
+            <button class="btn btn-primary text-nowrap"><i class="bi bi-plus-lg me-1"></i>{{ _("Anlegen") }}</button>
+        </form>
+    </div>
+</div>
 <div class="card shadow-sm mb-4" id="standard">
     <div class="card-header"><i class="bi bi-gear me-1"></i>{{ _("Standard: so oft wird gefüttert") }}</div>
     <form class="card-body" method="post" action="{{ url_for('biogas.feeding_defaults') }}">
