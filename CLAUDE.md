@@ -134,7 +134,7 @@ docker compose up --build -d
   `MaintenanceTask.downtime_hours`), Fahrplan-Güte `flex_quality()` (`ChpDay.ideal_revenue_eur` = dieselben kWh in den
   teuersten Viertelstunden), Verfügbarkeit laut Logbuch `availability()`. Jahresbudget je Einspeisestelle (Höchstbemessungsleistung): `app/feedin.py`
   (`FeedPoint`, `FeedMonth` = Monatsmenge aus der Abrechnung, sonst Fahrplan; `status()`, `price_threshold()`, Push `check()`;
-  CSV-Import `parse_csv()`/`apply_import()`, Erlöse `FeedRevenue`/`revenue()`, Budget-Fahrplan `plan()`; Mehrstrom-Rechner
+  CSV-Import `parse_csv()`/`apply_import()` (ersetzt nur `source="netz"`), Erlöse `FeedRevenue`/`revenue()` – `source` netz/dv (Direktvermarkter, natürliches Vorzeichen), `manual`; von Hand `save_manual()` (`MANUAL_CATEGORIES`, Betrag oder kWh × ct) / `delete_manual()` / `manual_rows()`, Routen `biogas.revenue_manual(_delete)`, Karte `#erloese-hand` in den Einstellungen; in `revenue()` `dv`/`paid`/`gain` (= Direktvermarktung − Marktwert) und `plan_revenue()` (Day-Ahead laut Fahrplan), Budget-Fahrplan `plan()`; Mehrstrom-Rechner
   `extra()` = Kürzung über der HBL nach Clearingstelle (anteilig auf die Stufen `_stages`, Flexprämie, Wartung je kWh
   `maintenance_ct()` aus Logbuch/Bestellungen der BHKW, Substrat optional; Werte `FeedPoint.aw_stage1-3`, `flex_*`,
   `substrate_*` über `save_tariff()`)), Ausfallkosten

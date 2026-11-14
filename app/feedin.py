@@ -333,33 +333,155 @@ def _month_revenue(rows, kwh, reduced):
             "ct": 100 * total / kwh if kwh else None, "kwh": kwh, "lost": lost}
 
 
+def _volume_from_rows(rows):
+    """Einspeisung aus den Positionen selbst, wenn es für den Monat keine Menge gibt (z. B. von Hand eingetragen)."""
+    kwh = [float(r.kwh) for r in rows if revenue_group(r.category) in ("flex", "marktwert", "grund") and r.kwh]
+    return max(kwh, default=0.0)
+
+
+def plan_revenue(point, year):
+    """Erlös laut SKVE-Fahrplan (Day-Ahead) der zugeordneten BHKW je Monat: {Monat: €}."""
+    ids = [m.id for m in point.machines]
+    if not ids:
+        return {}
+    rows = (db.session.query(extract("month", ChpDay.day), func.sum(ChpDay.revenue_eur))
+            .filter(ChpDay.machine_id.in_(ids), extract("year", ChpDay.day) == year, ChpDay.revenue_eur.isnot(None))
+            .group_by(extract("month", ChpDay.day)).all())
+    return {int(month): float(eur) for month, eur in rows if eur is not None}
+
+
 def revenue(point, year):
-    """Erlöse aus den importierten Abrechnungen: {"months": [ {month, …} ], "year": {…}} oder None ohne Daten."""
+    """Erlöse aus den Abrechnungen: {"months": [ {month, …} ], "year": {…}} oder None ohne Daten.
+
+    Netzbetreiber (`source` „netz“): Prämien und Boni wie bisher. Direktvermarkter („dv“): was tatsächlich für den
+    Strom gezahlt wurde (Erlös − Entgelt) → `dv`; dazu `paid` = beides zusammen und `gain` = Direktvermarktung −
+    Marktwert (was der flexible Fahrplan über dem Monatsmarktwert gebracht hat)."""
     rows = point.revenues.filter_by(year=year).all()
     if not rows:
         return None
-    by_month = {}
+    by_month, dv_month = {}, {}
     for r in rows:
-        by_month.setdefault(r.month, []).append(r)
+        (dv_month if r.source == "dv" else by_month).setdefault(r.month, []).append(r)
+    for month in dv_month:
+        by_month.setdefault(month, [])
     volumes = {m.month: m for m in point.months.filter_by(year=year)}
+    planned = plan_revenue(point, year)
     months_ = []
     for month in sorted(by_month):
         if month == 0 and len(by_month) > 1:
             continue                                                   # Monate da: Jahresabrechnung nicht doppelt
         vol = volumes.get(month)
-        info = _month_revenue(by_month[month], float(vol.kwh) if vol else 0.0,
+        info = _month_revenue(by_month[month], float(vol.kwh) if vol else _volume_from_rows(by_month[month]),
                               float(vol.reduced_kwh) if vol and vol.reduced_kwh else 0.0)
+        dv = dv_month.get(month)
+        if dv:
+            info["dv"] = sum(float(r.eur) for r in dv)
+            info["dv_kwh"] = sum(float(r.kwh) for r in dv if r.category == "erloes")
+            info["dv_ct"] = 100 * info["dv"] / info["dv_kwh"] if info["dv_kwh"] else None
+            info["paid"] = info["netz"] + info["dv"]
+            info["gain"] = info["dv"] - info["market"] if info["market"] else None
+        else:
+            info.update(dv=None, dv_kwh=0.0, dv_ct=None, paid=None, gain=None)
+        info["plan"] = planned.get(month) if month else (sum(planned.values()) or None)
         info["month"] = month
         months_.append(info)
+    with_dv = [m for m in months_ if m["dv"] is not None]
     total = {"groups": {key: sum(m["groups"][key] for m in months_) for key, _l in REVENUE_GROUPS},
              "total": sum(m["total"] for m in months_), "netz": sum(m["netz"] for m in months_),
              "market": sum(m["market"] for m in months_), "kwh": sum(m["kwh"] for m in months_),
-             "lost": sum(m["lost"] for m in months_ if m["lost"]) or None}
+             "lost": sum(m["lost"] for m in months_ if m["lost"]) or None,
+             "dv": sum(m["dv"] for m in with_dv) if with_dv else None,
+             "dv_kwh": sum(m["dv_kwh"] for m in with_dv),
+             "paid": sum(m["paid"] for m in with_dv) if with_dv else None,
+             "gain": sum(m["gain"] for m in with_dv if m["gain"] is not None) if any(m["gain"] is not None for m in with_dv) else None,
+             "plan_dv": sum(m["plan"] for m in with_dv if m["plan"]) or None}
     total["ct"] = 100 * total["total"] / total["kwh"] if total["kwh"] else None
+    total["dv_ct"] = 100 * total["dv"] / total["dv_kwh"] if total["dv"] is not None and total["dv_kwh"] else None
+    total["paid_ct"] = 100 * total["paid"] / total["kwh"] if total["paid"] is not None and total["kwh"] else None
     top = max([m["total"] for m in months_] + [1])
     for m in months_:
         m["height"] = {key: round(100 * max(m["groups"][key], 0) / top, 1) for key, _l in REVENUE_GROUPS}
-    return {"months": months_, "year": total, "annual_only": [m["month"] for m in months_] == [0]}
+    return {"months": months_, "year": total, "annual_only": [m["month"] for m in months_] == [0], "has_dv": bool(with_dv)}
+
+
+# --- Erlöse von Hand (Netzbetreiber ohne CSV, Direktvermarkter) ---------------------------------------------------
+# Schlüssel → (Quelle, Kategorie in der Tabelle, Anzeige). Netzbetreiber-Kategorien heißen wie in der Abrechnung,
+# damit `revenue_group()` sie einordnet.
+MANUAL_CATEGORIES = (
+    ("dv:erloes", "dv", "erloes", N_("Direktvermarktung: Stromerlös")),
+    ("dv:entgelt", "dv", "entgelt", N_("Direktvermarktung: Vermarktungsentgelt")),
+    ("dv:sonstige", "dv", "sonstige", N_("Direktvermarktung: Sonstiges")),
+    ("netz:mp", "netz", "Marktprämie", N_("Netzbetreiber: Marktprämie")),
+    ("netz:flex", "netz", "Flexibilitätsprämie", N_("Netzbetreiber: Flexibilitätsprämie")),
+    ("netz:guelle", "netz", "Gülle-Bonus", N_("Netzbetreiber: Gülle-Bonus")),
+    ("netz:nawaro", "netz", "NawaRo-Bonus", N_("Netzbetreiber: NawaRo-Bonus")),
+    ("netz:marktwert", "netz", "Marktwert", N_("Netzbetreiber: Marktwert (wird abgezogen)")),
+    ("netz:sonstige", "netz", "Sonstiges", N_("Netzbetreiber: Sonstiges")),
+)
+DV_LABELS = {"erloes": N_("Stromerlös"), "entgelt": N_("Vermarktungsentgelt"), "sonstige": N_("Sonstiges")}
+
+
+def _amount(raw, message):
+    text = (raw or "").strip().replace(" ", "").replace("€", "")
+    if not text:
+        return None
+    if re.fullmatch(r"-?\d{1,3}(\.\d{3})+", text):              # „12.000“ = zwölftausend
+        text = text.replace(".", "")
+    try:
+        return _csv_float(text)
+    except ValueError:
+        raise StorageError(message) from None
+
+
+def save_manual(point, year, month, key, kwh_raw, eur_raw, ct_raw):
+    """Position von Hand eintragen bzw. ersetzen. Beträge positiv eingeben; Betrag in € oder Preis in ct/kWh × kWh."""
+    entry = next((c for c in MANUAL_CATEGORIES if c[0] == key), None)
+    if entry is None:
+        raise StorageError(N_("Bitte eine Kategorie wählen."))
+    if not (2000 <= (year or 0) <= 2100) or not (0 <= (month if month is not None else -1) <= 12):
+        raise StorageError(N_("Bitte Jahr und Monat angeben."))
+    _key, source, category, _label = entry
+    kwh = _amount(kwh_raw, N_("Die Menge in kWh ist keine Zahl."))
+    eur = _amount(eur_raw, N_("Der Betrag in € ist keine Zahl."))
+    ct = _amount(ct_raw, N_("Der Preis in ct/kWh ist keine Zahl."))
+    if kwh is not None and not 0 <= kwh <= 1e10:
+        raise StorageError(N_("Die Menge in kWh ist keine Zahl."))
+    if eur is None:
+        if ct is None or not kwh:
+            raise StorageError(N_("Bitte den Betrag in € angeben – oder Menge in kWh und Preis in ct/kWh."))
+        eur = kwh * ct / 100
+    if abs(eur) > 1e9:
+        raise StorageError(N_("Der Betrag in € ist keine Zahl."))
+    if source == "dv":
+        eur = -abs(eur) if category == "entgelt" else eur          # Erlös positiv, Entgelt negativ
+    else:
+        eur = eur if category == "Marktwert" else -eur              # wie in der Abrechnung: Gutschrift negativ
+    row = point.revenues.filter_by(year=year, month=month, category=category, source=source).first()
+    if row is None:
+        row = FeedRevenue(feed_point_id=point.id, year=year, month=month, category=category, source=source)
+        db.session.add(row)
+    row.kwh = Decimal(str(round(kwh or 0, 1)))
+    row.eur = Decimal(str(round(eur, 2)))
+    row.manual = True
+    db.session.flush()
+    return row
+
+
+def manual_rows(year):
+    """Von Hand eingetragene Positionen aller Einspeisestellen eines Jahres (für die Liste zum Löschen)."""
+    return (FeedRevenue.query.filter(FeedRevenue.year == year, FeedRevenue.manual.is_(True))
+            .order_by(FeedRevenue.feed_point_id, FeedRevenue.month, FeedRevenue.source, FeedRevenue.category).all())
+
+
+def manual_label(row):
+    """Anzeige einer Position (Kategorie-Schlüssel der Direktvermarktung → Text, noch nicht übersetzt)."""
+    return DV_LABELS.get(row.category, row.category) if row.source == "dv" else row.category
+
+
+def delete_manual(row):
+    if not row.manual:
+        raise StorageError(N_("Importierte Positionen lassen sich nur durch einen neuen Import ersetzen."))
+    db.session.delete(row)
 
 
 def rate_eur_per_kwh(point, today=None):
@@ -394,7 +516,7 @@ def apply_import(parsed, mapping):
             row.kwh = Decimal(str(round(v["kwh"], 1)))
             row.reduced_kwh = Decimal(str(round(v["reduced"], 1))) if v["reduced"] else None
             count += 1
-            point.revenues.filter_by(year=year, month=month).delete()
+            point.revenues.filter_by(year=year, month=month, source="netz").delete()     # Direktvermarktung bleibt
             for category, r in parsed.get("revenues", {}).get((name, year, month), {}).items():
                 db.session.add(FeedRevenue(feed_point_id=point.id, year=year, month=month, category=category,
                                            kwh=Decimal(str(round(r["kwh"], 1))), eur=Decimal(str(round(r["eur"], 2)))))

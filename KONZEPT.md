@@ -970,6 +970,14 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Erlöse Direktvermarktung und von Hand (0.109.0)
+- Unter Biogas → Einstellungen „Erlöse von Hand und Direktvermarktung“: je Einspeisestelle und Monat (oder Jahr) die
+  Gutschrift des Direktvermarkters (Stromerlös, Vermarktungsentgelt, Sonstiges) und – ohne CSV – Positionen des
+  Netzbetreibers (Marktprämie, Flexprämie, Boni, Marktwert). Betrag in € oder kWh × ct/kWh, positiv eingeben.
+- Unter Budget → Erlöse zusätzlich: Direktvermarkter gezahlt, ausgezahlt gesamt (ct/kWh), Mehrerlös Flexibilität
+  (= Direktvermarktung − Marktwert) und der Day-Ahead-Erlös laut Fahrplan zum Vergleich; Monate als Tabelle.
+- Später: CSV-Import der SKVE-Gutschrift (Muster fehlt noch) oder direkt über die API (Termin mit SKVE).
+
 ### Vorgabe-Mengen (0.108.0)
 - Je Substrat eine Standard-Vorgabe in kg je Fütterung (Admin, unter Substrate). Planer können sie für einzelne
   Fütterungen ändern (leer = Standard, 0 = diesmal nichts), nur für heute und später.

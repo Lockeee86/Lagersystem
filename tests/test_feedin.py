@@ -301,3 +301,48 @@ def test_extra_power_calculator(app, as_admin, db, seed):
     html = as_admin.get("/biogas/budget?jahr=2025").get_data(as_text=True)
     assert "Mehrstrom lohnt ab" in html and "Kosten je Mehr-kWh" in html
     assert 'value="23,67"' in as_admin.get("/biogas/einstellungen?jahr=2025").get_data(as_text=True)
+
+
+def test_direct_marketing_revenue(app, as_admin, as_worker, db, seed, plant):
+    """Gutschrift des Direktvermarkters von Hand: ausgezahlt gesamt, Mehrerlös gegenüber Marktwert, Fahrplan-Vergleich."""
+    feedin.apply_import(feedin.parse_csv(REV_CSV.encode()), {"Nord": plant})
+    db.session.commit()
+    # Stromerlös als kWh × ct, Entgelt als Betrag (positiv eingegeben, wird abgezogen)
+    as_admin.post("/biogas/erloese/hand", data={"point": plant.id, "jahr": "2026", "monat": "1", "kategorie": "dv:erloes",
+                                                "kwh": "12.000", "ct": "11,5"})
+    r = as_admin.post("/biogas/erloese/hand", data={"point": plant.id, "jahr": "2026", "monat": "1",
+                                                    "kategorie": "dv:entgelt", "eur": "36"}, follow_redirects=True)
+    assert "Erlös gespeichert." in r.get_data(as_text=True)
+    y = feedin.revenue(plant, 2026)["year"]
+    assert y["dv"] == pytest.approx(1380 - 36) and y["dv_ct"] == pytest.approx(100 * 1344 / 12000)
+    assert y["paid"] == pytest.approx(1144.2 + 1344) and y["gain"] == pytest.approx(1344 - 1000)
+    # gleiche Kategorie im selben Monat ersetzt; CSV-Import lässt die Direktvermarktung stehen
+    feedin.save_manual(plant, 2026, 1, "dv:erloes", "12000", "1500", "")
+    feedin.apply_import(feedin.parse_csv(REV_CSV.encode()), {"Nord": plant})
+    db.session.commit()
+    assert feedin.revenue(plant, 2026)["year"]["dv"] == pytest.approx(1500 - 36)
+    # Fehler: ohne Betrag und ohne ct, unbekannte Kategorie
+    with pytest.raises(StorageError):
+        feedin.save_manual(plant, 2026, 2, "dv:erloes", "100", "", "")
+    with pytest.raises(StorageError):
+        feedin.save_manual(plant, 2026, 2, "quatsch", "", "5", "")
+    # Netzbetreiber von Hand (ohne CSV): Marktprämie als Gutschrift, Menge kommt aus der Position
+    feedin.save_manual(plant, 2027, 3, "netz:mp", "5000", "400", "")
+    feedin.save_manual(plant, 2027, 3, "netz:marktwert", "5000", "450", "")
+    db.session.commit()
+    m = feedin.revenue(plant, 2027)["months"][0]
+    assert m["groups"]["grund"] == pytest.approx(400) and m["market"] == pytest.approx(450) and m["kwh"] == 5000
+    # Seiten: Einstellungen mit Liste, Budget mit den neuen Kennzahlen; Mitarbeiter darf nicht
+    html = as_admin.get("/biogas/einstellungen?jahr=2026").get_data(as_text=True)
+    assert "Erlöse von Hand und Direktvermarktung 2026" in html and "Vermarktungsentgelt" in html
+    html = as_admin.get("/biogas/budget?jahr=2026").get_data(as_text=True)
+    assert "Ausgezahlt gesamt" in html and "Mehrerlös Flexibilität" in html
+    assert as_worker.post("/biogas/erloese/hand", data={"point": plant.id}).status_code in (302, 403)
+    # Löschen nur von Hand eingetragener Positionen
+    from app.models import FeedRevenue
+    manual = FeedRevenue.query.filter_by(year=2026, source="dv", category="entgelt").one()
+    as_admin.post(f"/biogas/erloese/{manual.id}/loeschen")
+    assert feedin.revenue(plant, 2026)["year"]["dv"] == pytest.approx(1500)
+    imported = FeedRevenue.query.filter_by(year=2026, manual=False).first()
+    with pytest.raises(StorageError):
+        feedin.delete_manual(imported)

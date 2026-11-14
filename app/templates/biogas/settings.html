@@ -99,6 +99,52 @@
     </div>
 </div>
 
+{% if current_user.is_admin and budget %}
+<div class="card shadow-sm mb-4" id="erloese-hand">
+    <div class="card-header"><i class="bi bi-cash-coin me-1"></i>{{ _("Erlöse von Hand und Direktvermarktung {year}", year=budget_year) }}</div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('biogas.revenue_manual') }}" class="row g-2 align-items-end">
+            {{ csrf() }}
+            <div class="col-12 col-md-4"><label class="form-label small mb-0" for="rv_point">{{ _("Einspeisestelle") }}</label>
+                <select class="form-select form-select-sm" id="rv_point" name="point" required>{% for s in budget %}<option value="{{ s.point.id }}">{{ s.point.name }}</option>{% endfor %}</select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0" for="rv_month">{{ _("Monat") }}</label>
+                <select class="form-select form-select-sm" id="rv_month" name="monat">{% for name in month_names %}<option value="{{ loop.index }}"{% if loop.index == today.month - 1 or (today.month == 1 and loop.index == 12) %} selected{% endif %}>{{ _(name) }}</option>{% endfor %}<option value="0">{{ _("ganzes Jahr") }}</option></select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0" for="rv_year">{{ _("Jahr") }}</label>
+                <input class="form-control form-control-sm" id="rv_year" name="jahr" inputmode="numeric" value="{{ budget_year }}" required></div>
+            <div class="col-12 col-md-4"><label class="form-label small mb-0" for="rv_cat">{{ _("Kategorie") }}</label>
+                <select class="form-select form-select-sm" id="rv_cat" name="kategorie" required>{% for key, source, cat, label in manual_categories %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}</select></div>
+            <div class="col-4 col-md-2"><label class="form-label small mb-0" for="rv_kwh">{{ _("Menge (kWh)") }}</label>
+                <input class="form-control form-control-sm text-end" id="rv_kwh" name="kwh" inputmode="decimal" maxlength="20" placeholder="0"></div>
+            <div class="col-4 col-md-2"><label class="form-label small mb-0" for="rv_eur">{{ _("Betrag (€)") }}</label>
+                <input class="form-control form-control-sm text-end" id="rv_eur" name="eur" inputmode="decimal" maxlength="20"></div>
+            <div class="col-4 col-md-2"><label class="form-label small mb-0" for="rv_ct">{{ _("oder ct/kWh") }}</label>
+                <input class="form-control form-control-sm text-end" id="rv_ct" name="ct" inputmode="decimal" maxlength="20"></div>
+            <div class="col-12 col-md-auto"><button class="btn btn-sm btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") }}</button></div>
+        </form>
+        <div class="form-text">{{ _("Beträge positiv eingeben, so wie sie auf der Gutschrift stehen – das Entgelt des Direktvermarkters und den Marktwert zieht die App selbst ab. Ohne Betrag rechnet sie Menge × ct/kWh. Gleiche Kategorie im selben Monat wird ersetzt; ein CSV-Import ersetzt die Netzbetreiber-Positionen des Monats, die Direktvermarktung bleibt.") }}</div>
+        {% if manual_rows %}
+        <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>{{ _("Einspeisestelle") }}</th><th>{{ _("Monat") }}</th><th>{{ _("Kategorie") }}</th><th class="text-end">kWh</th><th class="text-end">€</th><th></th></tr></thead>
+                <tbody>
+                {% for r in manual_rows %}
+                <tr>
+                    <td>{{ r.feed_point.name }}</td>
+                    <td>{{ _(month_names[r.month - 1]) if r.month else _("Jahr") }}</td>
+                    <td><span class="badge text-bg-{{ 'info' if r.source == 'dv' else 'secondary' }}">{{ _("Direktvermarktung") if r.source == 'dv' else _("Netzbetreiber") }}</span> {{ _(manual_label(r)) }}</td>
+                    <td class="text-end">{{ r.kwh|num(0) if r.kwh else "–" }}</td>
+                    <td class="text-end">{{ (r.eur if r.source == 'dv' or r.category == 'Marktwert' else -r.eur)|num(2) }}</td>
+                    <td class="text-end"><form method="post" action="{{ url_for('biogas.revenue_manual_delete', row_id=r.id) }}">{{ csrf() }}<button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('Diesen Erlös löschen?') }}" aria-label="{{ _('Löschen') }}"><i class="bi bi-trash"></i></button></form></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if current_user.is_admin %}
 <details class="card shadow-sm mb-4" id="anzeige">
     <summary class="card-header"><i class="bi bi-display me-1"></i>{{ _("Anzeige der Biogasanlage (Display 800×480)") }}</summary>

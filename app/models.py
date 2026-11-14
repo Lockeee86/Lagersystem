@@ -1942,9 +1942,11 @@ class FeedMonth(db.Model):
 
 class FeedRevenue(db.Model):
     """Betrag einer Abrechnungs-Kategorie je Einspeisestelle und Monat (Vorzeichen wie in der Abrechnung des
-    Netzbetreibers: Gutschriften negativ, Marktwert positiv). `month` 0 = Jahresabrechnung."""
+    Netzbetreibers: Gutschriften negativ, Marktwert positiv). `month` 0 = Jahresabrechnung.
+    `source`: „netz“ = Abrechnung des Netzbetreibers (Import oder von Hand), „dv“ = Direktvermarkter – dort mit
+    natürlichem Vorzeichen (Erlös positiv, Entgelt negativ). `manual` = von Hand eingetragen (Import überschreibt nicht)."""
     __tablename__ = "feed_revenues"
-    __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", "category", name="uq_feed_revenue"),)
+    __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", "category", "source", name="uq_feed_revenue"),)
 
     id = db.Column(db.Integer, primary_key=True)
     feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -1953,6 +1955,8 @@ class FeedRevenue(db.Model):
     category = db.Column(db.String(60), nullable=False)
     kwh = db.Column(db.Numeric(12, 1), nullable=False, default=0)
     eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    source = db.Column(db.String(10), nullable=False, default="netz", server_default="netz")
+    manual = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     feed_point = db.relationship("FeedPoint", backref=db.backref("revenues", lazy="dynamic", cascade="all, delete-orphan",
                                                                   passive_deletes=True))

@@ -100,6 +100,12 @@
                 <div><span>{{ _("Gesamterlös") }}</span><strong>{{ y.total|num(0) }} €</strong><small>{% if y.ct is not none %}{{ _("{n} ct/kWh", n=y.ct|num(2)) }}{% endif %}</small></div>
                 <div><span>{{ _("davon Netzbetreiber") }}</span><strong>{{ y.netz|num(0) }} €</strong><small>{{ _("Prämien und Boni") }}</small></div>
                 <div><span>{{ _("davon Direktvermarktung") }}</span><strong>{{ y.market|num(0) }} €</strong><small>{{ _("Marktwert") }}</small></div>
+                {% if r.has_dv %}
+                <div><span>{{ _("Direktvermarkter gezahlt") }}</span><strong>{{ y.dv|num(0) }} €</strong><small>{% if y.dv_ct is not none %}{{ _("{n} ct/kWh", n=y.dv_ct|num(2)) }} · {% endif %}{{ _("nach Entgelt") }}</small></div>
+                <div><span>{{ _("Ausgezahlt gesamt") }}</span><strong>{{ y.paid|num(0) }} €</strong><small>{% if y.paid_ct is not none %}{{ _("{n} ct/kWh", n=y.paid_ct|num(2)) }} · {% endif %}{{ _("Netzbetreiber + Direktvermarkter") }}</small></div>
+                {% if y.gain is not none %}<div><span>{{ _("Mehrerlös Flexibilität") }}</span><strong class="{{ 'text-success' if y.gain >= 0 else 'text-danger' }}">{{ '+' if y.gain >= 0 }}{{ y.gain|num(0) }} €</strong><small>{{ _("Direktvermarktung − Marktwert") }}</small></div>{% endif %}
+                {% if y.plan_dv %}<div><span>{{ _("Laut Fahrplan (Day-Ahead)") }}</span><strong>{{ y.plan_dv|num(0) }} €</strong><small>{{ _("gleiche Monate, Abweichung {n} €", n=(y.dv - y.plan_dv)|num(0)) }}</small></div>{% endif %}
+                {% endif %}
                 {% if y.lost %}<div><span>{{ _("Entgangen durch Verringerung") }}</span><strong class="text-danger">≈ {{ y.lost|num(0) }} €</strong><small>{{ _("kWh über der Höchstbemessungsleistung") }}</small></div>{% endif %}
             </div>
             {% if not r.annual_only %}
@@ -117,10 +123,26 @@
             {% else %}
             <div class="small text-body-secondary mt-2">{{ _("Nur Jahresabrechnung – ohne Aufteilung nach Monaten.") }}</div>
             {% endif %}
+            {% if r.has_dv %}
+            <details class="mt-2 small">
+                <summary class="text-body-secondary">{{ _("Monate: Netzbetreiber und Direktvermarkter") }}</summary>
+                <div class="table-responsive"><table class="table table-sm mb-0 mt-1">
+                    <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Netzbetreiber") }}</th><th class="text-end">{{ _("Direktvermarkter") }}</th><th class="text-end">{{ _("zusammen") }}</th><th class="text-end">ct/kWh</th><th class="text-end">{{ _("Fahrplan") }}</th></tr></thead>
+                    <tbody>{% for m in r.months %}<tr>
+                        <td>{{ _(month_names[m.month - 1]) if m.month else _("Jahr") }}</td>
+                        <td class="text-end">{{ m.netz|num(0) }} €</td>
+                        <td class="text-end">{{ (m.dv|num(0) ~ " €") if m.dv is not none else "–" }}</td>
+                        <td class="text-end fw-semibold">{{ (m.paid|num(0) ~ " €") if m.paid is not none else "–" }}</td>
+                        <td class="text-end">{{ (100 * m.paid / m.kwh)|num(2) if m.paid is not none and m.kwh else "–" }}</td>
+                        <td class="text-end text-body-secondary">{{ (m.plan|num(0) ~ " €") if m.plan else "–" }}</td>
+                    </tr>{% endfor %}</tbody>
+                </table></div>
+            </details>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
-    <div class="card-footer small text-body-secondary">{{ _("Aus den importierten Abrechnungen: Gesamterlös = anzulegender Wert, Boni und Flexprämie. Der Netzbetreiber zahlt das abzüglich Marktwert, den Marktwert bekommt ihr über die Direktvermarktung. „Entgangen“ ist geschätzt: kWh der Verringerung × (anzulegender Wert + Boni − Marktwert) desselben Monats.") }}</div>
+    <div class="card-footer small text-body-secondary">{{ _("Aus den importierten Abrechnungen: Gesamterlös = anzulegender Wert, Boni und Flexprämie. Der Netzbetreiber zahlt das abzüglich Marktwert, den Marktwert bekommt ihr über die Direktvermarktung. „Entgangen“ ist geschätzt: kWh der Verringerung × (anzulegender Wert + Boni − Marktwert) desselben Monats.") }}{% if rev|selectattr("revenue.has_dv")|list %} {{ _("Mit den Gutschriften des Direktvermarkters (Einstellungen → Erlöse von Hand) zeigt die App, was wirklich ausgezahlt wurde und was der flexible Fahrplan über dem Marktwert gebracht hat.") }}{% endif %}</div>
 </div>
 {% endif %}
 {% endblock %}
