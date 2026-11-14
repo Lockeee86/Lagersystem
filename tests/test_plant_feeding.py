@@ -346,3 +346,39 @@ def test_parse_kg():
     assert pf.parse_kg("1,4") == 1 and pf.parse_kg("") is None and pf.parse_kg("0") == 0
     with pytest.raises(StorageError):
         pf.parse_kg("-5")
+
+
+def test_targets(app, db, team, as_worker, as_admin):
+    """Vorgabe je Fütterung: Standard je Substrat, abweichend für eine Fütterung (Planer), Anzeige von Soll und Abweichung."""
+    worker, admin = team["worker"], team["admin"]
+    pf.save_defaults([1] * 8)
+    db.session.commit()
+    as_admin.post("/biogas/fuetterung/substrate", data={"aktion": "neu", "name": "Maissilage", "ziel": "12.000"})
+    as_admin.post("/biogas/fuetterung/substrate", data={"aktion": "neu", "name": "Grassilage", "ziel": ""})
+    mais, gras = pf.substrates()
+    assert (mais.target_kg, gras.target_kg) == (12000, None)
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    assert pf.targets_for(tomorrow, 1) == {mais.id: 12000}
+    # Planer weicht für morgen ab: Mais 10 t, Gras 2 t; 0 = diesmal nichts
+    with pytest.raises(StorageError):
+        pf.set_targets(tomorrow, 1, worker, {mais.id: 1})               # nur Planer
+    as_admin.post("/biogas/fuetterung/vorgabe", data={"tag": tomorrow.isoformat(), "slot": "1",
+                                                      f"kg_{mais.id}": "10000", f"kg_{gras.id}": "2000"})
+    assert pf.targets_for(tomorrow, 1) == {mais.id: 10000, gras.id: 2000} and pf.has_override(tomorrow, 1)
+    pf.set_targets(tomorrow, 1, admin, {gras.id: 0})
+    db.session.commit()
+    assert pf.targets_for(tomorrow, 1) == {mais.id: 10000}
+    as_admin.post("/biogas/fuetterung/vorgabe", data={"tag": tomorrow.isoformat(), "slot": "1", "standard": "1"})
+    assert pf.targets_for(tomorrow, 1) == {mais.id: 12000} and not pf.has_override(tomorrow, 1)
+    with pytest.raises(StorageError):
+        pf.set_targets(today - timedelta(days=1), 1, admin, {mais.id: 5})   # nicht rückwirkend
+    # Mitarbeiter sieht die Vorgabe, trägt Ist ein → Abweichung wird angezeigt
+    shift = pf.take(today, 1, worker)
+    db.session.commit()
+    page = as_worker.get("/biogas/fuetterung").get_data(as_text=True)
+    assert "Vorgabe" in page and "12.000 kg Maissilage" in page and 'data-target-kg="12000"' in page and "Wie vorgegeben" in page
+    as_worker.post(f"/biogas/fuetterung/{shift.id}/erledigt", data={f"kg_{mais.id}": "12300"})
+    page = as_worker.get("/biogas/fuetterung").get_data(as_text=True)
+    assert "12.300 kg Maissilage" in page and "feeding-diff plus" in page and "+300 kg" in page
+    assert "Vorgabe für diese Fütterung" not in page                  # Mitarbeiter ändern keine Vorgaben

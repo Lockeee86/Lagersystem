@@ -6,7 +6,8 @@
 - Umstellen 1×/2×: Planer/Admins jederzeit, am Tag selbst auch wer an dem Tag eingetragen ist.
 - Eintragen bis `WEEKS_AHEAD` Wochen im Voraus; eine Person darf beide Plätze eines Tages haben.
 - Mengen je Fütterung in Kilogramm je Substrat (`FeedingAmount`, Substrate `FeedingSubstrate` pflegt ein Admin):
-  `save_amounts()`, Summen `totals()` / `month_totals()`.
+  `save_amounts()`, Summen `totals()` / `month_totals()`. Vorgabe je Fütterung: Standard `FeedingSubstrate.target_kg`
+  (Admin), für einzelne Fütterungen abweichend `FeedingTarget` (Planer) – `targets_for()` / `set_targets()`.
 Committet nicht (außer `check()` aus dem Zeitplan); Push nach dem Commit über die `notify_*`-Funktionen.
 """
 from datetime import date, datetime, timedelta, UTC
@@ -18,7 +19,8 @@ from .extensions import db
 from .i18n import gettext as _
 from sqlalchemy import extract, func
 
-from .models import FEEDING_SLOTS, FeedingAmount, FeedingDay, FeedingShift, FeedingSubstrate, Setting, User
+from .models import (FEEDING_SLOTS, FeedingAmount, FeedingDay, FeedingShift, FeedingSubstrate, FeedingTarget, Setting,
+                     User)
 from .push import Msg
 from .storage import StorageError
 
@@ -140,6 +142,10 @@ def week(monday, user=None, today=None):
         shifts[(s.day, s.slot)] = s
     holidays = _holidays(monday, sunday)
     values = defaults()
+    subs = substrates()
+    overrides = {(t.day, t.slot, t.substrate_id): t.kg
+                 for t in FeedingTarget.query.filter(FeedingTarget.day >= monday, FeedingTarget.day <= sunday)}
+    override_slots = {(d, s) for d, s, _sid in overrides}
     days = []
     # Mengen gleich mitladen (eine Abfrage statt je Fütterung)
     if shifts:
@@ -151,7 +157,9 @@ def week(monday, user=None, today=None):
         day = monday + timedelta(days=i)
         entry = entries.get(day)
         times = entry.times if entry else default_times(day, holidays, values)
-        slots = [{"slot": slot, "label": slot_label(slot, times), "shift": shifts.get((day, slot))}
+        slots = [{"slot": slot, "label": slot_label(slot, times), "shift": shifts.get((day, slot)),
+                  "targets": targets_for(day, slot, overrides, subs), "custom": (day, slot) in override_slots,
+                  "overrides": {sid: kg for (d, sl, sid), kg in overrides.items() if d == day and sl == slot}}
                  for slot in slots_for(times)]
         days.append({
             "day": day, "times": times, "holiday": holidays.get(day), "note": entry.note if entry else None,
@@ -305,6 +313,58 @@ def add_substrate(name):
     return substrate
 
 
+def set_standard_target(substrate, kg):
+    """Standard-Vorgabe je Fütterung (kg) – None/0 = keine Vorgabe."""
+    substrate.target_kg = kg or None
+    db.session.flush()
+
+
+def targets_for(day, slot, overrides=None, subs=None):
+    """{Substrat-id: kg} für eine Fütterung: abweichende Vorgabe des Planers, sonst der Standard (nur aktive Substrate).
+    Eine abweichende 0 heißt „diesmal nicht“ und steht deshalb nicht im Ergebnis."""
+    if overrides is None:
+        overrides = {(t.day, t.slot, t.substrate_id): t.kg for t in FeedingTarget.query.filter_by(day=day, slot=slot)}
+    result = {}
+    for s in (subs if subs is not None else substrates()):
+        kg = overrides.get((day, slot, s.id), s.target_kg)
+        if kg:
+            result[s.id] = kg
+    return result
+
+
+def has_override(day, slot):
+    return FeedingTarget.query.filter_by(day=day, slot=slot).first() is not None
+
+
+def set_targets(day, slot, actor, values, today=None):
+    """Abweichende Vorgabe für eine Fütterung (nur Planer, nicht rückwirkend). `values` = {Substrat-id: kg oder None};
+    None/leer = wieder Standard, 0 = diesmal nichts davon. `reset=True` über leeres `values` setzt alles zurück."""
+    today = today or date.today()
+    if not is_planner(actor):
+        raise StorageError(_("Vorgaben ändern dürfen nur Planer und Admins."))
+    if day < today:
+        raise StorageError(_("Vergangene Tage lassen sich nicht mehr ändern."))
+    known = {s.id: s for s in substrates(active_only=False)}
+    current = {t.substrate_id: t for t in FeedingTarget.query.filter_by(day=day, slot=slot)}
+    for substrate_id, kg in values.items():
+        if substrate_id not in known:
+            continue
+        row = current.get(substrate_id)
+        if kg is None or kg == known[substrate_id].target_kg:      # gleich dem Standard → keine Abweichung nötig
+            if row is not None:
+                db.session.delete(row)
+            continue
+        if row is None:
+            db.session.add(FeedingTarget(day=day, slot=slot, substrate_id=substrate_id, kg=kg))
+        else:
+            row.kg = kg
+    db.session.flush()
+
+
+def reset_targets(day, slot, actor, today=None):
+    set_targets(day, slot, actor, {t.substrate_id: None for t in FeedingTarget.query.filter_by(day=day, slot=slot)}, today)
+
+
 def update_substrate(substrate, name=None, active=None, move=0):
     """Umbenennen, an-/abschalten (benutzte bleiben in den Summen), in der Reihenfolge verschieben (−1/+1)."""
     if name is not None:
@@ -331,6 +391,7 @@ def delete_substrate(substrate):
     """Nur löschen, solange keine Menge damit gebucht ist – sonst abschalten."""
     if FeedingAmount.query.filter_by(substrate_id=substrate.id).first() is not None:
         raise StorageError(_("„{name}“ ist schon in Fütterungen gebucht – bitte abschalten statt löschen.", name=substrate.name))
+    FeedingTarget.query.filter_by(substrate_id=substrate.id).delete(synchronize_session=False)
     db.session.delete(substrate)
     db.session.flush()
 
@@ -420,13 +481,15 @@ def amounts_export(year):
     wb = Workbook()
     ws = wb.active
     ws.title = _("Fütterung {year}", year=year)[:31]
-    ws.append([_("Datum"), _("Fütterung"), _("Person"), *[f"{s.name} (kg)" for s in subs], _("Summe (kg)")])
+    ws.append([_("Datum"), _("Fütterung"), _("Person"), *[f"{s.name} (kg)" for s in subs], _("Summe (kg)"),
+               _("Vorgabe (kg)")])
     for cell in ws[1]:
         cell.font = Font(bold=True)
     for s in shifts:
         kg = {a.substrate_id: a.kg for a in s.amounts}
+        planned = sum(targets_for(s.day, s.slot).values())
         ws.append([s.day, slot_label(s.slot, times_on(s.day)), s.user.name if s.user else "",
-                   *[kg.get(sub.id) for sub in subs], sum(kg.values())])
+                   *[kg.get(sub.id) for sub in subs], sum(kg.values()), planned or None])
         ws.cell(row=ws.max_row, column=1).number_format = "DD.MM.YYYY"
     for col, width in zip("ABC", (12, 12, 18), strict=False):
         ws.column_dimensions[col].width = width

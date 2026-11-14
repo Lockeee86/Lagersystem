@@ -1660,6 +1660,14 @@ body.is-embed .page-tabs { --tabs-top: .5rem; }
 .feeding-amounts { display: flex; flex-wrap: wrap; gap: .2rem .9rem; font-size: var(--fs-sm); color: var(--bs-secondary-color); }
 .feeding-kg-toggle { font-size: var(--fs-sm); }
 .feeding-kg { padding: .6rem; margin-top: .2rem; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
-.feeding-kg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .5rem .75rem; }
-.feeding-kg-field { display: flex; flex-direction: column; gap: .15rem; font-size: var(--fs-sm); font-weight: 600; }
+.feeding-kg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 1fr)); gap: .5rem .75rem; }
+.feeding-kg-field { display: flex; flex-direction: column; gap: .15rem; min-width: 0; font-size: var(--fs-sm); font-weight: 600; }
+.feeding-kg-field .form-control { min-width: 0; }
+.feeding-slot { min-width: 0; }
+.feeding-amounts > span, .feeding-plan { min-width: 0; overflow-wrap: anywhere; }
+.feeding-diff { white-space: nowrap; }
 .feeding-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem 2rem; }
+.feeding-plan { font-size: var(--fs-sm); color: var(--bs-secondary-color); }
+.feeding-diff { font-weight: 700; font-size: var(--fs-xs); padding: 0 .3rem; border-radius: var(--r-pill); }
+.feeding-diff.plus { color: var(--st-warn); background: var(--st-warn-bg); }
+.feeding-diff.minus { color: var(--st-info); background: var(--st-info-bg); }

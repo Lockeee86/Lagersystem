@@ -970,6 +970,12 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Vorgabe-Mengen (0.108.0)
+- Je Substrat eine Standard-Vorgabe in kg je Fütterung (Admin, unter Substrate). Planer können sie für einzelne
+  Fütterungen ändern (leer = Standard, 0 = diesmal nichts), nur für heute und später.
+- Wer füttert, sieht „Vorgabe“ und „Soll“ und trägt die tatsächliche Menge ein; „Wie vorgegeben“ füllt leere Felder.
+  Abweichungen erscheinen als +/− kg, die Excel-Liste hat eine Spalte „Vorgabe (kg)“.
+
 ### Fütterungsmengen (0.107.0)
 - Beim Abhaken einer Fütterung (oder nachträglich) die Mengen in Kilogramm je Substrat eintragen; Summen je Woche und
   Jahr (Monate aufklappbar) und Excel-Liste je Jahr auf der Fütterungsseite. Die Substrate legt ein Admin dort an; schon

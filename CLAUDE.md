@@ -160,7 +160,7 @@ docker compose up --build -d
   abgehakt an Planer; Themen `feeding_*`), Startseite (`views._feeding_important`, „Meine Aufgaben heute“), Kalender
   `calendar_events()`, Werkstatt-Bildschirm, Anlagen-Display (Hinweis); committet nicht (außer über `push.daily`).
   Mengen je Fütterung in **Kilogramm** je Substrat: `FeedingSubstrate` (pflegt ein Admin unter `#substrate`, benutzte nur
-  abschalten – `delete_substrate()` lehnt ab), `FeedingAmount` (`shift.amounts`, `total_kg`), `save_amounts()` (wer eingetragen
+  abschalten – `delete_substrate()` lehnt ab), `FeedingAmount` (`shift.amounts`, `total_kg`), Vorgabe: Standard `FeedingSubstrate.target_kg` (`set_standard_target()`), abweichend je Fütterung `FeedingTarget` (`set_targets()` nur Planer, nicht rückwirkend; `reset_targets()`, `targets_for()`, `has_override()`, in `week()` `targets`/`custom`/`overrides`; Route `feeding_targets`, Knopf „Wie vorgegeben“ `data-fill-targets`), `save_amounts()` (wer eingetragen
   ist/abgehakt hat oder Planer, nicht für künftige Tage; 0/leer entfernt), `parse_kg()` („12.500“), Summen `totals()` /
   `month_totals()`, Excel `amounts_export()`; Routen `feeding_amounts`, `feeding_substrates`, `feeding_export`; beim Abhaken
   gleich mitschicken (`kg_<id>`), ohne Mengen springt die Seite auf `#m<id>` (Formular klappt auf); Filter `|kg_exact`

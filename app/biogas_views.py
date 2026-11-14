@@ -418,6 +418,27 @@ def feeding_amounts(shift_id):
     return redirect(url_for("biogas.feeding_page", woche=monday.isoformat()) + f"#t{shift.day.isoformat()}")
 
 
+@bp.route("/biogas/fuetterung/vorgabe", methods=["POST"])
+@login_required
+def feeding_targets():
+    """Planer: Vorgabe für eine einzelne Fütterung abweichend vom Standard (oder zurück auf Standard)."""
+    from . import plant_feeding
+    day = _form_day()
+    slot = form_int("slot") or 1
+    try:
+        if request.form.get("standard"):
+            plant_feeding.reset_targets(day, slot, current_user)
+            flash(_("Vorgabe wieder wie Standard."), "success")
+        else:
+            plant_feeding.set_targets(day, slot, current_user, _kg_values(plant_feeding))
+            flash(_("Vorgabe gespeichert."), "success")
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return _feeding_back(day)
+
+
 @bp.route("/biogas/fuetterung/substrate", methods=["POST"])
 @admin_required
 def feeding_substrates():
@@ -428,6 +449,7 @@ def feeding_substrates():
         action = request.form.get("aktion", "")
         if action == "neu":
             substrate = plant_feeding.add_substrate(request.form.get("name"))
+            plant_feeding.set_standard_target(substrate, plant_feeding.parse_kg(request.form.get("ziel")))
             flash(_("Substrat „{name}“ angelegt.", name=substrate.name), "success")
         else:
             substrate = db.session.get(FeedingSubstrate, form_int("substrate_id") or 0) or abort(404)
@@ -441,6 +463,8 @@ def feeding_substrates():
                 plant_feeding.update_substrate(substrate, active=not substrate.active)
             else:
                 plant_feeding.update_substrate(substrate, name=request.form.get("name", ""))
+                if "ziel" in request.form:
+                    plant_feeding.set_standard_target(substrate, plant_feeding.parse_kg(request.form.get("ziel")))
         db.session.commit()
     except StorageError as e:
         db.session.rollback()

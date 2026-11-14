@@ -704,6 +704,15 @@ window.App = (function () {
         });
     }
 
+    // Fütterungsmengen: „Wie vorgegeben“ füllt leere Felder mit der Vorgabe (data-target-kg)
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-fill-targets]");
+        if (!btn) { return; }
+        btn.closest("form").querySelectorAll("input[data-target-kg]").forEach((input) => {
+            if (input.dataset.targetKg && !input.value) { input.value = input.dataset.targetKg; }
+        });
+    });
+
     // Erste Schritte: einmal zeigen, beim Schließen am Benutzer merken
     const welcome = document.getElementById("welcome");
     if (welcome) {

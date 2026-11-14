@@ -2613,6 +2613,22 @@ class FeedingSubstrate(db.Model):
     name = db.Column(db.String(60), nullable=False)
     position = db.Column(db.Integer, nullable=False, default=0, server_default="0")
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    target_kg = db.Column(db.Integer)          # Vorgabe je Fütterung (Standard), None = keine
+
+
+class FeedingTarget(db.Model):
+    """Vom Standard abweichende Vorgabe für eine bestimmte Fütterung (Tag + Platz) und ein Substrat – setzt ein Planer."""
+    __tablename__ = "feeding_targets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    slot = db.Column(db.Integer, nullable=False, default=1)
+    substrate_id = db.Column(db.Integer, db.ForeignKey("feeding_substrates.id", ondelete="CASCADE"), nullable=False)
+    kg = db.Column(db.Integer, nullable=False)
+
+    substrate = db.relationship("FeedingSubstrate")
+
+    __table_args__ = (db.UniqueConstraint("day", "slot", "substrate_id", name="uq_feeding_targets_day_slot_substrate"),)
 
 
 class FeedingAmount(db.Model):
