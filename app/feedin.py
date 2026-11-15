@@ -733,6 +733,17 @@ def _netz_category(text):
     return category_name(re.sub(r"\s+", " ", text).strip(" -"))
 
 
+def netz_point_name(text):
+    """Name der Einspeisestelle aus „Einspeisestelle: PLZ Ort, Straße // Nummer“. Die Nummer allein reicht nicht –
+    mehrere Stellen können dieselbe haben –, darum Straße + Nummer: „Feldweg 1 (00001234)“."""
+    match = re.search(r"Einspeisestelle:\s*([^\n]*?)\s*//\s*(\d+)", text)
+    if not match:
+        return "Einspeisestelle"
+    street = re.sub(r"\s+", " ", match.group(1).split(",")[-1]).strip()
+    street = re.sub(r"^\d{5}\s+", "", street)                      # ohne Komma: PLZ vorne weg
+    return f"{street} ({match.group(2)})"[:100] if street else f"Einspeisestelle {match.group(2)}"
+
+
 def parse_netz_pdf(data):
     """PDF-Abrechnung des Netzbetreibers → gleiche Form wie `parse_csv()` (+ `warnings`)."""
     text = _pdf_text(data)
@@ -740,8 +751,7 @@ def parse_netz_pdf(data):
     if not period:
         raise FeedImportError(N_("In der PDF steht kein Vergütungszeitraum – ist das eine Einspeiseabrechnung?"))
     year, month = int(period.group(3)), int(period.group(2))
-    point_id = re.search(r"Einspeisestelle:[^\n]*?//\s*(\d+)", text)
-    name = f"Einspeisestelle {point_id.group(1)}" if point_id else "Einspeisestelle"
+    name = netz_point_name(text)
     revenues, warnings = {}, []
     flex = market = reduced = 0.0
     last = None

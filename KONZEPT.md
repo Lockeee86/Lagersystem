@@ -976,7 +976,8 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   Immissionsschutz, Managementprämie, Marktwert, Flexprämie, Verringerung) sowie die Mess- und Abrechnungsentgelte.
 - Die PDF ist oft ein Scan mit Texterkennung: jede Position wird an Menge × Preis geprüft (fehlendes Minus wird
   korrigiert), die Summe mit „Summe Gesamterzeugung“ verglichen – Abweichungen erscheinen als Warnung in der Vorschau.
-- Die Zuordnung „Einspeisestelle <Nr.>“ → Einspeisestelle der App merkt sich die App.
+- Die Zuordnung zur Einspeisestelle der App merkt sich die App. Erkannt wird die Stelle an Straße + Nummer
+  (0.113.1: zwei Stellen können dieselbe Nummer haben).
 
 ### Gutschrift Flex-Vermarkter (0.110.0)
 - Die Monats-Gutschrift des Vermarkters (Day-Ahead-Umsatz, Monatsmarktwert, Viertelstundenhandel, Gebühr, Anteil am

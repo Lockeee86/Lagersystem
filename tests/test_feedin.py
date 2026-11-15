@@ -493,7 +493,7 @@ def test_flex_statement_storno(app, as_admin, db, seed, plant):
     assert "storniert 2025-1000001" in html and "von Hand" in html
 
 
-def _netz_pdf(month="04"):
+def _netz_pdf(month="04", street="Feldweg 1"):
     """Erfundene Einspeiseabrechnung des Netzbetreibers als PDF – mit den Eigenheiten eines Scans (Leerzeichen,
     fehlendes Minus, Bezeichnung über zwei Zeilen)."""
     from io import BytesIO
@@ -501,7 +501,7 @@ def _netz_pdf(month="04"):
     buf = BytesIO()
     c = canvas.Canvas(buf)
     lines = ["Muster Netz GmbH", f"Vergütungszeitraum vom 01.{month}.2025 bis 30.{month}.2025",
-             "Gutschrift ER 0000000001 vom 15.05.2025", "Einspeisestelle: 00000 Musterdorf, Feldweg 1 // 00001234",
+             "Gutschrift ER 0000000001 vom 15.05.2025", f"Einspeisestelle: 00000 Musterdorf, {street} // 00001234",
              "Summe Gesamterzeugung - 1.051,20 0,00 - 1.051,20",
              "Anlage A1 E0000000000000000000000000000001",
              "Verringerung BiK1011 --MPM 01.04.25 - 30.04.25 100,000 kWh - 0,200 ct /kWh - 0,20",
@@ -528,7 +528,7 @@ def test_netz_pdf(app, as_admin, db, seed, plant):
     from io import BytesIO
     parsed = feedin.parse_netz_pdf(_netz_pdf())
     assert not parsed["warnings"]
-    name = "Einspeisestelle 00001234"
+    name = "Feldweg 1 (00001234)"
     assert parsed["points"] == {name: {(2025, 4): {"kwh": 10100, "reduced": 100}}}
     cats = parsed["revenues"][(name, 2025, 4)]
     assert cats["Nutzung Gülle"]["eur"] == -400 and cats["Einhaltung von Immissionsschutzgrenzen"]["eur"] == -100
@@ -547,3 +547,7 @@ def test_netz_pdf(app, as_admin, db, seed, plant):
     assert april["groups"]["guelle"] == 400 and april["groups"]["immission"] == 100 and april["market"] == 800
     assert april["netz"] == pytest.approx(1051.2 - 30)
     assert feedin.guess(name).id == plant.id                               # Zuordnung gemerkt
+    # zweite Stelle mit derselben Nummer, andere Straße → eigener Name, eigene Zuordnung
+    other = feedin.parse_netz_pdf(_netz_pdf(street="Wiesenstr. 5"))
+    assert list(other["points"]) == ["Wiesenstr. 5 (00001234)"] and feedin.guess("Wiesenstr. 5 (00001234)") is None
+    assert feedin.netz_point_name("Einspeisestelle: 00000 Musterdorf // 00004321") == "Musterdorf (00004321)"
