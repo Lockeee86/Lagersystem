@@ -313,6 +313,60 @@ def flex_statement_save():
     return redirect(target)
 
 
+@bp.route("/biogas/gutschrift/pdf", methods=["POST"])
+@admin_required
+def flex_statement_pdf():
+    """Gutschriften als PDF (auch mehrere): auslesen und als Vorschau zum Prüfen zeigen – gespeichert wird erst danach."""
+    rows, failed = [], []
+    for upload in request.files.getlist("files")[:24]:
+        if not upload or not upload.filename:
+            continue
+        try:
+            row = feedin.parse_statement_pdf(upload.read(5 * 1024 * 1024))
+        except feedin.StatementPdfError as e:
+            failed.append((upload.filename, _(str(e))))
+            continue
+        row["filename"] = upload.filename
+        row["guess"] = feedin.pdf_point_guess(row["label"])
+        row["existing"] = any(s.month == row["month"] and row["guess"] and s.feed_point_id == row["guess"].id
+                              for s in feedin.statements(row["year"]))
+        rows.append(row)
+    if not rows:
+        for name, message in failed:
+            flash_error(f"{name}: {message}")
+        if not failed:
+            flash_error(_("Bitte eine Datei auswählen."))
+        return redirect(url_for("biogas.settings_page") + "#gutschrift")
+    return render_template("biogas/statement_import.html", rows=rows, failed=failed, feed_points=feedin.points(),
+                           fields=feedin.STATEMENT_FIELDS, month_names=feedin.MONTH_NAMES)
+
+
+@bp.route("/biogas/gutschrift/pdf/uebernehmen", methods=["POST"])
+@admin_required
+def flex_statement_pdf_apply():
+    count, year = 0, None
+    try:
+        for i in range(form_int("rows", 0, 0, 24)):
+            point = db.session.get(FeedPoint, form_int(f"point{i}") or 0)
+            if point is None:
+                continue
+            year = form_int(f"jahr{i}")
+            feedin.save_statement(point, year, form_int(f"monat{i}"),
+                                  {key: form_str(f"{key}{i}", 20) for key, _label in feedin.STATEMENT_FIELDS})
+            feedin.remember_pdf_point(form_str(f"label{i}", 80), point)
+            count += 1
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
+        return redirect(url_for("biogas.settings_page") + "#gutschrift")
+    if not count:
+        flash_error(_("Keine Gutschrift übernommen – bitte jeweils eine Einspeisestelle wählen."))
+        return redirect(url_for("biogas.settings_page") + "#gutschrift")
+    flash(ngettext("{n} Gutschrift übernommen.", "{n} Gutschriften übernommen.", count), "success")
+    return redirect(url_for("biogas.settings_page", jahr=year) + "#gutschrift")
+
+
 @bp.route("/biogas/gutschrift/<int:row_id>/loeschen", methods=["POST"])
 @admin_required
 def flex_statement_delete(row_id):

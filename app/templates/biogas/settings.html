@@ -103,6 +103,13 @@
 <div class="card shadow-sm mb-4" id="gutschrift">
     <div class="card-header"><i class="bi bi-receipt me-1"></i>{{ _("Gutschrift Flex-Vermarkter {year}", year=budget_year) }}</div>
     <div class="card-body">
+        <form method="post" action="{{ url_for('biogas.flex_statement_pdf') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            {{ csrf() }}
+            <label class="small fw-semibold" for="gs_pdf"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF-Gutschriften hochladen") }}</label>
+            <input class="form-control form-control-sm" style="max-width: 24rem" type="file" id="gs_pdf" name="files" accept=".pdf,application/pdf" multiple required>
+            <button class="btn btn-sm btn-primary"><i class="bi bi-eye me-1"></i>{{ _("Lesen und prüfen") }}</button>
+        </form>
+        <div class="small text-body-secondary mb-2">{{ _("… oder von Hand abtippen:") }}</div>
         <form method="post" action="{{ url_for('biogas.flex_statement_save') }}" class="row g-2 align-items-end">
             {{ csrf() }}
             <div class="col-12 col-md-4"><label class="form-label small mb-0" for="gs_point">{{ _("Einspeisestelle") }}</label>

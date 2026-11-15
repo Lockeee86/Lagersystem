@@ -977,7 +977,8 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Ausgezahlt wird dort nur der Anteil + Bonus, den Monatsmarktwert zahlt der Direktvermarkter. Unter Budget → Erlöse:
   Block „Flex-Vermarktung laut Gutschrift“ mit Vergleich zum Day-Ahead-Erlös laut Fahrplan.
 - Die Zählermenge der Gutschrift ersetzt im Budget den Fahrplan, bis die Abrechnung des Netzbetreibers kommt.
-- Später: PDF-Gutschrift hochladen statt abtippen bzw. über die SKVE-API.
+- 0.111.0: PDF-Gutschriften hochladen (auch mehrere auf einmal), Vorschau mit änderbaren Zahlen und Gegenprobe, die
+  Zuordnung Anlage → Einspeisestelle merkt sich die App. Später: direkt über die SKVE-API.
 
 ### Erlöse Direktvermarktung und von Hand (0.109.0)
 - Unter Biogas → Einstellungen „Erlöse von Hand und Direktvermarktung“: je Einspeisestelle und Monat (oder Jahr) die

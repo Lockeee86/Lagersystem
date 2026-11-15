@@ -379,3 +379,57 @@ def test_flex_statement(app, as_admin, db, seed, plant):
     assert "Flex-Vermarktung laut Gutschrift" in html and "Beim Vermarkter" in html
     as_admin.post(f"/biogas/gutschrift/{st.id}/loeschen")
     assert plant.flex_statements.count() == 0
+
+
+def _statement_pdf(month="03", plant="Anlage 2 - Nord", share="4.480,00", net="4.768,00"):
+    """Erfundene Gutschrift als PDF (Aufbau wie beim Vermarkter, Zahlen und Namen ausgedacht)."""
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    buf = BytesIO()
+    c = canvas.Canvas(buf)
+    lines = ["Muster Energie GmbH", "Gutschrift der Erlöse durch die bedarfsgerechte Stromproduktion",
+             f"Leistungszeitraum: 01.{month}.2025 bis 31.{month}.2025", "Anlage: Beispiel Biogas GmbH",
+             f"{plant} Kundennummer: 0000",
+             "Eingespeiste Strommenge 100.000 kWh",
+             "Handelsumsatz am EPEX SPOT Day Ahead Markt nach Zählereinspeisung 20.000,00 €",
+             "Monatsmarktwert auf Basis Zähler - 14,000 ct / kWh - 14.000,00 €",
+             "Zusätzliche Handelsumsätze durch Viertelstundenhandel 500,00 €",
+             "Handelsergebnis 6.500,00 €",
+             "Gebühr für Fahrplanmanagement, Fernsteuerung und Marktprognosen -0,10 ct/kWh -100,00 €",
+             "Verbleibender Handelsüberschuss 6,40 ct/kWh 6.400,00 €",
+             f"Anteil der SEA am verbleibenden Handelsüberschuss 70,0% {share} €",
+             "Flexibles Bonusprogramm 4,50% 288,00 €", f"Nettobetrag {net} €", "Umsatzsteuer 19% 905,92 €"]
+    y = 800
+    for line in lines:
+        c.drawString(40, y, line)
+        y -= 18
+    c.save()
+    return buf.getvalue()
+
+
+def test_flex_statement_pdf(app, as_admin, db, seed, plant):
+    """PDF-Gutschrift: auslesen, Vorschau, übernehmen, Zuordnung merken; Gegenprobe und kaputte Dateien."""
+    from io import BytesIO
+    parsed = feedin.parse_statement_pdf(_statement_pdf())
+    assert (parsed["year"], parsed["month"], parsed["label"]) == (2025, 3, "Anlage 2 - Nord")
+    assert parsed["values"] == {"kwh": 100000, "spot_eur": 20000, "market_eur": 14000, "intraday_eur": 500,
+                                "fee_eur": 100, "share_eur": 4480, "bonus_eur": 288} and not parsed["warnings"]
+    assert feedin.parse_statement_pdf(_statement_pdf(net="5.000,00"))["warnings"]       # Gegenprobe schlägt an
+    with pytest.raises(feedin.StatementPdfError):
+        feedin.parse_statement_pdf(b"kein pdf")
+    # Hochladen (zwei Dateien, eine kaputt) → Vorschau → übernehmen
+    html = as_admin.post("/biogas/gutschrift/pdf", data={"files": [(BytesIO(_statement_pdf()), "maerz.pdf"),
+                                                                    (BytesIO(b"x"), "kaputt.pdf")]},
+                         content_type="multipart/form-data").get_data(as_text=True)
+    assert "Gutschriften übernehmen" in html and "Anlage 2 - Nord" in html and "kaputt.pdf" in html
+    assert 'value="4480,00"' in html
+    r = as_admin.post("/biogas/gutschrift/pdf/uebernehmen", data={
+        "rows": "1", "point0": plant.id, "jahr0": "2025", "monat0": "3", "label0": "Anlage 2 - Nord",
+        **{f"{k}0": str(v) for k, v in parsed["values"].items()}}, follow_redirects=True)
+    assert "1 Gutschrift übernommen." in r.get_data(as_text=True)
+    assert plant.flex_statements.one().net_eur == 4768
+    assert feedin.pdf_point_guess("Anlage 2 - Nord").id == plant.id                     # Zuordnung gemerkt
+    # ohne lesbare Datei: zurück mit Fehler
+    r = as_admin.post("/biogas/gutschrift/pdf", data={"files": [(BytesIO(b"x"), "kaputt.pdf")]},
+                      content_type="multipart/form-data", follow_redirects=True)
+    assert "kaputt.pdf" in r.get_data(as_text=True)

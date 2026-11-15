@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ _("Gutschriften übernehmen") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Gutschriften übernehmen") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Aus der PDF gelesen – bitte kurz prüfen, dann übernehmen.") }}</p>
+    </div>
+</div>
+{% for name, message in failed %}<div class="alert alert-warning">{{ name }}: {{ message }}</div>{% endfor %}
+<form method="post" action="{{ url_for('biogas.flex_statement_pdf_apply') }}">
+    {{ csrf() }}<input type="hidden" name="rows" value="{{ rows|length }}">
+    {% for r in rows %}{% set i = loop.index0 %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><i class="bi bi-file-earmark-pdf me-1"></i>{{ r.label or r.filename }} · {{ _(month_names[r.month - 1]) }} {{ r.year }}</span>
+            <label class="d-flex align-items-center gap-2 small fw-normal">{{ _("übernehmen nach") }}
+                <select class="form-select form-select-sm{{ ' border-warning' if not r.guess }}" name="point{{ i }}" style="width: auto"{% if not r.guess %} aria-describedby="pick{{ i }}"{% endif %}>
+                    <option value="">{{ _("– nicht übernehmen –") }}</option>
+                    {% for p in feed_points %}<option value="{{ p.id }}"{% if r.guess and r.guess.id == p.id %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                </select>
+            </label>
+        </div>
+        <div class="card-body">
+            <input type="hidden" name="jahr{{ i }}" value="{{ r.year }}"><input type="hidden" name="monat{{ i }}" value="{{ r.month }}"><input type="hidden" name="label{{ i }}" value="{{ r.label }}">
+            {% if not r.guess %}<div class="alert alert-warning py-2 small" id="pick{{ i }}">{{ _("Bitte oben die Einspeisestelle wählen – beim nächsten Mal merkt sich die App die Zuordnung.") }}</div>{% endif %}
+            {% for w in r.warnings %}<div class="alert alert-warning py-2 small">{{ _(w) }}</div>{% endfor %}
+            {% if r.existing %}<div class="small text-body-secondary mb-2"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Für diesen Monat gibt es schon eine Gutschrift – sie wird ersetzt.") }}</div>{% endif %}
+            <div class="row g-2">
+                {% for key, label in fields %}
+                <div class="col-6 col-md-3"><label class="form-label small mb-0" for="{{ key }}{{ i }}">{{ _(label) }}</label>
+                    <input class="form-control form-control-sm text-end" id="{{ key }}{{ i }}" name="{{ key }}{{ i }}" inputmode="decimal" maxlength="20" value="{{ r["values"][key]|num(0) if key == 'kwh' else r["values"][key]|num(2) }}"></div>
+                {% endfor %}
+                <div class="col-6 col-md-3"><div class="small text-body-secondary">{{ _("Nettobetrag laut Gutschrift") }}</div><div class="fw-semibold">{{ r.net|num(2) }} €</div></div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Übernehmen") }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('biogas.settings_page') }}#gutschrift">{{ _("Abbrechen") }}</a>
+    </div>
+</form>
+{% endblock %}

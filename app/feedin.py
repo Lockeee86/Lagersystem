@@ -538,6 +538,114 @@ def save_statement(point, year, month, values):
     return row
 
 
+# --- Gutschrift als PDF ------------------------------------------------------------------------------------------
+# Zeilen werden an ihrer Bezeichnung erkannt, der Betrag ist die letzte Zahl vor „€“ in der Zeile.
+_NUM = r"(-?\d{1,3}(?:\.\d{3})*(?:,\d+)?|-?\d+(?:,\d+)?)"
+PDF_LINES = (
+    ("kwh", r"Eingespeiste Strommenge\s+" + _NUM + r"\s*kWh"),
+    ("spot_eur", r"Day[ -]?Ahead[^\n€]*?Zählereinspeisung\s+" + _NUM + r"\s*€"),
+    ("market_eur", r"Monatsmarktwert[^\n€]*?" + _NUM + r"\s*€"),
+    ("intraday_eur", r"Viertelstundenhandel\s+" + _NUM + r"\s*€"),
+    ("fee_eur", r"Gebühr für Fahrplanmanagement[^\n€]*?" + _NUM + r"\s*€"),
+    ("share_eur", r"Anteil[^\n€]*?verbleibenden Handelsüberschuss[^\n€]*?" + _NUM + r"\s*€"),
+    ("bonus_eur", r"Bonusprogramm[^\n€]*?" + _NUM + r"\s*€"),
+    ("net_eur", r"Nettobetrag\s+" + _NUM + r"\s*€"),
+    ("result_eur", r"Handelsergebnis\s+" + _NUM + r"\s*€"),
+)
+
+
+class StatementPdfError(ValueError):
+    pass
+
+
+def _de_number(text):
+    return float(text.replace(".", "").replace(",", "."))
+
+
+def _pdf_text(data):
+    from pypdf import PdfReader
+    import io
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        text = "\n".join(page.extract_text() or "" for page in reader.pages[:5])
+    except Exception:
+        raise StatementPdfError(N_("Die Datei ließ sich nicht als PDF lesen.")) from None
+    # Ebenen mit Leerzeichen zwischen Vorzeichen/Einheit vereinheitlichen: „- 26.043,41 €“, „ct / kWh“
+    text = re.sub(r"-\s+(?=\d)", "-", text)
+    text = re.sub(r"ct\s*/\s*kWh", "ct/kWh", text)
+    return re.sub(r"[ \t\u00a0]+", " ", text)
+
+
+def parse_statement_pdf(data):
+    """PDF-Gutschrift → {"year", "month", "label", "values": {Feld: Zahl}, "net", "warnings": [...]}.
+    `label` = Anlage laut Gutschrift (z. B. „Anlage 1 - Nord“) für die Zuordnung zur Einspeisestelle."""
+    text = _pdf_text(data)
+    period = re.search(r"Leistungszeitraum:?\s*(\d{2})\.(\d{2})\.(\d{4})", text)
+    if not period:
+        raise StatementPdfError(N_("In der PDF steht kein Leistungszeitraum – ist das eine Gutschrift des Vermarkters?"))
+    found = {}
+    for key, pattern in PDF_LINES:
+        match = re.search(pattern, text)
+        if match:
+            found[key] = _de_number(match.group(1))
+    if any(k not in found for k in ("kwh", "spot_eur", "market_eur", "share_eur")):
+        raise StatementPdfError(N_("Die Gutschrift ließ sich nicht lesen – bitte die Zahlen von Hand eintragen."))
+    label = re.search(r"^\s*(Anlage\s*\d+[^\n]*?)\s*(?:Kundennummer|Vertragskonto|$)", text, re.M)
+    values = {key: found.get(key, 0.0) for key, _l in STATEMENT_FIELDS}
+    for key in ("market_eur", "fee_eur"):
+        values[key] = abs(values[key])
+    warnings = []
+    result = values["spot_eur"] - values["market_eur"] + values["intraday_eur"]
+    if "result_eur" in found and abs(found["result_eur"] - result) > 0.05:
+        warnings.append(N_("Handelsergebnis passt nicht zu den Zeilen darüber."))
+    net = values["share_eur"] + values["bonus_eur"]
+    if "net_eur" in found and abs(found["net_eur"] - net) > 0.05:
+        warnings.append(N_("Nettobetrag passt nicht zu Anteil + Bonus."))
+    return {"year": int(period.group(3)), "month": int(period.group(2)), "values": values,
+            "label": label.group(1).strip()[:80] if label else "", "net": found.get("net_eur", net),
+            "warnings": warnings}
+
+
+PDF_MAP_KEY = "flex_pdf_points"
+
+
+def pdf_point_guess(label):
+    """Einspeisestelle zur Anlage auf der Gutschrift: zuletzt gewählte Zuordnung, sonst Namensgleichheit."""
+    import json
+    from .models import Setting
+    setting = db.session.get(Setting, PDF_MAP_KEY)
+    try:
+        saved = json.loads(setting.value) if setting and setting.value else {}
+    except ValueError:
+        saved = {}
+    if label and str(saved.get(label, "")).isdigit():
+        point = db.session.get(FeedPoint, int(saved[label]))
+        if point:
+            return point
+    low = (label or "").lower()
+    tail = low.split("-", 1)[-1].strip()                  # „Anlage 1 - Nord“ → „nord“
+    all_points = points()
+    for point in all_points:
+        name = point.name.strip().lower()
+        if name and (name in low or (tail and tail in name)):
+            return point
+    return all_points[0] if len(all_points) == 1 else None
+
+
+def remember_pdf_point(label, point):
+    import json
+    from .models import Setting
+    if not label:
+        return
+    setting = db.session.get(Setting, PDF_MAP_KEY)
+    try:
+        saved = json.loads(setting.value) if setting and setting.value else {}
+    except ValueError:
+        saved = {}
+    saved[label] = point.id
+    Setting.put(PDF_MAP_KEY, json.dumps(saved, ensure_ascii=False))
+
+
 def statements(year):
     """Gutschriften aller Einspeisestellen eines Jahres (Liste in den Einstellungen)."""
     return (FlexStatement.query.filter_by(year=year)
