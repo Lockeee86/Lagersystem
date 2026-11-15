@@ -173,7 +173,7 @@ def test_csv_import(app, as_admin, db, seed, plant):
 def test_csv_import_creates_points(as_admin, db, seed):
     """Ohne Einspeisestellen: Import ist trotzdem da und legt sie aus der Datei an."""
     from io import BytesIO
-    assert "Abrechnungen importieren (CSV)" in as_admin.get("/biogas/einstellungen").get_data(as_text=True)
+    assert "Abrechnungen des Netzbetreibers importieren (PDF oder CSV)" in as_admin.get("/biogas/einstellungen").get_data(as_text=True)
     html = as_admin.post("/biogas/einspeisestelle/import", data={"file": (BytesIO(CSV.encode()), "p.csv")},
                          content_type="multipart/form-data").get_data(as_text=True)
     assert "neu anlegen: Nord" in html
@@ -491,3 +491,59 @@ def test_flex_statement_storno(app, as_admin, db, seed, plant):
     assert 5 not in feedin.month_statements(plant, 2025) and plant.flex_statements.count() == 5
     html = as_admin.get("/biogas/einstellungen?jahr=2025").get_data(as_text=True)
     assert "storniert 2025-1000001" in html and "von Hand" in html
+
+
+def _netz_pdf(month="04"):
+    """Erfundene Einspeiseabrechnung des Netzbetreibers als PDF – mit den Eigenheiten eines Scans (Leerzeichen,
+    fehlendes Minus, Bezeichnung über zwei Zeilen)."""
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    buf = BytesIO()
+    c = canvas.Canvas(buf)
+    lines = ["Muster Netz GmbH", f"Vergütungszeitraum vom 01.{month}.2025 bis 30.{month}.2025",
+             "Gutschrift ER 0000000001 vom 15.05.2025", "Einspeisestelle: 00000 Musterdorf, Feldweg 1 // 00001234",
+             "Summe Gesamterzeugung - 1.051,20 0,00 - 1.051,20",
+             "Anlage A1 E0000000000000000000000000000001",
+             "Verringerung BiK1011 --MPM 01.04.25 - 30.04.25 100,000 kWh - 0,200 ct /kWh - 0,20",
+             "Marktprämie BiK270M1i --09 01.04.25 - 30.04.25 10.000,000 kWh - 12,000 ct/kWh - 1.200,00",
+             "Nutzung Gülle (M1 /M2 ] BiK270M1i --09 01.04.25 - 30.04.25 10.000,000 kWh - 4,000 ct /kWh - 400,00",
+             "Einhaltung von BiK270M1i --09 01.04.25 - 30.04.25 10.000,000 kWh - 1,000 ct /kWh 100,00",
+             "Immissionsschutzgrenzen", "ly/i",
+             "Managementprämie BiK33b1 -MPMApr 01.04.25 - 30.04.25 10.000,000 kWh - 0,200 ct /kWh - 20,00",
+             "steuerbare ET",
+             "Marktwert steuerbare ET BiK33b1 -MPMApr 01.04.25 - 30.04.25 10.000,000 kWh 8,000 ct /kWh 800,00",
+             "(DV )",
+             "Flexibilitätsprämie BiK54G - -FLP 01.04.25 - 30.04.25 10.100,000 kWh - 1,2970 ct /kWh - 131,00",
+             "Nettobetrag Mess - & Abrechnungsentgelte 30,00"]
+    y = 800
+    for line in lines:
+        c.drawString(30, y, line)
+        y -= 16
+    c.save()
+    return buf.getvalue()
+
+
+def test_netz_pdf(app, as_admin, db, seed, plant):
+    """Einspeiseabrechnung als PDF: Positionen, Vorzeichen-Korrektur, Summenprobe, Vorschau, Zuordnung merken."""
+    from io import BytesIO
+    parsed = feedin.parse_netz_pdf(_netz_pdf())
+    assert not parsed["warnings"]
+    name = "Einspeisestelle 00001234"
+    assert parsed["points"] == {name: {(2025, 4): {"kwh": 10100, "reduced": 100}}}
+    cats = parsed["revenues"][(name, 2025, 4)]
+    assert cats["Nutzung Gülle"]["eur"] == -400 and cats["Einhaltung von Immissionsschutzgrenzen"]["eur"] == -100
+    assert cats["Managementprämie steuerbare ET"]["eur"] == pytest.approx(-20) and cats["Marktwert steuerbare ET"]["eur"] == 800
+    assert cats["Mess- und Abrechnungsentgelte"]["eur"] == 30
+    with pytest.raises(feedin.FeedImportError):
+        feedin.parse_netz_pdf(_statement_pdf())                             # SKVE-Gutschrift ist keine Netzabrechnung
+    html = as_admin.post("/biogas/einspeisestelle/import", data={"file": [(BytesIO(_netz_pdf()), "april.pdf"),
+                                                                         (BytesIO(_netz_pdf("05")), "mai.pdf")]},
+                         content_type="multipart/form-data").get_data(as_text=True)
+    assert name in html and ("1.021,20 €" in html or "1021,20 €" in html)
+    r = as_admin.post("/biogas/einspeisestelle/import/uebernehmen", data={"point0": str(plant.id)}, follow_redirects=True)
+    assert "2 Abrechnungswerte übernommen." in r.get_data(as_text=True)
+    r = feedin.revenue(plant, 2025)
+    april = next(m for m in r["months"] if m["month"] == 4)
+    assert april["groups"]["guelle"] == 400 and april["groups"]["immission"] == 100 and april["market"] == 800
+    assert april["netz"] == pytest.approx(1051.2 - 30)
+    assert feedin.guess(name).id == plant.id                               # Zuordnung gemerkt

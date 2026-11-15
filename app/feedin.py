@@ -304,11 +304,11 @@ def revenue_group(category):
         return "marktwert"
     if low.startswith(("marktprämie", "mp ", "managementprämie", "verringerung")):
         return "grund"
-    if low.startswith("gülle"):
+    if "gülle" in low:                        # auch „Nutzung Gülle [M1/M2]“ (PDF des Netzbetreibers)
         return "guelle"
-    if low.startswith(("nawaro", "strom aus anlagen")):
+    if low.startswith(("nawaro", "strom aus anlagen")) or "nawaro" in low:
         return "boni"
-    if low.startswith("immissionsschutz"):
+    if "immissionsschutz" in low:             # auch „Einhaltung von Immissionsschutzgrenzen“
         return "immission"
     if low.startswith("flexibilit"):
         return "flex"
@@ -718,8 +718,125 @@ def rate_eur_per_kwh(point, today=None):
     return None
 
 
+# --- Abrechnung des Netzbetreibers als PDF -------------------------------------------------------------------------
+# Positionen der „Mengendetails“: Bezeichnung … Vergütungskategorie … Zeitraum, Menge kWh, Preis ct/kWh, Betrag.
+# Die PDF kann ein Scan mit Texterkennung sein: Vorzeichen des Betrags wird an Menge × Preis geprüft.
+_NETZ_ITEM = re.compile(
+    r"^(?P<cat>\D.*?)\s*(?:Bi[KC]\S*.*?)?(?P<from>\d\d\.\d\d\.\d\d)\s*-\s*\d\d\.\d\d\.\d\d\s+"
+    r"(?P<kwh>[\d.]+(?:,\d+)?)\s*kWh\s+(?P<price>-?[\d.]*\d(?:,\d+)?)\s*ct/kWh\s+(?P<eur>-?[\d.]*\d(?:,\d+)?)\s*$")
+_NETZ_FEES = re.compile(r"Nettobetrag Mess\s*-?\s*&\s*Abrechnungsentgelte\s+(-?[\d.]*\d,\d+)")
+_NETZ_TOTAL = re.compile(r"Summe Gesamterzeugung\s+(-?[\d.]*\d,\d+)")
+
+
+def _netz_category(text):
+    text = re.sub(r"[\[(][^\])]*[\])]?", " ", text)            # „[M1/M2]“, „(DV )“
+    return category_name(re.sub(r"\s+", " ", text).strip(" -"))
+
+
+def parse_netz_pdf(data):
+    """PDF-Abrechnung des Netzbetreibers → gleiche Form wie `parse_csv()` (+ `warnings`)."""
+    text = _pdf_text(data)
+    period = re.search(r"(?:Vergütungszeitraum|Zeitraum) vom (\d{2})\.(\d{2})\.(\d{4})", text)
+    if not period:
+        raise FeedImportError(N_("In der PDF steht kein Vergütungszeitraum – ist das eine Einspeiseabrechnung?"))
+    year, month = int(period.group(3)), int(period.group(2))
+    point_id = re.search(r"Einspeisestelle:[^\n]*?//\s*(\d+)", text)
+    name = f"Einspeisestelle {point_id.group(1)}" if point_id else "Einspeisestelle"
+    revenues, warnings = {}, []
+    flex = market = reduced = 0.0
+    last = None
+    for line in text.split("\n"):
+        line = line.strip()
+        match = _NETZ_ITEM.match(line)
+        if match and match.group("cat").strip():
+            kwh, price, eur = (_de_number(match.group(k)) for k in ("kwh", "price", "eur"))
+            expected = kwh * price / 100
+            if abs(abs(expected) - abs(eur)) <= max(0.05, abs(eur) * 0.002):
+                eur = abs(eur) if expected >= 0 else -abs(eur)       # Minus fehlt manchmal in der Texterkennung
+            else:
+                warnings.append(N_("Eine Position passt nicht zu Menge × Preis – bitte die Summen prüfen."))
+            last = {"cat": match.group("cat"), "kwh": kwh, "eur": eur}
+            revenues.setdefault("_items", []).append(last)
+            continue
+        # Fortsetzung der Bezeichnung in der nächsten Zeile („steuerbare ET“, „Immissionsschutzgrenzen“)
+        if last is not None and re.fullmatch(r"[A-Za-zÄÖÜäöüß ()\[\]]{4,40}", line) and not line.startswith("Anlage"):
+            last["cat"] += " " + line
+        else:
+            last = None
+    items = revenues.pop("_items", [])
+    if not items:
+        raise FeedImportError(N_("In der PDF wurden keine Positionen gefunden – bitte die CSV-Datei nehmen."))
+    categories = {}
+    for item in items:
+        category = _netz_category(item["cat"])
+        slot = categories.setdefault(category, {"kwh": 0.0, "eur": 0.0})
+        slot["kwh"] += item["kwh"]
+        slot["eur"] += item["eur"]
+        kind = category.lower()
+        if kind.startswith(FLEX):
+            flex += item["kwh"]
+        elif kind.startswith(MARKET):
+            market += item["kwh"]
+        elif kind.startswith(REDUCED):
+            reduced += item["kwh"]
+    total = _NETZ_TOTAL.search(text)
+    if total and abs(_de_number(total.group(1)) - sum(c["eur"] for c in categories.values())) > 0.05:
+        warnings.append(N_("Die Positionen ergeben nicht die Summe der Gutschrift – bitte prüfen."))
+    fees = _NETZ_FEES.search(text)
+    if fees:
+        categories["Mess- und Abrechnungsentgelte"] = {"kwh": 0.0, "eur": abs(_de_number(fees.group(1)))}
+    kwh = flex if flex else market + reduced
+    return {"points": {name: {(year, month): {"kwh": kwh, "reduced": reduced}}}, "skipped": 0,
+            "revenues": {(name, year, month): categories}, "warnings": sorted(set(warnings))}
+
+
+def parse_upload(data):
+    """CSV oder PDF (am Dateianfang erkannt) – für Vorschau und Übernehmen."""
+    return parse_netz_pdf(data) if data[:5] == b"%PDF-" else parse_csv(data)
+
+
+def merge_parsed(parts):
+    """Mehrere eingelesene Dateien zu einer Vorschau zusammenfassen (spätere Monate gleicher Stelle überschreiben)."""
+    result = {"points": {}, "skipped": 0, "revenues": {}, "warnings": []}
+    for part in parts:
+        for name, values in part["points"].items():
+            result["points"].setdefault(name, {}).update(values)
+        result["revenues"].update(part.get("revenues", {}))
+        result["skipped"] += part.get("skipped", 0)
+        result["warnings"] += part.get("warnings", [])
+    result["points"] = {n: dict(sorted(v.items())) for n, v in sorted(result["points"].items())}
+    return result
+
+
+IMPORT_MAP_KEY = "feed_import_points"
+
+
+def remember_import_point(name, point):
+    """Zuordnung „Name in der Datei → Einspeisestelle“ merken (z. B. „Einspeisestelle 0001234“)."""
+    import json
+    from .models import Setting
+    setting = db.session.get(Setting, IMPORT_MAP_KEY)
+    try:
+        saved = json.loads(setting.value) if setting and setting.value else {}
+    except ValueError:
+        saved = {}
+    saved[name] = point.id
+    Setting.put(IMPORT_MAP_KEY, json.dumps(saved, ensure_ascii=False))
+
+
 def guess(name):
-    """Einspeisestelle der App mit gleichem Namen (ohne Groß/Klein) oder None."""
+    """Einspeisestelle der App: zuletzt gewählte Zuordnung, sonst gleicher Name (ohne Groß/Klein), sonst None."""
+    import json
+    from .models import Setting
+    setting = db.session.get(Setting, IMPORT_MAP_KEY)
+    try:
+        saved = json.loads(setting.value) if setting and setting.value else {}
+    except ValueError:
+        saved = {}
+    if str(saved.get(name, "")).isdigit():
+        point = db.session.get(FeedPoint, int(saved[name]))
+        if point:
+            return point
     wanted = name.strip().lower()
     return next((p for p in points() if p.name.strip().lower() == wanted), None)
 

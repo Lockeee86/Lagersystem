@@ -213,28 +213,48 @@ def sync_now():
     return redirect(url_for("biogas.overview"))
 
 
+def _import_guesses(parsed):
+    """Zuordnung je Name in der Datei; gibt es nur eine Stelle in der Datei und in der App, ist es diese."""
+    guesses = {n: feedin.guess(n) for n in parsed["points"]}
+    existing = feedin.points()
+    if len(guesses) == 1 and len(existing) == 1 and not any(guesses.values()):
+        guesses = dict.fromkeys(guesses, existing[0])
+    return guesses
+
+
 @bp.route("/biogas/einspeisestelle/import", methods=["POST"])
 @admin_required
 def feed_import_preview():
-    """Abrechnungs-Positionen (CSV): erst Vorschau mit Zuordnung, dann übernehmen."""
+    """Abrechnungen des Netzbetreibers (CSV oder PDF, auch mehrere): erst Vorschau mit Zuordnung, dann übernehmen."""
     from .admin import _cleanup_imports, _import_dir
-    upload = request.files.get("file")
-    if not upload or not upload.filename:
+    uploads = [u for u in request.files.getlist("file")[:24] if u and u.filename]
+    if not uploads:
         flash_error(_("Bitte eine Datei auswählen."))
         return redirect(url_for("biogas.settings_page") + "#budget")
-    data = upload.read()
-    try:
-        parsed = feedin.parse_csv(data)
-    except feedin.FeedImportError as e:
-        flash_error(_(str(e)))
+    parts, files = [], []
+    for upload in uploads:
+        data = upload.read()
+        try:
+            parts.append(feedin.parse_upload(data))
+        except (feedin.FeedImportError, feedin.StatementPdfError) as e:
+            flash_error(f"{upload.filename}: {_(str(e))}")
+            continue
+        files.append(data)
+    if not parts:
         return redirect(url_for("biogas.settings_page") + "#budget")
+    parsed = feedin.merge_parsed(parts)
     _cleanup_imports()
-    token = secrets.token_hex(16)
-    with open(os.path.join(_import_dir(), token), "wb") as f:
-        f.write(data)
-    session["feed_import"] = {"token": token}
-    return render_template("biogas/feed_import.html", parsed=parsed, filename=upload.filename,
-                           feed_points=feedin.points(), guesses={n: feedin.guess(n) for n in parsed["points"]},
+    tokens = []
+    for data in files:
+        token = secrets.token_hex(16)
+        with open(os.path.join(_import_dir(), token), "wb") as f:
+            f.write(data)
+        tokens.append(token)
+    session["feed_import"] = {"tokens": tokens}
+    totals = {key: -sum(c["eur"] for c in cats.values()) for key, cats in parsed["revenues"].items()}
+    return render_template("biogas/feed_import.html", parsed=parsed, totals=totals,
+                           filename=", ".join(u.filename for u in uploads),
+                           feed_points=feedin.points(), guesses=_import_guesses(parsed),
                            month_names=feedin.MONTH_NAMES)
 
 
@@ -242,14 +262,18 @@ def feed_import_preview():
 @admin_required
 def feed_import_apply():
     from .admin import _import_dir
-    token = (session.pop("feed_import", None) or {}).get("token", "")
-    path = os.path.join(_import_dir(), token) if token and token.isalnum() else ""
-    if not path or not os.path.exists(path):
+    stored = session.pop("feed_import", None) or {}
+    tokens = stored.get("tokens") or ([stored["token"]] if stored.get("token") else [])
+    paths = [os.path.join(_import_dir(), t) for t in tokens if t and t.isalnum()]
+    if not paths or not all(os.path.exists(p) for p in paths):
         flash_error(_("Die Vorschau ist abgelaufen – bitte die Datei noch einmal hochladen."))
         return redirect(url_for("biogas.settings_page") + "#budget")
-    with open(path, "rb") as f:
-        parsed = feedin.parse_csv(f.read())
-    os.remove(path)
+    parts = []
+    for path in paths:
+        with open(path, "rb") as f:
+            parts.append(feedin.parse_upload(f.read()))
+        os.remove(path)
+    parsed = feedin.merge_parsed(parts)
     mapping = {}
     try:
         for i, name in enumerate(parsed["points"]):
@@ -258,6 +282,8 @@ def feed_import_apply():
                 mapping[name] = feedin.save_point(None, name, form_str(f"amount{i}", 20), [])
             else:
                 mapping[name] = db.session.get(FeedPoint, int(choice)) if choice.isdigit() else None
+            if mapping[name] is not None:
+                feedin.remember_import_point(name, mapping[name])
         count = feedin.apply_import(parsed, mapping)
         db.session.commit()
     except StorageError as e:

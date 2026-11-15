@@ -326,7 +326,7 @@ def test_tabs_and_hub(as_admin, as_worker, as_viewer, db, seed):
         assert 'class="view-switch view-switch-wide' in html and 'href="/biogas/einstellungen"' not in html, url
     assert as_worker.get("/biogas/einstellungen").status_code == 403
     html = as_admin.get("/biogas/einstellungen").get_data(as_text=True)
-    assert "Einspeisestelle anlegen" in html and "Abrechnungen importieren (CSV)" in html and "Anzeige der Biogasanlage" in html
+    assert "Einspeisestelle anlegen" in html and "Abrechnungen des Netzbetreibers importieren (PDF oder CSV)" in html and "Anzeige der Biogasanlage" in html
     hub = as_admin.get("/bereich/biogas").get_data(as_text=True)
     for href in ("/biogas", "/biogas/budget", "/biogas/wartung", "/biogas/auswertung", "/rundgang", "/biogas/einstellungen"):
         assert f'href="{href}"' in hub, href

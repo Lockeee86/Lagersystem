@@ -22,6 +22,7 @@ document.querySelectorAll("select[data-new]").forEach(function (select) {
     </div>
 </div>
 
+{% for w in parsed.warnings|unique %}<div class="alert alert-warning">{{ _(w) }}</div>{% endfor %}
 <form method="post" action="{{ url_for('biogas.feed_import_apply') }}">
     {{ csrf() }}
     {% for name, values in parsed.points.items() %}{% set i = loop.index0 %}
@@ -43,12 +44,13 @@ document.querySelectorAll("select[data-new]").forEach(function (select) {
         </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0 small text-nowrap">
-                <thead><tr><th>{{ _("Zeitraum") }}</th><th class="text-end">{{ _("Einspeisung") }}</th><th class="text-end">{{ _("davon ohne Marktprämie") }}</th></tr></thead>
+                <thead><tr><th>{{ _("Zeitraum") }}</th><th class="text-end">{{ _("Einspeisung") }}</th><th class="text-end">{{ _("davon ohne Marktprämie") }}</th><th class="text-end">{{ _("Gutschrift (netto)") }}</th></tr></thead>
                 <tbody>
                 {% for (year, month), v in values.items() %}
                 <tr><td>{% if month %}{{ _(month_names[month - 1]) }} {{ year }}{% else %}{{ _("Jahr {year} (Jahresabrechnung)", year=year) }}{% endif %}</td>
                     <td class="text-end">{{ v.kwh|num(0) }} kWh</td>
-                    <td class="text-end">{{ (v.reduced|num(0) ~ " kWh") if v.reduced else "–" }}</td></tr>
+                    <td class="text-end">{{ (v.reduced|num(0) ~ " kWh") if v.reduced else "–" }}</td>
+                    <td class="text-end">{% set t = totals.get((name, year, month)) %}{{ (t|num(2) ~ " €") if t is not none else "–" }}</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
