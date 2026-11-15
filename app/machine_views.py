@@ -6,7 +6,7 @@ from flask import (Blueprint, Response, abort, flash, redirect, render_template,
 from flask_login import current_user, login_required
 from werkzeug.datastructures import MultiDict
 
-from . import fuel, machines, places, purchases, push, sites, tasks, uploads
+from . import fuel, ignition, machines, places, purchases, push, sites, tasks, uploads
 from .extensions import db
 from .i18n import gettext as _, ngettext
 from .labels import LABEL_FORMATS, render_labels
@@ -111,6 +111,8 @@ def _bhkw_fields(machine):
         machine.skve_base_counter = machine.skve_base_day = None       # neue Verknüpfung: ab dem Zählerstand weiter
     machine.skve_chp_id = chp_id
     machine.power_kw = form_int("power_kw", minimum=1, maximum=100_000)
+    ignition.save_settings(machine, form_int("cylinders"), form_int("cylinder_banks"),
+                           {key: form_int(field, minimum=0, maximum=200_000) for key, _label, field in ignition.KINDS})
 
 
 def _machine_fields():
@@ -185,7 +187,57 @@ def machine_detail(machine_id):
                            .order_by(FuelEntry.date.desc(), FuelEntry.id.desc()).limit(5).all(),
                            fuel_consumption=fuel.consumption(machine), fuel_year=fuel.liters_in_year(machine.id),
                            skve_recent=machine.chp_days.order_by(ChpDay.day.desc()).limit(14).all()[::-1]
-                           if machine.skve_chp_id else [])
+                           if machine.skve_chp_id else [],
+                           ign=_ignition_context(machine))
+
+
+def _ignition_context(machine):
+    if not ignition.active(machine):
+        return None
+    return {"grid": ignition.grid(machine), "due": ignition.due(machine), "history": ignition.history(machine),
+            "stats": ignition.stats(machine), "kinds": ignition.KINDS, "reasons": ignition.REASONS,
+            "labels": [(c, ignition.label(machine, c)) for c in range(1, machine.cylinders + 1)],
+            "kind_labels": ignition.KIND_LABELS, "kind_short": ignition.KIND_SHORT, "label": lambda c: ignition.label(machine, c),
+            "join": lambda cyls: ", ".join(ignition.label(machine, c) for c in cyls),
+            "limits": {key: ignition.interval(machine, key) for key, _l, _f in ignition.KINDS}}
+
+
+@bp.route("/maschine/<int:machine_id>/zuendung/wechsel", methods=["POST"])
+@editor_required
+def ignition_change(machine_id):
+    """Zündkerzen, Stecker oder Spulen gewechselt (ein oder mehrere Zylinder)."""
+    machine = _get(Machine, machine_id)
+    target = url_for("machines.machine_detail", machine_id=machine.id) + "#zuendung"
+    try:
+        events = ignition.change(machine, current_user, [int(c) for c in request.form.getlist("zyl") if c.isdigit()],
+                                 request.form.getlist("teil"), form_date("date"), form_int("counter"),
+                                 form_str("grund", 10), form_str("note", 200),
+                                 form_money("cost") if current_user.is_admin else None)
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
+        return redirect(target)
+    flash(ngettext("{n} Teil gewechselt.", "{n} Teile gewechselt.", len(events)), "success")
+    return redirect(target)
+
+
+@bp.route("/maschine/<int:machine_id>/zuendung/tausch", methods=["POST"])
+@editor_required
+def ignition_swap(machine_id):
+    """Teile zweier Zylinder untereinander tauschen."""
+    machine = _get(Machine, machine_id)
+    target = url_for("machines.machine_detail", machine_id=machine.id) + "#zuendung"
+    try:
+        ignition.swap(machine, current_user, request.form.getlist("teil"), form_int("von") or 0, form_int("nach") or 0,
+                      form_date("date"), form_int("counter"), form_str("note", 200))
+        db.session.commit()
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(_(str(e)))
+        return redirect(target)
+    flash(_("Tausch eingetragen."), "success")
+    return redirect(target)
 
 
 @bp.route("/maschine/<int:machine_id>/bearbeiten", methods=["POST"])

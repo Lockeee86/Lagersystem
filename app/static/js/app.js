@@ -32,6 +32,15 @@ window.App = (function () {
         if (el && el.select) { el.select(); }
     });
 
+    // <button data-check-all="name">: alle Kästchen mit diesem Namen im Formular an- bzw. wieder abwählen
+    document.addEventListener("click", (e) => {
+        const el = e.target.closest("[data-check-all]");
+        if (!el || !el.form) { return; }
+        const boxes = [...el.form.querySelectorAll(`input[type=checkbox][name="${el.dataset.checkAll}"]`)];
+        const all = boxes.every((b) => b.checked);
+        boxes.forEach((b) => { b.checked = !all; });
+    });
+
     // --- Sicherheitsabfrage: <button data-confirm="…"> -------------------------
     document.addEventListener("click", (e) => {
         const el = e.target.closest("[data-confirm]");

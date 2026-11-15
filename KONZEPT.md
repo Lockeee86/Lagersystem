@@ -970,6 +970,16 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Zündung je Zylinder (0.116.0)
+- In den Grunddaten des Motors: Zylinderzahl, Bauform (Reihe oder V-Motor mit Bank A/B) und Soll-Laufzeit in
+  Betriebsstunden für Zündkerze, Kerzenstecker und Zündspule. Damit erscheint auf der Maschinenseite der Reiter „Zündung“.
+- Tabelle je Zylinder mit der Laufzeit jedes Teils (grün, gelb ab 90 %, rot überfällig), Ausfälle je Zylinder als Zahl.
+- „Wechsel eintragen“: Zylinder antippen (einzeln oder alle), Teil wählen, Grund planmäßig/Ausfall, Datum, Zählerstand,
+  Notiz, Kosten. „Untereinander tauschen“: Teile zweier Zylinder wechseln den Platz, ihre Laufzeit läuft weiter.
+- Verlauf, Standzeit der ausgebauten Teile, je Aktion ein Eintrag im Logbuch.
+- Noch offen: fällige Teile bei „Fällige Wartungen“/Push/Wartungsfenster, Fotos am Wechsel, Teile-Typ aus den
+  Ersatzteilen, Tausch zwischen zwei Motoren.
+
 ### Auswertung Biogasanlage (0.115.0)
 Unter Biogas → Auswertung, je Jahr umschaltbar:
 - Fahrplan gegen Zähler: geplante kWh laut SKVE neben der gemessenen Einspeisung je Monat mit Abweichung in %; für

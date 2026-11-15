@@ -1168,6 +1168,12 @@ class Machine(db.Model):
     skve_base_counter = db.Column(db.Numeric(10, 1))
     skve_base_day = db.Column(db.Date)
     feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="SET NULL"), index=True)  # Einspeisestelle
+    # Zündung (Gasmotor): Zylinderzahl, Bänke (2 = V-Motor: A/B) und Soll-Laufzeit je Teil in Betriebsstunden
+    cylinders = db.Column(db.Integer)
+    cylinder_banks = db.Column(db.Integer)
+    ign_plug_hours = db.Column(db.Integer)
+    ign_cap_hours = db.Column(db.Integer)
+    ign_coil_hours = db.Column(db.Integer)
     place_id = db.Column(db.Integer, db.ForeignKey("tech_places.id", ondelete="SET NULL"), index=True)  # eingebaut in
 
     site = db.relationship("Site")
@@ -1964,6 +1970,50 @@ class FeedRevenue(db.Model):
     @property
     def label(self):
         return f"{self.category} {self.month:02d}/{self.year}"
+
+
+class IgnitionPart(db.Model):
+    """Ein einzelnes Zündungsteil (Kerze, Stecker, Spule) eines Motors. `cylinder` = wo es gerade sitzt (leer =
+    ausgebaut); beim Tauschen zwischen Zylindern wandert das Teil mit seiner Laufzeit (`installed_counter` = Zählerstand,
+    als es neu eingebaut wurde)."""
+    __tablename__ = "ignition_parts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = db.Column(db.String(10), nullable=False)               # kerze | stecker | spule
+    cylinder = db.Column(db.Integer)
+    installed_on = db.Column(db.Date, nullable=False)
+    installed_counter = db.Column(db.Integer, nullable=False)
+    removed_on = db.Column(db.Date)
+    removed_counter = db.Column(db.Integer)
+    removed_reason = db.Column(db.String(10))                     # plan | ausfall
+    last_cylinder = db.Column(db.Integer)                         # wo es beim Ausbau saß (Auswertung)
+
+    machine = db.relationship("Machine", backref=db.backref("ignition_parts", lazy="dynamic", cascade="all, delete-orphan",
+                                                            passive_deletes=True))
+
+
+class IgnitionEvent(db.Model):
+    """Verlauf der Zündung: Wechsel (neues Teil) oder Tausch zwischen zwei Zylindern."""
+    __tablename__ = "ignition_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey("machines.id", ondelete="CASCADE"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False)
+    counter = db.Column(db.Integer, nullable=False)
+    action = db.Column(db.String(10), nullable=False)             # wechsel | tausch
+    kind = db.Column(db.String(10), nullable=False)
+    cylinder = db.Column(db.Integer, nullable=False)
+    other_cylinder = db.Column(db.Integer)                        # Tausch: der zweite Zylinder
+    reason = db.Column(db.String(10))                             # Wechsel: plan | ausfall
+    life_hours = db.Column(db.Integer)                            # Wechsel: Laufzeit des ausgebauten Teils
+    note = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    machine = db.relationship("Machine", backref=db.backref("ignition_events", lazy="dynamic", cascade="all, delete-orphan",
+                                                            passive_deletes=True))
+    user = db.relationship("User")
 
 
 class FlexStatement(db.Model):

@@ -87,6 +87,14 @@ docker compose up --build -d
   (`place_list` `/plaetze`, `place_detail` `/platz/<id>`, `place_install`). Arten `kuehlung`/`lueftung` für Lagertechnik.
   Maschinen-Auswahlen immer über `macros.machine_options` (nach Platz gruppiert, `places.group_machines`).
   Anlagen-Standorte sind Plätze, keine Betriebsstätten: `places.place_from_site` (Route `admin.site_to_place`)
+- `app/ignition.py`: Zündung eines Gasmotors je Zylinder (Reiter „Zündung“ auf der Maschinenseite, nur mit
+  `Machine.cylinders`; Grunddaten im BHKW-Formular: Zylinder, `cylinder_banks` 2 = V-Motor → Bezeichnung A1…/B1… über
+  `label()`, Soll-Laufzeiten `ign_plug_hours`/`ign_cap_hours`/`ign_coil_hours` → `save_settings()`). Jedes Teil ist ein
+  `IgnitionPart` (Kerze/Stecker/Spule, `installed_counter` = Zählerstand als Neuteil, `cylinder` leer = ausgebaut);
+  `change()` = neues Teil (altes raus, Grund plan/ausfall), `swap()` = zwei Zylinder tauschen – die Laufzeit wandert mit
+  dem Teil; Verlauf `IgnitionEvent` (`history()` fasst gleiche Wechsel zusammen), ein Logbuch-Eintrag je Aktion
+  (`MachineEvent` „wartung“, `task_name` „Zündung“), `grid()` (Ampel ab `SOON` 90 %), `due()`, `summary()`, `stats()`;
+  Routen `machines.ignition_change` / `ignition_swap`; committet nicht. Knopf „alle“: `data-check-all="name"` (app.js)
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`
 - `app/aerial.py`: Luftbild-Proxy für die Schlagkarte (Quellen `SOURCES`, Zwischenspeicher, `_download` in Tests

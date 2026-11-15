@@ -1678,3 +1678,15 @@ body.is-embed .page-tabs { --tabs-top: .5rem; }
 .eff-bar > span { display: block; height: 100%; background: var(--st-ok); border-radius: var(--r-xs); }
 .eff-bar > span.is-low { background: var(--st-bad); }
 .eff-value { text-align: right; font-variant-numeric: tabular-nums; } .eff-detail { text-align: right; }
+
+/* Zündung je Zylinder */
+.ign-table td, .ign-table th { padding: .3rem .4rem; }
+.ign-pill { display: inline-block; min-width: 4.2rem; padding: .1rem .5rem; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: 600;
+            text-align: right; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--bs-body-color) 7%, transparent); }
+.ign-pill.ign-ok { color: var(--st-ok); background: var(--st-ok-bg); }
+.ign-pill.ign-soon { color: var(--st-warn); background: var(--st-warn-bg); }
+.ign-pill.ign-overdue { color: var(--st-bad); background: var(--st-bad-bg); }
+span.ign-pill:not([title]) { min-width: 0; padding: 0 .3rem; }
+.ign-picks { display: flex; flex-wrap: wrap; gap: .35rem; }
+.ign-picks .btn { min-width: 2.6rem; }
+@media (max-width: 575.98px) { .ign-pill { min-width: 0; padding: .1rem .4rem; } .ign-table td, .ign-table th { padding: .3rem .2rem; } }

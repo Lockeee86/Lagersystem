@@ -172,7 +172,8 @@
 </div>
 {% endfor %}
 
-{{ page_tabs([("uebersicht", _("Übersicht"), "bi-grid-1x2"), ("logbuch", _("Logbuch"), "bi-journal-text"), ("betrieb", _("Betrieb & Kosten"), "bi-speedometer2"), ("teile", _("Teile & Dokumente"), "bi-folder2-open")]) }}
+{% set tab_list = [("uebersicht", _("Übersicht"), "bi-grid-1x2"), ("logbuch", _("Logbuch"), "bi-journal-text")] + ([("zuendung", _("Zündung"), "bi-lightning-charge")] if ign else []) + [("betrieb", _("Betrieb & Kosten"), "bi-speedometer2"), ("teile", _("Teile & Dokumente"), "bi-folder2-open")] %}
+{{ page_tabs(tab_list) }}
 <div class="row g-4">
     <div class="col-lg-8">
         {% if machine.counter_unit %}
@@ -361,6 +362,97 @@
             </ul>
         </div>
 
+        {% if ign %}
+        <div data-tab="zuendung" class="card shadow-sm mb-4" id="zuendung">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span><i class="bi bi-lightning-charge me-1"></i>{{ _("Zündung je Zylinder") }}</span>
+                <span class="small text-body-secondary">{{ _("Laufzeit in Betriebsstunden") }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {% for bank in ign.grid %}
+                    <div class="{{ 'col-md-6' if ign.grid|length > 1 else 'col-12' }}">
+                        {% if bank.name %}<div class="small fw-semibold text-body-secondary mb-1">{{ bank.name }}</div>{% endif %}
+                        <table class="table table-sm align-middle mb-0 ign-table">
+                            <thead><tr><th>{{ _("Zyl.") }}</th>{% for key, label, field in ign.kinds %}<th class="text-end">{{ _(ign.kind_short[key]) }}</th>{% endfor %}</tr></thead>
+                            <tbody>
+                            {% for row in bank.rows %}
+                            <tr>
+                                <td class="fw-semibold">{{ row.label }}{% if row.failures %} <span class="badge text-bg-danger" title="{{ ngettext('{n} Ausfall an diesem Zylinder', '{n} Ausfälle an diesem Zylinder', row.failures) }}">{{ row.failures }}</span>{% endif %}</td>
+                                {% for key, label, field in ign.kinds %}{% set c = row.cells[key] %}
+                                <td class="text-end">{% if c %}<span class="ign-pill ign-{{ c.state }}" title="{{ _('eingebaut am {day}', day=c.part.installed_on|date) }}{% if c.left is not none %} · {{ _('noch {h} h', h=c.left) if c.left > 0 else _('{h} h überfällig', h=-c.left) }}{% endif %}">{{ c.hours|num(0) }} h</span>{% else %}<span class="text-body-secondary">–</span>{% endif %}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="d-flex flex-wrap gap-3 small text-body-secondary mt-2">
+                    {% for key, label, field in ign.kinds %}<span>{{ _(label) }}: {% if ign.limits[key] %}{{ _("Soll {h} h", h=ign.limits[key]|num(0)) }}{% else %}{{ _("ohne Soll") }}{% endif %}</span>{% endfor %}
+                    <span><span class="ign-pill ign-soon">●</span> {{ _("bald fällig") }}</span><span><span class="ign-pill ign-overdue">●</span> {{ _("überfällig") }}</span>
+                </div>
+                {% if ign.due %}
+                <div class="alert alert-warning py-2 small mt-3 mb-0">{% for kind, cyl, label, hours, left, state in ign.due[:8] %}<span class="me-3 text-nowrap">{{ _(ign.kind_labels[kind]) }} {{ _("Zyl. {cyl}", cyl=label) }}: {% if left > 0 %}{{ _("noch {h} h", h=left) }}{% else %}<b>{{ _("{h} h überfällig", h=-left) }}</b>{% endif %}</span>{% endfor %}{% if ign.due|length > 8 %}<span>{{ _("+ {n} weitere", n=ign.due|length - 8) }}</span>{% endif %}</div>
+                {% endif %}
+            </div>
+            {% if current_user.can_edit %}
+            <div class="card-body border-top">
+                <form method="post" action="{{ url_for('machines.ignition_change', machine_id=machine.id) }}">
+                    {{ csrf() }}
+                    <div class="fw-semibold mb-2"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Wechsel eintragen (neues Teil)") }}</div>
+                    <div class="small text-body-secondary mb-1">{{ _("Zylinder") }} <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-check-all="zyl">{{ _("alle") }}</button></div>
+                    <div class="ign-picks mb-2">{% for cyl, label in ign.labels %}<input type="checkbox" class="btn-check" name="zyl" value="{{ cyl }}" id="igz{{ cyl }}" autocomplete="off"><label class="btn btn-sm btn-outline-secondary" for="igz{{ cyl }}">{{ label }}</label>{% endfor %}</div>
+                    <div class="ign-picks mb-2">{% for key, label, field in ign.kinds %}<input type="checkbox" class="btn-check" name="teil" value="{{ key }}" id="igk{{ key }}" autocomplete="off" {% if key == "kerze" %}checked{% endif %}><label class="btn btn-sm btn-outline-primary" for="igk{{ key }}">{{ _(label) }}</label>{% endfor %}</div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-3"><label class="form-label small mb-0" for="ig_date">{{ _("Datum") }}</label><input class="form-control form-control-sm" type="date" id="ig_date" name="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+                        <div class="col-6 col-md-3"><label class="form-label small mb-0" for="ig_counter">{{ _("Zählerstand (h)") }}</label><input class="form-control form-control-sm" type="number" id="ig_counter" name="counter" min="0" inputmode="numeric" value="{{ machine.counter if machine.counter is not none else '' }}" required></div>
+                        <div class="col-6 col-md-3"><label class="form-label small mb-0" for="ig_reason">{{ _("Grund") }}</label><select class="form-select form-select-sm" id="ig_reason" name="grund">{% for key, label in ign.reasons %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}</select></div>
+                        {% if current_user.is_admin %}<div class="col-6 col-md-3"><label class="form-label small mb-0" for="ig_cost">{{ _("Kosten (€)") }}</label><input class="form-control form-control-sm" id="ig_cost" name="cost" inputmode="decimal" maxlength="12"></div>{% endif %}
+                        <div class="col-12 col-md-9"><label class="form-label small mb-0" for="ig_note">{{ _("Notiz (z. B. Typ, Elektrodenabstand)") }}</label><input class="form-control form-control-sm" id="ig_note" name="note" maxlength="200"></div>
+                        <div class="col-12 col-md-3"><button class="btn btn-sm btn-primary w-100"><i class="bi bi-check-lg me-1"></i>{{ _("Wechsel speichern") }}</button></div>
+                    </div>
+                    <div class="form-text">{{ _("Für den Stand bei der ersten Erfassung: Datum und Zählerstand des damaligen Einbaus eintragen.") }}</div>
+                </form>
+            </div>
+            <div class="card-body border-top">
+                <form method="post" action="{{ url_for('machines.ignition_swap', machine_id=machine.id) }}">
+                    {{ csrf() }}
+                    <div class="fw-semibold mb-2"><i class="bi bi-arrow-left-right me-1"></i>{{ _("Untereinander tauschen") }}</div>
+                    <div class="ign-picks mb-2">{% for key, label, field in ign.kinds %}<input type="checkbox" class="btn-check" name="teil" value="{{ key }}" id="igs{{ key }}" autocomplete="off" {% if key == "kerze" %}checked{% endif %}><label class="btn btn-sm btn-outline-primary" for="igs{{ key }}">{{ _(label) }}</label>{% endfor %}</div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-2"><label class="form-label small mb-0" for="ig_from">{{ _("Zylinder") }}</label><select class="form-select form-select-sm" id="ig_from" name="von">{% for cyl, label in ign.labels %}<option value="{{ cyl }}">{{ label }}</option>{% endfor %}</select></div>
+                        <div class="col-6 col-md-2"><label class="form-label small mb-0" for="ig_to">{{ _("mit Zylinder") }}</label><select class="form-select form-select-sm" id="ig_to" name="nach">{% for cyl, label in ign.labels %}<option value="{{ cyl }}" {% if loop.index == 2 %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                        <div class="col-6 col-md-2"><label class="form-label small mb-0" for="igs_date">{{ _("Datum") }}</label><input class="form-control form-control-sm" type="date" id="igs_date" name="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+                        <div class="col-6 col-md-2"><label class="form-label small mb-0" for="igs_counter">{{ _("Zählerstand (h)") }}</label><input class="form-control form-control-sm" type="number" id="igs_counter" name="counter" min="0" inputmode="numeric" value="{{ machine.counter if machine.counter is not none else '' }}" required></div>
+                        <div class="col-12 col-md-2"><label class="form-label small mb-0" for="igs_note">{{ _("Notiz") }}</label><input class="form-control form-control-sm" id="igs_note" name="note" maxlength="200"></div>
+                        <div class="col-12 col-md-2"><button class="btn btn-sm btn-outline-primary w-100">{{ _("Tauschen") }}</button></div>
+                    </div>
+                    <div class="form-text">{{ _("Die Teile wechseln den Zylinder, ihre Laufzeit läuft weiter – z. B. um einen Fehler einzugrenzen (wandert er mit?).") }}</div>
+                </form>
+            </div>
+            {% endif %}
+            {% if ign.stats %}
+            <div class="card-body border-top">
+                <div class="fw-semibold mb-1"><i class="bi bi-bar-chart me-1"></i>{{ _("Standzeit der ausgebauten Teile") }}</div>
+                <div class="d-flex flex-wrap gap-4 small">
+                    {% for s in ign.stats %}<div><div class="text-body-secondary">{{ _(s.label) }}</div><div class="fw-semibold">{% if s.avg is not none %}Ø {{ s.avg|num(0) }} h{% else %}–{% endif %}</div><div class="text-body-secondary">{{ ngettext("{n} gewechselt", "{n} gewechselt", s.count) }}{% if s.failures %} · <span class="text-danger">{{ ngettext("{n} Ausfall", "{n} Ausfälle", s.failures) }}</span>{% endif %}</div></div>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if ign.history %}
+            <div class="list-group list-group-flush border-top">
+                {% for g in ign.history %}{% set e = g.event %}
+                <div class="list-group-item small d-flex flex-wrap justify-content-between gap-2">
+                    <span>{% if e.action == "tausch" %}<i class="bi bi-arrow-left-right me-1"></i>{{ _(ign.kind_labels[e.kind]) }}: {{ _("Zyl. {a} ↔ {b} getauscht", a=ign.label(e.cylinder), b=ign.label(e.other_cylinder)) }}{% else %}<i class="bi bi-arrow-repeat me-1"></i>{{ _(ign.kind_labels[e.kind]) }} {% if g.cylinders|length == machine.cylinders and machine.cylinders > 1 %}{{ _("alle Zylinder") }}{% else %}{{ _("Zyl. {cyl}", cyl=ign.join(g.cylinders)) }}{% endif %}{% if e.reason == "ausfall" %} <span class="badge text-bg-danger">{{ _("Ausfall") }}</span>{% endif %}{% if g.lives %} <span class="text-body-secondary">· {% if g.lives|min == g.lives|max %}{{ _("altes Teil lief {h} h", h=g.lives[0]|num(0)) }}{% else %}{{ _("alte Teile liefen {low}–{high} h", low=g.lives|min|num(0), high=g.lives|max|num(0)) }}{% endif %}</span>{% endif %}{% endif %}{% if e.note %} <span class="text-body-secondary">– {{ e.note }}</span>{% endif %}</span>
+                    <span class="text-body-secondary text-nowrap">{{ e.day|date }} · {{ e.counter|num(0) }} h{% if e.user %} · {{ e.user.name }}{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
         <div data-tab="logbuch" class="card shadow-sm mb-4" id="logbuch">
             <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
                 <span><i class="bi bi-journal-text me-1"></i>{{ _("Logbuch") }}</span>
@@ -565,6 +657,16 @@
                         <div class="col-6"><label class="form-label" for="x_chp">{{ _("SKVE-Motor-Nr.") }}</label><input class="form-control form-control-sm" type="number" id="x_chp" name="skve_chp_id" min="1" inputmode="numeric" value="{{ machine.skve_chp_id or '' }}"></div>
                         <div class="col-6"><label class="form-label" for="x_kw">{{ _("Nennleistung (kW)") }}</label><input class="form-control form-control-sm" type="number" id="x_kw" name="power_kw" min="1" inputmode="numeric" value="{{ machine.power_kw or '' }}"></div>
                         <div class="col-12 form-text mt-0">{{ _("Mit der Motor-Nummer aus der Speicher-Kraftwerk-API zählen die Betriebsstunden jede Nacht automatisch weiter – ab dem zuletzt eingetragenen Zählerstand.") }}</div>
+                    </div>
+                    <div class="fw-semibold small mb-1"><i class="bi bi-lightning-charge me-1"></i>{{ _("Zündung") }}</div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label" for="x_cyl">{{ _("Zylinder") }}</label><input class="form-control form-control-sm" type="number" id="x_cyl" name="cylinders" min="1" max="24" inputmode="numeric" value="{{ machine.cylinders or '' }}"></div>
+                        <div class="col-6"><label class="form-label" for="x_banks">{{ _("Bauform") }}</label>
+                            <select class="form-select form-select-sm" id="x_banks" name="cylinder_banks"><option value="1">{{ _("Reihe") }}</option><option value="2" {% if machine.cylinder_banks == 2 %}selected{% endif %}>{{ _("V-Motor (Bank A/B)") }}</option></select></div>
+                        <div class="col-4"><label class="form-label" for="x_ign1">{{ _("Kerze (h)") }}</label><input class="form-control form-control-sm" type="number" id="x_ign1" name="ign_plug_hours" min="0" inputmode="numeric" value="{{ machine.ign_plug_hours or '' }}"></div>
+                        <div class="col-4"><label class="form-label" for="x_ign2">{{ _("Stecker (h)") }}</label><input class="form-control form-control-sm" type="number" id="x_ign2" name="ign_cap_hours" min="0" inputmode="numeric" value="{{ machine.ign_cap_hours or '' }}"></div>
+                        <div class="col-4"><label class="form-label" for="x_ign3">{{ _("Spule (h)") }}</label><input class="form-control form-control-sm" type="number" id="x_ign3" name="ign_coil_hours" min="0" inputmode="numeric" value="{{ machine.ign_coil_hours or '' }}"></div>
+                        <div class="col-12 form-text mt-0">{{ _("Mit der Zylinderzahl erscheint der Reiter „Zündung“. Die Stunden sind die Soll-Laufzeit je Teil – leer = ohne Ampel.") }}</div>
                     </div>
                     {% endif %}
                     <input type="hidden" name="refuels_form" value="1">
