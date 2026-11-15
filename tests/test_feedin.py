@@ -381,15 +381,16 @@ def test_flex_statement(app, as_admin, db, seed, plant):
     assert plant.flex_statements.count() == 0
 
 
-def _statement_pdf(month="03", plant="Anlage 2 - Nord", share="4.480,00", net="4.768,00"):
+def _statement_pdf(month="03", plant="Anlage 2 - Nord", share="4.480,00", net="4.768,00", head=None, lines=None):
     """Erfundene Gutschrift als PDF (Aufbau wie beim Vermarkter, Zahlen und Namen ausgedacht)."""
     from io import BytesIO
     from reportlab.pdfgen import canvas
     buf = BytesIO()
     c = canvas.Canvas(buf)
     lines = ["Muster Energie GmbH", "Gutschrift der Erlöse durch die bedarfsgerechte Stromproduktion",
+             *(head or ["Gutschrift Nr.: 2025 - 1000001"]),
              f"Leistungszeitraum: 01.{month}.2025 bis 31.{month}.2025", "Anlage: Beispiel Biogas GmbH",
-             f"{plant} Kundennummer: 0000",
+             f"{plant} Kundennummer: 0000"] + (lines or [
              "Eingespeiste Strommenge 100.000 kWh",
              "Handelsumsatz am EPEX SPOT Day Ahead Markt nach Zählereinspeisung 20.000,00 €",
              "Monatsmarktwert auf Basis Zähler - 14,000 ct / kWh - 14.000,00 €",
@@ -398,7 +399,7 @@ def _statement_pdf(month="03", plant="Anlage 2 - Nord", share="4.480,00", net="4
              "Gebühr für Fahrplanmanagement, Fernsteuerung und Marktprognosen -0,10 ct/kWh -100,00 €",
              "Verbleibender Handelsüberschuss 6,40 ct/kWh 6.400,00 €",
              f"Anteil der SEA am verbleibenden Handelsüberschuss 70,0% {share} €",
-             "Flexibles Bonusprogramm 4,50% 288,00 €", f"Nettobetrag {net} €", "Umsatzsteuer 19% 905,92 €"]
+             "Flexibles Bonusprogramm 4,50% 288,00 €", f"Nettobetrag {net} €", "Umsatzsteuer 19% 905,92 €"])
     y = 800
     for line in lines:
         c.drawString(40, y, line)
@@ -433,3 +434,60 @@ def test_flex_statement_pdf(app, as_admin, db, seed, plant):
     r = as_admin.post("/biogas/gutschrift/pdf", data={"files": [(BytesIO(b"x"), "kaputt.pdf")]},
                       content_type="multipart/form-data", follow_redirects=True)
     assert "kaputt.pdf" in r.get_data(as_text=True)
+
+
+STORNO_LINES = [
+    "Eingespeiste Strommenge - 100.000 kWh",
+    "Handelsumsatz am EPEX SPOT Day Ahead Markt nach Zählereinspeisung -20.000,00 €",
+    "Monatsmarktwert nach EEG 2017 Anlage 1 2.11) 14,00 ct / kWh 14.000,00 €",
+    "Zusätzliche Handelsumsätze durch Viertelstundenhandel -500,00 €",
+    "Handelsergebnis -6.500,00 €",
+    "Gebühr für Fahrplanmanagement, Fernsteuerung und Marktprognosen 0,10 ct / kWh 100,00 €",
+    "Anteil der SEA am verbleibenden Handelsüberschuss 70,0% -4.480,00 €",
+    "Flexibles Bonusprogramm - 4,50% -288,00 €", "Nettobetrag -4.768,00 €"]
+
+
+def test_flex_statement_storno(app, as_admin, db, seed, plant):
+    """Storno hebt die Gutschrift auf, die korrigierte Gutschrift zählt; alle drei Belege bleiben gespeichert."""
+    from io import BytesIO
+    original = feedin.parse_statement_pdf(_statement_pdf())
+    assert original["number"] == "2025-1000001" and not original["storno"]
+    storno = feedin.parse_statement_pdf(_statement_pdf(
+        head=["Stornierung", "Stornierungsbeleg Nr.: 2025 - 1900001", "Stornierung der Gutschrift Nr.: 2025 - 1000001"],
+        lines=STORNO_LINES))
+    assert storno["storno"] and storno["number"] == "2025-1900001" and storno["cancels"] == "2025-1000001"
+    assert storno["values"] == {k: -v for k, v in original["values"].items()} and not storno["warnings"]
+
+    def apply(parsed):
+        return as_admin.post("/biogas/gutschrift/pdf/uebernehmen", data={
+            "rows": "1", "point0": plant.id, "jahr0": "2025", "monat0": "3", "label0": "Anlage 2 - Nord",
+            "beleg0": parsed["number"], "storniert0": parsed["cancels"], **({"storno0": "1"} if parsed["storno"] else {}),
+            **{f"{k}0": str(v) for k, v in parsed["values"].items()}})
+
+    apply(original)
+    # Vorschau des Stornos erkennt die vorhandene Gutschrift
+    html = as_admin.post("/biogas/gutschrift/pdf", data={"files": [(BytesIO(_statement_pdf(
+        head=["Stornierungsbeleg Nr.: 2025 - 1900001", "Stornierung der Gutschrift Nr.: 2025 - 1000001"],
+        lines=STORNO_LINES)), "storno.pdf")]}, content_type="multipart/form-data").get_data(as_text=True)
+    assert "Storno" in html and "Storniert die Gutschrift Nr. 2025-1000001 (Mär 2025)" in html
+    apply(storno)
+    assert 3 not in feedin.month_statements(plant, 2025)                   # hebt sich auf → Fahrplan zählt wieder
+    march = feedin.months(plant, 2025, today=date(2025, 12, 31))[2]
+    assert march["source"] == "fahrplan"
+    corrected = feedin.parse_statement_pdf(_statement_pdf(head=["Gutschrift Nr.: 2025 - 1000099"], share="4.000,00",
+                                                          net="4.288,00"))
+    apply(corrected)
+    month = feedin.month_statements(plant, 2025)[3]
+    assert month.net_eur == pytest.approx(4288) and month.kwh == 100000 and month.has_storno
+    assert plant.flex_statements.count() == 3
+    assert feedin.revenue(plant, 2025)["year"]["flex"]["net_eur"] == pytest.approx(4288)
+    apply(original)                                                         # gleiche Nummer nochmal = ersetzt
+    assert plant.flex_statements.count() == 3
+    # von Hand: Storno-Haken dreht die Vorzeichen um
+    feedin.save_statement(plant, 2025, 5, {"kwh": "1000", "spot_eur": "200", "market_eur": "100", "share_eur": "70"})
+    feedin.save_statement(plant, 2025, 5, {"kwh": "1000", "spot_eur": "200", "market_eur": "100", "share_eur": "70"},
+                          storno=True)
+    db.session.commit()
+    assert 5 not in feedin.month_statements(plant, 2025) and plant.flex_statements.count() == 5
+    html = as_admin.get("/biogas/einstellungen?jahr=2025").get_data(as_text=True)
+    assert "storniert 2025-1000001" in html and "von Hand" in html

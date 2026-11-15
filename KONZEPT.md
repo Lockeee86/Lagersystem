@@ -979,6 +979,9 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Die Zählermenge der Gutschrift ersetzt im Budget den Fahrplan, bis die Abrechnung des Netzbetreibers kommt.
 - 0.111.0: PDF-Gutschriften hochladen (auch mehrere auf einmal), Vorschau mit änderbaren Zahlen und Gegenprobe, die
   Zuordnung Anlage → Einspeisestelle merkt sich die App. Später: direkt über die SKVE-API.
+- 0.112.0: Storno – Stornierungsbelege werden erkannt (Belegnummer, stornierte Gutschrift-Nr.) und mit umgekehrten
+  Vorzeichen gespeichert; je Monat zählt die Summe aus Gutschrift, Storno und korrigierter Gutschrift. Von Hand über den
+  Haken „Storno“.
 
 ### Erlöse Direktvermarktung und von Hand (0.109.0)
 - Unter Biogas → Einstellungen „Erlöse von Hand und Direktvermarktung“: je Einspeisestelle und Monat (oder Jahr) die

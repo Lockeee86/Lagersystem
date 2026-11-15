@@ -1969,9 +1969,11 @@ class FeedRevenue(db.Model):
 class FlexStatement(db.Model):
     """Monats-Gutschrift des Flex-Vermarkters (z. B. SKVE) je Einspeisestelle: Handel am Spotmarkt über dem
     Monatsmarktwert. Ausgezahlt wird nur der Anteil am Handelsüberschuss + Bonus; den Marktwert zahlt der
-    Direktvermarkter. Beträge wie auf der Gutschrift, aber ohne Vorzeichen (Marktwert und Gebühr werden abgezogen)."""
+    Direktvermarkter. Marktwert und Gebühr positiv gespeichert (sie werden abgezogen).
+    Storno (`storno`) = Gegenbuchung einer früheren Gutschrift (`cancels` = deren Nummer): alle Werte mit umgekehrtem
+    Vorzeichen. Je Monat kann es also Gutschrift, Storno und korrigierte Gutschrift geben – gezählt wird die Summe."""
     __tablename__ = "flex_statements"
-    __table_args__ = (db.UniqueConstraint("feed_point_id", "year", "month", name="uq_flex_statement"),)
+    __table_args__ = (db.UniqueConstraint("feed_point_id", "number", name="uq_flex_statement_number"),)
 
     id = db.Column(db.Integer, primary_key=True)
     feed_point_id = db.Column(db.Integer, db.ForeignKey("feed_points.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -1984,6 +1986,9 @@ class FlexStatement(db.Model):
     fee_eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)        # Gebühr Fahrplanmanagement
     share_eur = db.Column(db.Numeric(12, 2), nullable=False)         # Anteil am verbleibenden Handelsüberschuss
     bonus_eur = db.Column(db.Numeric(12, 2), nullable=False, default=0)      # Bonusprogramm
+    number = db.Column(db.String(30))                                # Gutschrift- bzw. Stornobeleg-Nr. (leer = von Hand)
+    cancels = db.Column(db.String(30))                               # Storno: Nummer der stornierten Gutschrift
+    storno = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     feed_point = db.relationship("FeedPoint", backref=db.backref("flex_statements", lazy="dynamic",

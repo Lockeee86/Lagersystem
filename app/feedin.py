@@ -109,7 +109,7 @@ def months(point, year, today=None):
     today = today or date.today()
     stored = {m.month: m for m in point.months.filter_by(year=year)}
     actual = {k: float(m.kwh) for k, m in stored.items() if k}
-    metered = {s.month: float(s.kwh) for s in point.flex_statements.filter_by(year=year) if s.month}
+    metered = {m: s.kwh for m, s in month_statements(point, year).items() if s.kwh > 0}
     ids = [m.id for m in point.machines]
     planned = {}
     if ids:
@@ -361,7 +361,7 @@ def revenue(point, year):
     Strom gezahlt wurde (Erlös − Entgelt) → `dv`; dazu `paid` = beides zusammen und `gain` = Direktvermarktung −
     Marktwert (was der flexible Fahrplan über dem Monatsmarktwert gebracht hat)."""
     rows = point.revenues.filter_by(year=year).all()
-    flex = {s.month: s for s in point.flex_statements.filter_by(year=year)}
+    flex = month_statements(point, year)
     if not rows and not flex:
         return None
     by_month, dv_month = {}, {}
@@ -514,24 +514,62 @@ STATEMENT_FIELDS = (
 )
 
 
-def save_statement(point, year, month, values):
-    """Gutschrift des Flex-Vermarkters eintragen bzw. ersetzen. `values`: Texte wie auf der Gutschrift (deutsche Zahlen,
-    Vorzeichen bei Marktwert und Gebühr egal). Pflicht: Menge, Day-Ahead, Marktwert und Anteil."""
+class MonthStatement:
+    """Summe aller Belege eines Monats (Gutschrift + Storno + Korrektur) mit denselben Kennzahlen wie ein Beleg."""
+    KEYS = ("kwh", "spot_eur", "market_eur", "intraday_eur", "fee_eur", "share_eur", "bonus_eur")
+
+    def __init__(self, rows):
+        self.rows = rows
+        for key in self.KEYS:
+            setattr(self, key, sum(float(getattr(r, key)) for r in rows))
+        self.result_eur = self.spot_eur - self.market_eur + self.intraday_eur
+        self.surplus_eur = self.result_eur - self.fee_eur
+        self.net_eur = self.share_eur + self.bonus_eur
+        self.kept_eur = self.surplus_eur - self.share_eur + self.fee_eur
+        self.has_storno = any(r.storno for r in rows)
+
+
+def month_statements(point, year):
+    """{Monat: MonthStatement} für eine Einspeisestelle – Monate, deren Belege sich ganz aufheben, fallen weg."""
+    by_month = {}
+    for row in point.flex_statements.filter_by(year=year):
+        by_month.setdefault(row.month, []).append(row)
+    result = {m: MonthStatement(rows) for m, rows in by_month.items()}
+    return {m: s for m, s in result.items() if any(abs(getattr(s, k)) > 0.005 for k in MonthStatement.KEYS)}
+
+
+def save_statement(point, year, month, values, number=None, cancels=None, storno=False, signed=False):
+    """Gutschrift (oder Storno) des Flex-Vermarkters eintragen bzw. ersetzen.
+
+    `values`: Texte bzw. Zahlen. Von Hand (`signed` False): wie auf der Gutschrift, Minus bei Marktwert und Gebühr egal;
+    bei `storno` die Zahlen der stornierten Gutschrift – die App dreht alle Vorzeichen um. Aus der PDF (`signed` True):
+    schon mit dem richtigen Vorzeichen. Gleiche Belegnummer ersetzt; ohne Nummer ersetzt sie den Beleg derselben Art
+    (Gutschrift/Storno) ohne Nummer im selben Monat. Pflicht: Menge, Day-Ahead, Marktwert und Anteil."""
     if not (2000 <= (year or 0) <= 2100) or not (1 <= (month or 0) <= 12):
         raise StorageError(N_("Bitte Jahr und Monat angeben."))
+    number = re.sub(r"\s+", "", number or "")[:30] or None
+    cancels = re.sub(r"\s+", "", cancels or "")[:30] or None
     parsed = {}
     for key, _label in STATEMENT_FIELDS:
         parsed[key] = _amount(values.get(key), N_("Bitte nur Zahlen eintragen, z. B. 12.345,67."))
     if any(parsed[k] is None for k in ("kwh", "spot_eur", "market_eur", "share_eur")):
         raise StorageError(N_("Bitte mindestens Strommenge, Handelsumsatz, Monatsmarktwert und Anteil eintragen."))
-    if not 0 < parsed["kwh"] <= 1e10 or any(abs(v) > 1e9 for v in parsed.values() if v is not None):
+    if not 0 < abs(parsed["kwh"]) <= 1e10 or any(abs(v) > 1e9 for v in parsed.values() if v is not None):
         raise StorageError(N_("Bitte nur Zahlen eintragen, z. B. 12.345,67."))
-    row = point.flex_statements.filter_by(year=year, month=month).first()
+    if not signed:
+        parsed["kwh"] = abs(parsed["kwh"])
+        for key in ("market_eur", "fee_eur"):
+            parsed[key] = abs(parsed[key] or 0)
+        if storno:
+            parsed = {key: -(value or 0) for key, value in parsed.items()}
+    if number:
+        row = point.flex_statements.filter_by(number=number).first()
+    else:
+        row = point.flex_statements.filter_by(year=year, month=month, number=None, storno=bool(storno)).first()
     if row is None:
-        row = FlexStatement(feed_point_id=point.id, year=year, month=month)
+        row = FlexStatement(feed_point_id=point.id)
         db.session.add(row)
-    for key in ("market_eur", "fee_eur"):
-        parsed[key] = abs(parsed[key] or 0)
+    row.year, row.month, row.number, row.cancels, row.storno = year, month, number, cancels, bool(storno)
     for key, value in parsed.items():
         setattr(row, key, Decimal(str(round(value or 0, 1 if key == "kwh" else 2))))
     db.session.flush()
@@ -592,8 +630,12 @@ def parse_statement_pdf(data):
         raise StatementPdfError(N_("Die Gutschrift ließ sich nicht lesen – bitte die Zahlen von Hand eintragen."))
     label = re.search(r"^\s*(Anlage\s*\d+[^\n]*?)\s*(?:Kundennummer|Vertragskonto|$)", text, re.M)
     values = {key: found.get(key, 0.0) for key, _l in STATEMENT_FIELDS}
-    for key in ("market_eur", "fee_eur"):
-        values[key] = abs(values[key])
+    for key in ("market_eur", "fee_eur"):          # gedruckt als Abzug (−), gespeichert als positiver Betrag
+        values[key] = -values[key]
+    storno = bool(re.search(r"Stornierungsbeleg|Stornierung der Gutschrift", text))
+    nr = r"Nr\.?:?\s*(\d{4})\s*-?\s*(\d+)"
+    own = re.search(("Stornierungsbeleg " if storno else r"(?<!der )Gutschrift ") + nr, text)
+    cancelled = re.search(r"Stornierung der Gutschrift " + nr, text) if storno else None
     warnings = []
     result = values["spot_eur"] - values["market_eur"] + values["intraday_eur"]
     if "result_eur" in found and abs(found["result_eur"] - result) > 0.05:
@@ -601,7 +643,9 @@ def parse_statement_pdf(data):
     net = values["share_eur"] + values["bonus_eur"]
     if "net_eur" in found and abs(found["net_eur"] - net) > 0.05:
         warnings.append(N_("Nettobetrag passt nicht zu Anteil + Bonus."))
-    return {"year": int(period.group(3)), "month": int(period.group(2)), "values": values,
+    return {"year": int(period.group(3)), "month": int(period.group(2)), "values": values, "storno": storno,
+            "number": f"{own.group(1)}-{own.group(2)}" if own else "",
+            "cancels": f"{cancelled.group(1)}-{cancelled.group(2)}" if cancelled else "",
             "label": label.group(1).strip()[:80] if label else "", "net": found.get("net_eur", net),
             "warnings": warnings}
 
@@ -649,7 +693,13 @@ def remember_pdf_point(label, point):
 def statements(year):
     """Gutschriften aller Einspeisestellen eines Jahres (Liste in den Einstellungen)."""
     return (FlexStatement.query.filter_by(year=year)
-            .order_by(FlexStatement.feed_point_id, FlexStatement.month).all())
+            .order_by(FlexStatement.feed_point_id, FlexStatement.month, FlexStatement.storno.desc(), FlexStatement.id).all())
+
+
+def find_statement(number):
+    """Beleg mit dieser Nummer (z. B. die stornierte Gutschrift) oder None."""
+    number = re.sub(r"\s+", "", number or "")
+    return FlexStatement.query.filter_by(number=number).first() if number else None
 
 
 def delete_manual(row):

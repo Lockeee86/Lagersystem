@@ -14,7 +14,7 @@
     {% for r in rows %}{% set i = loop.index0 %}
     <div class="card shadow-sm mb-4">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span><i class="bi bi-file-earmark-pdf me-1"></i>{{ r.label or r.filename }} · {{ _(month_names[r.month - 1]) }} {{ r.year }}</span>
+            <span><i class="bi bi-file-earmark-pdf me-1"></i>{% if r.storno %}<span class="badge text-bg-danger me-1">{{ _("Storno") }}</span>{% endif %}{{ r.label or r.filename }} · {{ _(month_names[r.month - 1]) }} {{ r.year }}{% if r.number %} · {{ _("Nr. {nr}", nr=r.number) }}{% endif %}</span>
             <label class="d-flex align-items-center gap-2 small fw-normal">{{ _("übernehmen nach") }}
                 <select class="form-select form-select-sm{{ ' border-warning' if not r.guess }}" name="point{{ i }}" style="width: auto"{% if not r.guess %} aria-describedby="pick{{ i }}"{% endif %}>
                     <option value="">{{ _("– nicht übernehmen –") }}</option>
@@ -23,10 +23,11 @@
             </label>
         </div>
         <div class="card-body">
-            <input type="hidden" name="jahr{{ i }}" value="{{ r.year }}"><input type="hidden" name="monat{{ i }}" value="{{ r.month }}"><input type="hidden" name="label{{ i }}" value="{{ r.label }}">
+            <input type="hidden" name="jahr{{ i }}" value="{{ r.year }}"><input type="hidden" name="monat{{ i }}" value="{{ r.month }}"><input type="hidden" name="label{{ i }}" value="{{ r.label }}"><input type="hidden" name="beleg{{ i }}" value="{{ r.number }}"><input type="hidden" name="storniert{{ i }}" value="{{ r.cancels }}">{% if r.storno %}<input type="hidden" name="storno{{ i }}" value="1">{% endif %}
             {% if not r.guess %}<div class="alert alert-warning py-2 small" id="pick{{ i }}">{{ _("Bitte oben die Einspeisestelle wählen – beim nächsten Mal merkt sich die App die Zuordnung.") }}</div>{% endif %}
             {% for w in r.warnings %}<div class="alert alert-warning py-2 small">{{ _(w) }}</div>{% endfor %}
-            {% if r.existing %}<div class="small text-body-secondary mb-2"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Für diesen Monat gibt es schon eine Gutschrift – sie wird ersetzt.") }}</div>{% endif %}
+            {% if r.existing %}<div class="small text-body-secondary mb-2"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Diesen Beleg gibt es schon – er wird ersetzt.") }}</div>{% endif %}
+            {% if r.storno %}<div class="alert alert-{{ 'info' if r.cancelled else 'warning' }} py-2 small"><i class="bi bi-arrow-counterclockwise me-1"></i>{% if r.cancelled %}{{ _("Storniert die Gutschrift Nr. {nr} ({month}) – beide bleiben gespeichert und heben sich auf. Die korrigierte Gutschrift einfach dazu hochladen.", nr=r.cancels, month=_(month_names[r.cancelled.month - 1]) ~ " " ~ r.cancelled.year) }}{% else %}{{ _("Storniert die Gutschrift Nr. {nr} – die ist noch nicht in der App. Bitte auch die ursprüngliche und die korrigierte Gutschrift hochladen, sonst fehlt der Monat bzw. er wird negativ.", nr=r.cancels or "?") }}{% endif %}</div>{% endif %}
             <div class="row g-2">
                 {% for key, label in fields %}
                 <div class="col-6 col-md-3"><label class="form-label small mb-0" for="{{ key }}{{ i }}">{{ _(label) }}</label>

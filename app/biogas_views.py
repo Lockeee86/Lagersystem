@@ -302,7 +302,8 @@ def flex_statement_save():
         return redirect(target)
     try:
         row = feedin.save_statement(point, year, form_int("monat"),
-                                    {key: form_str(key, 20) for key, _label in feedin.STATEMENT_FIELDS})
+                                    {key: form_str(key, 20) for key, _label in feedin.STATEMENT_FIELDS},
+                                    number=form_str("beleg", 30), storno=bool(request.form.get("storno")))
         db.session.commit()
     except StorageError as e:
         db.session.rollback()
@@ -328,8 +329,8 @@ def flex_statement_pdf():
             continue
         row["filename"] = upload.filename
         row["guess"] = feedin.pdf_point_guess(row["label"])
-        row["existing"] = any(s.month == row["month"] and row["guess"] and s.feed_point_id == row["guess"].id
-                              for s in feedin.statements(row["year"]))
+        row["existing"] = feedin.find_statement(row["number"])
+        row["cancelled"] = feedin.find_statement(row["cancels"]) if row["storno"] else None
         rows.append(row)
     if not rows:
         for name, message in failed:
@@ -352,7 +353,9 @@ def flex_statement_pdf_apply():
                 continue
             year = form_int(f"jahr{i}")
             feedin.save_statement(point, year, form_int(f"monat{i}"),
-                                  {key: form_str(f"{key}{i}", 20) for key, _label in feedin.STATEMENT_FIELDS})
+                                  {key: form_str(f"{key}{i}", 20) for key, _label in feedin.STATEMENT_FIELDS},
+                                  number=form_str(f"beleg{i}", 30), cancels=form_str(f"storniert{i}", 30),
+                                  storno=bool(request.form.get(f"storno{i}")), signed=True)
             feedin.remember_pdf_point(form_str(f"label{i}", 80), point)
             count += 1
         db.session.commit()
