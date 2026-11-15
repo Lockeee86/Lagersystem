@@ -480,6 +480,11 @@ def maintenance_forecast(machine, today=None):
             continue
         due_on = today if left <= 0 else (today + timedelta(days=math.ceil(left / per_day)) if per_day else None)
         rows.append({"task": task, "status": state, "left": left, "due_on": due_on})
+    from . import ignition              # fällige Zündungsteile: wie eine Wartung nach Stunden
+    for task, state in ignition.due_tasks(machine):
+        left = state["left_counter"]
+        due_on = today if left <= 0 else (today + timedelta(days=math.ceil(left / per_day)) if per_day else None)
+        rows.append({"task": task, "status": state, "left": left, "due_on": due_on})
     # bekannte nach Reststunden, noch nie erledigte nach Intervall (die häufigen zuerst)
     return sorted(rows, key=lambda r: (r["left"] is None, r["left"] if r["left"] is not None else r["task"].interval_hours))
 

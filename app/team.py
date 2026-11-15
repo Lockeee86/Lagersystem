@@ -274,6 +274,8 @@ def suggestions(day, user=None):
     linked_events = {t.machine_event_id for t in linked if t.machine_event_id}
     rows = []
     for mt, status in machines.due_tasks(user=user):
+        if getattr(mt, "is_ignition", False):          # Zündung: keine Wartungs-Aufgabe mit Verknüpfung
+            continue
         by_date = status["left_days"] is not None and status["left_days"] <= SUGGEST_DAYS
         by_counter = (status["left_counter"] is not None
                       and status["left_counter"] <= max(10, (mt.interval_hours or 0) // 10))

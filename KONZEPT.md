@@ -977,8 +977,9 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - „Wechsel eintragen“: Zylinder antippen (einzeln oder alle), Teil wählen, Grund planmäßig/Ausfall, Datum, Zählerstand,
   Notiz, Kosten. „Untereinander tauschen“: Teile zweier Zylinder wechseln den Platz, ihre Laufzeit läuft weiter.
 - Verlauf, Standzeit der ausgebauten Teile, je Aktion ein Eintrag im Logbuch.
-- Noch offen: fällige Teile bei „Fällige Wartungen“/Push/Wartungsfenster, Fotos am Wechsel, Teile-Typ aus den
-  Ersatzteilen, Tausch zwischen zwei Motoren.
+- 0.117.0: Fällige Teile erscheinen wie Wartungen – Maschinenliste (mit Ampel), „Jetzt wichtig“, Werkstatt-Bildschirm,
+  Biogas → Wartung samt Wartungsfenster und Push (einmal je neuer Fälligkeit); ein Eintrag je Motor und Teileart.
+- Noch offen: Fotos am Wechsel, Teile-Typ aus den Ersatzteilen, Tausch zwischen zwei Motoren.
 
 ### Auswertung Biogasanlage (0.115.0)
 Unter Biogas → Auswertung, je Jahr umschaltbar:

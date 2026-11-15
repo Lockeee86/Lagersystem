@@ -103,3 +103,41 @@ def test_pages(app, as_admin, as_worker, as_viewer, db, seed, motor):
     other = machines.create_machine("Motor ohne", "bhkw", seed["admin"], counter_unit="h")
     db.session.commit()
     assert "Zündung je Zylinder" not in as_admin.get(f"/maschine/{other.id}").get_data(as_text=True)
+
+
+def test_due_parts_show_up_like_maintenance(app, as_admin, db, seed, motor):
+    """Fällige Zündungsteile: Maschinenliste, Ampel, Startseite, Werkstatt-Bildschirm, Push, Wartungsübersicht."""
+    from app import biogas, push, screen, team
+    admin = seed["admin"]
+    ignition.change(motor, admin, [3, 7], ["kerze"], counter=7900)            # 2100 h alt → überfällig (Soll 2000)
+    ignition.change(motor, admin, [1], ["kerze"], counter=8150)               # 1850 h → bald fällig
+    ignition.change(motor, admin, [2], ["kerze", "stecker"], counter=9900)    # frisch
+    db.session.commit()
+    rows = [(t, s) for t, s in machines.due_tasks() if getattr(t, "is_ignition", False)]
+    assert len(rows) == 1                                                     # ein Eintrag je Motor und Teileart
+    task, status = rows[0]
+    assert task.name == "Zündkerze Zyl. A1, A3, B1" and status["state"] == "overdue" and status["left_counter"] == -100
+    assert machines.machine_summary(motor)[0] == "overdue"
+    assert not [r for r in team.suggestions(admin) if r["machine"].id == motor.id]   # keine verknüpfte Wartungs-Aufgabe
+    forecast = biogas.maintenance_forecast(motor)
+    assert any(getattr(f["task"], "is_ignition", False) and f["left"] == -100 for f in forecast)
+    html = as_admin.get("/maschinen").get_data(as_text=True)
+    assert "Zündkerze Zyl. A1, A3, B1" in html and f"/maschine/{motor.id}#zuendung" in html
+    assert "Zündkerze Zyl. A1, A3, B1" in as_admin.get("/?alle=1").get_data(as_text=True)
+    screen.new_token()
+    db.session.commit()
+    assert "Zündkerze Zyl. A1, A3, B1" in as_admin.get(f"/werkstatt/anzeige/{screen.token()}").get_data(as_text=True)
+    assert "Zündkerze Zyl. A1, A3, B1" in as_admin.get("/biogas/wartung").get_data(as_text=True)
+    # Push: einmal melden, am nächsten Morgen nicht noch einmal
+    from app.models import Notice
+    with app.test_request_context():
+        push._maintenance(date.today())
+        first = Notice.query.filter(Notice.body.contains("Zündkerze")).count()
+        assert first
+        push._maintenance(date.today())
+        assert Notice.query.filter(Notice.body.contains("Zündkerze")).count() == first
+    # nach dem Wechsel ist der Eintrag weg
+    ignition.change(motor, admin, [1, 3, 7], ["kerze"])
+    db.session.commit()
+    assert not [t for t, _s in machines.due_tasks() if getattr(t, "is_ignition", False)]
+    assert machines.machine_summary(motor)[0] != "overdue"

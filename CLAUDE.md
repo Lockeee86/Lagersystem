@@ -93,7 +93,7 @@ docker compose up --build -d
   `IgnitionPart` (Kerze/Stecker/Spule, `installed_counter` = Zählerstand als Neuteil, `cylinder` leer = ausgebaut);
   `change()` = neues Teil (altes raus, Grund plan/ausfall), `swap()` = zwei Zylinder tauschen – die Laufzeit wandert mit
   dem Teil; Verlauf `IgnitionEvent` (`history()` fasst gleiche Wechsel zusammen), ein Logbuch-Eintrag je Aktion
-  (`MachineEvent` „wartung“, `task_name` „Zündung“), `grid()` (Ampel ab `SOON` 90 %), `due()`, `summary()`, `stats()`;
+  (`MachineEvent` „wartung“, `task_name` „Zündung“), `grid()` (Ampel ab `SOON` 90 %), `due()`, `summary()`, `stats()`; fällige Teile zählen wie Wartungen: `due_tasks()` liefert je Motor und Teileart eine `DueTask` (verhält sich wie `MaintenanceTask`, `is_ignition`, keine DB-Zeile) – `machines.due_tasks()` / `machine_summary()` und `biogas.maintenance_forecast()` hängen sie an (Listen, Startseite, Werkstatt-Bildschirm, Push, Wartungsfenster; Link auf `#zuendung`; nicht als Aufgaben-Vorschlag);
   Routen `machines.ignition_change` / `ignition_swap`; committet nicht. Knopf „alle“: `data-check-all="name"` (app.js)
 - Ersatzteile (`MachinePart`) und Dokumente (`MachineDocument`, `uploads.save_document` → `UPLOAD_DIR/dokumente/`)
   hängen an der Maschine, Routen in `machine_views.py`

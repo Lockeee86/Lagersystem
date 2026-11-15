@@ -3785,4 +3785,6 @@ MESSAGES = {
     'Spule': 'Cewka',
     'alle Zylinder': 'wszystkie cylindry',
     'alte Teile liefen {low}–{high} h': 'stare części pracowały {low}–{high} h',
+    '{kind} Zyl. {cyl}': '{kind} cyl. {cyl}',
+    '{kind}: alle Zylinder': '{kind}: wszystkie cylindry',
 }

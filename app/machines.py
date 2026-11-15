@@ -261,6 +261,9 @@ def due_tasks(states=("overdue", "soon"), user=None):
         status = task_status(task)
         if status["state"] in states:
             rows.append((task, status))
+    from . import ignition          # fällige Zündkerzen, Stecker, Spulen zählen wie Wartungen
+    for machine in visible(Machine.query.filter(Machine.active.is_(True), Machine.cylinders.isnot(None)), user):
+        rows.extend(ignition.due_tasks(machine, states))
     order = {"overdue": 0, "soon": 1, "unknown": 2, "ok": 3}
     return sorted(rows, key=lambda r: (order[r[1]["state"]], r[1]["left_days"] if r[1]["left_days"] is not None
                                        else 9999, r[0].machine.name))
@@ -275,6 +278,9 @@ def open_faults(user=None):
 def machine_summary(machine):
     """Ampel einer Maschine für Listen: (state, offene Störungen)."""
     states = {task_status(t)["state"] for t in machine.tasks}
+    if machine.cylinders:
+        from . import ignition
+        states |= {s["state"] for _t, s in ignition.due_tasks(machine)}
     faults = machine.events.filter(MachineEvent.kind == "stoerung", MachineEvent.resolved_at.is_(None)).count()
     state = "overdue" if "overdue" in states else "soon" if "soon" in states else \
         "unknown" if "unknown" in states else "ok"

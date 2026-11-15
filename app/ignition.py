@@ -99,6 +99,47 @@ def due(machine):
     return sorted(result, key=lambda r: r[4])
 
 
+class DueTask:
+    """Fällige Zündungsteile eines Motors als „Wartung“: verhält sich für Listen, Push und Wartungsfenster wie eine
+    `MaintenanceTask` (ein Eintrag je Motor und Teileart, nicht je Zylinder). `is_ignition` unterscheidet sie."""
+    is_ignition = True
+    interval_months = None
+    downtime_hours = None           # Wartungsfenster: Standard-Stillstand
+    note = None
+
+    def __init__(self, machine, kind, cylinders):
+        self.machine, self.machine_id, self.kind, self.cylinders = machine, machine.id, kind, cylinders
+        self.id = f"zuendung-{machine.id}-{kind}"
+        self.interval_hours = interval(machine, kind)
+        if len(cylinders) == machine.cylinders and len(cylinders) > 1:
+            self.name = _("{kind}: alle Zylinder", kind=_(KIND_LABELS[kind]))
+        else:
+            shown = ", ".join(label(machine, c) for c in cylinders[:5])
+            if len(cylinders) > 5:
+                shown += f" + {len(cylinders) - 5}"
+            self.name = _("{kind} Zyl. {cyl}", kind=_(KIND_LABELS[kind]), cyl=shown)
+
+
+def due_tasks(machine, states=("overdue", "soon")):
+    """[(DueTask, status)] wie `machines.task_status`: je Teileart das dringendste Teil bestimmt Stand und Reststunden."""
+    if not active(machine):
+        return []
+    by_kind = {}
+    for kind, cylinder, _label, _hours, left, state in due(machine):
+        if state in states:
+            by_kind.setdefault(kind, []).append((left, cylinder, state))
+    rows = []
+    for kind, _l, _f in KINDS:
+        items = by_kind.get(kind)
+        if not items:
+            continue
+        left = min(i[0] for i in items)
+        status = {"state": "overdue" if any(i[2] == "overdue" for i in items) else "soon", "due_on": None,
+                  "due_counter": (machine.counter or 0) + left, "left_counter": left, "left_days": None}
+        rows.append((DueTask(machine, kind, sorted(i[1] for i in items)), status))
+    return rows
+
+
 def summary(machine):
     """Kurzfassung für Listen: {"overdue": n, "soon": n} oder None ohne Zündungs-Verfolgung."""
     if not active(machine):
