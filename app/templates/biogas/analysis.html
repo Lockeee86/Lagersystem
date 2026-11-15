@@ -71,7 +71,91 @@
     <div class="card-footer small text-body-secondary">{{ _("Stillstand aus dem Logbuch: Störungen, bei denen die Maschine steht, von der Meldung bis „behoben“, Wartungen mit dem Stillstand der Wartung (sonst 4 Stunden). Ungemeldete Ausfälle fehlen, weil SKVE keine gemessenen Laufzeiten liefert.") }}{% if current_user.is_admin %} {{ _("Ausfall = Störungsstunden × Ø Leistung der letzten 60 Tage × Erlös je kWh (aus den Abrechnungen, sonst Day-Ahead) – grob geschätzt; wenn die Jahresgrenze ohnehin erreicht wird, lässt sich ein Teil später nachholen.") }}{% endif %}</div>
 </div>
 {% endif %}
-{% if not week and not quality and not availability %}
+<div class="d-flex align-items-center gap-2 mb-2" id="jahr">
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('biogas.analysis_page', jahr=analysis_year - 1) }}#jahr" aria-label="{{ _('Vorjahr') }}"><i class="bi bi-chevron-left"></i></a>
+    <span class="fw-semibold">{{ _("Jahr {year}", year=analysis_year) }}</span>
+    {% if analysis_year < today.year %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('biogas.analysis_page', jahr=analysis_year + 1) }}#jahr" aria-label="{{ _('Folgejahr') }}"><i class="bi bi-chevron-right"></i></a>{% endif %}
+</div>
+{% if analysis %}
+{% set with_compare = analysis.stations|selectattr("compare")|list %}
+{% if with_compare %}
+<div class="card shadow-sm mb-4" id="fahrplan-ist">
+    <div class="card-header"><i class="bi bi-arrow-left-right me-1"></i>{{ _("Fahrplan gegen Zähler {year}", year=analysis_year) }}</div>
+    <div class="card-body">
+        {% for s in with_compare %}
+        <div class="{{ 'border-top pt-3 mt-3' if not loop.first }}">
+            <div class="fw-bold mb-1">{{ s.point.name }}{% if s.total.pct is not none %} <span class="badge text-bg-{{ 'success' if s.total.pct|abs < 3 else 'warning' if s.total.pct|abs < 8 else 'danger' }}">{{ '+' if s.total.pct > 0 }}{{ s.total.pct|num(1) }} %</span>{% endif %}</div>
+            <div class="table-responsive"><table class="table table-sm mb-0 text-nowrap">
+                <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">{{ _("Fahrplan") }}</th><th class="text-end">{{ _("Zähler") }}</th><th class="text-end">{{ _("Abweichung") }}</th>{% if current_user.is_admin %}<th class="text-end">{{ _("Day-Ahead laut Fahrplan") }}</th><th class="text-end">{{ _("Day-Ahead laut Gutschrift") }}</th>{% endif %}</tr></thead>
+                <tbody>{% for r in s.compare %}<tr>
+                    <td>{{ _(month_names[r.month - 1]) }}</td>
+                    <td class="text-end">{{ ((r.plan / 1000)|num(1) ~ " MWh") if r.plan else "–" }}</td>
+                    <td class="text-end">{{ (r.actual / 1000)|num(1) }} MWh</td>
+                    <td class="text-end {{ 'text-danger fw-semibold' if r.pct is not none and r.pct|abs >= 8 }}">{% if r.pct is not none %}{{ '+' if r.pct > 0 }}{{ r.pct|num(1) }} %{% else %}–{% endif %}</td>
+                    {% if current_user.is_admin %}<td class="text-end">{{ (r.plan_eur|num(0) ~ " €") if r.plan_eur else "–" }}</td>
+                    <td class="text-end">{{ (r.spot_eur|num(0) ~ " €") if r.spot_eur is not none else "–" }}{% if r.plan_eur and r.spot_eur is not none %} <span class="text-body-secondary small">({{ '+' if r.spot_eur >= r.plan_eur }}{{ (r.spot_eur - r.plan_eur)|num(0) }})</span>{% endif %}</td>{% endif %}
+                </tr>{% endfor %}</tbody>
+            </table></div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Fahrplan = geplante kWh der BHKW laut SKVE, Zähler = gemessene Einspeisung aus der Abrechnung des Netzbetreibers bzw. der Gutschrift. Große Abweichungen nach unten sind Ausfälle oder nicht gefahrene Fahrpläne, nach oben ungeplante Laufzeiten.") }}</div>
+</div>
+{% endif %}
+
+{% set with_flex = analysis.stations|selectattr("flex")|list %}
+{% if with_flex and current_user.is_admin %}
+<div class="card shadow-sm mb-4" id="flex">
+    <div class="card-header"><i class="bi bi-graph-up-arrow me-1"></i>{{ _("Flex-Vermarktung {year}", year=analysis_year) }}</div>
+    <div class="card-body">
+        {% for s in with_flex %}{% set t = s.flex_total %}
+        <div class="{{ 'border-top pt-3 mt-3' if not loop.first }}">
+            <div class="fw-bold mb-1">{{ s.point.name }}</div>
+            <div class="budget-facts mb-2">
+                <div><span>{{ _("Handelsüberschuss") }}</span><strong>{{ t.surplus_ct|num(2) if t.surplus_ct is not none else "–" }} ct/kWh</strong><small>{{ t.surplus|num(0) }} €</small></div>
+                <div><span>{{ _("Ausgezahlt") }}</span><strong class="text-success">{{ t.net_ct|num(2) if t.net_ct is not none else "–" }} ct/kWh</strong><small>{{ t.net|num(0) }} € · {{ _("Bonus {eur} €", eur=t.bonus|num(0)) }}</small></div>
+                <div><span>{{ _("Viertelstundenhandel") }}</span><strong class="{{ 'text-danger' if t.intraday < 0 }}">{{ '+' if t.intraday > 0 }}{{ t.intraday|num(0) }} €</strong><small>{{ _("zusätzlich zum Day-Ahead") }}</small></div>
+            </div>
+            <div class="table-responsive"><table class="table table-sm mb-0 text-nowrap">
+                <thead><tr><th>{{ _("Monat") }}</th><th class="text-end">MWh</th><th class="text-end">{{ _("Überschuss") }} ct/kWh</th><th class="text-end">{{ _("Viertelstunden") }}</th><th class="text-end">{{ _("Anteil") }}</th><th class="text-end">{{ _("ausgezahlt") }}</th><th class="text-end">ct/kWh</th></tr></thead>
+                <tbody>{% for r in s.flex %}<tr>
+                    <td>{{ _(month_names[r.month - 1]) }}{% if r.st.has_storno %} <span class="badge text-bg-secondary">{{ _("korrigiert") }}</span>{% endif %}</td>
+                    <td class="text-end">{{ (r.st.kwh / 1000)|num(1) }}</td>
+                    <td class="text-end">{{ r.surplus_ct|num(2) if r.surplus_ct is not none else "–" }}</td>
+                    <td class="text-end {{ 'text-danger' if r.st.intraday_eur < 0 }}">{{ r.st.intraday_eur|num(0) }} €</td>
+                    <td class="text-end">{{ (r.share_pct|num(0) ~ " %") if r.share_pct is not none else "–" }}</td>
+                    <td class="text-end fw-semibold">{{ r.st.net_eur|num(0) }} €</td>
+                    <td class="text-end">{{ r.net_ct|num(2) if r.net_ct is not none else "–" }}</td>
+                </tr>{% endfor %}</tbody>
+            </table></div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Aus den Gutschriften des Flex-Vermarkters: Handelsüberschuss = Day-Ahead + Viertelstundenhandel − Monatsmarktwert − Gebühr. Ausgezahlt wird euer Anteil daran plus Bonus – zusätzlich zum Marktwert.") }}</div>
+</div>
+{% endif %}
+
+{% if analysis.efficiency %}
+<div class="card shadow-sm mb-4" id="effizienz">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2"><span><i class="bi bi-speedometer2 me-1"></i>{{ _("Strom je Tonne Substrat {year}", year=analysis_year) }}</span>
+        <span class="badge text-bg-secondary">{{ _("Ø {n} kWh/t", n=analysis.efficiency_mean|num(0)) }}</span></div>
+    <div class="card-body">
+        {% for r in analysis.efficiency %}
+        <div class="eff-row" title="{{ r.t|num(0) }} t · {{ (r.kwh / 1000)|num(1) }} MWh">
+            <span class="eff-month">{{ _(month_names[r.month - 1]) }}</span>
+            <span class="eff-bar"><span class="{{ 'is-low' if r.low }}" style="width: {{ r.width }}%"></span></span>
+            <span class="eff-value {{ 'text-danger fw-semibold' if r.low }}">{{ r.kwh_t|num(0) }} kWh/t</span>
+            <span class="eff-detail text-body-secondary">{{ r.t|num(0) }} t</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-footer small text-body-secondary">{{ _("Gemessene Einspeisung aller Einspeisestellen ÷ gefütterte Tonnen des Monats. Ein grober Wert – der Substratmix schwankt und Gas entsteht erst Tage nach dem Füttern –, aber als Verlauf zeigt er früh, wenn die Anlage schlechter läuft. Rot = mehr als 10 % unter dem Jahresmittel. Nur Monate, in denen Mengen eingetragen und alle Einspeisestellen abgerechnet sind.") }}</div>
+</div>
+{% endif %}
+{% else %}
+<p class="small text-body-secondary">{{ _("Für {year} gibt es noch keine Abrechnungen oder Gutschriften – unter Einstellungen hochladen, dann erscheinen hier Fahrplan gegen Zähler, Flex-Vermarktung und Strom je Tonne Substrat.", year=analysis_year) }}</p>
+{% endif %}
+{% if not week and not quality and not availability and not analysis %}
 <div class="hub-list"><div class="hub-row d-block">{{ empty_state("bi-graph-up", _("Noch keine Laufzeiten – die Auswertung füllt sich mit den ersten SKVE-Daten.")) }}</div></div>
 {% endif %}
 {% endblock %}

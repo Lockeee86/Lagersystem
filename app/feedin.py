@@ -429,6 +429,80 @@ def revenue(point, year):
     return {"months": months_, "year": total, "annual_only": [m["month"] for m in months_] == [0], "has_dv": bool(with_dv)}
 
 
+# --- Auswertung: Fahrplan gegen Zähler, Flex-Vermarktung, Substrat-Effizienz -----------------------------------------
+def plan_kwh(point, year):
+    """kWh laut SKVE-Fahrplan der zugeordneten BHKW je Monat: {Monat: kWh}."""
+    ids = [m.id for m in point.machines]
+    if not ids:
+        return {}
+    rows = (db.session.query(extract("month", ChpDay.day), func.sum(ChpDay.kwh))
+            .filter(ChpDay.machine_id.in_(ids), extract("year", ChpDay.day) == year)
+            .group_by(extract("month", ChpDay.day)).all())
+    return {int(month): float(kwh or 0) for month, kwh in rows}
+
+
+def metered_kwh(point, year):
+    """Gemessene Einspeisung je Monat: Abrechnung des Netzbetreibers, sonst Zählermenge der Gutschrift."""
+    result = {m: s.kwh for m, s in month_statements(point, year).items() if s.kwh > 0}
+    result.update({m.month: float(m.kwh) for m in point.months.filter_by(year=year) if m.month})
+    return result
+
+
+def analysis(year):
+    """Für Biogas → Auswertung: je Einspeisestelle Fahrplan gegen Zähler und die Flex-Vermarktung je Monat, dazu
+    kWh je Tonne Substrat (ganze Anlage). Monate ohne gemessene Menge fehlen. None, wenn es gar nichts gibt."""
+    from . import plant_feeding
+    stations, metered_all = [], {}
+    all_points = points()
+    for point in all_points:
+        planned, metered = plan_kwh(point, year), metered_kwh(point, year)
+        planned_eur, flex = plan_revenue(point, year), month_statements(point, year)
+        for month, kwh in metered.items():
+            metered_all.setdefault(month, {})[point.id] = kwh
+        compare = []
+        for month in sorted(metered):
+            plan, st = planned.get(month), flex.get(month)
+            compare.append({"month": month, "plan": plan, "actual": metered[month],
+                            "pct": 100 * (metered[month] - plan) / plan if plan else None,
+                            "plan_eur": planned_eur.get(month), "spot_eur": st.spot_eur if st else None})
+        flex_rows = [{"month": m, "st": s, "surplus_ct": 100 * s.surplus_eur / s.kwh if s.kwh else None,
+                      "net_ct": 100 * s.net_eur / s.kwh if s.kwh else None,
+                      "share_pct": 100 * s.share_eur / s.surplus_eur if s.surplus_eur else None}
+                     for m, s in sorted(flex.items())]
+        if not compare and not flex_rows:
+            continue
+        both = [r for r in compare if r["plan"]]
+        total = {"plan": sum(r["plan"] for r in both), "actual": sum(r["actual"] for r in both)}
+        total["pct"] = 100 * (total["actual"] - total["plan"]) / total["plan"] if total["plan"] else None
+        sts = [r["st"] for r in flex_rows]
+        kwh = sum(s.kwh for s in sts)
+        flex_total = {"kwh": kwh, "surplus": sum(s.surplus_eur for s in sts), "intraday": sum(s.intraday_eur for s in sts),
+                      "net": sum(s.net_eur for s in sts), "bonus": sum(s.bonus_eur for s in sts)} if sts else None
+        if flex_total:
+            flex_total["surplus_ct"] = 100 * flex_total["surplus"] / kwh if kwh else None
+            flex_total["net_ct"] = 100 * flex_total["net"] / kwh if kwh else None
+        stations.append({"point": point, "compare": compare, "total": total, "flex": flex_rows, "flex_total": flex_total})
+    # Substrat-Effizienz: nur Monate, in denen jede Einspeisestelle eine gemessene Menge hat
+    feeding = plant_feeding.month_totals(year)
+    efficiency = []
+    for month, _by_sub, kg in feeding["rows"]:
+        have = metered_all.get(month, {})
+        if kg and all_points and len(have) == len(all_points):
+            kwh = sum(have.values())
+            efficiency.append({"month": month, "t": kg / 1000, "kwh": kwh, "kwh_t": kwh / (kg / 1000)})
+    if efficiency:
+        top = max(r["kwh_t"] for r in efficiency)
+        mean = sum(r["kwh"] for r in efficiency) / sum(r["t"] for r in efficiency)
+        for r in efficiency:
+            r["width"] = round(100 * r["kwh_t"] / top, 1)
+            r["low"] = r["kwh_t"] < mean * 0.9
+    else:
+        mean = None
+    if not stations and not efficiency:
+        return None
+    return {"stations": stations, "efficiency": efficiency, "efficiency_mean": mean, "year": year}
+
+
 # --- Erlöse von Hand (Netzbetreiber ohne CSV, Direktvermarkter) ---------------------------------------------------
 # Schlüssel → (Quelle, Kategorie in der Tabelle, Anzeige). Netzbetreiber-Kategorien heißen wie in der Abrechnung,
 # damit `revenue_group()` sie einordnet.

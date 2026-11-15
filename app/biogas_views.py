@@ -89,7 +89,8 @@ def analysis_page():
     return _page("biogas/analysis.html", "auswertung", week=biogas.week_report(),
                  quality=biogas.flex_quality(date.today() - timedelta(days=biogas.QUALITY_DAYS),
                                              date.today() - timedelta(days=1)),
-                 availability=biogas.availability_overview())
+                 availability=biogas.availability_overview(), analysis=feedin.analysis(_year()),
+                 analysis_year=_year(), month_names=feedin.MONTH_NAMES)
 
 
 @bp.route("/biogas/einstellungen")

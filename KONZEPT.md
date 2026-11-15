@@ -970,6 +970,16 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Auswertung Biogasanlage (0.115.0)
+Unter Biogas → Auswertung, je Jahr umschaltbar:
+- Fahrplan gegen Zähler: geplante kWh laut SKVE neben der gemessenen Einspeisung je Monat mit Abweichung in %; für
+  Admins dazu der Day-Ahead-Erlös laut Fahrplan neben dem Handelsumsatz der Gutschrift.
+- Flex-Vermarktung (nur Admin): je Monat Handelsüberschuss in ct/kWh, Viertelstundenhandel, Anteil, Auszahlung.
+- Strom je Tonne Substrat: gemessene kWh ÷ gefütterte Tonnen je Monat als Balken; rot, wenn mehr als 10 % unter dem
+  Jahresmittel.
+- Noch offen (Ideenliste): Deckungsbeitrag je kWh (braucht Substratpreise), Monatsbericht als PDF, Maisanteil-Ampel,
+  Fütterungstreue, Jahresvergleich.
+
 ### Fütterungsmengen auf den Anzeigen (0.114.0)
 - Werkstatt-Bildschirm: je Fütterung die Vorgabe für heute und morgen, nach dem Füttern die Menge mit Abweichung
   bzw. „abgehakt – Menge fehlt“. Anzeige an der Anlage (auch E-Paper): eine Zeile mit der Vorgabe der nächsten

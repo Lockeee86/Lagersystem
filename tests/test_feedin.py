@@ -551,3 +551,46 @@ def test_netz_pdf(app, as_admin, db, seed, plant):
     other = feedin.parse_netz_pdf(_netz_pdf(street="Wiesenstr. 5"))
     assert list(other["points"]) == ["Wiesenstr. 5 (00001234)"] and feedin.guess("Wiesenstr. 5 (00001234)") is None
     assert feedin.netz_point_name("Einspeisestelle: 00000 Musterdorf // 00004321") == "Musterdorf (00004321)"
+
+
+def test_analysis(app, as_admin, as_worker, db, seed, plant):
+    """Auswertung: Fahrplan gegen Zähler, Flex-Vermarktung, Strom je Tonne Substrat (erfundene Zahlen)."""
+    from app import plant_feeding as pf
+    assert feedin.analysis(2025) is None                                   # nur Fahrplan, nichts gemessen
+    # März: Zähler aus der Gutschrift (Fahrplan 31 × 8000 = 248.000 kWh), April: Abrechnung des Netzbetreibers
+    feedin.save_statement(plant, 2025, 3, {"kwh": "223.200", "spot_eur": "40.000", "market_eur": "30.000",
+                                           "intraday_eur": "-500", "fee_eur": "223,20", "share_eur": "6.493,76",
+                                           "bonus_eur": "400"}, number="2025-1")
+    feedin.save_months(plant, 2025, {4: "240000"})
+    for d in ChpDay.query.filter(ChpDay.day >= date(2025, 3, 1), ChpDay.day < date(2025, 4, 1)):
+        d.revenue_eur = Decimal("600")
+    db.session.commit()
+    a = feedin.analysis(2025)
+    s = a["stations"][0]
+    march, april = s["compare"]
+    assert march["plan"] == 248000 and march["actual"] == 223200 and march["pct"] == pytest.approx(-10)
+    assert march["plan_eur"] == pytest.approx(37200) and march["spot_eur"] == 40000
+    assert april["plan"] == 240000 and april["pct"] == pytest.approx(0) and april["spot_eur"] is None
+    assert s["total"]["pct"] == pytest.approx(100 * (463200 - 488000) / 488000)
+    f = s["flex"][0]
+    assert f["surplus_ct"] == pytest.approx(100 * 9276.8 / 223200) and f["share_pct"] == pytest.approx(70)
+    assert s["flex_total"]["net"] == pytest.approx(6893.76) and s["flex_total"]["intraday"] == -500
+    assert not a["efficiency"]                                              # noch nichts gefüttert
+    # Fütterung: im März 620 t, im April 480 t → 360 bzw. 500 kWh/t; März liegt mehr als 10 % unter dem Mittel
+    pf.save_defaults([1] * 8)
+    mais = pf.add_substrate("Maissilage")
+    worker = seed["worker"]
+    worker.feeds_plant = True
+    for day, kg in ((date(2025, 3, 10), 620000), (date(2025, 4, 10), 480000)):
+        shift = pf.take(day, 1, worker, today=day)
+        pf.mark_done(shift, worker)
+        pf.save_amounts(shift, worker, {mais.id: kg}, today=day)
+    db.session.commit()
+    eff = feedin.analysis(2025)["efficiency"]
+    assert [round(r["kwh_t"]) for r in eff] == [360, 500] and eff[0]["low"] and not eff[1]["low"]
+    html = as_admin.get("/biogas/auswertung?jahr=2025").get_data(as_text=True)
+    assert "Fahrplan gegen Zähler 2025" in html and "Flex-Vermarktung 2025" in html and "Strom je Tonne Substrat 2025" in html
+    assert "360 kWh/t" in html and "-10,0 %" in html
+    html = as_worker.get("/biogas/auswertung?jahr=2025").get_data(as_text=True)
+    assert "Fahrplan gegen Zähler 2025" in html and "Flex-Vermarktung 2025" not in html and "Day-Ahead laut Gutschrift" not in html
+    assert "noch keine Abrechnungen" in as_admin.get("/biogas/auswertung?jahr=2024").get_data(as_text=True)
