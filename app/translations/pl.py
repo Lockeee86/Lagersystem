@@ -3708,4 +3708,10 @@ MESSAGES = {
     'CSV- oder PDF-Datei': 'Plik CSV lub PDF',
     'PDF: die Einspeiseabrechnung des Netzbetreibers, gern mehrere Monate auf einmal – die App liest Mengen und Positionen und prüft jede Zeile an Menge × Preis.': 'PDF: rozliczenie operatora sieci, także kilka miesięcy naraz – aplikacja odczytuje ilości i pozycje i sprawdza każdy wiersz według ilości × ceny.',
     'CSV: Positionen der Einspeiseabrechnungen mit den Spalten einspeisestelle, monat (z. B. 2026-03 oder 2025-JAHR), kategorie und menge_kwh. Die Einspeisung steht bei der Flexibilitätsprämie, „Verringerung“ sind die kWh ohne Marktprämie. Vorhandene Monate werden überschrieben.': 'CSV: pozycje rozliczeń z kolumnami einspeisestelle, monat (np. 2026-03 lub 2025-JAHR), kategorie i menge_kwh. Ilość wprowadzona jest przy premii za elastyczność, „Verringerung” to kWh bez premii rynkowej. Istniejące miesiące zostaną nadpisane.',
+    'Füttern {slot} ({who})': 'Karmienie {slot} ({who})',
+    'Füttern ({who})': 'Karmienie ({who})',
+    'Gefüttert {slot}': 'Nakarmiono {slot}',
+    'Gefüttert': 'Nakarmiono',
+    'Menge fehlt': 'brak ilości',
+    'abgehakt – Menge fehlt': 'odhaczone – brak ilości',
 }

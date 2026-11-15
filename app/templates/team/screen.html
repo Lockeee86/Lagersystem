@@ -75,6 +75,8 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
 .warn-text { color: #ffbe55; font-weight: 800; }
 .plant-facts { display: flex; gap: 22px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); font-size: 20px; color: #aeb8c6; font-weight: 600; }
 .plant-facts b { color: #eef1f5; }
+.feed-line { margin-top: 6px; font-size: 19px; color: #aeb8c6; font-weight: 600; }
+.feed-line b { color: #eef1f5; } .feed-line .feed-when { color: #8fd08f; margin-right: 4px; } .info-text { color: #7fb6e6; }
 .red { background: #ff6b5b; } .amber { background: #ffbe55; } .blue { background: #7fb2ff; }
 .more { margin-top: 8px; font-size: 18px; color: #aeb8c6; font-weight: 700; }
 .empty { font-size: 22px; color: #8fd17a; font-weight: 700; display: flex; align-items: center; gap: 10px; }
@@ -202,6 +204,14 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
                         {% for label, name, done in rows %}<b class="{{ 'warn-text' if not name }}">{% if rows|length > 1 %}{{ label }} {% endif %}{{ name or _("frei") }}{% if done %} ✓{% endif %}</b>{{ " · " if not loop.last }}{% endfor %}</span>
                     {% endfor %}
                 </div>
+                {% for word, rows, plan_only in [(_("Heute"), d.feeding.amounts, false), (_("Morgen"), d.feeding.amounts_tomorrow, true)] %}
+                {% for r in rows if r.targets or r.amounts or r.missing %}
+                <div class="feed-line"><i class="bi bi-clipboard-check"></i> <span class="feed-when">{{ word }}{% if rows|length > 1 %} {{ r.label }}{% endif %}</span>
+                    {% if r.amounts and not plan_only %}<b>{% for name, kg, diff in r.amounts %}{{ kg|kg_exact }} {{ name }}{% if diff %} <span class="{{ 'warn-text' if diff > 0 else 'info-text' }}">{{ '+' if diff > 0 else '−' }}{{ diff|abs|kg_exact }}</span>{% endif %}{{ " · " if not loop.last }}{% endfor %}</b> ✓
+                    {% elif r.missing and not plan_only %}<b class="warn-text">{{ _("abgehakt – Menge fehlt") }}</b>
+                    {% else %}{{ _("Vorgabe") }}{% if r.custom %} ({{ _("abweichend") }}){% endif %}: <b>{% for name, kg in r.targets %}{{ kg|kg_exact }} {{ name }}{{ " · " if not loop.last }}{% endfor %}</b>{% endif %}</div>
+                {% endfor %}
+                {% endfor %}
                 {% endif %}
             </section>
             {% endif %}

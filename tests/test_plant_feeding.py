@@ -382,3 +382,38 @@ def test_targets(app, db, team, as_worker, as_admin):
     page = as_worker.get("/biogas/fuetterung").get_data(as_text=True)
     assert "12.300 kg Maissilage" in page and "feeding-diff plus" in page and "+300 kg" in page
     assert "Vorgabe für diese Fütterung" not in page                  # Mitarbeiter ändern keine Vorgaben
+
+
+def test_displays_show_targets_and_amounts(app, db, team, as_admin):
+    """Werkstatt-Bildschirm und Anlagen-Anzeige: Vorgabe vor dem Füttern, Menge mit Abweichung danach – keine Erlöse."""
+    from app import machines, plant_display, screen
+    worker = team["worker"]
+    machines.create_machine("Motor Test", "bhkw", team["admin"], counter_unit="h", skve_chp_id=31, power_kw=250)
+    screen.new_token()
+    plant_display.new_token()
+    pf.save_defaults([1] * 8)
+    mais = pf.add_substrate("Maissilage")
+    pf.set_standard_target(mais, 12000)
+    db.session.commit()
+    today = date.today()
+    rows = pf.day_amounts(today)
+    assert rows[0]["targets"] == [("Maissilage", 12000)] and not rows[0]["done"] and rows[0]["diff"] is None
+    assert plant_display._feeding_line(rows) == "Füttern (frei): 12.000 kg Maissilage"
+    shift = pf.take(today, 1, worker)
+    db.session.commit()
+    assert "Füttern (" + worker.name + "): 12.000 kg Maissilage" == plant_display.data()["feeding_line"]
+    html = as_admin.get(f"/werkstatt/anzeige/{screen.token()}").get_data(as_text=True)
+    assert "Vorgabe" in html and "12.000 kg Maissilage" in html
+    pf.mark_done(shift, worker)
+    db.session.commit()
+    assert plant_display.data()["feeding_line"] == "Gefüttert: Menge fehlt"
+    assert "abgehakt – Menge fehlt" in as_admin.get(f"/werkstatt/anzeige/{screen.token()}").get_data(as_text=True)
+    pf.save_amounts(shift, worker, {mais.id: 12300})
+    db.session.commit()
+    d = plant_display.data()
+    assert d["feeding_line"] == "Gefüttert: 12.300 kg (+300 kg)"
+    assert plant_display.render(d)[:4] == b"\x89PNG"
+    html = as_admin.get(f"/werkstatt/anzeige/{screen.token()}").get_data(as_text=True)
+    assert "12.300 kg Maissilage" in html and "+300 kg" in html
+    html = as_admin.get(f"/biogas/anzeige/{plant_display.token()}").get_data(as_text=True)
+    assert "Gefüttert: 12.300 kg" in html

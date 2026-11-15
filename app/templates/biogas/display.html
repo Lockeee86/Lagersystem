@@ -58,6 +58,9 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
 .state.mid { background: rgba(255,204,102,.18); color: #ffe2a8; }
 .row2 { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; padding: 2px 0; }
 .row2 .late { color: #ff9f8a; }
+.feedline { margin: 0 10px 6px; padding: 5px 14px; border-radius: 12px; border: 2px solid currentColor; font-size: 17px; font-weight: 700;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feedline i { margin-right: 8px; }
 .alerts { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 6px; }
 .alerts div { background: #b8452e; color: #fff; border-radius: 14px; padding: 8px 14px; font-size: 18px; font-weight: 800;
     display: flex; align-items: center; gap: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -127,6 +130,7 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
         </section>
     </div>
 
+    {% if d.feeding_line %}<div class="feedline"><i class="bi bi-basket2"></i>{{ d.feeding_line }}</div>{% endif %}
     {% if d.alerts %}
     <div class="alerts" role="alert">{% for a in d.alerts[:2] %}<div><i class="bi bi-exclamation-triangle-fill"></i>{{ a }}</div>{% endfor %}</div>
     {% endif %}

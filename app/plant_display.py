@@ -98,6 +98,7 @@ def data(now=None):
         times = plant_feeding.times_on(today)
         alerts.append(_("Fütterung heute noch frei: {slots}",
                         slots=", ".join(plant_feeding.slot_label(s_, times) for s_ in free_today)))
+    feeding_line = _feeding_line(plant_feeding.day_amounts(today)) if plant_feeding.active() else None
     overdue = [t for t, s in inspections if s["state"] == "overdue"]
     if overdue:
         alerts.append(ngettext("Prüfung überfällig: {names}", "Prüfungen überfällig: {names}", len(overdue),
@@ -110,11 +111,38 @@ def data(now=None):
         "running": (plant or {}).get("running", 0), "live": bool(plant and plant.get("live")),
         "plan_only": biogas.PLAN_ONLY, "gas": gas, "price_now": cached.get("price_now"), "strip": strip,
         "bands": _price_bands(strip), "budgets": budgets[:2], "rounds": round_overview, "faults": faults,
-        "inspections": inspections[:3], "alerts": alerts, "refresh": REFRESH, "configured": biogas.configured(),
+        "inspections": inspections[:3], "alerts": alerts, "feeding_line": feeding_line, "refresh": REFRESH, "configured": biogas.configured(),
     }
 
 
 # --- Bild für Farb-E-Paper -------------------------------------------------------------------
+
+def _kg(value):
+    from .utils import fmt_kg_exact
+    return fmt_kg_exact(value)
+
+
+def _feeding_line(rows):
+    """Eine Zeile für die Anlage: Vorgabe der nächsten offenen Fütterung, sonst was zuletzt gefüttert wurde."""
+    many = len(rows) > 1
+    pending = next((r for r in rows if not r["done"] and r["targets"]), None)
+    if pending:
+        who = pending["name"] or _("frei")
+        head = _("Füttern {slot} ({who})", slot=pending["label"], who=who) if many else _("Füttern ({who})", who=who)
+        return head + ": " + " · ".join(f"{_kg(kg)} {name}" for name, kg in pending["targets"])
+    done = next((r for r in reversed(rows) if r["done"]), None)
+    if done is None:
+        return None
+    head = _("Gefüttert {slot}", slot=done["label"]) if many else _("Gefüttert")
+    if done["missing"]:
+        return head + ": " + _("Menge fehlt")
+    if not done["amounts"]:
+        return None
+    text = head + ": " + _kg(done["total"])
+    if done["diff"]:
+        text += " (" + ("+" if done["diff"] > 0 else "−") + _kg(abs(done["diff"])) + ")"
+    return text
+
 
 def _start_text(start):
     if not start:
@@ -139,7 +167,8 @@ def render(d):
     dr.text((W - 16, 26), _("Stand {time}", time=d["now"].strftime("%H:%M")), font=font(20), fill=WHITE, anchor="rm")
 
     alerts = d["alerts"][:2]
-    bottom = H - 8 - 40 * len(alerts)
+    feed_info = d.get("feeding_line")
+    bottom = H - 8 - 40 * len(alerts) - (36 if feed_info else 0)
     top = 62
     cols = [(10, 330), (340, 560), (570, 790)]
     for x0, x1 in cols:
@@ -281,8 +310,11 @@ def render(d):
     if not d["budgets"] and not d["rounds"] and not d["inspections"]:
         dr.text((x0 + 14, y), _("Alles in Ordnung."), font=font(18, False), fill=BLACK)
 
+    if feed_info:
+        dr.rounded_rectangle([10, bottom + 6, W - 10, bottom + 36], radius=8, outline=BLACK, width=2)
+        dr.text((24, bottom + 21), _fit(dr, feed_info, 18, W - 48), font=font(18), fill=BLACK, anchor="lm")
     for i, text in enumerate(alerts):
-        ay = bottom + 6 + i * 40
+        ay = bottom + 6 + i * 40 + (36 if feed_info else 0)
         dr.rounded_rectangle([10, ay, W - 10, ay + 34], radius=8, fill=RED)
         dr.text((24, ay + 17), "! " + _fit(dr, text, 20, W - 60), font=font(20), fill=WHITE, anchor="lm")
 

@@ -69,7 +69,9 @@ def data(now=None):
     feeding = None
     if plant is not None and plant_feeding.active():
         feeding = {"today": plant_feeding.day_summary(today),
-                   "tomorrow": plant_feeding.day_summary(today + timedelta(days=1))}
+                   "tomorrow": plant_feeding.day_summary(today + timedelta(days=1)),
+                   "amounts": plant_feeding.day_amounts(today),
+                   "amounts_tomorrow": [r for r in plant_feeding.day_amounts(today + timedelta(days=1)) if r["targets"]]}
     return {"now": now, "today": today, "people": people, "faults": faults, "faults_more": faults_more,
             "due": due, "due_more": due_more, "tasks": open_tasks, "tasks_more": tasks_more,
             "handovers": handovers, "weather": w, "refresh": REFRESH, "biogas": plant,

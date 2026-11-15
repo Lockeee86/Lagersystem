@@ -970,6 +970,11 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Fütterungsmengen auf den Anzeigen (0.114.0)
+- Werkstatt-Bildschirm: je Fütterung die Vorgabe für heute und morgen, nach dem Füttern die Menge mit Abweichung
+  bzw. „abgehakt – Menge fehlt“. Anzeige an der Anlage (auch E-Paper): eine Zeile mit der Vorgabe der nächsten
+  Fütterung, danach was gefüttert wurde. Erlöse und Gutschriften erscheinen bewusst nicht (Anzeigen ohne Anmeldung).
+
 ### Netzabrechnung als PDF (0.113.0)
 - Die Einspeiseabrechnung des Netzbetreibers kann statt als CSV auch als PDF hochgeladen werden (mehrere Monate auf
   einmal). Gelesen werden Vergütungszeitraum, Einspeisestelle und die Positionen der Mengendetails (Marktprämie, Gülle,

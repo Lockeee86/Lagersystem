@@ -185,6 +185,34 @@ def day_summary(day):
              bool(slot in shifts and shifts[slot].done_at)) for slot in slots_for(times)]
 
 
+def day_amounts(day):
+    """Je Fütterung des Tages Vorgabe und eingetragene Mengen – für die Anzeigen (Werkstatt, Anlage).
+    [{label, name, done, custom, targets: [(Substrat, kg)], amounts: [(Substrat, kg, Abweichung|None)], total,
+    diff (Summe − Vorgabe, nur mit Vorgabe), missing (abgehakt, aber keine Menge)}]; leer ohne Substrate."""
+    subs = substrates()
+    if not subs:
+        return []
+    times = times_on(day)
+    from sqlalchemy.orm import selectinload
+    shifts = {s.slot: s for s in FeedingShift.query.filter_by(day=day).options(selectinload(FeedingShift.amounts))}
+    overrides = {(t.day, t.slot, t.substrate_id): t.kg for t in FeedingTarget.query.filter_by(day=day)}
+    custom = {key[1] for key in overrides}
+    rows = []
+    for slot in slots_for(times):
+        shift = shifts.get(slot)
+        targets = targets_for(day, slot, overrides, subs)
+        amounts = [(a.substrate.name, a.kg, a.kg - targets[a.substrate_id] if targets.get(a.substrate_id) else None)
+                   for a in (shift.amounts if shift else [])]
+        total = sum(kg for _n, kg, _d in amounts)
+        rows.append({"label": slot_label(slot, times), "name": shift.user.name if shift else None,
+                     "done": bool(shift and shift.done_at), "custom": slot in custom,
+                     "targets": [(s.name, targets[s.id]) for s in subs if s.id in targets],
+                     "amounts": amounts, "total": total,
+                     "diff": total - sum(targets.values()) if amounts and targets else None,
+                     "missing": bool(shift and shift.done_at and not amounts)})
+    return rows
+
+
 def free_slots(day):
     times = times_on(day)
     taken = {s.slot for s in FeedingShift.query.filter_by(day=day)}
