@@ -979,6 +979,10 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Verlauf, Standzeit der ausgebauten Teile, je Aktion ein Eintrag im Logbuch.
 - 0.117.0: Fällige Teile erscheinen wie Wartungen – Maschinenliste (mit Ampel), „Jetzt wichtig“, Werkstatt-Bildschirm,
   Biogas → Wartung samt Wartungsfenster und Push (einmal je neuer Fälligkeit); ein Eintrag je Motor und Teileart.
+- 0.118.0: Eigener Reiter Biogas → Zündung als Schnell-Eintrag: je Motor eine Karte mit Zylinder-Kacheln (Farbe nach
+  dringendstem Teil, Stunden von Kerze/Stecker/Spule). Zylinder antippen, Teil und Grund wählen, „Wechsel speichern“;
+  zwei Zylinder antippen und „Die 2 tauschen“. Datum/Zählerstand/Notiz sind eingeklappt und vorbelegt. Die Maschinenseite
+  behält Verlauf und Standzeiten.
 - Noch offen: Fotos am Wechsel, Teile-Typ aus den Ersatzteilen, Tausch zwischen zwei Motoren.
 
 ### Auswertung Biogasanlage (0.115.0)

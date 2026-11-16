@@ -122,7 +122,7 @@ def test_due_parts_show_up_like_maintenance(app, as_admin, db, seed, motor):
     forecast = biogas.maintenance_forecast(motor)
     assert any(getattr(f["task"], "is_ignition", False) and f["left"] == -100 for f in forecast)
     html = as_admin.get("/maschinen").get_data(as_text=True)
-    assert "Zündkerze Zyl. A1, A3, B1" in html and f"/maschine/{motor.id}#zuendung" in html
+    assert "Zündkerze Zyl. A1, A3, B1" in html and f"/biogas/zuendung#m{motor.id}" in html
     assert "Zündkerze Zyl. A1, A3, B1" in as_admin.get("/?alle=1").get_data(as_text=True)
     screen.new_token()
     db.session.commit()
@@ -141,3 +141,33 @@ def test_due_parts_show_up_like_maintenance(app, as_admin, db, seed, motor):
     db.session.commit()
     assert not [t for t, _s in machines.due_tasks() if getattr(t, "is_ignition", False)]
     assert machines.machine_summary(motor)[0] != "overdue"
+
+
+def test_overview_page_quick_entry(app, as_admin, as_worker, as_viewer, db, seed, motor):
+    """Biogas → Zündung: Karte je Motor, Zylinder antippen, Wechsel und Tausch direkt von dort."""
+    html = as_worker.get("/biogas/zuendung").get_data(as_text=True)
+    assert "Motor Test" in html and 'class="ign-tile ign-none"' in html and "Wechsel speichern" in html
+    back = f"/biogas/zuendung#m{motor.id}"
+    r = as_worker.post(f"/maschine/{motor.id}/zuendung/wechsel", data={"zyl": ["3", "9"], "teil": ["kerze"], "grund": "ausfall",
+                                                                       "counter": "10000", "back": back})
+    assert r.status_code == 302 and r.headers["Location"].endswith(back)
+    # Tausch: genau zwei angetippte Zylinder
+    r = as_worker.post(f"/maschine/{motor.id}/zuendung/tausch", data={"zyl": ["3", "4"], "teil": ["kerze"], "counter": "10000",
+                                                                      "back": back}, follow_redirects=True)
+    html = r.get_data(as_text=True)
+    assert "Tausch eingetragen." in html and "Zuletzt" in html
+    assert cell(motor, 4, "kerze") is not None and cell(motor, 3, "kerze") is None
+    r = as_worker.post(f"/maschine/{motor.id}/zuendung/tausch", data={"zyl": ["3"], "teil": ["kerze"], "counter": "10000",
+                                                                      "back": back}, follow_redirects=True)
+    assert "Zum Tauschen bitte genau zwei Zylinder antippen." in r.get_data(as_text=True)
+    # Betrachter sieht die Karte, kann aber nichts eintragen; Menüpunkt vorhanden
+    html = as_viewer.get("/biogas/zuendung").get_data(as_text=True)
+    assert "Motor Test" in html and "Wechsel speichern" not in html
+    assert "/biogas/zuendung" in as_admin.get("/biogas").get_data(as_text=True)
+    # ohne Motor mit Zylinderzahl: Hinweis mit Link zum Motor
+    for part in motor.ignition_parts:
+        db.session.delete(part)
+    ignition.save_settings(motor, None, None, {})
+    db.session.commit()
+    html = as_admin.get("/biogas/zuendung").get_data(as_text=True)
+    assert "Noch kein Motor mit Zylinderzahl" in html and f"/maschine/{motor.id}" in html

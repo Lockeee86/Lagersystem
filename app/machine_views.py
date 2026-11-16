@@ -207,7 +207,7 @@ def _ignition_context(machine):
 def ignition_change(machine_id):
     """Zündkerzen, Stecker oder Spulen gewechselt (ein oder mehrere Zylinder)."""
     machine = _get(Machine, machine_id)
-    target = url_for("machines.machine_detail", machine_id=machine.id) + "#zuendung"
+    target = back_target() or url_for("machines.machine_detail", machine_id=machine.id) + "#zuendung"
     try:
         events = ignition.change(machine, current_user, [int(c) for c in request.form.getlist("zyl") if c.isdigit()],
                                  request.form.getlist("teil"), form_date("date"), form_int("counter"),
@@ -227,9 +227,14 @@ def ignition_change(machine_id):
 def ignition_swap(machine_id):
     """Teile zweier Zylinder untereinander tauschen."""
     machine = _get(Machine, machine_id)
-    target = url_for("machines.machine_detail", machine_id=machine.id) + "#zuendung"
+    target = back_target() or url_for("machines.machine_detail", machine_id=machine.id) + "#zuendung"
+    picked = [int(c) for c in request.form.getlist("zyl") if c.isdigit()]      # Übersicht: zwei angetippte Zylinder
+    first, second = (picked if len(picked) == 2 else (form_int("von") or 0, form_int("nach") or 0))
+    if request.form.get("back") and len(picked) != 2:
+        flash_error(_("Zum Tauschen bitte genau zwei Zylinder antippen."))
+        return redirect(target)
     try:
-        ignition.swap(machine, current_user, request.form.getlist("teil"), form_int("von") or 0, form_int("nach") or 0,
+        ignition.swap(machine, current_user, request.form.getlist("teil"), first, second,
                       form_date("date"), form_int("counter"), form_str("note", 200))
         db.session.commit()
     except StorageError as e:

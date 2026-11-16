@@ -366,7 +366,7 @@
         <div data-tab="zuendung" class="card shadow-sm mb-4" id="zuendung">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <span><i class="bi bi-lightning-charge me-1"></i>{{ _("Zündung je Zylinder") }}</span>
-                <span class="small text-body-secondary">{{ _("Laufzeit in Betriebsstunden") }}</span>
+                <a class="small" href="{{ url_for('biogas.ignition_page') }}#m{{ machine.id }}">{{ _("Schnell eintragen") }} <i class="bi bi-chevron-right"></i></a>
             </div>
             <div class="card-body">
                 <div class="row g-3">

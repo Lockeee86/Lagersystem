@@ -1,0 +1,69 @@
+{% extends "biogas/_layout.html" %}
+{% from "macros.html" import csrf, empty_state %}
+{% block biogas %}
+{% for card in cards %}{% set m = card.machine %}
+<div class="card shadow-sm mb-4 ign-card" id="m{{ m.id }}">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-bold"><i class="bi bi-lightning me-1"></i>{{ m.name }}</span>
+        <span class="small text-body-secondary">{{ _("Zähler") }} {{ m.counter|num(0) if m.counter is not none else "–" }} h
+            {% if card.summary.overdue %}<span class="badge text-bg-danger ms-1">{{ ngettext("{n} überfällig", "{n} überfällig", card.summary.overdue) }}</span>{% endif %}
+            {% if card.summary.soon %}<span class="badge text-bg-warning ms-1">{{ ngettext("{n} bald fällig", "{n} bald fällig", card.summary.soon) }}</span>{% endif %}
+        </span>
+    </div>
+    <form method="post" action="{{ url_for('machines.ignition_change', machine_id=m.id) }}" class="card-body">
+        {{ csrf() }}<input type="hidden" name="back" value="{{ url_for('biogas.ignition_page') }}#m{{ m.id }}">
+        {% for bank in card.grid %}
+        {% if bank.name %}<div class="small fw-semibold text-body-secondary mb-1 {{ 'mt-2' if not loop.first }}">{{ bank.name }}</div>{% endif %}
+        <div class="ign-tiles">
+            {% for row in bank.rows %}
+            <input type="checkbox" class="btn-check" name="zyl" value="{{ row.cylinder }}" id="z{{ m.id }}_{{ row.cylinder }}" autocomplete="off" {% if not current_user.can_edit %}disabled{% endif %}>
+            <label class="ign-tile ign-{{ row.state }}" for="z{{ m.id }}_{{ row.cylinder }}">
+                <span class="ign-tile-no">{{ row.label }}{% if row.failures %}<span class="ign-fail" title="{{ ngettext('{n} Ausfall an diesem Zylinder', '{n} Ausfälle an diesem Zylinder', row.failures) }}">{{ row.failures }}</span>{% endif %}</span>
+                {% for key, label, field in kinds %}{% set c = row.cells[key] %}
+                <span class="ign-tile-row"><span>{{ _(kind_short[key]) }}</span><b class="{{ 'ign-t-' ~ c.state if c }}">{{ c.hours|num(0) if c else "–" }}</b></span>
+                {% endfor %}
+            </label>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        {% if current_user.can_edit %}
+        <div class="ign-step mt-3">{{ _("1. Zylinder antippen · 2. Was wurde gewechselt?") }} <button type="button" class="btn btn-link btn-sm p-0 ms-1" data-check-all="zyl">{{ _("alle Zylinder") }}</button></div>
+        <div class="ign-picks ign-big mb-2">
+            {% for key, label, field in kinds %}<input type="checkbox" class="btn-check" name="teil" value="{{ key }}" id="k{{ m.id }}_{{ key }}" autocomplete="off" {% if key == "kerze" %}checked{% endif %}><label class="btn btn-outline-primary" for="k{{ m.id }}_{{ key }}">{{ _(kind_short[key]) }}</label>{% endfor %}
+        </div>
+        <div class="ign-picks ign-big mb-3">
+            {% for key, label in reasons %}<input type="radio" class="btn-check" name="grund" value="{{ key }}" id="g{{ m.id }}_{{ key }}" autocomplete="off" {% if loop.first %}checked{% endif %}><label class="btn {{ 'btn-outline-danger' if key == 'ausfall' else 'btn-outline-secondary' }}" for="g{{ m.id }}_{{ key }}">{{ _(label) }}</label>{% endfor %}
+        </div>
+        <details class="small mb-3">
+            <summary class="text-body-secondary">{{ _("Datum, Zählerstand, Notiz") }}</summary>
+            <div class="row g-2 mt-1">
+                <div class="col-6 col-md-3"><label class="form-label small mb-0" for="d{{ m.id }}">{{ _("Datum") }}</label><input class="form-control form-control-sm" type="date" id="d{{ m.id }}" name="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}"></div>
+                <div class="col-6 col-md-3"><label class="form-label small mb-0" for="c{{ m.id }}">{{ _("Zählerstand (h)") }}</label><input class="form-control form-control-sm" type="number" id="c{{ m.id }}" name="counter" min="0" inputmode="numeric" value="{{ m.counter if m.counter is not none else '' }}" required></div>
+                <div class="col-12 col-md-6"><label class="form-label small mb-0" for="n{{ m.id }}">{{ _("Notiz") }}</label><input class="form-control form-control-sm" id="n{{ m.id }}" name="note" maxlength="200"></div>
+            </div>
+        </details>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary btn-lg flex-grow-1"><i class="bi bi-check-lg me-1"></i>{{ _("Wechsel speichern") }}</button>
+            <button class="btn btn-outline-primary btn-lg" formaction="{{ url_for('machines.ignition_swap', machine_id=m.id) }}" title="{{ _('Zwei Zylinder antippen, dann tauschen') }}"><i class="bi bi-arrow-left-right me-1"></i>{{ _("Die 2 tauschen") }}</button>
+        </div>
+        {% endif %}
+    </form>
+    <div class="card-footer small d-flex flex-wrap justify-content-between gap-2">
+        <span class="text-body-secondary">{% for g in card.last[:1] %}{% set e = g.event %}{{ _("Zuletzt") }}: {{ _(kind_labels[e.kind]) }} {% if e.action == "tausch" %}{{ _("Zyl. {a} ↔ {b} getauscht", a=ign_label(m, e.cylinder), b=ign_label(m, e.other_cylinder)) }}{% else %}{{ ngettext("{n} Zylinder", "{n} Zylinder", g.cylinders|length) }}{% endif %} · {{ e.day|date }}{% if e.user %} · {{ e.user.name }}{% endif %}{% else %}{{ _("Noch nichts eingetragen – für den heutigen Stand Datum und Zählerstand des damaligen Einbaus angeben.") }}{% endfor %}</span>
+        <a href="{{ url_for('machines.machine_detail', machine_id=m.id) }}#zuendung">{{ _("Verlauf und Standzeiten") }} <i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm mb-4"><div class="card-body">
+    {{ empty_state("bi-lightning", _("Noch kein Motor mit Zylinderzahl"), _("Die Zylinderzahl und die Soll-Laufzeiten für Kerze, Stecker und Spule stehen in den Grunddaten des Motors (Maschine → Bearbeiten → Zündung).")) }}
+    {% if setup %}<div class="d-flex flex-wrap gap-2 justify-content-center mt-2">{% for sm in setup %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('machines.machine_detail', machine_id=sm.id) }}">{{ sm.name }}</a>{% endfor %}</div>{% endif %}
+</div></div>
+{% endfor %}
+{% if cards %}
+<div class="d-flex flex-wrap gap-3 small text-body-secondary mb-4">
+    <span><span class="ign-dot ign-ok"></span>{{ _("in Ordnung") }}</span><span><span class="ign-dot ign-soon"></span>{{ _("bald fällig") }}</span>
+    <span><span class="ign-dot ign-overdue"></span>{{ _("überfällig") }}</span><span><span class="ign-dot ign-none"></span>{{ _("nicht erfasst / ohne Soll") }}</span>
+    <span>{{ _("Zahlen = Betriebsstunden des Teils") }}</span>
+</div>
+{% endif %}
+{% endblock %}

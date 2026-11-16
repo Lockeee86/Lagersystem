@@ -106,7 +106,7 @@
             <div class="card-header"><i class="bi bi-wrench-adjustable me-1"></i>{{ _("Fällige Wartungen") }}</div>
             <ul class="list-group list-group-flush">
                 {% for task, status in due %}
-                <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}#{{ 'zuendung' if task.is_ignition else 'wartungen' }}">
+                <a class="list-group-item list-group-item-action small" href="{% if task.is_ignition %}{{ url_for('biogas.ignition_page') }}#m{{ task.machine_id }}{% else %}{{ url_for('machines.machine_detail', machine_id=task.machine_id) }}#wartungen{% endif %}">
                     {{ state_badge(status.state) }} <span class="fw-semibold">{{ task.machine.name }}</span>: {{ task.name }}
                     <div class="text-body-secondary">{{ due_text(task, status, task.machine) }}</div>
                 </a>

@@ -82,6 +82,28 @@ def maintenance_page():
                  plants=Machine.query.filter_by(category=biogas.PLANT_CATEGORY, active=True).all())
 
 
+@bp.route("/biogas/zuendung")
+@login_required
+def ignition_page():
+    """Reiter „Zündung“: alle Motoren mit Zylinderzahl als Karten – Zylinder antippen, Wechsel oder Tausch eintragen."""
+    from . import ignition, machines
+    motors = machines.visible(Machine.query.filter(Machine.active.is_(True), Machine.cylinders.isnot(None)),
+                              current_user).order_by(Machine.name).all()
+    cards = []
+    for m in motors:
+        grid = ignition.grid(m)
+        for bank in grid:
+            for row in bank["rows"]:
+                states = [c["state"] for c in row["cells"].values() if c]
+                row["state"] = next((s for s in ("overdue", "soon", "ok") if s in states), "none")
+        cards.append({"machine": m, "grid": grid, "summary": ignition.summary(m),
+                      "last": ignition.history(m, limit=3)})
+    setup = [] if cards or not current_user.is_admin else \
+        Machine.query.filter_by(category=machines.BIOGAS_CATEGORY, active=True).order_by(Machine.name).all()
+    return _page("biogas/ignition.html", "zuendung", cards=cards, kinds=ignition.KINDS, kind_short=ignition.KIND_SHORT,
+                 kind_labels=ignition.KIND_LABELS, reasons=ignition.REASONS, setup=setup, ign_label=ignition.label)
+
+
 @bp.route("/biogas/auswertung")
 @login_required
 def analysis_page():

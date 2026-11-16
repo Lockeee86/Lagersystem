@@ -1690,3 +1690,22 @@ span.ign-pill:not([title]) { min-width: 0; padding: 0 .3rem; }
 .ign-picks { display: flex; flex-wrap: wrap; gap: .35rem; }
 .ign-picks .btn { min-width: 2.6rem; }
 @media (max-width: 575.98px) { .ign-pill { min-width: 0; padding: .1rem .4rem; } .ign-table td, .ign-table th { padding: .3rem .2rem; } }
+
+/* Zündung: Übersicht mit Zylinder-Kacheln zum Antippen */
+.ign-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr)); gap: .5rem; }
+.ign-tile { display: flex; flex-direction: column; gap: .05rem; padding: .45rem .55rem; border-radius: var(--r-md); cursor: pointer;
+            border: 2px solid var(--line); border-left-width: 6px; background: var(--surface); user-select: none; -webkit-user-select: none; }
+.ign-tile.ign-ok { border-left-color: var(--st-ok); } .ign-tile.ign-soon { border-left-color: var(--st-warn); background: var(--st-warn-bg); }
+.ign-tile.ign-overdue { border-left-color: var(--st-bad); background: var(--st-bad-bg); }
+.ign-tile-no { font-size: var(--fs-lg); font-weight: 800; line-height: 1.2; display: flex; justify-content: space-between; align-items: center; }
+.ign-fail { font-size: var(--fs-2xs); font-weight: 700; color: #fff; background: var(--st-bad); border-radius: var(--r-pill); padding: 0 .35rem; }
+.ign-tile-row { display: flex; justify-content: space-between; gap: .3rem; font-size: var(--fs-xs); color: var(--bs-secondary-color); }
+.ign-tile-row b { font-weight: 600; color: var(--bs-body-color); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ign-tile-row b.ign-t-soon { color: var(--st-warn); } .ign-tile-row b.ign-t-overdue { color: var(--st-bad); }
+.btn-check:checked + .ign-tile { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(var(--brand-rgb), .3); background: var(--brand-soft); }
+.btn-check:focus-visible + .ign-tile { outline: 2px solid var(--brand); outline-offset: 2px; }
+.btn-check:disabled + .ign-tile { cursor: default; }
+.ign-step { font-size: var(--fs-sm); color: var(--bs-secondary-color); margin-bottom: .4rem; }
+.ign-big .btn { flex: 1 1 0; padding: .6rem .5rem; font-weight: 600; }
+.ign-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; background: var(--line); }
+.ign-dot.ign-ok { background: var(--st-ok); } .ign-dot.ign-soon { background: var(--st-warn); } .ign-dot.ign-overdue { background: var(--st-bad); }

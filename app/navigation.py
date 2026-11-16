@@ -84,6 +84,7 @@ AREAS = [
         item("biogas.budget_page", N_("Budget"), "bi-speedometer2", show=_biogas),
         item("biogas.maintenance_page", N_("Wartung"), "bi-wrench-adjustable", endpoints=("biogas.window_settings",),
              show=_biogas),
+        item("biogas.ignition_page", N_("Zündung"), "bi-lightning", show=_biogas),
         item("biogas.analysis_page", N_("Auswertung"), "bi-graph-up", show=_biogas),
         item("biogas.feeding_page", N_("Fütterung"), "bi-basket2"),
         item("rounds.overview", N_("Rundgang"), "bi-signpost-2", endpoints=("rounds.station",), show=_biogas),

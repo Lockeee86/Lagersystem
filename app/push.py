@@ -341,8 +341,9 @@ def _maintenance_msg(users, new):
     if len(new) == 1:
         task, _status = new[0]
         title = Msg("Wartung fällig: {machine}", machine=task.machine.name)
-        anchor = "#zuendung" if getattr(task, "is_ignition", False) else "#wartungen"
-        body, url = task.name, url_for("machines.machine_detail", machine_id=task.machine_id) + anchor
+        body = task.name
+        url = url_for("biogas.ignition_page") + f"#m{task.machine_id}" if getattr(task, "is_ignition", False) \
+            else url_for("machines.machine_detail", machine_id=task.machine_id) + "#wartungen"
     else:
         title = Msg("{n} Wartung wird fällig", "{n} Wartungen werden fällig", len(new))
         body = ", ".join(f"{t.machine.name}: {t.name}" for t, _s in new[:4]) + (" …" if len(new) > 4 else "")

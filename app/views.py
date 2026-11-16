@@ -109,8 +109,9 @@ def _important(due_now, faults, due_maintenance, deliveries, arrived, backup_ale
     for task, status in due_maintenance:
         if status["state"] == "overdue":
             items.append({"level": "warning", "title": f"{task.machine.name}: {task.name}", "sub": _("Wartung überfällig"),
-                          "url": url_for("machines.machine_detail", machine_id=task.machine_id)
-                          + ("#zuendung" if getattr(task, "is_ignition", False) else "#wartungen")})
+                          "url": url_for("biogas.ignition_page") + f"#m{task.machine_id}"
+                          if getattr(task, "is_ignition", False)
+                          else url_for("machines.machine_detail", machine_id=task.machine_id) + "#wartungen"})
     for d in deliveries:
         items.append({"level": "warning", "title": _("{number} verladen", number=d.number),
                       "sub": f"{d.customer.name} · " + ngettext("{n} Kiste", "{n} Kisten", d.box_count),
