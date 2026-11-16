@@ -12,9 +12,11 @@
     </div>
     <form method="post" action="{{ url_for('machines.ignition_change', machine_id=m.id) }}" class="card-body">
         {{ csrf() }}<input type="hidden" name="back" value="{{ url_for('biogas.ignition_page') }}#m{{ m.id }}">
+        <div class="{{ 'ign-banks' if card.grid|length > 1 }}">
         {% for bank in card.grid %}
-        {% if bank.name %}<div class="small fw-semibold text-body-secondary mb-1 {{ 'mt-2' if not loop.first }}">{{ bank.name }}</div>{% endif %}
-        <div class="ign-tiles">
+        <div>
+        {% if bank.name %}<div class="small fw-semibold text-body-secondary mb-1">{{ bank.name }}</div>{% endif %}
+        <div class="ign-tiles {{ 'ign-col' if card.grid|length > 1 }}">
             {% for row in bank.rows %}
             <input type="checkbox" class="btn-check" name="zyl" value="{{ row.cylinder }}" id="z{{ m.id }}_{{ row.cylinder }}" autocomplete="off" {% if not current_user.can_edit %}disabled{% endif %}>
             <label class="ign-tile ign-{{ row.state }}" for="z{{ m.id }}_{{ row.cylinder }}">
@@ -25,7 +27,9 @@
             </label>
             {% endfor %}
         </div>
+        </div>
         {% endfor %}
+        </div>
         {% if current_user.can_edit %}
         <div class="ign-step mt-3">{{ _("1. Zylinder antippen · 2. Was wurde gewechselt?") }} <button type="button" class="btn btn-link btn-sm p-0 ms-1" data-check-all="zyl">{{ _("alle Zylinder") }}</button></div>
         <div class="ign-picks ign-big mb-2">

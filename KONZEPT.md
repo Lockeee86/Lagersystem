@@ -983,6 +983,7 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   dringendstem Teil, Stunden von Kerze/Stecker/Spule). Zylinder antippen, Teil und Grund wählen, „Wechsel speichern“;
   zwei Zylinder antippen und „Die 2 tauschen“. Datum/Zählerstand/Notiz sind eingeklappt und vorbelegt. Die Maschinenseite
   behält Verlauf und Standzeiten.
+- 0.118.1: V-Motor in der Übersicht wie am Motor – Bank A und B nebeneinander, die Zylinder untereinander.
 - Noch offen: Fotos am Wechsel, Teile-Typ aus den Ersatzteilen, Tausch zwischen zwei Motoren.
 
 ### Auswertung Biogasanlage (0.115.0)

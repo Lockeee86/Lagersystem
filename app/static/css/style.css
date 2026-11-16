@@ -1709,3 +1709,11 @@ span.ign-pill:not([title]) { min-width: 0; padding: 0 .3rem; }
 .ign-big .btn { flex: 1 1 0; padding: .6rem .5rem; font-weight: 600; }
 .ign-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; background: var(--line); }
 .ign-dot.ign-ok { background: var(--st-ok); } .ign-dot.ign-soon { background: var(--st-warn); } .ign-dot.ign-overdue { background: var(--st-bad); }
+/* V-Motor: Bank A und B nebeneinander, die Zylinder jeweils untereinander (wie am Motor) */
+.ign-banks { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; max-width: 40rem; }
+.ign-tiles.ign-col { grid-template-columns: 1fr; }
+@media (min-width: 576px) {
+    .ign-col .ign-tile { flex-direction: row; align-items: center; gap: .9rem; }
+    .ign-col .ign-tile-no { min-width: 3.4rem; }
+    .ign-col .ign-tile-row { flex-direction: column; align-items: flex-start; gap: 0; flex: 1; }
+}
