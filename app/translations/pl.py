@@ -3801,4 +3801,6 @@ MESSAGES = {
     'nicht erfasst / ohne Soll': 'nie wpisano / bez planu',
     'Schnell eintragen': 'Szybki wpis',
     'Zahlen = Betriebsstunden des Teils': 'Liczby = motogodziny części',
+    'Excel-Liste für Etikettendrucker': 'Lista Excel dla drukarki etykiet',
+    'Die Excel-Liste ist für Etikettensoftware wie BarTender (Rollendrucker): eine Zeile je Kiste, die Spalte „QR“ ist der Inhalt des QR-Codes, „Code“ der Text daneben. Format und „überspringen“ gelten nur für das PDF.': 'Lista Excel jest dla programów do etykiet, np. BarTender (drukarka rolkowa): jeden wiersz na skrzynię, kolumna „QR” to treść kodu QR, „Code” to tekst obok. Format i „pomiń” dotyczą tylko PDF.',
 }

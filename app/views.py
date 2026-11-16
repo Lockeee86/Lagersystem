@@ -1454,9 +1454,8 @@ def labels():
                            total=Box.query.count())
 
 
-@bp.route("/etiketten.pdf", methods=["POST"])
-@admin_required
-def labels_pdf():
+def _label_codes():
+    """Kisten-Codes aus dem Formular „von–bis“ (leer = alle), höchstens 2000."""
     start = storage.normalize_code(request.form.get("von"))
     end = storage.normalize_code(request.form.get("bis"))
     query = Box.query
@@ -1464,7 +1463,41 @@ def labels_pdf():
         query = query.filter(Box.code >= start)
     if end:
         query = query.filter(Box.code <= end)
-    codes = [b.code for b in query.order_by(Box.code).limit(2000)]
+    return [b.code for b in query.order_by(Box.code).limit(2000)]
+
+
+@bp.route("/etiketten.xlsx", methods=["POST"])
+@admin_required
+def labels_excel():
+    """Codes als Excel-Liste für Etikettensoftware (z. B. BarTender): eine Zeile je Etikett, Spalte „QR“ = Inhalt des
+    QR-Codes (derselbe wie auf den PDF-Etiketten)."""
+    import io
+    from openpyxl import Workbook
+    from .utils import excel_safe
+    codes = _label_codes()
+    if not codes:
+        flash_error(_("Im gewählten Bereich gibt es keine Kisten."))
+        return redirect(url_for("main.labels"))
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Etiketten"
+    ws.append(["Code", "QR", "Nummer"])
+    for code in codes:
+        digits = "".join(ch for ch in code if ch.isdigit())
+        ws.append([code, code, int(digits) if digits else None])
+    for column, width in (("A", 14), ("B", 14), ("C", 10)):
+        ws.column_dimensions[column].width = width
+    buf = io.BytesIO()
+    excel_safe(wb).save(buf)
+    filename = f"etiketten_{codes[0]}_{codes[-1]}.xlsx"
+    return Response(buf.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@bp.route("/etiketten.pdf", methods=["POST"])
+@admin_required
+def labels_pdf():
+    codes = _label_codes()
     if not codes:
         flash_error(_("Im gewählten Bereich gibt es keine Kisten."))
         return redirect(url_for("main.labels"))

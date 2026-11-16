@@ -36,7 +36,11 @@
                     <div class="form-text">{{ _("Für angebrochene Etikettenbögen.") }}</div>
                 </div>
             </div>
-            <button class="btn btn-primary mt-4"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF erzeugen") }}</button>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button class="btn btn-primary"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF erzeugen") }}</button>
+                <button class="btn btn-outline-primary" formaction="{{ url_for('main.labels_excel') }}" formtarget="_self"><i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ _("Excel-Liste für Etikettendrucker") }}</button>
+            </div>
+            <div class="form-text">{{ _("Die Excel-Liste ist für Etikettensoftware wie BarTender (Rollendrucker): eine Zeile je Kiste, die Spalte „QR“ ist der Inhalt des QR-Codes, „Code“ der Text daneben. Format und „überspringen“ gelten nur für das PDF.") }}</div>
         </form>
         <hr>
         <p class="small text-body-secondary mb-0"><i class="bi bi-info-circle me-1"></i>

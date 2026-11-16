@@ -970,6 +970,10 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Startseite anpassen: Bereiche am Griff ziehen (Maus und Finger), die Pfeile bleiben.
 - Akzentfarbe je Benutzer: Grün, Blau, Türkis, Violett, Ziegelrot, Bernstein – in Hell, Dunkel und Glas.
 
+### Etiketten für den Rollendrucker (0.119.0)
+- Verwaltung → Etiketten: neben dem A4-PDF eine Excel-Liste (Code, QR, Nummer) für Etikettensoftware wie BarTender –
+  das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
+
 ### Zündung je Zylinder (0.116.0)
 - In den Grunddaten des Motors: Zylinderzahl, Bauform (Reihe oder V-Motor mit Bank A/B) und Soll-Laufzeit in
   Betriebsstunden für Zündkerze, Kerzenstecker und Zündspule. Damit erscheint auf der Maschinenseite der Reiter „Zündung“.
