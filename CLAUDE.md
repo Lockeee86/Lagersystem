@@ -318,7 +318,7 @@ docker compose up --build -d
   Zwischenspeicher je Seitenaufruf `utils.request_cache()` (nur GET). Neue Listen mit Beziehungen gleich mit
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
-  `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF; daneben `main.labels_excel` `/etiketten.xlsx` = Codes als Excel-Liste für Etikettensoftware wie BarTender, Spalten Code/QR/Nummer)
+  `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF; daneben `main.labels_excel` `/etiketten.xlsx` = Codes als Excel-Liste für Etikettensoftware wie BarTender, Spalten Code/QR/Nummer/Name; Auswahl `art` aus `views.LABEL_KINDS`: Kisten von–bis, Schüttlager, Rundgang-Stationen, Maschinen, Bäume)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,
   Übernehmen = Commit nur ohne Fehler) und Export je Kartoffeljahr
 - `app/static/js/mapzoom.js`: Lagerkarte am Handy/Tablet zoomen und verschieben (zwei Finger); ein Stapel klappt dort

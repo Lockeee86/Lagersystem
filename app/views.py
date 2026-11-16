@@ -1451,7 +1451,7 @@ def history():
 def labels():
     return render_template("labels.html", formats=LABEL_FORMATS,
                            von=request.args.get("von", ""), bis=request.args.get("bis", ""),
-                           total=Box.query.count())
+                           total=Box.query.count(), label_kinds=_label_kinds(current_user))
 
 
 def _label_codes():
@@ -1466,6 +1466,32 @@ def _label_codes():
     return [b.code for b in query.order_by(Box.code).limit(2000)]
 
 
+# Was sich als Excel-Liste ausgeben lässt: Schlüssel → Bezeichnung (alles, was `/scan` als Code erkennt)
+LABEL_KINDS = (("kisten", N_("Kisten")), ("schuettlager", N_("Schüttlager")), ("stationen", N_("Rundgang-Stationen")),
+               ("maschinen", N_("Maschinen")), ("baeume", N_("Bäume (Bestattungswald)")))
+
+
+def _label_kinds(user):
+    return [(key, label) for key, label in LABEL_KINDS if key != "baeume" or user.sees_forest]
+
+
+def _label_rows(kind):
+    """[(Code, Name)] für die Excel-Liste – der Code ist zugleich der Inhalt des QR-Codes."""
+    from .models import BulkStore, CheckStation, ForestTree
+    if kind == "schuettlager":
+        return [(s.code, s.name) for s in BulkStore.query.filter(BulkStore.active.is_(True), BulkStore.code.isnot(None))
+                .order_by(BulkStore.code)]
+    if kind == "stationen":
+        return [(s.code, s.name) for s in CheckStation.query.filter_by(active=True).order_by(CheckStation.code)]
+    if kind == "maschinen":
+        return [(m.code, m.name) for m in machines.visible(Machine.query.filter(Machine.active.is_(True)), current_user)
+                .order_by(Machine.code)]
+    if kind == "baeume" and current_user.sees_forest:
+        return [(t.code, t.label) for t in ForestTree.query.filter_by(active=True)
+                .order_by(ForestTree.field, ForestTree.number)]
+    return [(code, "") for code in _label_codes()]
+
+
 @bp.route("/etiketten.xlsx", methods=["POST"])
 @admin_required
 def labels_excel():
@@ -1474,22 +1500,26 @@ def labels_excel():
     import io
     from openpyxl import Workbook
     from .utils import excel_safe
-    codes = _label_codes()
-    if not codes:
-        flash_error(_("Im gewählten Bereich gibt es keine Kisten."))
+    kind = request.form.get("art", "kisten")
+    if kind not in dict(_label_kinds(current_user)):
+        kind = "kisten"
+    rows = _label_rows(kind)
+    if not rows:
+        flash_error(_("Im gewählten Bereich gibt es keine Kisten.") if kind == "kisten"
+                    else _("Dafür gibt es noch keine Codes."))
         return redirect(url_for("main.labels"))
     wb = Workbook()
     ws = wb.active
     ws.title = "Etiketten"
-    ws.append(["Code", "QR", "Nummer"])
-    for code in codes:
+    ws.append(["Code", "QR", "Nummer", "Name"])
+    for code, name in rows:
         digits = "".join(ch for ch in code if ch.isdigit())
-        ws.append([code, code, int(digits) if digits else None])
-    for column, width in (("A", 14), ("B", 14), ("C", 10)):
+        ws.append([code, code, int(digits) if digits else None, name or None])
+    for column, width in (("A", 14), ("B", 14), ("C", 10), ("D", 30)):
         ws.column_dimensions[column].width = width
     buf = io.BytesIO()
     excel_safe(wb).save(buf)
-    filename = f"etiketten_{codes[0]}_{codes[-1]}.xlsx"
+    filename = f"etiketten_{rows[0][0]}_{rows[-1][0]}.xlsx" if kind == "kisten" else f"etiketten_{kind}.xlsx"
     return Response(buf.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 

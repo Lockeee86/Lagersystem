@@ -973,6 +973,7 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 ### Etiketten für den Rollendrucker (0.119.0)
 - Verwaltung → Etiketten: neben dem A4-PDF eine Excel-Liste (Code, QR, Nummer) für Etikettensoftware wie BarTender –
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
+- 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
 ### Zündung je Zylinder (0.116.0)
 - In den Grunddaten des Motors: Zylinderzahl, Bauform (Reihe oder V-Motor mit Bank A/B) und Soll-Laufzeit in

@@ -330,9 +330,19 @@ def test_labels_excel(as_admin, as_worker, db, seed):
     resp = as_admin.post("/etiketten.xlsx", data={"von": "K-0003", "bis": "K-0005"})
     assert resp.status_code == 200 and "etiketten_K-0003_K-0005.xlsx" in resp.headers["Content-Disposition"]
     rows = list(load_workbook(BytesIO(resp.data)).active.values)
-    assert rows == [("Code", "QR", "Nummer"), ("K-0003", "K-0003", 3), ("K-0004", "K-0004", 4), ("K-0005", "K-0005", 5)]
+    assert rows == [("Code", "QR", "Nummer", "Name"), ("K-0003", "K-0003", 3, None), ("K-0004", "K-0004", 4, None),
+                    ("K-0005", "K-0005", 5, None)]
     assert len(list(load_workbook(BytesIO(as_admin.post("/etiketten.xlsx", data={}).data)).active.values)) == 13
     r = as_admin.post("/etiketten.xlsx", data={"von": "K-9000"}, follow_redirects=True)
     assert "Im gewählten Bereich gibt es keine Kisten." in r.get_data(as_text=True)
     assert as_worker.post("/etiketten.xlsx", data={}).status_code in (302, 403)
     assert "Excel-Liste für Etikettendrucker" in as_admin.get("/etiketten").get_data(as_text=True)
+    # andere Codes: Maschinen und Rundgang-Stationen mit Namen; ohne Einträge ein Hinweis
+    from app import machines
+    m = machines.create_machine("Schlepper Test", "schlepper", seed["admin"], counter_unit="h")
+    db.session.commit()
+    rows = list(load_workbook(BytesIO(as_admin.post("/etiketten.xlsx", data={"art": "maschinen"}).data)).active.values)
+    assert (m.code, m.code, int("".join(c for c in m.code if c.isdigit())), "Schlepper Test") in rows
+    r = as_admin.post("/etiketten.xlsx", data={"art": "stationen"}, follow_redirects=True)
+    assert "Dafür gibt es noch keine Codes." in r.get_data(as_text=True)
+
