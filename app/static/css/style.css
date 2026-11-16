@@ -1717,3 +1717,24 @@ span.ign-pill:not([title]) { min-width: 0; padding: 0 .3rem; }
     .ign-col .ign-tile-no { min-width: 3.4rem; }
     .ign-col .ign-tile-row { flex-direction: column; align-items: flex-start; gap: 0; flex: 1; }
 }
+/* Maschinenseite: Bank A und B auch am Handy nebeneinander – dort ohne „h“ und enger */
+@media (max-width: 575.98px) {
+    .ign-half .ign-unit { display: none; }
+    .ign-half .ign-table { font-size: var(--fs-xs); }
+    .ign-half .ign-table th { font-size: var(--fs-2xs); letter-spacing: 0; }
+    .ign-half .ign-table td, .ign-half .ign-table th { padding: .3rem .1rem; }
+    .ign-half .ign-pill { font-size: var(--fs-xs); padding: .05rem .3rem; }
+}
+.ign-half .ign-table td:first-child { white-space: nowrap; }
+.ign-half .ign-table tbody tr { height: 2.1rem; }
+@media (max-width: 575.98px) {
+    .ign-half .ign-table td:first-child .badge { padding: 0 .28rem; font-size: var(--fs-2xs); min-width: 0; }
+    .ign-half .ign-table td:first-child .badge::before { display: none; }
+}
+@media (max-width: 575.98px) {
+    .ign-half .ign-table { table-layout: fixed; width: 100%; }
+    .ign-half .ign-table th:first-child { width: 2.3rem; }
+    .ign-half .ign-table td:first-child .badge { background: none !important; color: var(--st-bad) !important; padding: 0; margin-left: 1px;
+                                                 vertical-align: super; font-weight: 800; }
+}
+@media (max-width: 575.98px) { .ign-half .ign-table th { text-transform: none; white-space: nowrap; overflow: hidden; } }

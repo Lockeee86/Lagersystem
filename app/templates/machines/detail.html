@@ -369,9 +369,9 @@
                 <a class="small" href="{{ url_for('biogas.ignition_page') }}#m{{ machine.id }}">{{ _("Schnell eintragen") }} <i class="bi bi-chevron-right"></i></a>
             </div>
             <div class="card-body">
-                <div class="row g-3">
+                <div class="row {{ 'g-2 g-md-3' if ign.grid|length > 1 else 'g-3' }}">
                     {% for bank in ign.grid %}
-                    <div class="{{ 'col-md-6' if ign.grid|length > 1 else 'col-12' }}">
+                    <div class="{{ 'col-6 ign-half' if ign.grid|length > 1 else 'col-12' }}">
                         {% if bank.name %}<div class="small fw-semibold text-body-secondary mb-1">{{ bank.name }}</div>{% endif %}
                         <table class="table table-sm align-middle mb-0 ign-table">
                             <thead><tr><th>{{ _("Zyl.") }}</th>{% for key, label, field in ign.kinds %}<th class="text-end">{{ _(ign.kind_short[key]) }}</th>{% endfor %}</tr></thead>
@@ -380,7 +380,7 @@
                             <tr>
                                 <td class="fw-semibold">{{ row.label }}{% if row.failures %} <span class="badge text-bg-danger" title="{{ ngettext('{n} Ausfall an diesem Zylinder', '{n} Ausfälle an diesem Zylinder', row.failures) }}">{{ row.failures }}</span>{% endif %}</td>
                                 {% for key, label, field in ign.kinds %}{% set c = row.cells[key] %}
-                                <td class="text-end">{% if c %}<span class="ign-pill ign-{{ c.state }}" title="{{ _('eingebaut am {day}', day=c.part.installed_on|date) }}{% if c.left is not none %} · {{ _('noch {h} h', h=c.left) if c.left > 0 else _('{h} h überfällig', h=-c.left) }}{% endif %}">{{ c.hours|num(0) }} h</span>{% else %}<span class="text-body-secondary">–</span>{% endif %}</td>
+                                <td class="text-end">{% if c %}<span class="ign-pill ign-{{ c.state }}" title="{{ _('eingebaut am {day}', day=c.part.installed_on|date) }}{% if c.left is not none %} · {{ _('noch {h} h', h=c.left) if c.left > 0 else _('{h} h überfällig', h=-c.left) }}{% endif %}">{{ c.hours|num(0) }}<span class="ign-unit"> h</span></span>{% else %}<span class="text-body-secondary">–</span>{% endif %}</td>
                                 {% endfor %}
                             </tr>
                             {% endfor %}

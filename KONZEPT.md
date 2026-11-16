@@ -984,6 +984,7 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   zwei Zylinder antippen und „Die 2 tauschen“. Datum/Zählerstand/Notiz sind eingeklappt und vorbelegt. Die Maschinenseite
   behält Verlauf und Standzeiten.
 - 0.118.1: V-Motor in der Übersicht wie am Motor – Bank A und B nebeneinander, die Zylinder untereinander.
+  0.118.2: auch auf der Maschinenseite am Handy nebeneinander (schmale Tabellen ohne „h“, Ausfälle als Hochzahl).
 - Noch offen: Fotos am Wechsel, Teile-Typ aus den Ersatzteilen, Tausch zwischen zwei Motoren.
 
 ### Auswertung Biogasanlage (0.115.0)
