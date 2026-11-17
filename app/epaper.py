@@ -148,17 +148,18 @@ def render(d):
     # --- Fütterung, Herde, Wartezeit, Aufgaben ---
     x0, x1 = cols[2]
     dr.text((x0 + 14, top + 12), _("GEFÜTTERT HEUTE"), font=font(17), fill=BLACK)
-    bw = (x1 - x0 - 38) / 2
-    for i, (done, label) in enumerate(((d["wheat"], _("Weizen")), (d["mash"], _("Legemehl")))):
-        bx = x0 + 14 + i * (bw + 10)
+    bw = (x1 - x0 - 28 - 2 * 8) / 3
+    for i, (done, label) in enumerate(((d["wheat"], _("Weizen")), (d["mash"], _("Legemehl")), (d["water"], _("Wasser")))):
+        bx = x0 + 14 + i * (bw + 8)
         box = [bx, top + 38, bx + bw, top + 84]
-        if done:
+        size = next((n for n in (16, 15, 14, 13) if dr.textlength(label, font=font(n, done)) <= bw - 8), 12)
+        if done:                                            # grün, Haken unter dem Namen
             dr.rounded_rectangle(box, radius=10, fill=GREEN)
-            _check(dr, bx + 8, top + 53, 15, BLACK)
-            dr.text((bx + 28, top + 61), _fit(dr, label, 15, bw - 32), font=font(15), fill=BLACK, anchor="lm")
+            dr.text((bx + bw / 2, top + 52), _fit(dr, label, size, bw - 6), font=font(size), fill=BLACK, anchor="mm")
+            _check(dr, bx + bw / 2 - 7, top + 62, 14, BLACK)
         else:
             dr.rounded_rectangle(box, radius=10, outline=BLACK, width=2)
-            dr.text((bx + bw / 2, top + 61), _fit(dr, label, 16, bw - 10, False), font=font(16, False), fill=BLACK, anchor="mm")
+            dr.text((bx + bw / 2, top + 61), _fit(dr, label, size, bw - 6, False), font=font(size, False), fill=BLACK, anchor="mm")
     y = top + 98
     dr.text((x0 + 14, y), _("HERDE"), font=font(15), fill=BLACK)
     dr.text((x0 + 134, y), _("VORRAT"), font=font(15), fill=BLACK)

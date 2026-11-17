@@ -427,6 +427,13 @@ def test_feeding(as_worker, as_viewer, db, seed, keeper):
     assert r.status_code == 302 and chickens.feeding_on(day).wheat
     as_worker.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "wheat"})
     assert chickens.feeding_on(day) is None
+    today = date.today()
+    as_worker.post("/huehner/fuetterung", data={"day": today.isoformat(), "kind": "water"})   # nur Wasser
+    assert chickens.feeding_on(today).water and not chickens.feeding_on(today).wheat
+    assert chickens.feeding_effect(today)["days"] == 80                                  # zählt nicht im Vergleich
+    assert chickens.display()["water"] and not chickens.display()["wheat"]
+    as_worker.post("/huehner/fuetterung", data={"day": today.isoformat(), "kind": "water"})
+    assert chickens.feeding_on(today) is None
     as_worker.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "mash"})
     assert as_viewer.post("/huehner/fuetterung", data={"day": day.isoformat(), "kind": "mash"}).status_code == 403
     tomorrow = date.today() + timedelta(days=1)

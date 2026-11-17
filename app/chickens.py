@@ -336,10 +336,10 @@ def feed_per_hen(today=None, days=FEED_DAYS):
 # --- Stallbuch ----------------------------------------------------------------------------
 
 # --- Tägliche Fütterung (ohne Menge) -------------------------------------------------------
-# Ein Eintrag je Tag: Weizen und/oder Legemehl. Die Auswertung vergleicht die Legeleistung an den Tagen je
+# Ein Eintrag je Tag: Weizen, Legemehl, Wasser (nachgefüllt). Die Auswertung (nur Weizen/Legemehl) vergleicht die Legeleistung an den Tagen je
 # Fütterung mit dem Richtwert für das Alter (`expected_laying`) und eine Woche später (Futter wirkt verzögert).
 
-FEED_KINDS = {"wheat": N_("Weizen"), "mash": N_("Legemehl")}
+FEED_KINDS = {"wheat": N_("Weizen"), "mash": N_("Legemehl"), "water": N_("Wasser")}
 FEEDING_GROUPS = {"both": N_("Weizen + Legemehl"), "mash": N_("nur Legemehl"), "wheat": N_("nur Weizen")}
 FEEDING_LAG = 7               # Tage bis „eine Woche später“
 FEEDING_MIN_DAYS = 14         # darunter ist der Vergleich nur ein Hinweis
@@ -351,16 +351,16 @@ def feeding_on(day):
 
 
 def toggle_feeding(day, kind, user):
-    """Weizen bzw. Legemehl für einen Tag an/aus. Beides aus = Eintrag weg. Gibt den Eintrag (oder None) zurück."""
+    """Weizen, Legemehl bzw. Wasser für einen Tag an/aus. Alles aus = Eintrag weg. Gibt den Eintrag (oder None) zurück."""
     if kind not in FEED_KINDS:
         raise StorageError(_("Unbekanntes Futter."))
     day = _day(day)
     entry = feeding_on(day)
     if entry is None:
-        entry = Feeding(day=day, wheat=False, mash=False, user_id=user.id if user else None)
+        entry = Feeding(day=day, wheat=False, mash=False, water=False, user_id=user.id if user else None)
         db.session.add(entry)
     setattr(entry, kind, not getattr(entry, kind))
-    if not (entry.wheat or entry.mash):
+    if not (entry.wheat or entry.mash or entry.water):
         db.session.delete(entry) if entry.id else db.session.expunge(entry)
         return None
     entry.user_id = user.id if user else entry.user_id
@@ -377,6 +377,9 @@ def feeding_days(today=None, days=14):
 
 
 def feeding_key(entry):
+    """Futtergruppe für die Auswertung; None = nur Wasser (zählt nicht)."""
+    if not (entry.wheat or entry.mash):
+        return None
     return "both" if entry.wheat and entry.mash else "wheat" if entry.wheat else "mash"
 
 
@@ -384,7 +387,7 @@ def feeding_effect(today=None):
     """Legeleistung je Fütterung: {"groups": [...], "phases": [...], "days"} oder None ohne Einträge.
     Gezählt werden nur Tage mit Eier-Eintrag und Hühnern im Stall."""
     today = today or date.today()
-    rows = Feeding.query.filter(Feeding.day <= today).order_by(Feeding.day).all()
+    rows = [f for f in Feeding.query.filter(Feeding.day <= today).order_by(Feeding.day) if feeding_key(f)]
     if not rows:
         return None
     start = rows[0].day
@@ -990,5 +993,6 @@ def display(now=None):
         "sunrise": rise.astimezone(tz) if rise else None, "sunset": set_.astimezone(tz) if set_ else None,
         "sensor": sensor, "since": sensor["state_since"].astimezone(tz) if sensor and sensor["state_since"] else None,
         "wheat": bool(feeding and feeding.wheat), "mash": bool(feeding and feeding.mash),
+        "water": bool(feeding and feeding.water),
         "tasks": tasks, "alerts": alerts, "refresh": DISPLAY_REFRESH, "order": fair_order(today)[:3],
     }

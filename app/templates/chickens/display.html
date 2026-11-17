@@ -43,7 +43,7 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
 .climate .v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .climate .k { font-size: 12px; color: #a59c88; font-weight: 700; }
 .warn { color: #ff9f8a !important; }
-.feed { display: flex; gap: 8px; margin-top: 6px; }
+.feed { display: flex; gap: 6px; margin-top: 6px; }
 .feed span { flex: 1; text-align: center; padding: 8px 4px; border-radius: 12px; font-weight: 800; font-size: 16px;
     background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: #a59c88; }
 .feed span.yes { background: rgba(159,220,138,.18); border-color: rgba(159,220,138,.5); color: #c9f0bb; }
@@ -119,6 +119,7 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
             <div class="feed">
                 <span class="{{ 'yes' if d.wheat }}">{% if d.wheat %}<i class="bi bi-check-lg"></i> {% endif %}{{ _(feed_kinds.wheat) }}</span>
                 <span class="{{ 'yes' if d.mash }}">{% if d.mash %}<i class="bi bi-check-lg"></i> {% endif %}{{ _(feed_kinds.mash) }}</span>
+                <span class="{{ 'yes' if d.water }}">{% if d.water %}<i class="bi bi-check-lg"></i> {% endif %}{{ _(feed_kinds.water) }}</span>
             </div>
             <div class="facts">
                 <div><div class="label">{{ _("Herde") }}</div><div class="v">{{ d.flock }}</div></div>

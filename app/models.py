@@ -2257,13 +2257,14 @@ class FeedEntry(db.Model):
 
 
 class Feeding(db.Model):
-    """Tägliche Fütterung: was es gab (Weizen, Legemehl) – ohne Menge; ein Eintrag je Tag."""
+    """Tägliche Fütterung: was es gab (Weizen, Legemehl, Wasser nachgefüllt) – ohne Menge; ein Eintrag je Tag."""
     __tablename__ = "feedings"
 
     id = db.Column(db.Integer, primary_key=True)
     day = db.Column(db.Date, nullable=False, unique=True)
     wheat = db.Column(db.Boolean, nullable=False, default=False)
     mash = db.Column(db.Boolean, nullable=False, default=False)      # Legemehl
+    water = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 

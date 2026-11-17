@@ -180,7 +180,7 @@ docker compose up --build -d
   Push `issue_reported()` und `morning_due()` (aus `push.daily`), committet nicht; `app/rounds_views.py` (Blueprint
   `rounds`). Wochenbericht `biogas.week_report()` / `week_push()` montags aus `push.daily`
 - `app/chickens.py`: Rubrik Hühner (nur `User.chickens`; eintragen `keeps_chickens`) – Eier `EggEntry`, Haushalte
-  `Household` + Verteilung `EggShare` (Reihenfolge `fair_order()`), Vorrat `stock()`, Herde `FlockEvent` (`flock_size()`), Futter `FeedEntry`, tägliche Fütterung `Feeding` (`toggle_feeding()`, Auswertung `feeding_effect()`),
+  `Household` + Verteilung `EggShare` (Reihenfolge `fair_order()`), Vorrat `stock()`, Herde `FlockEvent` (`flock_size()`), Futter `FeedEntry`, tägliche Fütterung `Feeding` (Weizen/Legemehl/Wasser – Wasser zählt nicht in der Auswertung; `toggle_feeding()`, Auswertung `feeding_effect()`),
   Stallbuch `FlockTreatment` (Wartezeit `blocked()`), Stall-Display 800×480 `display()` (Route `chickens.display`
   `/huehner/anzeige/<token>` ohne Anmeldung, Schlüssel `settings` `coop_display_token`, Vorlage `chickens/display.html`; als PNG für Farb-E-Paper reTerminal E1002
   `chickens.display_image` `…/bild.png`, gezeichnet mit Pillow in `app/epaper.py` – nur die 6 Panel-Farben, Schrift DejaVu

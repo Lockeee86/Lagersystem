@@ -136,7 +136,7 @@ Portainer-Stack (docker-compose)
   Zeitraum-Umschalter als Glas-Segmente. Übrige Seiten (0.60.0): alle 70 Seiten am Handy und PC
   durchgesehen; Abzeichen, farbige Knöpfe, Schieberegler, hervorgehobene Zeilen, Verlauf-Symbole, Karten-Köpfe zentral in
   `glass.css` angepasst.
-  **Tägliche Fütterung** (0.55.0): `Feeding` je Tag mit Weizen/Legemehl (ohne Menge), Schalter auf der Hühner-Seite
+  **Tägliche Fütterung** (0.55.0): `Feeding` je Tag mit Weizen/Legemehl, ab 0.120.0 auch Wasser (ohne Menge), Schalter auf der Hühner-Seite
   (heute/gestern) und unter Futter (14 Tage); nicht im Änderungsprotokoll. Auswertung `chickens.feeding_effect`:
   Legeleistung je Fütterung gegen den Richtwert fürs Alter, dazu eine Woche später (Futter wirkt verzögert) und
   Zeiträume gleicher Fütterung. Jahreszeit wird nicht herausgerechnet (steht so dabei).
@@ -974,6 +974,10 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Verwaltung → Etiketten: neben dem A4-PDF eine Excel-Liste (Code, QR, Nummer) für Etikettensoftware wie BarTender –
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
+
+### Hühner: Wasser bei der Fütterung (0.120.0)
+- Dritter Schalter „Wasser“ neben Weizen und Legemehl (Hühner-Seite, Futter, Stall-Display und E-Paper).
+  Tage nur mit Wasser zählen nicht im Futter-Vergleich der Auswertung.
 
 ### Zündung je Zylinder (0.116.0)
 - In den Grunddaten des Motors: Zylinderzahl, Bauform (Reihe oder V-Motor mit Bank A/B) und Soll-Laufzeit in
