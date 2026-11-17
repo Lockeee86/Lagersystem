@@ -15,6 +15,7 @@ App schon einen Vertrag oder eine Beisetzung haben, werden nicht überschrieben 
 Die Dateien enthalten Personendaten: nie ins Repository, Tests nur mit erfundenen Daten.
 """
 import io
+import os
 import math
 import re
 import struct
@@ -329,6 +330,40 @@ def apply_shapes(shapes, source=None):
                                    source=(source or "")[:150] or None))
     db.session.flush()
     return {"shapes": len(shapes), "layers": len(layers)}
+
+
+def bundle_uploads(files):
+    """[(Name, Inhalt)] → (Inhalt, Name) für `read_upload`. Eine Datei bleibt, wie sie ist; mehrere (z. B. die
+    Teile eines Shapefiles .shp/.dbf/.prj und Tabellen) werden im Speicher zu einem ZIP zusammengelegt."""
+    if len(files) == 1:
+        name, data = files[0]
+        if name.lower().endswith((".shp", ".dbf", ".shx", ".prj", ".cpg")):
+            raise StorageError(_("Zum Shapefile gehören mehrere Dateien: bitte .shp, .dbf und .prj zusammen auswählen."))
+        return data, name
+    if sum(len(d) for _n, d in files) > 200 * 1024 * 1024:
+        raise StorageError(_("Die Datei konnte nicht gelesen werden."))
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        used = set()
+        for name, data in files:
+            base = os.path.basename(name.replace("\\", "/")) or "datei"
+            if data[:2] == b"PK" and base.lower().endswith(".zip"):      # ZIP in der Auswahl: auspacken
+                try:
+                    with zipfile.ZipFile(io.BytesIO(data)) as inner:
+                        if sum(i.file_size for i in inner.infolist()) > 200 * 1024 * 1024:
+                            raise StorageError(_("Die Datei konnte nicht gelesen werden."))
+                        for part in inner.namelist():
+                            if not part.endswith("/") and part not in used:
+                                used.add(part)
+                                archive.writestr(part, inner.read(part))
+                except zipfile.BadZipFile:
+                    raise StorageError(_("Die Datei konnte nicht gelesen werden."))
+                continue
+            while base in used:
+                base = "_" + base
+            used.add(base)
+            archive.writestr(base, data)
+    return buf.getvalue(), ", ".join(n for n, _d in files)
 
 
 def read_upload(data, name=None):

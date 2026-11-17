@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, import_link with context %}
 {% from "chickens/_macros.html" import blocked_alert %}
 {% block title %}{{ _("Eier & Haushalte") }}{% endblock %}
 {% macro macros_since(t) %}{% if t.days_since is none %}{{ _("noch nie") }}{% elif t.days_since == 0 %}{{ _("heute") }}{% elif t.days_since == 1 %}{{ _("gestern") }}{% else %}{{ _("vor {n} Tagen", n=t.days_since) }}{% endif %}{% endmacro %}
@@ -118,19 +118,7 @@
             {% if months|selectattr("expected")|list %}<div class="card-footer small text-body-secondary">{{ _("„erwartet“: Richtwert der Zuchtunternehmen für braune Legehybriden in diesem Alter (unter Idealbedingungen). Im Winter ohne Zusatzlicht und in der Mauser liegt die Leistung meist deutlich darunter.") }}</div>{% endif %}
         </div>
 
-        {% if current_user.is_admin %}
-        <details class="card shadow-sm mb-4" id="import">
-            <summary class="card-header"><i class="bi bi-upload me-1"></i>{{ _("Alte Legedaten importieren") }}</summary>
-            <form method="post" action="{{ url_for('chickens.egg_import_preview') }}" enctype="multipart/form-data" class="card-body">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <p class="small text-body-secondary">{{ _("Excel-Liste mit einem Blatt je Jahr und den Spalten „Datum“, „Eier“ (die guten), wahlweise „kaputte Eier“, „Windei“, „Tot“ und eine Bemerkung. Erst kommt eine Vorschau; Tage, die schon eingetragen sind, bleiben unverändert. Die alten Eier zählen in der Auswertung, aber nicht zum Vorrat.") }}</p>
-                <div class="input-group">
-                    <input class="form-control" type="file" name="file" accept=".xlsx" required aria-label="{{ _('Datei') }}">
-                    <button class="btn btn-primary">{{ _("Vorschau") }}</button>
-                </div>
-            </form>
-        </details>
-        {% endif %}
+        <p class="mb-4">{{ import_link("legedaten", _("Alte Legedaten importieren")) }}</p>
 
         <div class="card shadow-sm mb-4">
             <div class="card-header">{{ _("Zuletzt") }}</div>

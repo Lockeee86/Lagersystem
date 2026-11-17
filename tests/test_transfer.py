@@ -338,3 +338,21 @@ def test_import_into_chosen_warehouse_clears_only_that_one(as_admin, db, seed):
     assert Box.query.filter_by(code="K-0003").one().warehouse_id == other.id
     assert a.location == "A-01-1"      # erstes Lager unberührt
     assert not b.is_stored             # Halle 2 wurde vorher geleert
+
+
+def test_import_export_hub(as_admin, as_worker, db, seed):
+    """Verwaltung → Import / Export: alle Importe gebündelt, Reiter je Rubrik nur für freigeschaltete Bereiche."""
+    page = as_admin.get("/admin/daten").get_data(as_text=True)
+    for anchor in ("zettel", "lager-export", "myfarm", "fruchtfolge", "kml", "beregnung", "tankbuch"):
+        assert f'id="{anchor}"' in page
+    assert 'id="legedaten"' not in page and 'id="altsystem"' not in page
+    seed["admin"].chickens = seed["admin"].forest = True
+    db.session.commit()
+    page = as_admin.get("/admin/daten").get_data(as_text=True)
+    for anchor in ("legedaten", "altsystem", "grundkarte", "baumliste"):
+        assert f'id="{anchor}"' in page
+    assert 'name="file" accept=".xml,.xlsx,.zip,.shp' in page and "multiple" in page
+    # die Bereichsseiten verweisen nur noch hierher
+    assert "/admin/daten#myfarm" in as_admin.get("/admin/schlaege").get_data(as_text=True)
+    assert "/admin/daten#altsystem" in as_admin.get("/wald/baeume").get_data(as_text=True)
+    assert as_worker.get("/admin/daten").status_code == 403

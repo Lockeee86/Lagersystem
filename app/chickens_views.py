@@ -159,13 +159,13 @@ def egg_import_preview():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("chickens.eggs") + "#import")
+        return redirect(url_for("admin.data") + "#legedaten")
     data = upload.read()
     try:
         parsed = egg_import.parse_file(data)
     except egg_import.EggImportError as e:
         flash_error(str(e))
-        return redirect(url_for("chickens.eggs") + "#import")
+        return redirect(url_for("admin.data") + "#legedaten")
     _cleanup_imports()
     token = secrets.token_hex(16)
     with open(os.path.join(_import_dir(), token), "wb") as f:
@@ -182,7 +182,7 @@ def egg_import_apply():
     info, path = _pending_import("egg_import")
     if not info:
         flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
-        return redirect(url_for("chickens.eggs") + "#import")
+        return redirect(url_for("admin.data") + "#legedaten")
     with open(path, "rb") as f:
         data = f.read()
     try:
@@ -195,7 +195,7 @@ def egg_import_apply():
     except (egg_import.EggImportError, StorageError) as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("chickens.eggs") + "#import")
+        return redirect(url_for("admin.data") + "#legedaten")
     os.remove(path)
     session.pop("egg_import", None)
     flash(_("Alte Legedaten übernommen: {days} Tage, {eggs} Eier.", days=stats["days"], eggs=stats["eggs"]), "success")

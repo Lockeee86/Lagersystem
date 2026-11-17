@@ -339,17 +339,46 @@ def test_dxf_upload(app, db, seed, as_admin):
     with zipfile.ZipFile(buf, "w") as z:                    # Dateien ohne Endung wie aus dem CAD-Programm
         z.writestr("wege", _dxf(WAY, PARK))
         z.writestr("flaechen", _dxf(LAWN))
-    r = as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(buf.getvalue()), "karte.zip"), "action": "check"},
+    r = as_admin.post("/wald/karte/grundkarte", data={"file": (io.BytesIO(buf.getvalue()), "karte.zip"), "action": "check"},
                       content_type="multipart/form-data", follow_redirects=True)
     assert "Grundkarte: 3 Formen in 3 Ebenen" in r.get_data(as_text=True) and ForestShape.query.count() == 0
-    as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(buf.getvalue()), "karte.zip"), "action": "apply"},
+    as_admin.post("/wald/karte/grundkarte", data={"file": (io.BytesIO(buf.getvalue()), "karte.zip"), "action": "apply"},
                   content_type="multipart/form-data")
     assert ForestShape.query.count() == 3
     page = as_admin.get("/wald/karte").get_data(as_text=True)                   # Karte auch ohne Bäume mit Lage
     assert "background" in page and "Parkplatz" in page and "forestMap" in page
-    assert "Grundkarte: 3 Formen" in as_admin.get("/wald/baeume").get_data(as_text=True)
+    assert "Grundkarte: 3 Formen" in as_admin.get("/admin/daten").get_data(as_text=True)
+    # mehrere DXF ohne ZIP, eine Ebene davon schon vorhanden → ersetzt
+    as_admin.post("/wald/karte/grundkarte", data={"file": [(io.BytesIO(_dxf(PARK)), "park.dxf"),
+                                                           (io.BytesIO(_dxf(FENCE)), "zaun.dxf")], "action": "apply"},
+                  content_type="multipart/form-data")
+    assert ForestShape.query.count() == 4
+    r = as_admin.post("/wald/karte/grundkarte", data={"file": (io.BytesIO(b"keine Zeichnung"), "x.txt"), "action": "apply"},
+                      content_type="multipart/form-data", follow_redirects=True)
+    assert "keine Zeichnung (DXF)" in r.get_data(as_text=True) and ForestShape.query.count() == 4
+    # alter Weg über die Übernahme bleibt möglich
     as_admin.post("/wald/baeume/altsystem", data={"file": (io.BytesIO(_dxf(PARK)), "park.dxf"), "action": "apply"},
                   content_type="multipart/form-data")
-    assert ForestShape.query.count() == 3
+    assert ForestShape.query.count() == 4
     as_admin.post("/wald/karte/grundkarte/loeschen")
     assert ForestShape.query.count() == 0
+
+
+def test_legacy_without_zip(app, db, seed, as_admin):
+    """Shapefile-Teile und Tabelle einzeln ausgewählt (ohne ZIP) – wird im Speicher zusammengelegt."""
+    import zipfile
+    seed["admin"].forest = True
+    db.session.commit()
+    data = _shapefile_zip([("A 7", "N: 50.100000 O: 9.200000", (0, 0))])
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        files = [(io.BytesIO(z.read(n)), n) for n in z.namelist()]
+    r = as_admin.post("/wald/baeume/altsystem", data={"file": files, "action": "apply"},
+                      content_type="multipart/form-data", follow_redirects=True)
+    page = r.get_data(as_text=True)
+    assert "Lage gesetzt: 1 Bäume" in page
+    assert ForestTree.query.filter_by(field="A", number=7).one().lat == 50.1
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        shp_only = [(io.BytesIO(z.read("Wald_Point.shp")), "Wald_Point.shp")]
+    r = as_admin.post("/wald/baeume/altsystem", data={"file": shp_only, "action": "check"},
+                      content_type="multipart/form-data", follow_redirects=True)
+    assert ".shp, .dbf und .prj zusammen" in r.get_data(as_text=True)

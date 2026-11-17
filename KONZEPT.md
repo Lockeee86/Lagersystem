@@ -975,6 +975,14 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
+### Import / Export an einer Stelle (0.121.0)
+- Verwaltung → Import / Export sammelt alle Importe und Exporte, mit Reitern je Bereich: Lager (Zettel-Import,
+  Jahres-Export, Etiketten), Felder (Myfarm24-Schlagdokumentation, Fruchtfolgeplan, KML, RainDancer), Biogas
+  (Netzabrechnung, Flex-Gutschriften, Fütterungsmengen), Bestattungswald (Übernahme, Grundkarte, Baumliste), Hühner
+  (alte Legedaten), Weitere (Tankbuch, Datensicherung). Auf den Bereichsseiten steht nur noch ein Verweis.
+- Übernahme aus dem bisherigen Programm geht auch ohne ZIP: Tabellen und die Shapefile-Dateien (.shp/.dbf/.prj)
+  einzeln auswählen. Die Grundkarte (DXF) hat eine eigene Karte mit Prüfen/Übernehmen/Löschen.
+
 ### Hühner: Wasser bei der Fütterung (0.120.0)
 - Dritter Schalter „Wasser“ neben Weizen und Legemehl (Hühner-Seite, Futter, Stall-Display und E-Paper).
   Tage nur mit Wasser zählen nicht im Futter-Vergleich der Auswertung.

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, import_link with context %}
 {% block title %}{{ _("Beregnung") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -82,20 +82,6 @@
 </div>
 
 {% if current_user.is_admin %}
-<div class="card shadow-sm mb-4" id="import">
-    <div class="card-header"><i class="bi bi-upload me-1"></i>{{ _("Wasserbuch aus RainDancer einlesen") }}</div>
-    <div class="card-body">
-        <ol class="small text-body-secondary ps-3">
-            <li>{{ _("In RainDancer: Reports → Wasserbuch, Zeitraum wählen (z. B. die ganze Saison).") }}</li>
-            <li>{{ _("Exportieren als „Excel 97-2003“ („Split Worksheet On Page Break“ aus).") }}</li>
-            <li>{{ _("Hier hochladen – erst kommt eine Vorschau. Ein neuer Import ersetzt den Zeitraum der Datei, doppelt wird nichts gezählt.") }}</li>
-        </ol>
-        <form method="post" action="{{ url_for('admin.irrigation_preview') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2">
-            {{ csrf() }}
-            <input class="form-control" style="max-width: 24rem" type="file" name="file" accept=".xls,.xlsx" required aria-label="{{ _('Datei') }}">
-            <button class="btn btn-primary"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
-        </form>
-    </div>
-</div>
+<p>{{ import_link("beregnung", _("Wasserbuch aus RainDancer einlesen")) }}</p>
 {% endif %}
 {% endblock %}

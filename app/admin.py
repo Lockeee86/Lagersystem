@@ -308,13 +308,13 @@ def plots_kml_preview():
     year = form_int("year", date.today().year, minimum=2000, maximum=2100)
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#kml")
     data_bytes = upload.read()
     try:
         entries = fields.parse_kml(upload.filename, data_bytes)
     except fields.FieldImportError as e:
         flash_error(str(e))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#kml")
     rows, missing = fields.plan_import(entries, year)
     _cleanup_imports()
     token = secrets.token_hex(16)
@@ -330,7 +330,7 @@ def plots_kml_apply():
     info, path = _pending_import("kml_import")
     if not info:
         flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#kml")
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
@@ -342,7 +342,7 @@ def plots_kml_apply():
     except fields.FieldImportError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#kml")
     os.remove(path)
     session.pop("kml_import", None)
     flash(_("Schlagkartei übernommen: {created} neu, {updated} aktualisiert.", created=created, updated=updated),
@@ -356,13 +356,13 @@ def plots_csv_preview():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#myfarm")
     data_bytes = upload.read()
     try:
         year, entries = fielddoc.parse_csv(data_bytes)
     except fields.FieldImportError as e:
         flash_error(str(e))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#myfarm")
     rows, missing = fielddoc.plan_import(entries, year)
     _cleanup_imports()
     token = secrets.token_hex(16)
@@ -382,7 +382,7 @@ def plots_csv_apply():
     info, path = _pending_import("fielddoc_import")
     if not info:
         flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#myfarm")
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
@@ -395,13 +395,13 @@ def plots_csv_apply():
     except fields.FieldImportError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#myfarm")
     os.remove(path)
     session.pop("fielddoc_import", None)
     flash(_("Schlagdokumentation {year} übernommen: {created} Schläge neu, {updated} aktualisiert, {measures} Maßnahmen.",
             year=year, created=stats["created"], updated=stats["updated"],
             measures=stats["measures"]), "success")
-    return redirect(url_for("admin.plots"))
+    return redirect(url_for("admin.data") + "#myfarm")
 
 
 @bp.route("/beregnung/import", methods=["POST"])
@@ -410,13 +410,13 @@ def irrigation_preview():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("fields.irrigation_page"))
+        return redirect(url_for("admin.data") + "#beregnung")
     data_bytes = upload.read()
     try:
         parsed = irrigation.parse_file(data_bytes)
     except irrigation.IrrigationImportError as e:
         flash_error(str(e))
-        return redirect(url_for("fields.irrigation_page"))
+        return redirect(url_for("admin.data") + "#beregnung")
     _cleanup_imports()
     token = secrets.token_hex(16)
     with open(os.path.join(_import_dir(), token), "wb") as f:
@@ -431,7 +431,7 @@ def irrigation_apply():
     info, path = _pending_import("irrigation_import")
     if not info:
         flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
-        return redirect(url_for("fields.irrigation_page"))
+        return redirect(url_for("admin.data") + "#beregnung")
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
@@ -445,7 +445,7 @@ def irrigation_apply():
     except irrigation.IrrigationImportError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("fields.irrigation_page"))
+        return redirect(url_for("admin.data") + "#beregnung")
     os.remove(path)
     session.pop("irrigation_import", None)
     flash(_("Wasserbuch übernommen: {n} Einsätze ({removed} alte ersetzt).", n=stats["events"],
@@ -463,13 +463,13 @@ def plots_plan_preview():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#fruchtfolge")
     data_bytes = upload.read()
     try:
         years, entries = fielddoc.parse_plan(data_bytes)
     except fields.FieldImportError as e:
         flash_error(str(e))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#fruchtfolge")
     rows, missing = fielddoc.plan_rotation(entries, years)
     _cleanup_imports()
     token = secrets.token_hex(16)
@@ -485,7 +485,7 @@ def plots_plan_apply():
     info, path = _pending_import("plan_import")
     if not info:
         flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#fruchtfolge")
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
@@ -498,7 +498,7 @@ def plots_plan_apply():
     except fields.FieldImportError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("admin.plots"))
+        return redirect(url_for("admin.data") + "#fruchtfolge")
     os.remove(path)
     session.pop("plan_import", None)
     flash(_("Fruchtfolgeplan {first}–{last} übernommen: {created} Schläge neu, {updated} geändert.",
@@ -798,9 +798,12 @@ def _pending_import(key="import"):
 
 @bp.route("/daten")
 def data():
+    """Alle Importe und Exporte an einer Stelle, je Bereich ein Reiter."""
+    from .models import ForestShape
     years = transfer.season_years()
-    return render_template("admin/data.html", years=years, current_year=date.today().year,
-                           warehouses=Warehouse.query.order_by(Warehouse.name).all())
+    return render_template("admin/data.html", years=years, current_year=date.today().year, today=date.today(),
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all(),
+                           shape_count=ForestShape.query.count() if current_user.sees_forest else 0)
 
 
 @bp.route("/daten/vorlage.xlsx")
@@ -821,16 +824,16 @@ def import_preview():
     upload = request.files.get("file")
     if not upload or not upload.filename:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("admin.data"))
+        return redirect(url_for("admin.data") + "#zettel")
     data_bytes = upload.read()
     try:
         rows = transfer.read_file(upload.filename, data_bytes)
     except transfer.TransferError as e:
         flash_error(str(e))
-        return redirect(url_for("admin.data"))
+        return redirect(url_for("admin.data") + "#zettel")
     if not rows:
         flash_error(_("Die Datei enthält keine Zeilen."))
-        return redirect(url_for("admin.data"))
+        return redirect(url_for("admin.data") + "#zettel")
 
     create_missing = bool(request.form.get("create_missing"))
     clear_first = bool(request.form.get("clear_first"))
@@ -855,7 +858,7 @@ def import_apply():
     info, path = _pending_import()
     if not info:
         flash_error(_("Die Vorschau ist abgelaufen. Bitte die Datei erneut hochladen."))
-        return redirect(url_for("admin.data"))
+        return redirect(url_for("admin.data") + "#zettel")
     with open(path, "rb") as f:
         data_bytes = f.read()
     try:
@@ -867,7 +870,7 @@ def import_apply():
     except transfer.TransferError as e:
         db.session.rollback()
         flash_error(str(e))
-        return redirect(url_for("admin.data"))
+        return redirect(url_for("admin.data") + "#zettel")
     errors = sum(1 for r in results if r["errors"])
     if errors:
         # Zwischen Vorschau und Übernehmen hat sich etwas geändert (z. B. jemand hat gebucht)
@@ -880,7 +883,7 @@ def import_apply():
     os.remove(path)
     session.pop("import", None)
     flash(ngettext("{n} Zeile importiert.", "{n} Zeilen importiert.", len(results)), "success")
-    return redirect(url_for("admin.data"))
+    return redirect(url_for("admin.data") + "#zettel")
 
 
 # --- Datensicherung -----------------------------------------------------------

@@ -1,5 +1,5 @@
 {% extends "biogas/_layout.html" %}
-{% from "macros.html" import csrf, motor_start %}
+{% from "macros.html" import csrf, motor_start, import_link with context %}
 {% macro tariff_field(pid, name, label, value, help=none) %}<div class="col-6 col-md-3"><label class="form-label small mb-0" for="{{ name }}{{ pid }}">{{ label }}</label><input class="form-control form-control-sm" id="{{ name }}{{ pid }}" name="{{ name }}" inputmode="decimal" value="{{ value|qty(3) if value is not none else '' }}"{% if help %} placeholder="{{ help }}"{% endif %}></div>{% endmacro %}
 {% macro budget_input(id, value, unit) %}
 <div class="col-12 col-md-5"><label class="form-label small mb-0" for="{{ id }}">{{ _("Erlaubt laut Höchstbemessungsleistung") }}</label>
@@ -73,17 +73,7 @@
         {% else %}
         <p class="small text-body-secondary mb-0">{{ _("Noch keine Einspeisestelle. Mit der Höchstbemessungsleistung (Jahresmittel in kW) rechnet die App, wie viel ihr im Jahr einspeisen dürft, wo ihr steht und wie viel bis 31.12. übrig bleibt.") }}</p>
         {% endfor %}
-        {% if current_user.is_admin %}
-        <details class="mt-3 small" id="import" {% if not budget %}open{% endif %}>
-            <summary class="text-body-secondary"><i class="bi bi-upload me-1"></i>{{ _("Abrechnungen des Netzbetreibers importieren (PDF oder CSV)") }}</summary>
-            <form method="post" action="{{ url_for('biogas.feed_import_preview') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                {{ csrf() }}
-                <input class="form-control form-control-sm" style="max-width: 22rem" type="file" name="file" accept=".csv,text/csv,.pdf,application/pdf" multiple required aria-label="{{ _('CSV- oder PDF-Datei') }}">
-                <button class="btn btn-sm btn-primary"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
-            </form>
-            <div class="form-text">{{ _("PDF: die Einspeiseabrechnung des Netzbetreibers, gern mehrere Monate auf einmal – die App liest Mengen und Positionen und prüft jede Zeile an Menge × Preis.") }} {{ _("CSV: Positionen der Einspeiseabrechnungen mit den Spalten einspeisestelle, monat (z. B. 2026-03 oder 2025-JAHR), kategorie und menge_kwh. Die Einspeisung steht bei der Flexibilitätsprämie, „Verringerung“ sind die kWh ohne Marktprämie. Vorhandene Monate werden überschrieben.") }}</div>
-        </details>
-        {% endif %}
+        <div class="mt-3">{{ import_link("netz", _("Abrechnungen des Netzbetreibers importieren (PDF oder CSV)")) }}</div>
         {% if current_user.is_admin %}
         <details class="mt-3 small">
             <summary class="text-body-secondary"><i class="bi bi-plus-lg me-1"></i>{{ _("Einspeisestelle anlegen") }}</summary>
@@ -103,13 +93,8 @@
 <div class="card shadow-sm mb-4" id="gutschrift">
     <div class="card-header"><i class="bi bi-receipt me-1"></i>{{ _("Gutschrift Flex-Vermarkter {year}", year=budget_year) }}</div>
     <div class="card-body">
-        <form method="post" action="{{ url_for('biogas.flex_statement_pdf') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center mb-3">
-            {{ csrf() }}
-            <label class="small fw-semibold" for="gs_pdf"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF-Gutschriften hochladen") }}</label>
-            <input class="form-control form-control-sm" style="max-width: 24rem" type="file" id="gs_pdf" name="files" accept=".pdf,application/pdf" multiple required>
-            <button class="btn btn-sm btn-primary"><i class="bi bi-eye me-1"></i>{{ _("Lesen und prüfen") }}</button>
-        </form>
-        <div class="small text-body-secondary mb-2">{{ _("… oder von Hand abtippen:") }}</div>
+        <div class="mb-3">{{ import_link("gutschrift", _("PDF-Gutschriften hochladen")) }}</div>
+        <div class="small text-body-secondary mb-2">{{ _("Von Hand abtippen:") }}</div>
         <form method="post" action="{{ url_for('biogas.flex_statement_save') }}" class="row g-2 align-items-end">
             {{ csrf() }}
             <div class="col-12 col-md-4"><label class="form-label small mb-0" for="gs_point">{{ _("Einspeisestelle") }}</label>

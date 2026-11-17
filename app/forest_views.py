@@ -101,8 +101,7 @@ def trees():
     species = [s for s in request.args.getlist("baumart") if s]
     kinds = [k for k in request.args.getlist("art") if k in FOREST_KINDS]
     q = request.args.get("q", "").strip()
-    from .models import ForestShape
-    return _page("forest/trees.html", "baeume", shape_count=ForestShape.query.count(),
+    return _page("forest/trees.html", "baeume",
                  rows=forest.tree_rows(section, only_free, species, kinds, q), sections=forest.sections(),
                  section=section, only_free=only_free, kinds=FOREST_KINDS, default_places=forest.DEFAULT_PLACES,
                  species_all=forest.species_list(), kinds_used=forest.kinds_in_use(), chosen_species=species,
@@ -139,7 +138,7 @@ def trees_import():
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return redirect(url_for("forest.trees"))
+    return redirect(url_for("admin.data") + "#baumliste")
 
 
 @bp.route("/wald/baeume/altsystem", methods=["POST"])
@@ -148,17 +147,15 @@ def legacy_import():
     """Tabellenexport aus dem bisherigen Programm (Excel-XML/.xlsx oder ein ZIP mit Tabellen und Shapefile der
     Baumpunkte): „Prüfen“ = Vorschau (Rollback), „Übernehmen“ = Commit."""
     from . import audit, forest_import
-    upload = request.files.get("file")
     commit = request.form.get("action") == "apply"
     try:
-        if not upload or not upload.filename:
-            raise StorageError(_("Bitte eine Datei auswählen."))
-        found = forest_import.read_upload(upload.read())
+        data, name = forest_import.bundle_uploads(_uploads())
+        found = forest_import.read_upload(data)
         parsed, points, shapes = found["tables"], found["points"], found["shapes"]
         parts, stats = [], {}
         with audit.paused():
             if shapes:
-                drawn = forest_import.apply_shapes(shapes, upload.filename)
+                drawn = forest_import.apply_shapes(shapes, name)
                 stats = {**stats, **drawn}
                 parts.append(_("Grundkarte: {n} Formen in {layers} Ebenen", n=drawn["shapes"], layers=drawn["layers"]))
             if parsed:
@@ -187,7 +184,42 @@ def legacy_import():
     except StorageError as e:
         db.session.rollback()
         flash_error(str(e))
-    return redirect(url_for("forest.trees") + "#altsystem")
+    return redirect(url_for("admin.data") + "#altsystem")
+
+
+def _uploads():
+    """Alle Dateien des Feldes „file“ als [(Name, Inhalt)] (leere Auswahl → Fehler)."""
+    files = [(f.filename, f.read()) for f in request.files.getlist("file") if f and f.filename]
+    if not files:
+        raise StorageError(_("Bitte eine Datei auswählen."))
+    return files
+
+
+@bp.route("/wald/karte/grundkarte", methods=["POST"])
+@admin_required
+def basemap_import():
+    """Grundkarte aus dem CAD (DXF, einzeln, mehrere oder als ZIP): „Prüfen“ = Vorschau, „Übernehmen“ = Commit."""
+    from . import audit, forest_import
+    commit = request.form.get("action") == "apply"
+    try:
+        data, name = forest_import.bundle_uploads(_uploads())
+        shapes = forest_import.read_upload(data)["shapes"] if forest_import.is_dxf(data) or data[:2] == b"PK" else None
+        if not shapes:
+            raise StorageError(_("In der Datei wurde keine Zeichnung (DXF) gefunden."))
+        with audit.paused():
+            drawn = forest_import.apply_shapes(shapes, name)
+        text = _("Grundkarte: {n} Formen in {layers} Ebenen", n=drawn["shapes"], layers=drawn["layers"])
+        if commit:
+            audit.note("forest_shapes", _("Grundkarte eingelesen"), drawn)
+            db.session.commit()
+            flash(_("Übernommen. {details}", details=text), "success")
+        else:
+            db.session.rollback()
+            flash(_("Vorschau – noch nichts gespeichert. {details}", details=text), "info")
+    except StorageError as e:
+        db.session.rollback()
+        flash_error(str(e))
+    return redirect(url_for("admin.data") + "#grundkarte")
 
 
 @bp.route("/wald/karte/grundkarte/loeschen", methods=["POST"])
@@ -198,7 +230,7 @@ def shapes_delete():
         db.session.delete(shape)
     db.session.commit()
     flash(_("Grundkarte gelöscht."), "success")
-    return redirect(url_for("forest.trees") + "#altsystem")
+    return redirect(url_for("admin.data") + "#grundkarte")
 
 
 @bp.route("/wald/baum/id/<int:tree_id>")

@@ -253,7 +253,7 @@ def feed_import_preview():
     uploads = [u for u in request.files.getlist("file")[:24] if u and u.filename]
     if not uploads:
         flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("biogas.settings_page") + "#budget")
+        return redirect(url_for("admin.data") + "#netz")
     parts, files = [], []
     for upload in uploads:
         data = upload.read()
@@ -264,7 +264,7 @@ def feed_import_preview():
             continue
         files.append(data)
     if not parts:
-        return redirect(url_for("biogas.settings_page") + "#budget")
+        return redirect(url_for("admin.data") + "#netz")
     parsed = feedin.merge_parsed(parts)
     _cleanup_imports()
     tokens = []
@@ -290,7 +290,7 @@ def feed_import_apply():
     paths = [os.path.join(_import_dir(), t) for t in tokens if t and t.isalnum()]
     if not paths or not all(os.path.exists(p) for p in paths):
         flash_error(_("Die Vorschau ist abgelaufen – bitte die Datei noch einmal hochladen."))
-        return redirect(url_for("biogas.settings_page") + "#budget")
+        return redirect(url_for("admin.data") + "#netz")
     parts = []
     for path in paths:
         with open(path, "rb") as f:
@@ -312,7 +312,7 @@ def feed_import_apply():
     except StorageError as e:
         db.session.rollback()
         flash_error(_(str(e)))
-        return redirect(url_for("biogas.settings_page") + "#budget")
+        return redirect(url_for("admin.data") + "#netz")
     flash(ngettext("{n} Abrechnungswert übernommen.", "{n} Abrechnungswerte übernommen.", count), "success")
     return redirect(url_for("biogas.settings_page") + "#budget")
 
@@ -386,7 +386,7 @@ def flex_statement_pdf():
             flash_error(f"{name}: {message}")
         if not failed:
             flash_error(_("Bitte eine Datei auswählen."))
-        return redirect(url_for("biogas.settings_page") + "#gutschrift")
+        return redirect(url_for("admin.data") + "#gutschrift")
     return render_template("biogas/statement_import.html", rows=rows, failed=failed, feed_points=feedin.points(),
                            fields=feedin.STATEMENT_FIELDS, month_names=feedin.MONTH_NAMES)
 
@@ -411,10 +411,10 @@ def flex_statement_pdf_apply():
     except StorageError as e:
         db.session.rollback()
         flash_error(_(str(e)))
-        return redirect(url_for("biogas.settings_page") + "#gutschrift")
+        return redirect(url_for("admin.data") + "#gutschrift")
     if not count:
         flash_error(_("Keine Gutschrift übernommen – bitte jeweils eine Einspeisestelle wählen."))
-        return redirect(url_for("biogas.settings_page") + "#gutschrift")
+        return redirect(url_for("admin.data") + "#gutschrift")
     flash(ngettext("{n} Gutschrift übernommen.", "{n} Gutschriften übernommen.", count), "success")
     return redirect(url_for("biogas.settings_page", jahr=year) + "#gutschrift")
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "admin/_macros.html" import edit_modal %}
-{% from "macros.html" import site_select, site_filter %}
+{% from "macros.html" import site_select, site_filter, import_link with context %}
 {% block title %}{{ _("Schläge") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -10,60 +10,7 @@
 <p class="text-body-secondary">{{ _("Die Schläge stehen beim Befüllen einer Kiste zur Auswahl.") }}
     <a href="{{ url_for('fields.field_map') }}"><i class="bi bi-map me-1"></i>{{ _("Zur Schlagkarte") }}</a></p>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-header"><i class="bi bi-journal-text me-1"></i>{{ _("Schlagdokumentation importieren (CSV aus Myfarm24)") }}</div>
-    <div class="card-body">
-        <form method="post" action="{{ url_for('admin.plots_csv_preview') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="col-md-9">
-                <label class="form-label" for="csv_file">{{ _("CSV-Datei „Schlagdokumentation“") }}</label>
-                <input class="form-control" type="file" id="csv_file" name="file" accept=".csv,text/csv" required>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-primary w-100"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
-            </div>
-            <div class="col-12 form-text">{{ _("Bringt je Schlag Fläche, Kultur, Sorte, Vorfrucht, Bodenuntersuchung und alle Maßnahmen (Aussaat, Düngung, Pflanzenschutz, Arbeiten, Personen) für das Erntejahr der Datei. Beim erneuten Import werden die Maßnahmen dieses Jahres ersetzt. Die Umrisse für die Karte kommen aus der KML-Datei.") }}</div>
-        </form>
-    </div>
-</div>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-header"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Fruchtfolgeplan importieren (CSV aus Myfarm24)") }}</div>
-    <div class="card-body">
-        <form method="post" action="{{ url_for('admin.plots_plan_preview') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="col-md-9">
-                <label class="form-label" for="plan_file">{{ _("CSV-Datei „Fruchtfolgeplan“") }}</label>
-                <input class="form-control" type="file" id="plan_file" name="file" accept=".csv,text/csv" required>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-primary w-100"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
-            </div>
-            <div class="col-12 form-text">{{ _("Trägt die geplanten Kulturen je Schlag und Jahr ein. Die tatsächliche Kultur aus der Schlagdokumentation bleibt davon unberührt.") }}</div>
-        </form>
-    </div>
-</div>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-header"><i class="bi bi-bounding-box me-1"></i>{{ _("Umrisse importieren (KML, z. B. aus Myfarm24)") }}</div>
-    <div class="card-body">
-        <form method="post" action="{{ url_for('admin.plots_kml_preview') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="col-md-6">
-                <label class="form-label" for="kml_file">{{ _("KML- oder KMZ-Datei") }}</label>
-                <input class="form-control" type="file" id="kml_file" name="file" accept=".kml,.kmz" required>
-            </div>
-            <div class="col-6 col-md-3">
-                <label class="form-label" for="kml_year">{{ _("Anbaujahr der Kultur") }}</label>
-                <input class="form-control" type="number" id="kml_year" name="year" min="2000" max="2100" value="{{ this_year }}" required>
-            </div>
-            <div class="col-6 col-md-3">
-                <button class="btn btn-primary w-100"><i class="bi bi-eye me-1"></i>{{ _("Vorschau") }}</button>
-            </div>
-            <div class="col-12 form-text">{{ _("Vorhandene Schläge werden über Nummer und Name wiedererkannt und aktualisiert. Pflanzung, Rodung und Sorten bleiben erhalten. Die Vorfrucht wird als Kultur des Vorjahres eingetragen, wenn dort noch nichts steht.") }}</div>
-        </form>
-    </div>
-</div>
+<p class="d-flex flex-wrap gap-3 mb-3">{{ import_link("myfarm", _("Schlagdokumentation importieren")) }}{{ import_link("fruchtfolge", _("Fruchtfolgeplan importieren")) }}{{ import_link("kml", _("Umrisse importieren (KML)")) }}</p>
 {{ site_filter() }}
 {% if items %}
 {% if any_sites() %}

@@ -319,6 +319,13 @@ docker compose up --build -d
   `selectinload`/`joinedload` laden statt in Schleifen nachzufragen
 - `app/views.py` (Seiten), `app/admin.py` (Verwaltung, nur Admin), `app/auth.py` (Login, Setup, Passwort),
   `app/api.py` (`/api/health`, `/api/version` für Auto-Reload), `app/labels.py` (QR-Etiketten-PDF; daneben `main.labels_excel` `/etiketten.xlsx` = Codes als Excel-Liste für Etikettensoftware wie BarTender, Spalten Code/QR/Nummer/Name; Auswahl `art` aus `views.LABEL_KINDS`: Kisten von–bis, Schüttlager, Rundgang-Stationen, Maschinen, Bäume)
+- Import / Export gebündelt unter Verwaltung → `admin.data` (`/admin/daten`, `admin/data.html`): Reiter je Bereich
+  (Lager, Felder, Biogas, Bestattungswald, Hühner, Weitere – nur freigeschaltete Rubriken), jede Karte mit Anker
+  (`#zettel`, `#myfarm`, `#fruchtfolge`, `#kml`, `#beregnung`, `#netz`, `#gutschrift`, `#altsystem`, `#grundkarte`, `#baumliste`,
+  `#legedaten` …). Die Formulare schicken an die Routen der Bereiche, Fehler und „Abbrechen“ führen dorthin zurück;
+  Bereichsseiten zeigen nur `macros.import_link(anker, text)` (mit `with context` importieren). Neue Importe dort eintragen.
+  Wald: `forest_import.bundle_uploads()` legt mehrere Dateien (Shapefile-Teile, Tabellen) im Speicher zum ZIP zusammen –
+  kein ZIP nötig; Grundkarte eigene Route `forest.basemap_import` (DXF, mehrere oder ZIP)
 - `app/transfer.py`: Excel-Vorlage, Import (`run_import` committet nicht – Aufrufer entscheidet: Vorschau = Rollback,
   Übernehmen = Commit nur ohne Fehler) und Export je Kartoffeljahr
 - `app/static/js/mapzoom.js`: Lagerkarte am Handy/Tablet zoomen und verschieben (zwei Finger); ein Stapel klappt dort

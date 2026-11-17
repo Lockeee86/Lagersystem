@@ -1,10 +1,33 @@
 {% extends "base.html" %}
+{% from "macros.html" import csrf, page_tabs %}
+{# Alle Importe und Exporte an einer Stelle. Die Formulare schicken an die Routen der Bereiche; nach dem Import geht es
+   hierher zurück (Anker = Karte). Reiter nur für Rubriken, die der Admin sieht. #}
 {% block title %}{{ _("Import / Export") }}{% endblock %}
+{% macro upload(action, accept, label, id, button=None, multiple=false, name="file") -%}
+<form method="post" action="{{ url_for(action) }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+    {{ csrf() }}{{ caller() if caller }}
+    <input class="form-control" style="max-width: 26rem" type="file" id="{{ id }}" name="{{ name }}" accept="{{ accept }}" {% if multiple %}multiple{% endif %} required aria-label="{{ label }}">
+    <button class="btn btn-primary"><i class="bi bi-eye me-1"></i>{{ button or _("Vorschau") }}</button>
+</form>
+{%- endmacro %}
 {% block content %}
-<div class="page-head"><h1>{{ _("Import / Export") }}</h1></div>
-<div class="row g-4">
+<div class="page-head">
+    <div>
+        <h1>{{ _("Import / Export") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Alle Dateien, die in die App kommen oder aus ihr herausgehen – nach Bereichen sortiert. Jeder Import zeigt zuerst eine Vorschau.") }}</p>
+    </div>
+</div>
+{% set tabs = [("lager", _("Lager"), "bi-grid-3x3-gap"), ("felder", _("Felder"), "bi-map")] %}
+{% if current_user.sees_biogas %}{% set tabs = tabs + [("biogas", _("Biogas"), "bi-lightning-charge")] %}{% endif %}
+{% if current_user.sees_forest %}{% set tabs = tabs + [("wald", _("Bestattungswald"), "bi-tree")] %}{% endif %}
+{% if current_user.sees_chickens %}{% set tabs = tabs + [("huehner", _("Hühner"), "bi-egg")] %}{% endif %}
+{% set tabs = tabs + [("weitere", _("Weitere"), "bi-three-dots")] %}
+{{ page_tabs(tabs) }}
+
+{# ---------------- Lager ---------------- #}
+<div class="row g-4 mb-4" data-tab="lager">
     <div class="col-lg-6">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm h-100" id="zettel">
             <div class="card-header"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Import von Zetteln") }}</div>
             <div class="card-body">
                 <ol class="steps-numbered">
@@ -21,7 +44,7 @@
                         <div class="fw-semibold">{{ _("Datei hochladen und prüfen") }}</div>
                         <div class="small text-body-secondary mb-2">{{ _("Du siehst zuerst eine Vorschau. Gespeichert wird erst, wenn alle Zeilen in Ordnung sind.") }}</div>
                         <form method="post" action="{{ url_for('admin.import_preview') }}" enctype="multipart/form-data">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            {{ csrf() }}
                             <input class="form-control mb-2" type="file" name="file" accept=".xlsx,.csv" required aria-label="{{ _('Datei') }}">
                             <label class="form-label small mb-1" for="importWarehouse">{{ _("Ziel-Lager") }}</label>
                             <select class="form-select mb-1" name="warehouse_id" id="importWarehouse">
@@ -45,7 +68,7 @@
         </div>
     </div>
     <div class="col-lg-6">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm mb-4" id="lager-export">
             <div class="card-header"><i class="bi bi-box-arrow-up me-1"></i>{{ _("Export je Kartoffeljahr") }}</div>
             <div class="card-body">
                 <p class="text-body-secondary small">{{ _("Excel-Datei mit drei Blättern: Auswertung je Sorte und Schlag, alle Kisten und alle Bewegungen. Das Kartoffeljahr richtet sich nach dem Erntedatum.") }}</p>
@@ -62,6 +85,190 @@
                 {% if not years %}<p class="small text-body-secondary mt-3 mb-0">{{ _("Noch keine Kisten mit Erntedatum – der Export enthält dann nur die Kistenliste.") }}</p>{% endif %}
                 <hr>
                 <p class="small text-body-secondary mb-0"><i class="bi bi-info-circle me-1"></i>{{ _("Tipp: Am Ende jeder Saison „Alle Jahre“ exportieren und die Datei aufheben. Für eine komplette Datensicherung siehe README (Backup).") }}</p>
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-qr-code me-1"></i>{{ _("Etiketten") }}</div>
+            <div class="card-body small text-body-secondary">
+                {{ _("QR-Etiketten als PDF oder die Codes als Excel-Liste für Etikettensoftware (z. B. BarTender) – für Kisten, Schüttlager, Rundgang-Stationen, Maschinen und Bäume.") }}
+                <div class="mt-2"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.labels') }}"><i class="bi bi-qr-code me-1"></i>{{ _("Zu den Etiketten") }}</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------------- Felder ---------------- #}
+<div class="row g-4 mb-4" data-tab="felder">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="myfarm">
+            <div class="card-header"><i class="bi bi-journal-text me-1"></i>{{ _("Schlagdokumentation importieren (CSV aus Myfarm24)") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Bringt je Schlag Fläche, Kultur, Sorte, Vorfrucht, Bodenuntersuchung und alle Maßnahmen (Aussaat, Düngung, Pflanzenschutz, Arbeiten, Personen) für das Erntejahr der Datei. Beim erneuten Import werden die Maßnahmen dieses Jahres ersetzt. Die Umrisse für die Karte kommen aus der KML-Datei.") }}</p>
+                {{ upload("admin.plots_csv_preview", ".csv,text/csv", _("CSV-Datei „Schlagdokumentation“"), "csv_file") }}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="fruchtfolge">
+            <div class="card-header"><i class="bi bi-arrow-repeat me-1"></i>{{ _("Fruchtfolgeplan importieren (CSV aus Myfarm24)") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Trägt die geplanten Kulturen je Schlag und Jahr ein. Die tatsächliche Kultur aus der Schlagdokumentation bleibt davon unberührt.") }}</p>
+                {{ upload("admin.plots_plan_preview", ".csv,text/csv", _("CSV-Datei „Fruchtfolgeplan“"), "plan_file") }}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="kml">
+            <div class="card-header"><i class="bi bi-bounding-box me-1"></i>{{ _("Umrisse importieren (KML, z. B. aus Myfarm24)") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Vorhandene Schläge werden über Nummer und Name wiedererkannt und aktualisiert. Pflanzung, Rodung und Sorten bleiben erhalten. Die Vorfrucht wird als Kultur des Vorjahres eingetragen, wenn dort noch nichts steht.") }}</p>
+                {% call upload("admin.plots_kml_preview", ".kml,.kmz", _("KML- oder KMZ-Datei"), "kml_file") %}
+                <label class="small" for="kml_year">{{ _("Anbaujahr der Kultur") }}</label>
+                <input class="form-control" style="max-width: 7rem" type="number" id="kml_year" name="year" min="2000" max="2100" value="{{ current_year }}" required>
+                {% endcall %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="beregnung">
+            <div class="card-header"><i class="bi bi-droplet me-1"></i>{{ _("Wasserbuch aus RainDancer einlesen") }}</div>
+            <div class="card-body">
+                <ol class="small text-body-secondary ps-3">
+                    <li>{{ _("In RainDancer: Reports → Wasserbuch, Zeitraum wählen (z. B. die ganze Saison).") }}</li>
+                    <li>{{ _("Exportieren als „Excel 97-2003“ („Split Worksheet On Page Break“ aus).") }}</li>
+                    <li>{{ _("Hier hochladen – erst kommt eine Vorschau. Ein neuer Import ersetzt den Zeitraum der Datei, doppelt wird nichts gezählt.") }}</li>
+                </ol>
+                {{ upload("admin.irrigation_preview", ".xls,.xlsx", _("Datei"), "irr_file") }}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------------- Biogas ---------------- #}
+{% if current_user.sees_biogas %}
+<div class="row g-4 mb-4" data-tab="biogas">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="netz">
+            <div class="card-header"><i class="bi bi-plug me-1"></i>{{ _("Abrechnungen des Netzbetreibers importieren (PDF oder CSV)") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("PDF: die Einspeiseabrechnung des Netzbetreibers, gern mehrere Monate auf einmal – die App liest Mengen und Positionen und prüft jede Zeile an Menge × Preis.") }} {{ _("CSV: Positionen der Einspeiseabrechnungen mit den Spalten einspeisestelle, monat (z. B. 2026-03 oder 2025-JAHR), kategorie und menge_kwh. Die Einspeisung steht bei der Flexibilitätsprämie, „Verringerung“ sind die kWh ohne Marktprämie. Vorhandene Monate werden überschrieben.") }}</p>
+                {{ upload("biogas.feed_import_preview", ".csv,text/csv,.pdf,application/pdf", _("CSV- oder PDF-Datei"), "netz_file", multiple=true) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm mb-4" id="gutschrift">
+            <div class="card-header"><i class="bi bi-receipt me-1"></i>{{ _("Gutschriften des Flex-Vermarkters (PDF)") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Eine oder mehrere Monats-Gutschriften, auch Stornos. Die App liest die Zeilen, rechnet nach und zeigt erst eine Vorschau. Von Hand abtippen geht unter Biogas → Einstellungen.") }}</p>
+                {{ upload("biogas.flex_statement_pdf", ".pdf,application/pdf", _("PDF-Gutschriften hochladen"), "gs_pdf", button=_("Lesen und prüfen"), multiple=true, name="files") }}
+            </div>
+        </div>
+        <div class="card shadow-sm" id="fuetterung">
+            <div class="card-header"><i class="bi bi-basket2 me-1"></i>{{ _("Fütterungsmengen exportieren") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Alle Fütterungen eines Jahres mit den Mengen je Substrat als Excel.") }}</p>
+                <form method="get" action="{{ url_for('biogas.feeding_export') }}" class="d-flex flex-wrap gap-2 align-items-center">
+                    <select class="form-select" style="max-width: 8rem" name="jahr" aria-label="{{ _('Jahr') }}">{% for y in range(today.year, today.year - 6, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
+                    <button class="btn btn-outline-primary"><i class="bi bi-file-earmark-excel me-1"></i>{{ _("Excel") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ---------------- Bestattungswald ---------------- #}
+{% if current_user.sees_forest %}
+<div class="row g-4 mb-4" data-tab="wald">
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100" id="altsystem">
+            <div class="card-header"><i class="bi bi-box-arrow-in-down me-1"></i>{{ _("Übernahme aus dem bisherigen Programm") }}</div>
+            <form class="card-body" method="post" enctype="multipart/form-data" action="{{ url_for('forest.legacy_import') }}">
+                {{ csrf() }}
+                <p class="small text-body-secondary">{{ _("Tabellenexport „Baumposition“ (Plätze, Verträge, Beisetzungen) und/oder „Ruhebäume“ (Baumart, Kategorie, Stamm) als Excel-XML oder .xlsx, dazu die Baumpunkte aus dem GIS (Shapefile). Die Dateien einzeln auswählen – mehrere auf einmal markieren – oder als ZIP. Zum Shapefile gehören die Dateien .shp, .dbf und .prj mit gleichem Namen.") }}</p>
+                <p class="small text-body-secondary">{{ _("Erst „Prüfen“ zeigt, was übernommen würde, ohne etwas zu speichern. Plätze mit Vertrag oder Beisetzung in der App bleiben unverändert – mehrfaches Einlesen ist unschädlich.") }}</p>
+                <input class="form-control mb-2" type="file" name="file" accept=".xml,.xlsx,.zip,.shp,.shx,.dbf,.prj,.cpg" multiple required aria-label="{{ _('Dateien') }}">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="withPeople" name="with_people" value="1" checked>
+                    <label class="form-check-label" for="withPeople">{{ _("Mit Namen, Anschriften und Geburts-/Sterbedaten (sonst nur Belegung und Verträge ohne Personen)") }}</label>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary" name="action" value="check">{{ _("Prüfen") }}</button>
+                    <button class="btn btn-primary" name="action" value="apply">{{ _("Übernehmen") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4" id="grundkarte">
+            <div class="card-header"><i class="bi bi-map me-1"></i>{{ _("Grundkarte (CAD)") }}</div>
+            <form class="card-body" method="post" enctype="multipart/form-data" action="{{ url_for('forest.basemap_import') }}">
+                {{ csrf() }}
+                <p class="small text-body-secondary">{{ _("Zeichnung aus dem CAD-Programm als DXF (Wege, Parkplatz, Andachtsplatz, Flächen …) – liegt unter den Bäumen auf der Waldkarte. Mehrere Dateien oder ein ZIP gehen auch. Ebenen, die in der Datei vorkommen, werden ersetzt.") }}</p>
+                <input class="form-control mb-2" type="file" name="file" accept=".dxf,.zip" multiple required aria-label="{{ _('DXF-Dateien') }}">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary" name="action" value="check">{{ _("Prüfen") }}</button>
+                    <button class="btn btn-primary" name="action" value="apply">{{ _("Übernehmen") }}</button>
+                </div>
+            </form>
+            <div class="card-footer d-flex flex-wrap align-items-center gap-2 small">
+                {% if shape_count %}
+                <span class="text-body-secondary">{{ ngettext("Grundkarte: {n} Form (Wege, Flächen …)", "Grundkarte: {n} Formen (Wege, Flächen …)", shape_count) }}</span>
+                <a class="ms-auto" href="{{ url_for('forest.map_page') }}">{{ _("Karte") }}</a>
+                <form method="post" action="{{ url_for('forest.shapes_delete') }}">{{ csrf() }}<button class="btn btn-sm btn-link text-danger p-0" data-confirm="{{ _('Grundkarte löschen? Bäume bleiben erhalten.') }}">{{ _("Grundkarte löschen") }}</button></form>
+                {% else %}<span class="text-body-secondary">{{ _("Noch keine Grundkarte eingelesen.") }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="card shadow-sm" id="baumliste">
+            <div class="card-header"><i class="bi bi-filetype-csv me-1"></i>{{ _("Baumliste importieren") }}</div>
+            <form class="card-body" method="post" enctype="multipart/form-data" action="{{ url_for('forest.trees_import') }}">
+                {{ csrf() }}
+                <p class="small text-body-secondary">{{ _("CSV mit Semikolon und den Spalten nummer;feld;baumart;abschnitt;art;plaetze;breite;laenge. Vorhandene Bäume werden über Feld und Nummer aktualisiert.") }}</p>
+                <input class="form-control mb-2" type="file" name="file" accept=".csv,text/csv" required aria-label="{{ _('CSV-Datei') }}">
+                <button class="btn btn-outline-primary">{{ _("Importieren") }}</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ---------------- Hühner ---------------- #}
+{% if current_user.sees_chickens %}
+<div class="row g-4 mb-4" data-tab="huehner">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="legedaten">
+            <div class="card-header"><i class="bi bi-egg me-1"></i>{{ _("Alte Legedaten importieren") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Excel-Liste mit einem Blatt je Jahr und den Spalten „Datum“, „Eier“ (die guten), wahlweise „kaputte Eier“, „Windei“, „Tot“ und eine Bemerkung. Erst kommt eine Vorschau; Tage, die schon eingetragen sind, bleiben unverändert. Die alten Eier zählen in der Auswertung, aber nicht zum Vorrat.") }}</p>
+                {{ upload("chickens.egg_import_preview", ".xlsx", _("Datei"), "egg_file") }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ---------------- Weitere ---------------- #}
+<div class="row g-4 mb-4" data-tab="weitere">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100" id="tankbuch">
+            <div class="card-header"><i class="bi bi-fuel-pump me-1"></i>{{ _("Tankbuch exportieren") }}</div>
+            <div class="card-body">
+                <form method="get" action="{{ url_for('fuel.export') }}" class="d-flex flex-wrap gap-2 align-items-center">
+                    <select class="form-select" style="max-width: 8rem" name="jahr" aria-label="{{ _('Jahr') }}">{% for y in range(today.year, today.year - 6, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
+                    <button class="btn btn-primary" name="format" value="pdf" formtarget="_blank"><i class="bi bi-file-earmark-pdf me-1"></i>{{ _("PDF") }}</button>
+                    <button class="btn btn-outline-primary" name="format" value="xlsx"><i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ _("Excel") }}</button>
+                </form>
+                <div class="form-text">{{ _("Mit Bestand am Anfang und Ende, Liter und Verbrauch je Maschine und allen Einträgen – z. B. für die Agrardiesel-Erstattung.") }} <a href="{{ url_for('fuel.tank') }}">{{ _("Zeitraum oder einzelne Maschine im Tankbuch") }}</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header"><i class="bi bi-shield-check me-1"></i>{{ _("Datensicherung") }}</div>
+            <div class="card-body small text-body-secondary">
+                {{ _("Die komplette Sicherung aller Daten und Fotos – nachts automatisch, Stände zum Herunterladen.") }}
+                <div class="mt-2"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.backups') }}">{{ _("Zur Datensicherung") }}</a></div>
             </div>
         </div>
     </div>

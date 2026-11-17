@@ -308,3 +308,8 @@
     {% for key, label, icon in tabs %}<button type="button" class="page-tab" data-tab-key="{{ key }}" role="tab"><i class="bi {{ icon }}"></i><span>{{ label }}</span></button>{% endfor %}
 </nav>
 {%- endmacro %}
+
+{# Verweis auf die Sammelstelle Verwaltung → Import / Export (nur Admin), `anchor` = Karte dort #}
+{% macro import_link(anchor, text) -%}
+{% if current_user.is_admin %}<a class="import-link small" href="{{ url_for('admin.data') }}#{{ anchor }}"><i class="bi bi-arrow-down-up me-1"></i>{{ text }}</a>{% endif %}
+{%- endmacro %}
