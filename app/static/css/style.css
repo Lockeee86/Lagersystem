@@ -918,6 +918,10 @@ body:not(.has-tabbar) {
 /* Sensoren: Kanal-QR-Code für die Meshtastic-App */
 .channel-qr svg { width: 11rem; height: auto; display: block; border-radius: var(--r-xs); }
 .feeding-btn { min-width: 6.5rem; }
+/* Fütterung: Tag + Schalter in einer Zeile, Schalter teilen sich den Platz */
+.feeding-row .feeding-when { flex: 0 0 auto; min-width: 3.5rem; }
+.feeding-row form { flex: 1 1 0; min-width: 0; max-width: 8.5rem; }
+.feeding-row .feeding-btn { width: 100%; min-width: 0; padding-inline: .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Hintergrund-Auswahl (Mein Konto) */
 .bg-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: .75rem; }
@@ -994,7 +998,12 @@ body:not(.has-tabbar) {
 .coop-fill-top { stop-color: var(--brand); stop-opacity: .3; }
 .coop-fill-bottom { stop-color: var(--brand); stop-opacity: 0; }
 .coop-area { stroke: none; }
-#fuetterung .feeding-btn { min-height: 2.75rem; min-width: 7.5rem; font-size: 1rem; }
+#fuetterung .feeding-btn { min-height: 2.75rem; font-size: 1rem; }
+@media (max-width: 575.98px) {             /* Handy: drei Schalter + Tag in einer Zeile, Grün zeigt „erledigt“ */
+    .feeding-row { gap: .35rem !important; }
+    #fuetterung .feeding-row .feeding-btn { font-size: var(--fs-sm); padding-inline: .15rem; }
+    .feeding-row .feeding-btn .bi { display: none; }
+}
 
 /* Lagerklima: Karten mit großer Temperatur und Status */
 .climate-now { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .5rem 1.25rem; }

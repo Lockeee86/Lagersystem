@@ -139,8 +139,8 @@
 {# Tägliche Fütterung: je Tag Schalter Weizen / Legemehl (chickens.feeding_days) #}
 {% macro feeding_rows(rows, kinds, today, back, can_keep) %}
 {% for day, f in rows %}
-<div class="d-flex flex-wrap align-items-center gap-2 py-1 {{ 'border-top' if not loop.first }}">
-    <span class="me-auto small">{{ _("Heute") if day == today else _("Gestern") if (today - day).days == 1 else day|date }}</span>
+<div class="feeding-row d-flex align-items-center gap-2 py-1 {{ 'border-top' if not loop.first }}">
+    <span class="feeding-when me-auto small">{{ _("Heute") if day == today else _("Gestern") if (today - day).days == 1 else day|date }}</span>
     {% for kind, label in kinds.items() %}
     {% set on = f and f[kind] %}
     {% if can_keep %}
