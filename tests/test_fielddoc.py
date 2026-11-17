@@ -334,6 +334,22 @@ def test_rotation_plan(db, seed):
     assert fields.crop_color("Mais", None) == fields.crop_color("Silomais", None)
 
 
+def test_rotation_plan_same_plot_twice(db, seed):
+    """Ein Schlag in zwei Zeilen (Hauptkultur + Teilfläche „Sonstige“) wird ein Eintrag, kein zweiter Schlag."""
+    plan = PLAN.replace("Rübenacker;301;3;ZR;RW;ZR", "Rübenacker;301;2,5;ZR;RW;-\nRübenacker;301;0,5;Sonst,;Sonst,;K")
+    years, rows = fielddoc.parse_plan(plan.encode("cp1252"))
+    assert [r["name"] for r in rows].count("Rübenacker") == 1 and len(rows) == 4
+    row = next(r for r in rows if r["name"] == "Rübenacker")
+    # echte Kultur gewinnt vor „Sonstige“, „Sonstige“/Kultur vor „-“; Flächen addiert
+    assert row["plan"] == {2026: "Zuckerrübe", 2027: "Winterroggen", 2028: "Kartoffel"}
+    assert row["area_ha"] == Decimal("3.0000") and row["merged"] == 2
+    stats = fielddoc.apply_rotation(rows, years)
+    db.session.commit()
+    assert stats["created"] == 4 and Plot.query.filter_by(name="Rübenacker").count() == 1
+    preview, _missing = fielddoc.plan_rotation(fielddoc.parse_plan(plan.encode("cp1252"))[1], years)
+    assert all(r["plot"] is not None for r in preview)                     # nichts mehr „neu“
+
+
 def test_rotation_pages(as_admin, as_worker, as_viewer, db, seed):
     r = as_admin.post("/admin/schlaege/fruchtfolge", data={"file": (io.BytesIO(PLAN.encode("cp1252")), "plan.csv")},
                       content_type="multipart/form-data")

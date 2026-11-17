@@ -49,7 +49,7 @@
                 {% for y in years %}{% set c = e.plan[y] %}
                 <td class="small {% if y in row.changes %}table-warning{% endif %}">{% if c == "-" %}<span class="text-body-tertiary" title="{{ _('nicht im Plan') }}">–</span>{% else %}{{ c or "" }}{% endif %}</td>
                 {% endfor %}
-                <td>{% if not row.plot %}<span class="badge text-bg-success">{{ _("neu") }}</span>{% endif %}</td>
+                <td>{% if not row.plot %}<span class="badge text-bg-success">{{ _("neu") }}</span>{% endif %}{% if row.entry.merged %} <span class="badge text-bg-secondary" title="{{ _('Der Schlag steht im Plan in mehreren Zeilen – sie sind zusammengefasst.') }}">{{ ngettext("{n} Zeile", "{n} Zeilen", row.entry.merged) }}</span>{% endif %}</td>
             </tr>
             {% endfor %}
             </tbody>

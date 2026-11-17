@@ -3808,4 +3808,5 @@ MESSAGES = {
     'Codes von': 'Kody',
     'Excel herunterladen': 'Pobierz Excel',
     'Für Etikettensoftware wie BarTender (Rollendrucker): eine Zeile je Etikett. Die Spalte „QR“ ist der Inhalt des QR-Codes, „Code“ der Text daneben, „Name“ z. B. die Maschine oder Station. „Von–bis“ gilt nur für Kisten; Format und „überspringen“ nur für das PDF.': 'Dla programów do etykiet, np. BarTender (drukarka rolkowa): jeden wiersz na etykietę. Kolumna „QR” to treść kodu QR, „Code” to tekst obok, „Name” np. maszyna lub stacja. „Od–do” dotyczy tylko skrzyń; format i „pomiń” tylko PDF.',
+    'Der Schlag steht im Plan in mehreren Zeilen – sie sind zusammengefasst.': 'Pole występuje w planie w kilku wierszach – zostały połączone.',
 }

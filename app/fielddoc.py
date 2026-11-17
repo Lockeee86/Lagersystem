@@ -481,7 +481,35 @@ def parse_plan(data):
                      "plan": plan})
     if not years or not rows:
         raise FieldImportError(_("Im Fruchtfolgeplan sind keine Schläge."))
-    return years, rows
+    return years, _merge_plan_rows(rows, years)
+
+
+def _merge_plan_rows(rows, years):
+    """Derselbe Schlag (Name + Nummer) steht im Plan manchmal in mehreren Zeilen – z. B. die Hauptkultur und eine
+    Teilfläche mit „Sonstige“. Daraus wird ein Eintrag: die Flächen addiert, je Jahr gewinnt eine echte Kultur (die der
+    größeren Teilfläche) vor „Sonstige“, vor „-“, vor leer."""
+    def rank(value):
+        return 0 if value is None else 1 if value == PLAN_NONE else 2 if value == PLAN_OTHER else 3
+
+    merged, index = [], {}
+    for row in rows:
+        key = (row["name"].casefold(), (row["number"] or "").casefold())
+        first = index.get(key)
+        if first is None:
+            index[key] = row
+            row["_parts"] = [(row["area_ha"] or Decimal(0), row["plan"])]
+            merged.append(row)
+        else:
+            first["_parts"].append((row["area_ha"] or Decimal(0), row["plan"]))
+    for row in merged:
+        parts = row.pop("_parts")
+        if len(parts) > 1:
+            parts.sort(key=lambda p: p[0], reverse=True)             # größte Teilfläche zuerst (stabil)
+            row["plan"] = {year: max((plan[year] for _area, plan in parts), key=rank) for year in years}
+            total = sum(area for area, _plan in parts)
+            row["area_ha"] = total or None
+            row["merged"] = len(parts)
+    return merged
 
 
 def plan_rotation(entries, years):
