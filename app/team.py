@@ -262,6 +262,15 @@ def my_today(user, today=None):
     return sorted(_loaded(query), key=lambda t: (t.is_done, t.plan_day or date.max, t.plan_position, t.id))
 
 
+def my_upcoming(user, today=None, limit=3):
+    """Mir für spätere Tage eingeplante, offene Aufgaben – „Als Nächstes“ auf der Startseite, wenn heute nichts ansteht."""
+    from .models import task_assignees
+    today = today or date.today()
+    mine = db.session.query(task_assignees.c.task_id).filter(task_assignees.c.user_id == user.id)
+    query = Task.query.filter(Task.id.in_(mine), Task.plan_day > today, Task.done_at.is_(None))
+    return _loaded(query).order_by(Task.plan_day, Task.plan_position, Task.id).limit(limit).all()
+
+
 def suggestions(day, user=None):
     """Was sich für `day` anbietet, aber noch keine Aufgabe ist: fällige Wartungen und offene Störungen.
 

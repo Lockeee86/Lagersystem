@@ -259,6 +259,7 @@ def dashboard():
     if "strompreis" in show:
         cached = biogas.live(cached_only=True)       # nie auf die API warten – der Zeitplan hält ihn frisch
         strip = biogas.price_strip(cached.get("price_series")) if cached and not cached.get("error") else None
+    my_today = team.my_today(current_user, today) if current_user.can_edit else []
     response = make_response(render_template(
         "dashboard.html", week_mine=week_mine, **stock, important=important, open_faults=faults, due_tasks_now=due_now,
         weather=weather.get_weather(), show_blight=weather.blight_in_season(), today=today,
@@ -267,7 +268,7 @@ def dashboard():
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(),
-        my_today=team.my_today(current_user, today) if current_user.can_edit else [],
+        my_today=my_today, my_upcoming=team.my_upcoming(current_user, today) if current_user.can_edit and not my_today else [],
         my_feeding=my_feeding,
         open_for_all=[t for t in team.open_tasks(today, current_user, today) if not t.assignees]
         if current_user.can_edit else [],

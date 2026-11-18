@@ -135,7 +135,15 @@
                 <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>{{ _("Erledigt") }}</button></form>{% endif %}
         </div>
         {% endfor %}
-        {% if my_today %}{{ plan_lines(my_today, url_for('main.dashboard') ~ '#meinplan', today) }}{% elif my_feeding %}{% else %}{{ empty_state("bi-cup-hot", _("Für dich ist heute nichts eingeteilt."), _("Unter „Offen für alle“ wartet vielleicht etwas."), compact=true, ok=true) }}{% endif %}
+        {% if my_today %}{{ plan_lines(my_today, url_for('main.dashboard') ~ '#meinplan', today) }}{% elif my_feeding %}{% elif my_upcoming %}
+        <div class="small text-body-secondary mb-2">{{ _("Heute nichts – als Nächstes für dich eingeplant:") }}</div>
+        {% for t in my_upcoming %}
+        <a class="d-flex align-items-baseline gap-2 text-reset text-decoration-none {{ 'mb-1' if not loop.last }}" href="{{ url_for('tasks.task_detail', task_id=t.id) }}">
+            <span class="badge text-bg-secondary">{{ _("Morgen") if (t.plan_day - today).days == 1 else t.plan_day|weekday ~ " " ~ t.plan_day|date }}</span>
+            <span class="min-w-0 text-truncate">{% if t.important %}<i class="bi bi-exclamation-circle-fill text-danger me-1"></i>{% endif %}{{ t.title }}</span>
+        </a>
+        {% endfor %}
+        {% else %}{{ empty_state("bi-cup-hot", _("Für dich ist heute nichts eingeteilt."), _("Unter „Offen für alle“ wartet vielleicht etwas."), compact=true, ok=true) }}{% endif %}
     </div></div>
 </section>
 {% endif %}

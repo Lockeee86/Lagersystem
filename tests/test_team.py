@@ -468,3 +468,18 @@ def test_several_machines_and_plots(as_admin, as_worker, db, seed):
     # Aufgabenformular: Auswahl bleibt erhalten
     html = as_admin.get(f"/aufgabe/{task.id}").get_data(as_text=True)
     assert f'name="machine_ids" value="{a.id}" data-label="Schlepper A" checked' in html
+
+
+def test_planned_later_is_visible(app, db, seed, as_worker):
+    """Für morgen eingeplant: nicht unter „heute“, aber als „als Nächstes“ und auf der Aufgabe sichtbar."""
+    from datetime import date, timedelta
+    from app import team
+    worker = seed["worker"]
+    tomorrow = date.today() + timedelta(days=1)
+    task = team.add_plan_entry(tomorrow, worker, "Motor prüfen", seed["admin"])
+    db.session.commit()
+    assert team.my_today(worker) == [] and team.my_upcoming(worker) == [task]
+    page = as_worker.get("/").get_data(as_text=True)
+    assert "als Nächstes für dich eingeplant" in page and "Motor prüfen" in page
+    page = as_worker.get(f"/aufgabe/{task.id}").get_data(as_text=True)
+    assert "Eingeplant für" in page and f"datum={tomorrow.isoformat()}" in page and "Ohne Termin" not in page

@@ -47,7 +47,7 @@ docker compose up --build -d
   `app/delivery_note.py` (Lieferschein-PDF, bewusst immer Deutsch)
 - `app/team.py`: Team-Alltag – Übergabe-Notizen (`Handover`, `open_handovers()`), Tagesplan = Ansicht der Aufgaben (es gibt nur `Task`;
   eingeplant = `Task.plan_day` + eine Person, `plan_position`; `plan_for()` inkl. Liegengebliebenem, `open_tasks()` = „Offen“,
-  `my_today()` = Startseite, `add_plan_entry()` / `add_open_task()` / `plan_task()` / `unplan_task()`, `copy_plan()` nur Erledigtes,
+  `my_today()` = Startseite (ist heute nichts dran: `my_upcoming()` = für spätere Tage eingeplant; die Aufgabenseite zeigt „Eingeplant für …“ – Vorschläge im Tagesplan landen auf dem gerade gezeigten Tag), `add_plan_entry()` / `add_open_task()` / `plan_task()` / `unplan_task()`, `copy_plan()` nur Erledigtes,
   Abhaken `toggle_plan_entry()` über `tasks.complete_task`/`reopen_task`, Vorschläge `suggestions()` / `add_suggestion()` =
   Wartungen und Störungen ohne Aufgabe; Reiter Heute/Offen/Alle `team/_macros.html` `task_tabs`), Pflegen: Admin oder `User.can_plan` → `is_planner`, `send_plan()` nach dem Commit), Unterweisungen (`InstructionTopic`/`InstructionRecord`, `status()`,
   `overview()`, `sign_instruction()`), committet nicht; `app/team_views.py` (Blueprint `team`), `app/instruction_pdf.py`

@@ -10,7 +10,8 @@
             {% if task.is_done %}<span class="badge text-bg-success fs-6">{{ _("erledigt") }}</span>
             {% elif task.important %}<span class="badge text-bg-danger fs-6">{{ _("wichtig") }}</span>{% endif %}</h1>
         <p class="text-body-secondary mb-0">
-            {% if task.due_on %}{{ _("Fällig am {date}", date=task.due_on|weekday ~ " " ~ task.due_on|date) }}{% else %}{{ _("Ohne Termin") }}{% endif %}
+            {% if task.plan_day %}<a href="{{ url_for('team.day_plan', datum=task.plan_day.isoformat()) }}"><i class="bi bi-calendar-check me-1"></i>{{ _("Eingeplant für {date}", date=task.plan_day|weekday ~ " " ~ task.plan_day|date) }}{% if task.plan_user %} · {{ task.plan_user.name }}{% endif %}</a>{% if task.due_on %} · {% endif %}{% endif %}
+            {% if task.due_on %}{{ _("Fällig am {date}", date=task.due_on|weekday ~ " " ~ task.due_on|date) }}{% elif not task.plan_day %}{{ _("Ohne Termin") }}{% endif %}
             {% if task.recurrence %} · <i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}{% endif %}
         </p>
     </div>
