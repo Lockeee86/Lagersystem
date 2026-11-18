@@ -1402,6 +1402,16 @@ class Task(db.Model):
         return not self.assignees or user in self.assignees
 
     @property
+    def open_purchases(self):
+        """Bestellwünsche dieser Aufgabe, die noch unterwegs sind (neu, angefragt, bestellt)."""
+        return [p for p in self.purchases if p.status in ("neu", "angefragt", "bestellt")]
+
+    @property
+    def waiting_part(self):
+        """Wartet auf ein Ersatzteil – solange zählt die Aufgabe nicht als überfällig."""
+        return not self.is_done and bool(self.open_purchases)
+
+    @property
     def machine_list(self):
         """Alle Maschinen der Aufgabe (ältere Aufgaben haben nur `machine`)."""
         if self.machines:
@@ -1456,6 +1466,7 @@ class PurchaseRequest(db.Model):
     supplier = db.Column(db.String(150))
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"))   # wenn aus dem Verzeichnis
     part_id = db.Column(db.Integer, db.ForeignKey("machine_parts.id", ondelete="SET NULL"), index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL"), index=True)   # für welche Aufgabe
     order_number = db.Column(db.String(80))
     price = db.Column(db.Numeric(10, 2))
     inquired_on = db.Column(db.Date)                              # beim Lieferanten angefragt
@@ -1474,6 +1485,7 @@ class PurchaseRequest(db.Model):
     handled_by = db.relationship("User", foreign_keys=[handled_by_id])
     assignee = db.relationship("User", foreign_keys=[assignee_id])
     supplier_ref = db.relationship("Supplier")
+    task = db.relationship("Task", backref=db.backref("purchases", order_by="PurchaseRequest.created_at"))
     part = db.relationship("MachinePart", back_populates="purchases")
     photos = db.relationship("Photo", back_populates="purchase", order_by="Photo.id", cascade="all, delete-orphan")
 

@@ -15,6 +15,7 @@
         <div class="d-flex flex-wrap gap-2 align-items-baseline">
             <span class="fw-semibold task-title">{{ task.title }}</span>
             {% if task.important and not task.is_done %}<span class="badge text-bg-danger d-none d-lg-inline">{{ _("wichtig") }}</span>{% endif %}
+            {% if task.waiting_part %}<span class="badge text-bg-info"><i class="bi bi-box-seam me-1"></i>{{ _("wartet auf Teil") }}</span>{% endif %}
             {% if task.recurrence %}<span class="small text-body-secondary d-none d-lg-inline" title="{{ task.recurrence_label }}"><i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}</span>{% endif %}
         </div>
         <div class="small text-body-secondary task-meta">
@@ -23,7 +24,7 @@
             {% if task.is_done %}
             <span>{{ _("erledigt {date}", date=task.done_at|datetime) }}{% if task.done_by %} · {{ task.done_by.name }}{% endif %}</span>
             {% elif task.due_on %}
-            <span class="{{ 'text-danger fw-semibold' if task.due_on < today }}">{{ _("Heute") if task.due_on == today else task.due_on|weekday ~ " " ~ task.due_on|date }}</span>
+            <span class="{{ 'text-danger fw-semibold' if task.due_on < today and not task.waiting_part }}">{{ _("Heute") if task.due_on == today else task.due_on|weekday ~ " " ~ task.due_on|date }}</span>
             {% endif %}
             <span><i class="bi bi-person"></i> {{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</span>
             {% if task.plots %}<span><i class="bi bi-map"></i> {{ task.plots|map(attribute="name")|join(", ") }}</span>{% endif %}

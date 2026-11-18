@@ -8,7 +8,7 @@ from . import machines, push, tasks, uploads
 from .extensions import db
 from .machines import visible as visible_machines
 from .i18n import gettext as _
-from .models import (DELIVERY_OPEN, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Plot, Task, User,
+from .models import (DELIVERY_OPEN, PURCHASE_STATUSES, RECURRENCES, Delivery, Machine, MachineEvent, MaintenanceTask, Plot, Task, User,
                      Warehouse)
 from .storage import StorageError
 from .utils import admin_required, back_target, editor_required, flash_error, form_date, form_int, form_str
@@ -145,7 +145,12 @@ def task_create():
 def task_detail(task_id):
     task = _get_task(task_id)
     follow_up = Task.query.filter_by(previous_id=task.id).first()
-    return render_template("tasks/detail.html", task=task, follow_up=follow_up, **_choices(task))
+    from . import purchases
+    can_order_part = (not task.is_done and current_user.can_edit and not current_user.restricted
+                      and (current_user.is_admin or task.is_for(current_user)))
+    return render_template("tasks/detail.html", task=task, follow_up=follow_up, can_order_part=can_order_part,
+                           task_parts=purchases.task_parts(task) if can_order_part else [], statuses=PURCHASE_STATUSES,
+                           **_choices(task))
 
 
 @bp.route("/aufgabe/<int:task_id>/bearbeiten", methods=["POST"])

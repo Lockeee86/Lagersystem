@@ -259,8 +259,16 @@ def purchase_status(req, actor):
         body = Msg("{title} · Lieferung {date}", title=req.title, date=req.expected_on.strftime("%d.%m."))
     elif req.status == "abgelehnt" and req.buyer_note:
         body = Msg("{title}: {note}", title=req.title, note=req.buyer_note[:120])
-    return notify([req.requested_by], "purchase_status", Msg("Bestellung: {status}", status=Msg(label)), body,
+    sent = notify([req.requested_by], "purchase_status", Msg("Bestellung: {status}", status=Msg(label)), body,
                   url_for("purchases.purchase_detail", req_id=req.id), tag=f"purchase-{req.id}", exclude=actor)
+    task = req.task
+    if req.status == "geliefert" and task is not None and not task.is_done:
+        # Ersatzteil für eine Aufgabe ist da → wer die Aufgabe hat, kann weitermachen
+        people = [u for u in task.assignees if u.active and u != req.requested_by]
+        sent += notify(people, "purchase_status", Msg("Teil ist da: {title}", title=req.title),
+                       Msg("Für die Aufgabe „{task}“", task=task.title),
+                       url_for("tasks.task_detail", task_id=task.id), tag=f"purchase-task-{req.id}", exclude=actor)
+    return sent
 
 
 def tank_low(before, after):

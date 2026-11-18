@@ -161,9 +161,11 @@ def _sort_key(task):
 def buckets(tasks, today=None):
     """Offene Aufgaben nach Fälligkeit gruppieren."""
     today = today or date.today()
-    groups = {"overdue": [], "today": [], "upcoming": [], "later": [], "undated": []}
+    groups = {"overdue": [], "today": [], "waiting": [], "upcoming": [], "later": [], "undated": []}
     for task in sorted(tasks, key=_sort_key):
-        if task.due_on is None:
+        if task.waiting_part:                      # wartet auf Ersatzteil – nicht „überfällig“
+            groups["waiting"].append(task)
+        elif task.due_on is None:
             groups["undated"].append(task)
         elif task.due_on < today:
             groups["overdue"].append(task)
@@ -180,7 +182,7 @@ def open_tasks(user=None):
     from sqlalchemy.orm import joinedload, selectinload
     return (visible_query(user).filter(Task.done_at.is_(None))
             .options(selectinload(Task.assignees), selectinload(Task.plots), joinedload(Task.machine),
-                     selectinload(Task.machines)).all())
+                     selectinload(Task.machines), selectinload(Task.purchases)).all())
 
 
 def due_now(user=None, today=None):

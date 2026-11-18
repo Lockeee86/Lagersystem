@@ -19,16 +19,26 @@ def buyers():
 
 
 def create_request(user, title, details=None, quantity=None, urgent=False, machine_id=None, machine_event_id=None,
-                   photo_names=None, part=None):
+                   photo_names=None, part=None, task=None):
+    """Bestellwunsch anlegen. Mit `task` (Ersatzteil für eine Aufgabe) kommen Maschine und Störung aus der Aufgabe,
+    die Aufgabe „wartet auf Teil“, bis geliefert ist."""
     title = (title or "").strip()
+    if not title and part is not None:
+        title = part.name
     if not title:
         raise StorageError(_("Bitte angeben, was gebraucht wird."))
+    if task is not None:
+        machine_id = machine_id or task.machine_id or (part.machine_id if part is not None else None)
+        machine_event_id = machine_event_id or task.machine_event_id
     req = PurchaseRequest(title=title[:200], details=details or None, quantity=quantity or None, urgent=bool(urgent),
                           machine_id=machine_id, machine_event_id=machine_event_id,
+                          task_id=task.id if task is not None else None,
                           requested_by_id=user.id if user else None)
     if part is not None:
-        # Nachbestellung eines bekannten Teils: Lieferant schon vorschlagen
+        # Nachbestellung eines bekannten Teils: Lieferant und Teilenummer schon vorschlagen
         req.part_id = part.id
+        if not req.details and (part.part_number or part.manufacturer):
+            req.details = " · ".join(x for x in (part.manufacturer, part.part_number) if x)
         if part.supplier is not None:
             req.supplier, req.supplier_id = part.supplier.name, part.supplier.id
     for name in photo_names or []:
@@ -124,6 +134,15 @@ def arrived_for(user):
     """Für den Anfragenden: geliefert, aber noch nicht als erledigt markiert."""
     return PurchaseRequest.query.filter_by(status="geliefert", requested_by_id=user.id)\
         .order_by(PurchaseRequest.delivered_on.desc()).all()
+
+
+def task_parts(task):
+    """Ersatzteile der Maschinen einer Aufgabe – zur Auswahl beim „Teil bestellen“."""
+    from .models import MachinePart
+    ids = [m.id for m in task.machine_list]
+    if not ids:
+        return []
+    return MachinePart.query.filter(MachinePart.machine_id.in_(ids)).order_by(MachinePart.name).all()
 
 
 def for_machine(machine_id):

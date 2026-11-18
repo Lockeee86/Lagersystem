@@ -975,6 +975,13 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
+### Ersatzteil aus einer Aufgabe bestellen (0.125.0)
+- Auf der Aufgabenseite „Teil bestellen“: Bestellwunsch mit Maschine und Störung der Aufgabe, Auswahl aus den
+  Ersatzteilen der Maschine (Teilenummer, Lieferant vorbelegt), „dringend“ vorausgewählt, wenn die Maschine steht.
+  Mitarbeiter wünschen, Besteller bestellen wie bisher.
+- Solange das Teil unterwegs ist, „wartet die Aufgabe auf ein Teil“ (eigener Abschnitt statt „überfällig“). Ist es
+  geliefert, bekommen die Leute der Aufgabe eine Nachricht. Erledigt melden mit offener Bestellung fragt nach.
+
 ### Widget fürs iPhone (0.124.0)
 - Über die kostenlose App „Scriptable“: Mein Konto → Widget fürs iPhone → Skript laden. Klein (Hühner, Biogas,
   Aufgaben oder „Jetzt wichtig“ über den Parameter), mittel (Biogas + Hühner + Aufgaben + „n wichtig“), groß

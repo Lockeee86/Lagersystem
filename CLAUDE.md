@@ -126,7 +126,12 @@ docker compose up --build -d
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
   Rechte über `PurchaseRequest.can_handle`; „erledigt“ erst mit `invoice_handed_on` = Rechnung übergeben an
   `settings` `invoice_recipient`; Dateien `PurchaseDocument` unter `dokumente/`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
-  `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`
+  `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`.
+  Ersatzteil aus einer Aufgabe: `PurchaseRequest.task_id` (Rückweg `Task.purchases`), `create_request(..., task=)` übernimmt
+  Maschine/Störung der Aufgabe, Teile zur Auswahl `task_parts(task)`; Karte `#teile` auf der Aufgabenseite (Formular an
+  `purchases.purchase_create` mit `task_id` + `back`). `Task.waiting_part` / `open_purchases` (neu/angefragt/bestellt) →
+  in `tasks.buckets` eigene Gruppe „waiting“ statt „überfällig“, Abzeichen in Liste und Tagesplan; geliefert →
+  `push.purchase_status` schickt „Teil ist da“ an die Leute der Aufgabe
 - `app/tasks.py`: Aufgaben (Zuteilung, Fälligkeit, Wiederholung `next_due`; mehrere Maschinen `Task.machines` /
   `machine_list` / `set_machines()` – `machine_id` = die erste, für Maschinenseite/Wartung/Störung), committet nicht;
   `app/task_views.py` (Blueprint `tasks`). Makros aus `tasks/_macros.html` mit `with context` importieren.

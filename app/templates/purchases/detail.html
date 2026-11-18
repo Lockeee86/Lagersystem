@@ -42,6 +42,9 @@
             <div class="card-body">
                 <dl class="row small mb-0">
                     {% if req.quantity %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Menge") }}</dt><dd class="col-8">{{ req.quantity }}</dd>{% endif %}
+                    {% if req.task %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Für Aufgabe") }}</dt>
+                    <dd class="col-8"><a href="{{ url_for('tasks.task_detail', task_id=req.task_id) }}">{{ req.task.title }}</a>
+                        {% if req.task.is_done %}<span class="badge text-bg-success">{{ _("erledigt") }}</span>{% elif req.machine_event and req.machine_event.is_open_fault and not req.machine_event.still_running %}<span class="badge text-bg-danger">{{ _("Maschine steht") }}</span>{% endif %}</dd>{% endif %}
                     {% if req.machine %}<dt class="col-4 fw-normal text-body-secondary">{{ _("Maschine") }}</dt>
                     <dd class="col-8"><a href="{{ url_for('machines.machine_detail', machine_id=req.machine_id) }}">{{ req.machine.name }}</a>
                         {% if req.machine_event %} · <a href="{{ url_for('machines.machine_detail', machine_id=req.machine_id) }}#logbuch">{{ _("Störung vom {date}", date=req.machine_event.date|date) }}</a>{% endif %}</dd>{% endif %}

@@ -8,9 +8,9 @@ from . import purchases, push, uploads
 from .extensions import db
 from .i18n import gettext as _
 from .models import (PURCHASE_OPEN, PURCHASE_STATUSES, Machine, MachineEvent, MachinePart, PurchaseDocument,
-                     PurchaseRequest, Supplier, User)
+                     PurchaseRequest, Supplier, Task, User)
 from .storage import StorageError
-from .utils import admin_required, editor_required, flash_error, form_date, form_int, form_money, form_str
+from .utils import admin_required, back_target, editor_required, flash_error, form_date, form_int, form_money, form_str
 
 bp = Blueprint("purchases", __name__)
 
@@ -70,22 +70,25 @@ def purchase_create():
         names = uploads.save_photos(request.files.getlist("photos"))
         machine_id = form_int("machine_id")
         event_id = form_int("machine_event_id")
+        task = db.session.get(Task, form_int("task_id") or 0)
+        if task is not None and not (current_user.is_admin or task.is_for(current_user)):
+            abort(403)
         req = purchases.create_request(
             current_user, form_str("title", 200), form_str("details", 4000), form_str("quantity", 50),
             bool(request.form.get("urgent")),
             machine_id=machine_id if machine_id and db.session.get(Machine, machine_id) else None,
             machine_event_id=event_id if event_id and db.session.get(MachineEvent, event_id) else None,
-            photo_names=names, part=db.session.get(MachinePart, form_int("part_id") or 0),
+            photo_names=names, part=db.session.get(MachinePart, form_int("part_id") or 0), task=task,
         )
         db.session.commit()
         push.purchase_requested(req, current_user)
         flash(_("Bestellwunsch „{title}“ abgeschickt.", title=req.title), "success")
-        return redirect(url_for("purchases.purchase_detail", req_id=req.id))
+        return redirect(back_target() or url_for("purchases.purchase_detail", req_id=req.id))
     except StorageError as e:
         db.session.rollback()
         uploads.delete_files(names)
         flash_error(str(e))
-        return redirect(url_for("purchases.purchase_list", neu=1))
+        return redirect(back_target() or url_for("purchases.purchase_list", neu=1))
 
 
 @bp.route("/bestellung/<int:req_id>")

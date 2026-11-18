@@ -39,7 +39,7 @@
 </div>
 {% endif %}
 
-{% set sections = [("overdue", _("Überfällig"), "border-danger"), ("today", _("Heute"), "border-primary"), ("upcoming", _("Nächste 7 Tage"), ""), ("later", _("Später"), ""), ("undated", _("Ohne Termin"), "")] %}
+{% set sections = [("overdue", _("Überfällig"), "border-danger"), ("today", _("Heute"), "border-primary"), ("waiting", _("Wartet auf Teil"), "border-info"), ("upcoming", _("Nächste 7 Tage"), ""), ("later", _("Später"), ""), ("undated", _("Ohne Termin"), "")] %}
 {% set ns = namespace(any=false) %}
 {% for key, label, border in sections if groups[key] %}
 {% set ns.any = true %}
