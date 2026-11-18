@@ -3961,4 +3961,8 @@ MESSAGES = {
     'Bestellwunsch abschicken': 'Wyślij prośbę o zamówienie',
     'Geht an die Besteller. Solange das Teil unterwegs ist, wartet die Aufgabe; ist es da, bekommst du eine Nachricht.': 'Trafia do zamawiających. Dopóki część jest w drodze, zadanie czeka; gdy dotrze, dostaniesz wiadomość.',
     'Für diese Aufgabe ist noch eine Bestellung offen. Trotzdem erledigt?': 'Dla tego zadania jest jeszcze otwarte zamówienie. Mimo to zakończone?',
+    '– noch keiner –': '– jeszcze żaden –',
+    'anderer – Namen eintippen …': 'inny – wpisz nazwę …',
+    'Name des Lieferanten': 'Nazwa dostawcy',
+    'Noch keine Lieferanten angelegt.': 'Nie dodano jeszcze dostawców.',
 }

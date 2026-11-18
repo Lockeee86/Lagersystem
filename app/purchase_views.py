@@ -124,6 +124,14 @@ def purchase_assign(req_id):
     return redirect(url_for("purchases.purchase_detail", req_id=req.id))
 
 
+def _supplier_from_form():
+    """Lieferant aus der Auswahl (Verzeichnis) oder frei eingetippt („anderer“); altes Formular nur mit `supplier`."""
+    pick = form_str("supplier_pick", 150)
+    if "supplier_pick" in request.form and pick != "__other__":
+        return pick
+    return form_str("supplier", 150)
+
+
 @bp.route("/bestellung/<int:req_id>/bearbeiten", methods=["POST"])
 @login_required
 def purchase_update(req_id):
@@ -133,7 +141,7 @@ def purchase_update(req_id):
     old_status = req.status
     try:
         purchases.update_request(
-            req, current_user, form_str("status", 20), supplier=form_str("supplier", 150),
+            req, current_user, form_str("status", 20), supplier=_supplier_from_form(),
             order_number=form_str("order_number", 80), price=form_money("price"),
             ordered_on=form_date("ordered_on"), expected_on=form_date("expected_on"),
             delivered_on=form_date("delivered_on"), buyer_note=form_str("buyer_note", 4000),

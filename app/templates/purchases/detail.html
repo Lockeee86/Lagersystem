@@ -163,10 +163,16 @@
                             {% endfor %}
                         </div>
                     </div>
-                    <div class="col-12"><label class="form-label small" for="b_supplier">{{ _("Lieferant") }}</label>
-                        <input class="form-control form-control-sm" id="b_supplier" name="supplier" maxlength="150" value="{{ req.supplier or '' }}" list="supplierList" autocomplete="off">
-                        <datalist id="supplierList">{% for s in suppliers %}<option value="{{ s.name }}">{% endfor %}</datalist>
-                        <div class="form-text"><a href="{{ url_for('purchases.suppliers') }}">{{ _("Lieferanten verwalten") }}</a></div></div>
+                    {% set known = suppliers|map(attribute="name")|list %}
+                    {% set other = req.supplier and req.supplier not in known %}
+                    <div class="col-12"><label class="form-label small" for="b_supplier_pick">{{ _("Lieferant") }}</label>
+                        <select class="form-select form-select-sm" id="b_supplier_pick" name="supplier_pick" data-supplier-pick>
+                            <option value="">{{ _("– noch keiner –") }}</option>
+                            {% for s in suppliers %}<option value="{{ s.name }}" {% if req.supplier == s.name %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+                            <option value="__other__" {% if other %}selected{% endif %}>{{ _("anderer – Namen eintippen …") }}</option>
+                        </select>
+                        <input class="form-control form-control-sm mt-2" id="b_supplier" name="supplier" maxlength="150" value="{{ req.supplier if other else '' }}" placeholder="{{ _('Name des Lieferanten') }}" aria-label="{{ _('Name des Lieferanten') }}" autocomplete="off" {% if not other %}hidden{% endif %}>
+                        <div class="form-text"><a href="{{ url_for('purchases.suppliers') }}">{{ _("Lieferanten verwalten") }}</a>{% if not suppliers %} · {{ _("Noch keine Lieferanten angelegt.") }}{% endif %}</div></div>
                     <div class="col-7"><label class="form-label small" for="b_number">{{ _("Bestellnummer") }}</label>
                         <input class="form-control form-control-sm" id="b_number" name="order_number" maxlength="80" value="{{ req.order_number or '' }}"></div>
                     <div class="col-5"><label class="form-label small" for="b_price">{{ _("Preis (€)") }}</label>
@@ -196,4 +202,16 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+document.querySelectorAll("[data-supplier-pick]").forEach((pick) => {
+    const free = document.getElementById("b_supplier");
+    const update = () => {
+        free.hidden = pick.value !== "__other__";
+        if (!free.hidden) free.focus();
+    };
+    pick.addEventListener("change", update);
+});
+</script>
 {% endblock %}

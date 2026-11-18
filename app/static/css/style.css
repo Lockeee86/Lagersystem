@@ -1747,3 +1747,13 @@ span.ign-pill:not([title]) { min-width: 0; padding: 0 .3rem; }
                                                  vertical-align: super; font-weight: 800; }
 }
 @media (max-width: 575.98px) { .ign-half .ign-table th { text-transform: none; white-space: nowrap; overflow: hidden; } }
+
+/* iOS gibt Datums-/Zeitfeldern eine Mindestbreite – sonst sprengen sie schmale Spalten (z. B. Bestellung bearbeiten) */
+input.form-control[type="date"], input.form-control[type="time"], input.form-control[type="datetime-local"] { min-width: 0; }
+@supports (-webkit-touch-callout: none) {          /* nur iOS/iPadOS */
+    input.form-control[type="date"], input.form-control[type="time"], input.form-control[type="datetime-local"] {
+        -webkit-appearance: none; appearance: none;
+    }
+    input.form-control[type="date"]::-webkit-date-and-time-value,
+    input.form-control[type="time"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
+}

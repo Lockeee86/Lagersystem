@@ -180,3 +180,25 @@ def test_assignee(app, as_admin, db, seed):
     assert req.assignee == anna
     as_admin.post(f"/bestellung/{req.id}/bearbeiten", data={"status": "bestellt"})
     assert req.status == "bestellt" and req.assignee == anna
+
+
+def test_supplier_pick(app, db, seed, as_admin, as_worker):
+    """Lieferant aus dem Verzeichnis auswählen oder „anderer“ frei eintragen."""
+    from app import purchases
+    from app.models import PurchaseRequest, Supplier
+    db.session.add(Supplier(name="Landhandel Süd"))
+    req = purchases.create_request(seed["worker"], "Keilriemen")
+    db.session.commit()
+    page = as_admin.get(f"/bestellung/{req.id}").get_data(as_text=True)
+    assert 'name="supplier_pick"' in page and '<option value="Landhandel Süd"' in page and "supplierList" not in page
+    as_admin.post(f"/bestellung/{req.id}/bearbeiten", data={"status": "angefragt", "supplier_pick": "Landhandel Süd",
+                                                            "supplier": "wird ignoriert"})
+    req = db.session.get(PurchaseRequest, req.id)
+    assert req.supplier == "Landhandel Süd" and req.supplier_ref.name == "Landhandel Süd"
+    page = as_admin.get(f"/bestellung/{req.id}").get_data(as_text=True)
+    assert '<option value="Landhandel Süd" selected>' in page
+    as_admin.post(f"/bestellung/{req.id}/bearbeiten", data={"status": "angefragt", "supplier_pick": "__other__",
+                                                            "supplier": "Schmiede Meier"})
+    req = db.session.get(PurchaseRequest, req.id)
+    assert req.supplier == "Schmiede Meier" and req.supplier_id is None
+    assert '<option value="__other__" selected>' in as_admin.get(f"/bestellung/{req.id}").get_data(as_text=True)

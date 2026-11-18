@@ -125,7 +125,7 @@ docker compose up --build -d
   `show_order` aus). Strompreis-Ampel `biogas.price_strip`
 - `app/purchases.py`: Bestellwünsche (Status, Besteller = Admin oder `User.can_order`, zuständig `assignee`,
   Rechte über `PurchaseRequest.can_handle`; „erledigt“ erst mit `invoice_handed_on` = Rechnung übergeben an
-  `settings` `invoice_recipient`; Dateien `PurchaseDocument` unter `dokumente/`) und Lieferanten (`Supplier`, Zuordnung über den Namen), committet nicht;
+  `settings` `invoice_recipient`; Dateien `PurchaseDocument` unter `dokumente/`) und Lieferanten (`Supplier`, Zuordnung über den Namen; im Formular Auswahl `supplier_pick` aus dem Verzeichnis oder „anderer“ → freies Feld `supplier`, `purchase_views._supplier_from_form` – keine `datalist`, die findet am iPhone niemand), committet nicht;
   `app/purchase_views.py` (Blueprint `purchases`). Geldbeträge aus Formularen über `utils.form_money`.
   Ersatzteil aus einer Aufgabe: `PurchaseRequest.task_id` (Rückweg `Task.purchases`), `create_request(..., task=)` übernimmt
   Maschine/Störung der Aufgabe, Teile zur Auswahl `task_parts(task)`; Karte `#teile` auf der Aufgabenseite (Formular an
