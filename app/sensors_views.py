@@ -28,7 +28,8 @@ def overview_page():
     return render_template("sensors/overview.html", data=data, purposes=sensors.PURPOSES,
                            warehouses=climate.warehouses(), coop_status=coop.status() if data["coop"] else None,
                            has_token=coop.has_token(), doors=sensors.door_settings(),
-                           open_by=coop.open_by(), **_channel())
+                           open_by=coop.open_by(), close=coop.close_settings(),
+                           close_modes=coop.CLOSE_MODES, **_channel())
 
 
 def _channel():
@@ -88,6 +89,9 @@ def node_delete(node_id):
 def door_save():
     try:
         coop.save_open_by(form_str("open_by", 5))
+        if "close_mode" in request.form:
+            coop.save_close_settings(form_str("close_mode", 10), form_str("close_offset", 4) or "0",
+                                     form_str("close_time", 5))
         sensors.save_door_settings("door_inverted" in request.form, "top_inverted" in request.form)
         db.session.commit()
         flash(_("Gespeichert."), "success")

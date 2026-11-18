@@ -348,3 +348,50 @@ def test_co2_from_meshtastic(client, db, seed, token):
     client.post("/api/meshtastic", json={"node": "!00000007", "values": {"temperature": 6.5, "co2": 1200}},
                 headers={"Authorization": f"Bearer {token}"})
     assert CoopReading.query.one().co2 == 1200
+
+
+def test_close_setting(app, db, seed, monkeypatch, as_admin):
+    """Abends: Klappe-zu-Zeit nach Sonnenuntergang, fester Uhrzeit oder dem Späteren von beiden."""
+    from datetime import date, time
+    day = date(2026, 6, 21)                                     # Sommer: Sonnenuntergang ~21:30
+    dusk = chickens.sunset(day, 52.4, 10.5)
+    assert coop.close_deadline(day, BERLIN, dusk) == (dusk + timedelta(minutes=15), "sunset")     # Vorgabe
+    assert coop.close_deadline(day, BERLIN, None)[1] == "time"                                     # ohne Standort
+    r = as_admin.post("/sensoren/klappe", data={"open_by": "10:00", "close_mode": "time", "close_offset": "15",
+                                                 "close_time": "22:30"}, follow_redirects=True)
+    assert "Gespeichert" in r.get_data(as_text=True)
+    assert coop.close_deadline(day, BERLIN, dusk) == (datetime(2026, 6, 21, 22, 30, tzinfo=BERLIN), "time")
+    coop.save_close_settings("later", 30, "21:00")
+    db.session.commit()
+    assert coop.close_deadline(day, BERLIN, dusk) == (dusk + timedelta(minutes=30), "sunset")       # Sommer: Dämmerung
+    winter = date(2026, 12, 21)
+    assert coop.close_deadline(winter, BERLIN, chickens.sunset(winter, 52.4, 10.5)) == \
+        (datetime(2026, 12, 21, 21, 0, tzinfo=BERLIN), "time")                                     # Winter: Uhrzeit
+    r = as_admin.post("/sensoren/klappe", data={"open_by": "10:00", "close_mode": "time", "close_offset": "15",
+                                                 "close_time": "03:00"}, follow_redirects=True)
+    assert "zwischen 15 und 24 Uhr" in r.get_data(as_text=True)
+    assert coop.close_settings()["mode"] == "later"                                                # nichts geändert
+    assert 'id="klappe-abends"' in as_admin.get("/sensoren").get_data(as_text=True)
+
+    # Push erst ab der eingestellten Uhrzeit, mit passendem Text
+    keeper = seed["worker"]
+    keeper.chickens = True
+    db.session.add(PushSubscription(user_id=keeper.id, endpoint="https://push.example/w", p256dh="k", auth="a"))
+    chickens.add_flock_event(date(2026, 10, 1), "gekauft", 20, keeper)
+    coop.save_close_settings("time", 15, "21:30")
+    db.session.commit()
+    monkeypatch.setattr(chickens, "farm_sunset", lambda d: chickens.sunset(d, 52.4, 10.5))
+    early = datetime(2026, 10, 20, 19, 0, tzinfo=BERLIN)                  # Sonne schon unter, aber vor 21:30
+    monkeypatch.setattr(coop, "utcnow", lambda: early.astimezone(UTC))
+    coop.record({"door": "open", "temperature": 8}, now=early.astimezone(UTC))
+    db.session.commit()
+    push.daily(app, early)
+    assert not [m for m in push.outbox if m["tag"].startswith("coop-2")]
+    late = datetime(2026, 10, 20, 21, 35, tzinfo=BERLIN)
+    monkeypatch.setattr(coop, "utcnow", lambda: late.astimezone(UTC))
+    coop.record({"door": "open", "temperature": 8}, now=late.astimezone(UTC))
+    db.session.commit()
+    push.daily(app, late)
+    sent = [m for m in push.outbox if m["tag"].startswith("coop-2")]
+    assert [m["title"] for m in sent] == ["Hühnerklappe ist noch offen!"] and "21:30" in sent[0]["body"]
+    assert time(21, 30) == coop.close_settings()["time"]

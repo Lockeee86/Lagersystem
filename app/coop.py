@@ -326,6 +326,65 @@ def save_open_by(raw):
     Setting.put(OPEN_BY_KEY, value.strftime("%H:%M"))
 
 
+# Abends: ab wann die Klappe zu sein soll. Die Dämmerung allein passt nicht immer (Lichtsensor der Klappe schließt
+# später, Hühner gehen spät rein) – deshalb wählbar: Sonnenuntergang + Verzögerung, feste Uhrzeit oder das Spätere.
+CLOSE_MODES = {"sunset": N_("nach Sonnenuntergang"), "time": N_("zu einer festen Uhrzeit"),
+               "later": N_("das Spätere von beiden")}
+CLOSE_MODE_KEY, CLOSE_OFFSET_KEY, CLOSE_TIME_KEY = "coop_close_mode", "coop_close_offset", "coop_close_time"
+CLOSE_DEFAULTS = {"mode": "sunset", "offset": 15, "time": time(21, 0)}
+
+
+def close_settings():
+    """{"mode", "offset" (Minuten nach Sonnenuntergang), "time"} – Einstellung unter Sensoren."""
+    def value(key):
+        return (db.session.get(Setting, key) or Setting()).value
+    mode = value(CLOSE_MODE_KEY) if value(CLOSE_MODE_KEY) in CLOSE_MODES else CLOSE_DEFAULTS["mode"]
+    try:
+        offset = int(value(CLOSE_OFFSET_KEY))
+    except (TypeError, ValueError):
+        offset = CLOSE_DEFAULTS["offset"]
+    try:
+        hour, minute = (int(part) for part in (value(CLOSE_TIME_KEY) or "").split(":"))
+        at = time(hour, minute)
+    except ValueError:
+        at = CLOSE_DEFAULTS["time"]
+    return {"mode": mode, "offset": offset, "time": at}
+
+
+def save_close_settings(mode, offset, raw_time):
+    if mode not in CLOSE_MODES:
+        raise SensorError(N_("Bitte auswählen, wann die Klappe zu sein soll."))
+    try:
+        offset = int(offset)
+    except (TypeError, ValueError):
+        raise SensorError(N_("Die Verzögerung bitte in Minuten angeben.")) from None
+    if not 0 <= offset <= 240:
+        raise SensorError(N_("Die Verzögerung bitte zwischen 0 und 240 Minuten wählen."))
+    try:
+        hour, minute = (int(part) for part in (raw_time or "").strip().split(":"))
+        value = time(hour, minute)
+    except ValueError:
+        raise SensorError(N_("Bitte eine Uhrzeit angeben, z. B. 21:00.")) from None
+    if not time(15, 0) <= value <= time(23, 59):
+        raise SensorError(N_("Die Uhrzeit für abends bitte zwischen 15 und 24 Uhr wählen."))
+    Setting.put(CLOSE_MODE_KEY, mode)
+    Setting.put(CLOSE_OFFSET_KEY, str(offset))
+    Setting.put(CLOSE_TIME_KEY, value.strftime("%H:%M"))
+
+
+def close_deadline(day, tz, sunset=None):
+    """Ab wann die Klappe heute zu sein soll → (Zeitpunkt, "sunset"|"time") oder (None, None).
+    Ohne Standort (kein Sonnenuntergang) gilt die feste Uhrzeit."""
+    cfg = close_settings()
+    fixed = datetime.combine(day, cfg["time"], tzinfo=tz)
+    dusk = sunset + timedelta(minutes=cfg["offset"]) if sunset else None
+    if cfg["mode"] == "time" or dusk is None:
+        return fixed, "time"
+    if cfg["mode"] == "later" and fixed > dusk:
+        return fixed, "time"
+    return dusk, "sunset"
+
+
 def morning_deadline(now, sunrise=None):
     """Bis wann die Klappe heute offen sein muss: die eingestellte Uhrzeit – im Winter frühestens 1 h nach
     Sonnenaufgang."""

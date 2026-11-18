@@ -975,6 +975,11 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
+### Hühnerklappe: wann sie abends zu sein soll (0.123.0)
+- Die Dämmerung passt nicht immer (die Klappe schließt per Lichtsensor später). Unter Sensoren → Einrichtung wählbar:
+  nach Sonnenuntergang (+ Minuten, Vorgabe 15), feste Uhrzeit oder das Spätere von beiden. Gilt für die Push-Meldung
+  „Klappe noch offen“, die Erinnerung „Klappe zu?“ ohne Sensor und das Stall-Display.
+
 ### Datensicherung zum Einstellen und Zurückspielen (0.122.0)
 - Verwaltung → Datensicherung mit Reitern: Übersicht, Herunterladen (Komplettpaket als ZIP: Datenbank + alle
   Fotos/Dokumente + manifest.json), Zurückspielen (Stand wählen oder Paket/.dump hochladen, Bestätigungswort,

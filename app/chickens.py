@@ -34,7 +34,6 @@ LAYING_CURVE = [(18, 0), (19, 9), (20, 37), (21, 53), (22, 73), (23, 81), (24, 8
 HYBRID_WORDS = ("lohmann", "isa", "dekalb", "hy-line", "hyline", "bovans", "novogen", "tetra", "h&n", "shaver",
                 "hisex", "babcock", "hybrid")
 EGG_REMINDER_HOUR = 18                           # abends erinnern, wenn noch keine Eier eingetragen sind
-COOP_DELAY = timedelta(minutes=15)               # „Klappe zu?“ kurz nach Sonnenuntergang
 FEED_DAYS = 90                                   # Futterverbrauch über diesen Zeitraum rechnen
 
 # Vorschläge (Titel, Wiederholung) für wiederkehrende Aufgaben
@@ -898,21 +897,23 @@ def evening_check(now, done, mark):
     sensor = coop.status()
     known = sensor is not None and not sensor["offline"] and sensor["state"] is not None
     set_at = farm_sunset(today)
-    if set_at and now >= set_at + COOP_DELAY and not done("coop", today):
-        local = set_at.astimezone(now.tzinfo)
+    deadline, reason = coop.close_deadline(today, now.tzinfo, set_at)    # Einstellung unter Sensoren
+    if deadline and now >= deadline and not done("coop", today):
+        if reason == "sunset":
+            why = Msg("Sonnenuntergang war um {time} Uhr.", time=set_at.astimezone(now.tzinfo).strftime("%H:%M"))
+        else:
+            why = Msg("Sollte seit {time} Uhr zu sein.", time=deadline.astimezone(now.tzinfo).strftime("%H:%M"))
         if known and sensor["state"] == "zu":
             mark("coop", today)                    # Sensor meldet „zu“ – keine Erinnerung nötig
         elif known:
             # Sensor meldet „offen“: dringend, und von sich aus an alle Hühner-Leute (auch ohne „Klappe zu?“)
             mark("coop", today)
-            push.notify(keepers(), "coop_open", Msg("Hühnerklappe ist noch offen!"),
-                        Msg("Sonnenuntergang war um {time} Uhr.", time=local.strftime("%H:%M")),
+            push.notify(keepers(), "coop_open", Msg("Hühnerklappe ist noch offen!"), why,
                         url_for("chickens.overview"), tag=f"coop-{today.isoformat()}")
         else:
             mark("coop", today)
             if flock_size(today) > 0:
-                push.notify(keepers(), "coop_close", Msg("Hühnerklappe zu?"),
-                            Msg("Sonnenuntergang war um {time} Uhr.", time=local.strftime("%H:%M")),
+                push.notify(keepers(), "coop_close", Msg("Hühnerklappe zu?"), why,
                             url_for("chickens.overview"), tag=f"coop-{today.isoformat()}")
     if flock_size(today) > 0:
         coop.door_watch(now, done, mark, keepers(), sunrise=farm_sunrise(today))
@@ -975,8 +976,10 @@ def display(now=None):
     feeding = feeding_on(today)
     alerts = []
     if sensor and not sensor["offline"]:
-        if set_ and sensor["state"] in ("offen", "halb") and now >= set_ + COOP_DELAY:
-            alerts.append(_("Klappe noch offen – die Sonne ist untergegangen."))
+        deadline, reason = coop.close_deadline(today, tz, set_)
+        if sensor["state"] in ("offen", "halb") and now >= deadline:
+            alerts.append(_("Klappe noch offen – die Sonne ist untergegangen.") if reason == "sunset"
+                          else _("Klappe noch offen – sollte seit {time} Uhr zu sein.", time=deadline.strftime("%H:%M")))
         if sensor["co2"] and sensor["co2"]["bad"]:
             alerts.append(_("CO₂ im Stall zu hoch – lüften."))
     elif sensor and sensor["offline"]:

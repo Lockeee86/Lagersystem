@@ -198,6 +198,18 @@
                 <div class="col-auto"><label class="col-form-label small" for="openBy">{{ _("Push, wenn die Klappe morgens um diese Uhrzeit noch zu ist") }}</label></div>
                 <div class="col-auto"><input class="form-control form-control-sm" type="time" id="openBy" name="open_by" value="{{ open_by.strftime('%H:%M') }}" min="05:00" max="13:00" required></div>
             </div>
+            <fieldset class="border rounded p-2 mb-2" id="klappe-abends">
+                <legend class="float-none w-auto px-1 small fw-semibold mb-0">{{ _("Abends: Meldung „Klappe noch offen“") }}</legend>
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-sm-auto"><label class="form-label small mb-0" for="closeMode">{{ _("Zu sein soll sie") }}</label>
+                        <select class="form-select form-select-sm" id="closeMode" name="close_mode">{% for key, label in close_modes.items() %}<option value="{{ key }}" {% if key == close.mode %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}</select></div>
+                    <div class="col-6 col-sm-auto"><label class="form-label small mb-0" for="closeOffset">{{ _("Minuten nach Sonnenuntergang") }}</label>
+                        <input class="form-control form-control-sm" type="number" id="closeOffset" name="close_offset" min="0" max="240" step="5" value="{{ close.offset }}" required></div>
+                    <div class="col-6 col-sm-auto"><label class="form-label small mb-0" for="closeTime">{{ _("Feste Uhrzeit") }}</label>
+                        <input class="form-control form-control-sm" type="time" id="closeTime" name="close_time" value="{{ close.time.strftime('%H:%M') }}" min="15:00" max="23:59" required></div>
+                </div>
+                <div class="form-text">{{ _("„Das Spätere von beiden“: z. B. 30 Minuten nach Sonnenuntergang, aber nie vor 21:00 – im Sommer zählt die Dämmerung, im Winter die Uhrzeit. Gilt auch für die Erinnerung „Klappe zu?“ ohne Sensor und das Stall-Display.") }}</div>
+            </fieldset>
             <button class="btn btn-sm btn-primary">{{ _("Speichern") }}</button>
         </form>
         <p class="small text-body-secondary mt-3 mb-0">{{ _("Anleitung zum Aufbau: bridge/README.md im Projekt.") }}</p>

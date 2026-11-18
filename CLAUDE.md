@@ -248,7 +248,7 @@ docker compose up --build -d
   von Hand), committet nicht;
   `app/sensors_views.py` (Blueprint `sensors`, `/sensoren`, auch Schlüssel für die Brücke)
 - `app/coop.py`: Stall-Sensor (Meshtastic) – `record()` (auch direkt `/api/huehner/sensor` für eigenes JSON), Schlüssel
-  `new_token()`/`check_token()`, `status()`, `history()`, CO₂ `co2_info()`/`co2_history()` (Grenze `CO2_HIGH`), Warnungen `alerts()` aus `chickens.evening_check`;
+  `new_token()`/`check_token()`, `status()`, `history()`, CO₂ `co2_info()`/`co2_history()` (Grenze `CO2_HIGH`), Warnungen `alerts()` aus `chickens.evening_check`; abends „Klappe noch offen“ ab `close_deadline(day, tz, sunset)` – Einstellung `close_settings()`/`save_close_settings()` (Sonnenuntergang + Minuten, feste Uhrzeit oder das Spätere; `settings` `coop_close_*`, Sensoren → Einrichtung `#klappe-abends`), gilt auch für „Klappe zu?“ ohne Sensor und das Stall-Display;
   Brücke MQTT → App in `bridge/` (eigener Container, Compose-Profil `huehner`, Anleitung `bridge/README.md`)
 - `app/climate.py`: Lagerklima (Meshtastic-Knoten mit SCD41) – `ClimateSensor` (Knoten → Lager/Reihe), `ClimateReading`,
   `record()` aus `api.climate_sensor` (`/api/lager/klima`), `status()` mit Grenzwerten `limits()` (`Warehouse.climate_*`),
