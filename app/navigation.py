@@ -150,7 +150,7 @@ ADMIN_HINTS = {
     "admin.users": N_("Konten, Rollen, Sprache"),
     "team.instructions": N_("Pflicht-Unterweisungen mit Unterschrift"),
     "admin.data": N_("Alle Importe und Exporte an einer Stelle"),
-    "admin.backups": N_("Nächtliche Sicherung, Stände herunterladen"),
+    "admin.backups": N_("Sichern, herunterladen, zurückspielen, Netzlaufwerk"),
     "admin.tile_defaults": N_("Bereiche und Kacheln je Rolle"),
 }
 

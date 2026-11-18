@@ -975,6 +975,14 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
+### Datensicherung zum Einstellen und Zurückspielen (0.122.0)
+- Verwaltung → Datensicherung mit Reitern: Übersicht, Herunterladen (Komplettpaket als ZIP: Datenbank + alle
+  Fotos/Dokumente + manifest.json), Zurückspielen (Stand wählen oder Paket/.dump hochladen, Bestätigungswort,
+  vorher automatischer Sicherheitsstand, danach Migrationen, Fotos auf Wunsch ergänzen), Einstellungen (Uhrzeit,
+  Aufbewahrung Tage/Monate, zweites Ziel: Netzlaufwerk per SMB ohne Einbinden oder eingebundener Ordner, „Verbindung
+  testen“, „Vom Netzlaufwerk holen“ für einen neuen Server).
+- Einstellungen liegen im Sicherungsordner, nicht in der Datenbank. Monats-Aufbewahrung nach Kalendermonaten.
+
 ### Import / Export an einer Stelle (0.121.0)
 - Verwaltung → Import / Export sammelt alle Importe und Exporte, mit Reitern je Bereich: Lager (Zettel-Import,
   Jahres-Export, Etiketten), Felder (Myfarm24-Schlagdokumentation, Fruchtfolgeplan, KML, RainDancer), Biogas

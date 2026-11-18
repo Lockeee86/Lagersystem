@@ -890,19 +890,105 @@ def import_apply():
 
 @bp.route("/sicherung")
 def backups():
-    return render_template("admin/backup.html", info=backup.overview())
+    return render_template("admin/backup.html", info=backup.overview(), targets=backup.TARGETS,
+                           confirm_word=_("ZURÜCKSPIELEN"))
+
+
+def _backup_back(anchor=""):
+    return redirect(url_for("admin.backups") + (f"#{anchor}" if anchor else ""))
+
+
+def _backup_ready():
+    if not backup.backup_dir():
+        flash_error(_("Die Datensicherung ist nicht eingerichtet (BACKUP_DIR fehlt)."))
+        return False
+    if backup.is_running():
+        flash_error(_("Es läuft bereits eine Sicherung."))
+        return False
+    return True
 
 
 @bp.route("/sicherung/jetzt", methods=["POST"])
 def backup_now():
-    if not backup.backup_dir():
-        flash_error(_("Die Datensicherung ist nicht eingerichtet (BACKUP_DIR fehlt)."))
-    elif backup.is_running():
-        flash_error(_("Es läuft bereits eine Sicherung."))
-    else:
+    if _backup_ready():
         backup.run_in_background(current_app._get_current_object())
         flash(_("Sicherung gestartet."), "success")
-    return redirect(url_for("admin.backups"))
+    return _backup_back()
+
+
+@bp.route("/sicherung/einstellungen", methods=["POST"])
+def backup_settings():
+    try:
+        backup.save_settings({**request.form.to_dict(), "clear_password": request.form.get("clear_password")})
+        flash(_("Einstellungen der Datensicherung gespeichert."), "success")
+    except backup.BackupError as e:
+        flash_error(str(e))
+    return _backup_back("einstellungen")
+
+
+@bp.route("/sicherung/ziel/test", methods=["POST"])
+def backup_test():
+    try:
+        label = backup.test_target()
+        flash(_("Verbindung in Ordnung: {target}", target=label), "success")
+    except backup.BackupError as e:
+        flash_error(str(e))
+    return _backup_back("einstellungen")
+
+
+@bp.route("/sicherung/ziel/holen", methods=["POST"])
+def backup_pull():
+    if _backup_ready():
+        backup.start(current_app._get_current_object(), backup.pull_from_target)
+        flash(_("Stände werden vom Netzlaufwerk geholt …"), "info")
+    return _backup_back("zurueck")
+
+
+@bp.route("/sicherung/paket", methods=["POST"])
+def backup_package():
+    if _backup_ready():
+        backup.start(current_app._get_current_object(), backup.build_package)
+        flash(_("Komplettpaket wird erstellt …"), "info")
+    return _backup_back("paket")
+
+
+@bp.route("/sicherung/paket/<name>")
+def backup_package_download(name):
+    path = backup.package_path(name)
+    if path is None:
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=name, mimetype="application/zip")
+
+
+@bp.route("/sicherung/hochladen", methods=["POST"])
+def backup_upload():
+    """Datei zum Zurückspielen hochladen (Komplettpaket oder Datenbank-Stand) – große Dateien erlaubt."""
+    request.max_content_length = 20 * 1024 * 1024 * 1024
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash_error(_("Bitte eine Datei auswählen."))
+    elif _backup_ready():
+        try:
+            backup.save_upload(upload.save, upload.filename)
+            flash(_("Hochgeladen – jetzt auswählen und zurückspielen."), "success")
+        except backup.BackupError as e:
+            flash_error(str(e))
+    return _backup_back("zurueck")
+
+
+@bp.route("/sicherung/zurueckspielen", methods=["POST"])
+def backup_restore():
+    kind, _sep, name = form_str("quelle", 200).partition(":")
+    word = form_str("bestaetigung", 40).upper()
+    if word not in {_("ZURÜCKSPIELEN").upper(), "ZURÜCKSPIELEN"}:
+        flash_error(_("Zur Sicherheit bitte {word} eintippen.", word=_("ZURÜCKSPIELEN")))
+    elif kind not in ("stand", "upload", "paket") or not name:
+        flash_error(_("Bitte einen Stand auswählen."))
+    elif _backup_ready():
+        backup.start(current_app._get_current_object(), backup.run_restore, kind, name,
+                     bool(request.form.get("mit_dateien")))
+        flash(_("Zurückspielen gestartet – vorher wird der jetzige Stand gesichert."), "info")
+    return _backup_back("zurueck")
 
 
 @bp.route("/sicherung/<name>")

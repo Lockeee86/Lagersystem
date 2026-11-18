@@ -69,7 +69,17 @@ docker compose up --build -d
   Niederschlag seit 1. Januar `rain_year()` (Monatswerte zwischengespeichert);
   in Tests `weather._fetch` ersetzen (kein Netz)
 - `app/backup.py`: Datensicherung nach `BACKUP_DIR` (pg_dump bzw. SQLite-Kopie, Fotos spiegeln, Aufbewahrung
-  `to_delete`, Status in `status.json`). Konsole: `flask backup-now`, `flask backup-restore`
+  `to_delete(names, today, keep_days, keep_months)` – Kalendermonate, der neueste bleibt; zwei Stände in einer Minute
+  bekommen Sekunden im Namen; Status in `status.json`). Einstellungen der Seite in `BACKUP_DIR/einstellungen.json`
+  (nicht in der DB – überstehen das Zurückspielen; `settings()`/`save_settings()`/`hour()`, SMB-Passwort mit Fernet aus
+  `SECRET_KEY`). Zweites Ziel `target()`: `SmbTarget` (smbprotocol, ohne Einbinden) oder `FolderTarget` – gleiche
+  Befehle (`ensure`/`listing`/`upload`/`download`/`remove`), nach jeder Sicherung `_sync_to_target` (Status `share`),
+  `test_target()`, `pull_from_target()`. Komplettpaket `build_package()` (ZIP: db/, dateien/, manifest.json; nur das
+  neueste in `pakete/`), Zurückspielen `save_upload()` → `run_restore(kind, name, with_files)` (Sicherheitsstand vorher,
+  `restore()`, `_migrate()` nur mit `alembic_version`, Fotos ergänzen). Lange Arbeiten über `start()` im Hintergrund
+  (in Tests sofort) unter derselben Sperre, Ergebnis in `status[kind]`. Seite `admin.backups` mit Reitern
+  Übersicht/Herunterladen/Zurückspielen/Einstellungen (Bestätigungswort „ZURÜCKSPIELEN“).
+  Konsole: `flask backup-now`, `flask backup-restore`
 - `app/scheduler.py`: Hintergrund-Thread (aus `gunicorn.conf.py`, `post_worker_init`) für `backup.tick`, `push.daily`
   und `audit.cleanup`
 - `app/push.py`: Web Push (VAPID-Schlüssel in `settings`, Themen `models.PUSH_TOPICS`, abgewählt `User.push_off`,

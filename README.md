@@ -129,44 +129,43 @@ flask --app wsgi create-admin <benutzername>
 
 ### Datensicherung
 
-Die App sichert **jede Nacht ab 3 Uhr** (`BACKUP_HOUR`) die Datenbank und alle Fotos/Dokumente
-nach `/backup` im Container. Aufbewahrt werden die letzten 14 Tage und je ein Stand pro Monat für ein Jahr.
-Status, „Jetzt sichern“ und Download der Stände: **Verwaltung → Datensicherung**. Schlägt eine Sicherung fehl
-oder ist die letzte älter als 36 Stunden, sehen Admins einen Hinweis auf der Übersicht.
+Alles Wichtige steht unter **Verwaltung → Datensicherung** (Reiter Übersicht, Herunterladen, Zurückspielen,
+Einstellungen). Die App sichert **jede Nacht** (Uhrzeit auf der Seite einstellbar, Vorgabe `BACKUP_HOUR` = 3 Uhr)
+die Datenbank und alle Fotos/Dokumente nach `/backup` im Container. Aufbewahrt werden die letzten 14 Tage und je
+ein Stand pro Monat für ein Jahr (beides einstellbar). Schlägt eine Sicherung fehl oder ist die letzte älter als
+36 Stunden, sehen Admins einen Hinweis auf der Übersicht.
 
 Im Sicherungsordner liegen:
 
 - `db/lager-JJJJ-MM-TT_HHMM.dump`: Datenbank (PostgreSQL-Format, `pg_restore`)
 - `dateien/`: Kopie aller Fotos und Dokumente (nur neue werden kopiert, gelöschte bleiben erhalten)
+- `pakete/`: das zuletzt erstellte **Komplettpaket** (ZIP mit Datenbank, allen Fotos/Dokumenten und `manifest.json`)
+- `einstellungen.json`: die Einstellungen der Seite (bleiben beim Zurückspielen erhalten; das NAS-Passwort ist
+  mit dem `SECRET_KEY` verschlüsselt – wird der geändert, das Passwort neu eingeben)
 
-**Ziel festlegen:** Ohne weitere Angabe landet alles im Docker-Volume `backups` auf dem Server. Besser ist ein
-zweites Gerät (NAS), damit ein Plattenausfall des Servers nicht auch die Sicherung trifft:
+**Herunterladen:** einzelne Datenbank-Stände (klein) oder das Komplettpaket (alles in einer ZIP-Datei).
 
-- **NAS ist schon am Server eingehängt** (z. B. unter `/mnt/nas`): in Portainer `BACKUP_PATH=/mnt/nas/lagersystem`
-  setzen. Der Ordner muss für den Benutzer mit der ID 1000 beschreibbar sein (`chown 1000 /mnt/nas/lagersystem`).
-- **SMB-Freigabe** (Synology, QNAP, Fritzbox …) direkt im Stack: In `docker-compose.yml` den Eintrag `backups:`
-  unter `volumes:` ersetzen durch
+**Zurückspielen** (ersetzt alle Daten): auf der Seite einen Stand wählen oder ein Komplettpaket / einen `.dump`
+hochladen, „ZURÜCKSPIELEN“ eintippen. Vorher legt die App automatisch einen Sicherheitsstand des jetzigen
+Zustands an, danach laufen die Migrationen (ein älterer Stand wird auf die aktuelle Version gebracht). Fotos und
+Dokumente kommen auf Wunsch mit zurück (es wird nur ergänzt, nichts gelöscht). Hängt ein Reverse-Proxy davor,
+muss er große Uploads erlauben (z. B. nginx `client_max_body_size 0;`) – sonst das Paket in den Sicherungsordner
+legen bzw. „Vom Netzlaufwerk holen“ nutzen.
 
-  ```yaml
-  backups:
-    driver: local
-    driver_opts:
-      type: cifs
-      device: "//192.168.1.20/backup/lagersystem"
-      o: "username=lager,password=${NAS_PASSWORD},uid=1000,gid=1000,vers=3.0"
-  ```
+**Zweites Ziel (empfohlen):** damit ein Plattenausfall des Servers nicht auch die Sicherung trifft. Unter
+Einstellungen wählbar, nach jeder Sicherung wird abgeglichen (gleiche Aufbewahrung), „Verbindung testen“ prüft es:
 
-  und `NAS_PASSWORD` als Umgebungsvariable eintragen.
-- **NFS:** wie SMB, mit `type: nfs`, `device: ":/volume1/backup/lagersystem"`, `o: "addr=192.168.1.20,rw,nfsvers=4"`.
+- **Netzlaufwerk (SMB)** – Synology, QNAP, Fritzbox, Windows-Freigabe: Server, Freigabe, Unterordner, Benutzer und
+  Passwort eintragen. Am Container muss dafür nichts geändert werden. Am NAS am besten einen eigenen Benutzer nur
+  für die Sicherung anlegen.
+- **Eingebundener Ordner:** ein im Stack eingebundenes Volume (z. B. NFS/CIFS-Volume nach `/nas`).
+- **Neuer Server:** Stack aufsetzen, Netzlaufwerk eintragen, „Vom Netzlaufwerk holen“ – dann einen Stand zurückspielen.
 
-**Zurückspielen** (ersetzt alle Daten!): Portainer → Container `lagersystem-web` → Console:
+Den ganzen Sicherungsordner auf ein NAS legen geht weiterhin über `BACKUP_PATH` (z. B. `/mnt/nas/lagersystem`, für
+die Benutzer-ID 1000 beschreibbar) oder ein CIFS/NFS-Volume für `backups:` in `docker-compose.yml`.
 
-```sh
-flask --app wsgi backup-restore /backup/db/lager-2026-10-23_0300.dump
-```
-
-Danach den Container neu starten. Fotos bei Bedarf aus `dateien/` nach `/app/data/uploads` zurückkopieren.
-Sofort sichern geht auch über die Konsole: `flask --app wsgi backup-now`.
+Über die Konsole (Portainer → Container `lagersystem-web` → Console) geht es auch:
+`flask --app wsgi backup-now` bzw. `flask --app wsgi backup-restore /backup/db/lager-2026-10-23_0300.dump`.
 
 ## Entwicklung
 

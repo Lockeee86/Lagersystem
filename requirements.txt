@@ -17,3 +17,4 @@ pywebpush==2.5.0
 xlrd==2.0.1
 anthropic==2.6.0
 pypdf==6.21.4
+smbprotocol==1.17.0

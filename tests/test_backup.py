@@ -114,3 +114,148 @@ def test_not_configured(as_admin, as_worker):
     assert as_admin.post("/admin/sicherung/jetzt").status_code == 302
     assert as_worker.get("/admin/sicherung").status_code == 403
     assert backup.needs_attention() is None
+
+
+def _admin_client(app):
+    admin = User(username="chef", role="admin")
+    admin.set_password("geheim123")
+    _db.session.add(admin)
+    _db.session.commit()
+    client = app.test_client()
+    login(client, "chef")
+    return client
+
+
+def test_settings_and_folder_target(file_app, tmp_path):
+    """Einstellungen im Sicherungsordner (Passwort verschlüsselt), zweites Ziel als eingebundener Ordner."""
+    client = _admin_client(file_app)
+    nas = tmp_path / "nas"
+    r = client.post("/admin/sicherung/einstellungen", data={"hour": "22", "keep_days": "3", "keep_months": "2",
+                                                          "target": "folder", "folder": str(nas)},
+                    follow_redirects=True)
+    assert "gespeichert" in r.get_data(as_text=True)
+    assert backup.hour() == 22 and backup.settings()["keep_days"] == 3
+    # Ordner fehlt → Test meldet es verständlich, die lokale Sicherung klappt trotzdem
+    r = client.post("/admin/sicherung/ziel/test", follow_redirects=True)
+    assert "nicht vorhanden" in r.get_data(as_text=True)
+    status = backup.run_backup()
+    assert status["ok"] and status["share"]["ok"] is False and backup.needs_attention() == "failed"
+    nas.mkdir()
+    assert "Verbindung in Ordnung" in client.post("/admin/sicherung/ziel/test", follow_redirects=True).get_data(as_text=True)
+    os.makedirs(tmp_path / "uploads" / "2026", exist_ok=True)
+    (tmp_path / "uploads" / "2026" / "foto.jpg").write_bytes(b"f" * 30)
+    status = backup.run_backup()
+    assert status["share"]["ok"] and status["share"]["files"] == 1
+    assert (nas / "lagersystem").exists() is False                      # Ordner-Ziel ohne Unterordner
+    assert [n for n in os.listdir(nas / "db") if n.endswith(".sqlite")]
+    assert (nas / "dateien" / "2026" / "foto.jpg").read_bytes() == b"f" * 30
+    assert backup.needs_attention() is None
+    # Aufbewahrung im Ziel: alte Stände fallen weg, der neueste bleibt
+    (nas / "db" / "lager-2020-01-01_0300.sqlite").write_bytes(b"alt")
+    backup.run_backup()
+    assert not (nas / "db" / "lager-2020-01-01_0300.sqlite").exists()
+
+    # Netzlaufwerk: Passwort nie im Klartext, leer lassen = behalten
+    client.post("/admin/sicherung/einstellungen", data={"hour": "3", "keep_days": "14", "keep_months": "12",
+                                                       "target": "smb", "smb_server": "nas", "smb_share": "backup",
+                                                       "smb_path": "lager", "smb_user": "sicherung",
+                                                       "smb_password": "Geheim!42"})
+    raw = (tmp_path / "backup" / backup.CONFIG_FILE).read_text()
+    assert "Geheim!42" not in raw and backup.settings()["has_password"]
+    client.post("/admin/sicherung/einstellungen", data={"hour": "3", "keep_days": "14", "keep_months": "12",
+                                                       "target": "smb", "smb_server": "nas", "smb_share": "backup"})
+    assert backup._password(backup._read_config()) == "Geheim!42"
+    r = client.post("/admin/sicherung/einstellungen", data={"hour": "3", "keep_days": "14", "keep_months": "12",
+                                                           "target": "smb", "smb_server": "", "smb_share": ""},
+                    follow_redirects=True)
+    assert "Server und Freigabe" in r.get_data(as_text=True)
+    page = client.get("/admin/sicherung").get_data(as_text=True)
+    assert "Geheim" not in page and "gespeichert – leer lassen" in page
+
+
+def test_package_and_restore(file_app, tmp_path):
+    """Komplettpaket herunterladen, Daten ändern, Paket wieder hochladen und zurückspielen (mit Fotos)."""
+    import io
+    import json
+    import zipfile
+    client = _admin_client(file_app)
+    os.makedirs(tmp_path / "uploads" / "2026")
+    (tmp_path / "uploads" / "2026" / "a.jpg").write_bytes(b"a" * 5)
+    client.post("/admin/sicherung/paket")
+    info = backup.overview()
+    assert info["package_file"] and info["package"]["files"] == 1
+    data = client.get(f"/admin/sicherung/paket/{info['package_file']}").data
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = z.namelist()
+        manifest = json.loads(z.read("manifest.json"))
+    assert "dateien/2026/a.jpg" in names and any(n.startswith("db/lager-") for n in names)
+    assert manifest["app"] == "lagersystem" and manifest["files"] == 1
+
+    # danach geändert: neuer Benutzer, Foto weg
+    extra = User(username="neu", role="mitarbeiter")
+    extra.set_password("geheim123")
+    _db.session.add(extra)
+    _db.session.commit()
+    os.remove(tmp_path / "uploads" / "2026" / "a.jpg")
+
+    r = client.post("/admin/sicherung/hochladen", data={"file": (io.BytesIO(b"kein Backup"), "x.zip")},
+                    content_type="multipart/form-data", follow_redirects=True)
+    assert "weder ein Komplettpaket" in r.get_data(as_text=True)
+    client.post("/admin/sicherung/hochladen", data={"file": (io.BytesIO(data), "paket.zip")},
+                content_type="multipart/form-data")
+    upload = backup.overview()["upload"]
+    assert upload and upload.endswith(".zip")
+    # ohne Bestätigungswort passiert nichts
+    r = client.post("/admin/sicherung/zurueckspielen", data={"quelle": f"upload:{upload}", "bestaetigung": "ja"},
+                    follow_redirects=True)
+    assert "eintippen" in r.get_data(as_text=True)
+    assert _db.session.query(User).filter_by(username="neu").count() == 1
+    before = len(backup.list_backups())
+    client.post("/admin/sicherung/zurueckspielen", data={"quelle": f"upload:{upload}", "bestaetigung": "zurückspielen",
+                                                         "mit_dateien": "1"})
+    result = backup.read_status()["restore"]
+    assert result["ok"], result
+    _db.session.remove()                                                            # Test-Sitzung neu öffnen
+    assert _db.session.query(User).filter_by(username="neu").count() == 0          # Stand von vorher
+    assert (tmp_path / "uploads" / "2026" / "a.jpg").read_bytes() == b"a" * 5      # Foto zurück
+    assert len(backup.list_backups()) == before + 1                                 # Sicherheitsstand
+    assert backup.overview()["upload"] is None                                      # hochgeladene Datei weg
+
+    # aus einem Stand der Liste (ohne Fotos)
+    stand = backup.list_backups()[0]["name"]
+    client.post("/admin/sicherung/zurueckspielen", data={"quelle": f"stand:{stand}", "bestaetigung": "ZURÜCKSPIELEN"})
+    assert backup.read_status()["restore"]["ok"]
+    client.post("/admin/sicherung/zurueckspielen", data={"quelle": "stand:../status.json", "bestaetigung": "ZURÜCKSPIELEN"})
+    assert not backup.read_status()["restore"]["ok"]
+
+
+def test_pull_from_target(file_app, tmp_path):
+    """Neuer Server: Stände und Fotos vom zweiten Ziel zurückholen."""
+    client = _admin_client(file_app)
+    nas = tmp_path / "nas"
+    nas.mkdir()
+    backup.save_settings({"hour": 3, "keep_days": 14, "keep_months": 12, "target": "folder", "folder": str(nas)})
+    os.makedirs(tmp_path / "uploads")
+    (tmp_path / "uploads" / "b.jpg").write_bytes(b"b")
+    assert backup.run_backup()["share"]["ok"]
+    import shutil
+    shutil.rmtree(tmp_path / "backup" / "db")
+    shutil.rmtree(tmp_path / "backup" / "dateien")
+    assert backup.list_backups() == []
+    client.post("/admin/sicherung/ziel/holen")
+    pulled = backup.read_status()["pull"]
+    assert pulled["ok"] and pulled["dumps"] == 1 and pulled["files"] == 1
+    assert len(backup.list_backups()) == 1 and (tmp_path / "backup" / "dateien" / "b.jpg").exists()
+
+
+def test_backup_pages_need_admin(as_worker):
+    for url in ("/admin/sicherung/einstellungen", "/admin/sicherung/paket", "/admin/sicherung/zurueckspielen",
+                "/admin/sicherung/hochladen", "/admin/sicherung/ziel/holen"):
+        assert as_worker.post(url).status_code == 403
+
+
+def test_same_minute_keeps_both(file_app, tmp_path):
+    first = backup.run_backup()["file"]
+    second = backup.run_backup()["file"]
+    assert first != second and len(backup.list_backups()) == 2
+    assert backup.NAME_RE.match(second) and backup.backup_path(second)

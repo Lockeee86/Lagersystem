@@ -1,12 +1,22 @@
 {% extends "base.html" %}
-{% from "macros.html" import csrf %}
+{% from "macros.html" import csrf, page_tabs %}
+{# Datensicherung: Übersicht · Herunterladen · Zurückspielen · Einstellungen (Logik in app/backup.py) #}
 {% block title %}{{ _("Datensicherung") }}{% endblock %}
 {% block styles %}{% if info.running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% macro job_line(job, ok_text) -%}
+{% if job %}
+<div class="small mt-2 {{ 'text-danger' if not job.ok }}">
+    {% if job.ok %}<i class="bi bi-check-circle me-1 text-success"></i>{{ ok_text }}{% else %}<i class="bi bi-exclamation-triangle me-1"></i>{{ _("Fehlgeschlagen") }}: {{ job.error }}{% endif %}
+    {% if job.at %}<span class="text-body-secondary"> · {{ job.at|datetime }}</span>{% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
 {% block content %}
 <div class="page-head">
     <div>
         <h1>{{ _("Datensicherung") }}</h1>
-        <p class="text-body-secondary mb-0">{{ _("Jede Nacht ab {hour} Uhr: Datenbank und alle Fotos/Dokumente. Aufbewahrt werden 14 Tage und je ein Stand pro Monat für ein Jahr.", hour=info.hour) }}</p>
+        <p class="text-body-secondary mb-0">{{ _("Jede Nacht ab {hour} Uhr: Datenbank und alle Fotos/Dokumente.", hour=info.hour) }}
+            {% if info.settings %}{{ _("Aufbewahrt werden {days} Tage und je ein Stand pro Monat für {months} Monate.", days=info.settings.keep_days, months=info.settings.keep_months) }}{% endif %}</p>
     </div>
     {% if info.configured %}
     <form method="post" action="{{ url_for('admin.backup_now') }}">{{ csrf() }}
@@ -21,13 +31,18 @@
     {{ _("Im Stack fehlt die Umgebungsvariable BACKUP_DIR mit einem Sicherungs-Volume. Wie das geht (auch mit NAS), steht in der README.") }}
 </div>
 {% else %}
-<div class="row g-4">
+{% if info.running %}
+<div class="alert alert-info d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm"></span>{{ _("Läuft gerade … die Seite aktualisiert sich von selbst.") }}</div>
+{% endif %}
+{% set cfg = info.settings %}
+{{ page_tabs([("uebersicht", _("Übersicht"), "bi-shield-check"), ("paket", _("Herunterladen"), "bi-download"), ("zurueck", _("Zurückspielen"), "bi-arrow-counterclockwise"), ("einstellungen", _("Einstellungen"), "bi-gear")]) }}
+
+{# ---------------- Übersicht ---------------- #}
+<div class="row g-4 mb-4" data-tab="uebersicht">
     <div class="col-lg-5">
-        <div class="card shadow-sm mb-4 {{ 'border-danger' if info.failed or info.stale else 'border-success-subtle' }}">
+        <div class="card shadow-sm {{ 'border-danger' if info.failed or info.stale or info.share_failed else 'border-success-subtle' }}">
             <div class="card-body">
-                {% if info.running %}
-                <div class="d-flex align-items-center gap-2 mb-3"><span class="spinner-border spinner-border-sm"></span>{{ _("Sicherung läuft …") }}</div>
-                {% elif info.failed %}
+                {% if info.failed %}
                 <div class="text-danger fw-semibold mb-2"><i class="bi bi-shield-exclamation me-1"></i>{{ _("Letzte Sicherung fehlgeschlagen") }}</div>
                 <pre class="small bg-body-tertiary p-2 rounded mb-3" style="white-space: pre-wrap">{{ info.status.error }}</pre>
                 {% elif info.last_success %}
@@ -46,25 +61,28 @@
                     <dt class="col-6 fw-normal text-body-secondary">{{ _("Neue Fotos/Dokumente") }}</dt>
                     <dd class="col-6">{{ info.status.files_copied }}</dd>
                     {% endif %}
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Fotos/Dokumente gesamt") }}</dt>
+                    <dd class="col-6">{{ info.files_count }} · {{ info.files_size|bytes }}</dd>
                     {% if info.disk %}
                     <dt class="col-6 fw-normal text-body-secondary">{{ _("Frei auf dem Sicherungsziel") }}</dt>
                     <dd class="col-6">{{ info.disk.free|bytes }} / {{ info.disk.total|bytes }}</dd>
                     {% endif %}
+                    <dt class="col-6 fw-normal text-body-secondary">{{ _("Zweites Ziel") }}</dt>
+                    <dd class="col-6">{% if cfg.target %}{{ _(targets[cfg.target]) }}{% else %}–{% endif %}</dd>
                 </dl>
-            </div>
-        </div>
-        <div class="card shadow-sm">
-            <div class="card-header"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Zurückspielen") }}</div>
-            <div class="card-body small">
-                <p>{{ _("Zurückspielen ersetzt alle Daten und geht deshalb nur über die Konsole des web-Containers (Portainer → Container → Console):") }}</p>
-                <pre class="bg-body-tertiary p-2 rounded mb-2" style="white-space: pre-wrap">flask backup-restore /backup/db/{{ info.backups[0].name if info.backups else "lager-JJJJ-MM-TT_HHMM.dump" }}</pre>
-                <p class="mb-0 text-body-secondary">{{ _("Fotos und Dokumente liegen im Sicherungsordner unter „dateien“ und werden bei Bedarf einfach zurückkopiert.") }}</p>
+                {% if info.share %}
+                <div class="small mt-2 {{ 'text-danger' if not info.share.ok }}">
+                    {% if info.share.ok %}<i class="bi bi-hdd-network me-1 text-success"></i>{{ _("Abgeglichen mit {target}: {dumps} Stände, {files} Dateien neu", target=info.share.target, dumps=info.share.dumps, files=info.share.files) }}
+                    {% else %}<i class="bi bi-hdd-network me-1"></i>{{ _("Netzlaufwerk/Ordner nicht erreicht") }}: {{ info.share.error }}{% endif %}
+                    {% if info.share.at %}<span class="text-body-secondary"> · {{ info.share.at|datetime }}</span>{% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
     <div class="col-lg-7">
         <div class="card shadow-sm">
-            <div class="card-header">{{ ngettext("{n} Stand", "{n} Stände", info.backups|length) }}</div>
+            <div class="card-header">{{ ngettext("{n} Stand", "{n} Stände", info.backups|length) }} <span class="small text-body-secondary">· {{ _("nur Datenbank, zum Herunterladen antippen") }}</span></div>
             <div class="list-group list-group-flush">
                 {% for b in info.backups %}
                 <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center small" href="{{ url_for('admin.backup_download', name=b.name) }}">
@@ -78,5 +96,179 @@
         </div>
     </div>
 </div>
+
+{# ---------------- Herunterladen ---------------- #}
+<div class="row g-4 mb-4" data-tab="paket">
+    <div class="col-lg-7">
+        <div class="card shadow-sm" id="paket">
+            <div class="card-header"><i class="bi bi-file-earmark-zip me-1"></i>{{ _("Komplettpaket") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Eine ZIP-Datei mit allem: Datenbank, alle Fotos und Dokumente und eine Beschreibung (Version, Datum). Damit lässt sich die App auf einem neuen Server komplett wiederherstellen – hier unter „Zurückspielen“ hochladen.") }}</p>
+                <p class="small mb-3">{{ _("Fotos/Dokumente gesamt") }}: <strong>{{ info.files_count }}</strong> · {{ info.files_size|bytes }}</p>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <form method="post" action="{{ url_for('admin.backup_package') }}">{{ csrf() }}
+                        <button class="btn btn-primary" {% if info.running %}disabled{% endif %}><i class="bi bi-box-seam me-1"></i>{{ _("Paket erstellen") }}</button>
+                    </form>
+                    {% if info.package_file %}
+                    <a class="btn btn-outline-primary" href="{{ url_for('admin.backup_package_download', name=info.package_file) }}"><i class="bi bi-download me-1"></i>{{ _("Herunterladen") }} ({{ info.package.size|bytes }})</a>
+                    {% endif %}
+                </div>
+                {{ job_line(info.package, _("Paket erstellt: {n} Fotos/Dokumente", n=info.package.files if info.package else 0)) }}
+                <p class="small text-body-secondary mt-3 mb-0">{{ _("Es bleibt nur das neueste Paket liegen. Große Sammlungen brauchen ein paar Minuten – die Seite aktualisiert sich währenddessen.") }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-database me-1"></i>{{ _("Nur Datenbank") }}</div>
+            <div class="card-body small text-body-secondary">
+                {{ _("Die nächtlichen Stände enthalten nur die Datenbank – klein und schnell. Herunterladen unter „Übersicht“. Die Fotos liegen im Sicherungsordner unter „dateien“.") }}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------------- Zurückspielen ---------------- #}
+<div class="row g-4 mb-4" data-tab="zurueck">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-danger-subtle" id="zurueck">
+            <div class="card-header"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Zurückspielen") }}</div>
+            <form class="card-body" method="post" action="{{ url_for('admin.backup_restore') }}">
+                {{ csrf() }}
+                <p class="small">{{ _("Ersetzt alle Daten der App durch den gewählten Stand. Vorher wird der jetzige Zustand automatisch als neuer Stand gesichert – ein Fehlgriff lässt sich also zurücknehmen.") }}</p>
+                <div class="restore-list mb-3">
+                    {% if info.upload %}
+                    <label class="form-check"><input class="form-check-input" type="radio" name="quelle" value="upload:{{ info.upload }}" checked> <i class="bi bi-upload me-1"></i>{{ _("Hochgeladene Datei") }} <span class="text-body-secondary small">{{ info.upload }}</span></label>
+                    {% endif %}
+                    {% if info.package_file %}
+                    <label class="form-check"><input class="form-check-input" type="radio" name="quelle" value="paket:{{ info.package_file }}"> <i class="bi bi-file-earmark-zip me-1"></i>{{ _("Komplettpaket") }} <span class="text-body-secondary small">{{ info.package.at|datetime if info.package.at }}</span></label>
+                    {% endif %}
+                    {% for b in info.backups %}
+                    <label class="form-check"><input class="form-check-input" type="radio" name="quelle" value="stand:{{ b.name }}" {% if not info.upload and loop.first %}checked{% endif %}> <i class="bi bi-database me-1"></i>{{ b.created|datetime }} <span class="text-body-secondary small">{{ b.size|bytes }}</span></label>
+                    {% else %}{% if not info.upload and not info.package_file %}<div class="small text-body-secondary">{{ _("Noch keine Stände.") }}</div>{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="withFiles" name="mit_dateien" value="1" checked>
+                    <label class="form-check-label" for="withFiles">{{ _("Fotos und Dokumente mit zurückspielen") }}</label>
+                    <div class="form-text">{{ _("Aus dem Paket bzw. aus dem Sicherungsordner. Vorhandene Dateien werden ergänzt, nichts wird gelöscht.") }}</div>
+                </div>
+                <label class="form-label small" for="confirmWord">{{ _("Zur Sicherheit {word} eintippen", word=confirm_word) }}</label>
+                <div class="d-flex flex-wrap gap-2">
+                    <input class="form-control" style="max-width: 16rem" id="confirmWord" name="bestaetigung" autocomplete="off" required>
+                    <button class="btn btn-danger" {% if info.running %}disabled{% endif %} data-confirm="{{ _('Wirklich alle Daten durch den gewählten Stand ersetzen?') }}"><i class="bi bi-arrow-counterclockwise me-1"></i>{{ _("Zurückspielen") }}</button>
+                </div>
+                {% if info.restore %}
+                {{ job_line(info.restore, _("Zurückgespielt: {source} – Sicherheitsstand vorher: {safety}", source=info.restore.source, safety=info.restore.safety)) }}
+                {% if info.restore.ok %}<div class="small text-body-secondary">{{ _("Danach bitte neu anmelden, falls die Seite nicht mehr reagiert.") }}</div>{% endif %}
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-upload me-1"></i>{{ _("Datei hochladen") }}</div>
+            <form class="card-body" method="post" action="{{ url_for('admin.backup_upload') }}" enctype="multipart/form-data">
+                {{ csrf() }}
+                <p class="small text-body-secondary">{{ _("Komplettpaket (.zip) oder ein Datenbank-Stand (.dump). Danach steht die Datei beim Zurückspielen zur Auswahl.") }}</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <input class="form-control" style="max-width: 22rem" type="file" name="file" accept=".zip,.dump,.sqlite" required aria-label="{{ _('Datei') }}">
+                    <button class="btn btn-outline-primary" {% if info.running %}disabled{% endif %}>{{ _("Hochladen") }}</button>
+                </div>
+            </form>
+        </div>
+        {% if cfg.target %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-hdd-network me-1"></i>{{ _("Vom Netzlaufwerk holen") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Holt alle Stände und Fotos vom eingestellten zweiten Ziel in den Sicherungsordner – z. B. nach einem neuen Server. Danach stehen sie beim Zurückspielen zur Auswahl.") }}</p>
+                <form method="post" action="{{ url_for('admin.backup_pull') }}">{{ csrf() }}
+                    <button class="btn btn-outline-primary" {% if info.running %}disabled{% endif %}><i class="bi bi-cloud-download me-1"></i>{{ _("Stände holen") }}</button>
+                </form>
+                {{ job_line(info.pull, _("Geholt: {dumps} Stände, {files} Dateien", dumps=info.pull.dumps if info.pull else 0, files=info.pull.files if info.pull else 0)) }}
+            </div>
+        </div>
+        {% endif %}
+        <div class="card shadow-sm">
+            <div class="card-body small text-body-secondary">
+                {{ _("Notfalls geht es auch über die Konsole des web-Containers (Portainer → Container → Console):") }}
+                <pre class="bg-body-tertiary p-2 rounded mt-2 mb-0" style="white-space: pre-wrap">flask backup-restore /backup/db/{{ info.backups[0].name if info.backups else "lager-JJJJ-MM-TT_HHMM.dump" }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------------- Einstellungen ---------------- #}
+<div class="row g-4 mb-4" data-tab="einstellungen">
+    <div class="col-lg-8">
+        <div class="card shadow-sm" id="einstellungen">
+            <div class="card-header"><i class="bi bi-gear me-1"></i>{{ _("Einstellungen") }}</div>
+            <form class="card-body" method="post" action="{{ url_for('admin.backup_settings') }}" id="backupSettings">
+                {{ csrf() }}
+                <div class="row g-3">
+                    <div class="col-12 col-sm-4">
+                        <label class="form-label" for="bHour">{{ _("Uhrzeit") }}</label>
+                        <select class="form-select" id="bHour" name="hour">{% for h in range(24) %}<option value="{{ h }}" {% if h == cfg.hour %}selected{% endif %}>{{ "%02d:00"|format(h) }}</option>{% endfor %}</select>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <label class="form-label" for="bDays">{{ _("Tägliche Stände (Tage)") }}</label>
+                        <input class="form-control" type="number" id="bDays" name="keep_days" min="1" max="365" value="{{ cfg.keep_days }}" required>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <label class="form-label" for="bMonths">{{ _("Monats-Stände (Monate)") }}</label>
+                        <input class="form-control" type="number" id="bMonths" name="keep_months" min="0" max="120" value="{{ cfg.keep_months }}" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="bTarget">{{ _("Zweites Ziel") }}</label>
+                        <select class="form-select" id="bTarget" name="target">{% for key, label in targets.items() %}<option value="{{ key }}" {% if key == cfg.target %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}</select>
+                        <div class="form-text">{{ _("Zusätzlich zum Sicherungsordner auf dem Server – damit die Sicherung auch einen Festplattenschaden übersteht. Nach jeder Sicherung wird abgeglichen.") }}</div>
+                    </div>
+                </div>
+                <fieldset class="row g-3 mt-1" data-backup-target="smb">
+                    <legend class="col-12 fs-6 fw-semibold mb-0">{{ _("Netzlaufwerk (SMB)") }}</legend>
+                    <div class="col-12 col-sm-6"><label class="form-label" for="smbServer">{{ _("Server (Name oder IP)") }}</label><input class="form-control" id="smbServer" name="smb_server" value="{{ cfg.smb_server }}" placeholder="{{ _('z. B. 192.168.1.20 oder nas') }}" autocomplete="off"></div>
+                    <div class="col-6 col-sm-3"><label class="form-label" for="smbShare">{{ _("Freigabe") }}</label><input class="form-control" id="smbShare" name="smb_share" value="{{ cfg.smb_share }}" placeholder="{{ _('z. B. backup') }}" autocomplete="off"></div>
+                    <div class="col-6 col-sm-3"><label class="form-label" for="smbPath">{{ _("Unterordner") }}</label><input class="form-control" id="smbPath" name="smb_path" value="{{ cfg.smb_path }}" autocomplete="off"></div>
+                    <div class="col-12 col-sm-4"><label class="form-label" for="smbUser">{{ _("Benutzer") }}</label><input class="form-control" id="smbUser" name="smb_user" value="{{ cfg.smb_user }}" autocomplete="off"></div>
+                    <div class="col-12 col-sm-4"><label class="form-label" for="smbPw">{{ _("Passwort") }}</label><input class="form-control" type="password" id="smbPw" name="smb_password" autocomplete="new-password" placeholder="{{ _('gespeichert – leer lassen = behalten') if cfg.has_password else '' }}"></div>
+                    <div class="col-12 col-sm-4"><label class="form-label" for="smbDomain">{{ _("Domäne (meist leer)") }}</label><input class="form-control" id="smbDomain" name="smb_domain" value="{{ cfg.smb_domain }}" autocomplete="off"></div>
+                    {% if cfg.has_password %}<div class="col-12"><label class="form-check small"><input class="form-check-input" type="checkbox" name="clear_password" value="1"> {{ _("Gespeichertes Passwort löschen") }}</label></div>{% endif %}
+                    <div class="col-12 form-text mt-1">{{ _("Am NAS eine Freigabe und einen eigenen Benutzer nur dafür anlegen. Das Passwort wird verschlüsselt im Sicherungsordner gespeichert.") }}</div>
+                </fieldset>
+                <fieldset class="row g-3 mt-1" data-backup-target="folder">
+                    <legend class="col-12 fs-6 fw-semibold mb-0">{{ _("Eingebundener Ordner") }}</legend>
+                    <div class="col-12"><label class="form-label" for="bFolder">{{ _("Pfad im Container") }}</label><input class="form-control" id="bFolder" name="folder" value="{{ cfg.folder }}" placeholder="/nas" autocomplete="off"></div>
+                    <div class="col-12 form-text mt-1">{{ _("Der Ordner muss im Stack als Volume eingebunden sein, z. B. eine NAS-Freigabe per NFS/CIFS-Volume nach /nas.") }}</div>
+                </fieldset>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button class="btn btn-primary">{{ _("Speichern") }}</button>
+                    {% if cfg.target %}<button class="btn btn-outline-primary" formaction="{{ url_for('admin.backup_test') }}" formnovalidate><i class="bi bi-plug me-1"></i>{{ _("Verbindung testen") }}</button>{% endif %}
+                </div>
+                <div class="form-text">{{ _("Erst speichern, dann testen.") }}</div>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body small text-body-secondary">
+                <p><strong>{{ _("Was gesichert wird") }}</strong></p>
+                <ul class="ps-3 mb-2">
+                    <li>{{ _("die komplette Datenbank (alle Kisten, Felder, Maschinen, Biogas, Wald, Hühner, Benutzer …)") }}</li>
+                    <li>{{ _("alle Fotos und Dokumente") }}</li>
+                </ul>
+                <p class="mb-0">{{ _("Die Einstellungen dieser Seite liegen im Sicherungsordner, nicht in der Datenbank – sie bleiben beim Zurückspielen erhalten.") }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script nonce="{{ csp_nonce() }}">
+(() => {
+    const select = document.getElementById("bTarget");
+    const sets = document.querySelectorAll("[data-backup-target]");
+    const update = () => sets.forEach((set) => { set.hidden = set.dataset.backupTarget !== select.value; });
+    select.addEventListener("change", update);
+    update();
+})();
+</script>
 {% endif %}
 {% endblock %}
