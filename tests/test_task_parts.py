@@ -69,3 +69,21 @@ def test_order_part_rights(app, db, seed, as_worker):
     login(viewer, "oma")
     assert viewer.post("/bestellungen/neu", data={"task_id": task.id, "title": "Scharnier"}).status_code == 403
     assert PurchaseRequest.query.count() == 0
+
+
+def test_fault_shows_task(app, db, seed, as_admin):
+    """Offene Störung in der Maschinenliste: man sieht, ob es schon eine Aufgabe gibt (für wen, wann)."""
+    from app import team
+    admin, worker = seed["admin"], seed["worker"]
+    roder = machines.create_machine("Roder 7", "roder", admin, with_templates=False)
+    fault = machines.add_event(roder, "stoerung", admin, text="Siebkette gerissen")
+    db.session.commit()
+    page = as_admin.get("/maschinen").get_data(as_text=True)
+    assert "Siebkette gerissen" in page and "noch keine Aufgabe" in page
+    tomorrow = date.today() + timedelta(days=1)
+    key = f"stoerung-{fault.id}"
+    team.add_suggestion(tomorrow, worker, key, admin)
+    db.session.commit()
+    page = as_admin.get("/maschinen").get_data(as_text=True)
+    assert "noch keine Aufgabe" not in page and "Aufgabe: max" in page and "eingeplant" in page
+    assert "eingeplant" in as_admin.get(f"/maschine/{roder.id}").get_data(as_text=True)

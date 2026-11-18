@@ -59,7 +59,7 @@ docker compose up --build -d
   Waage und Qualität; Bestand `stock()`, Qualität `quality()`, Herkunft `plot_shares()`), committet nicht;
   `app/bulk_views.py` (Blueprint `bulk`). Code `S-001` je Lagerort (`bulk.normalize_code`, QR-Etikett; `/scan` öffnet
   das Einlagern). Verkauf über `sales.add_bulk` (Lieferschein-Position mit `bulk_entry`)
-- `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen, Kosten je Jahr
+- `app/machines.py`: Maschinenlogik (Zähler, Wartungsintervalle/Fälligkeit, Logbuch, Störungen – `MachineEvent.open_task` / Makro `machines/_macros.html` `fault_task(e)` zeigt in Störungslisten, ob schon eine Aufgabe läuft –, Kosten je Jahr
   `costs()` / `cost_overview()`), committet nicht.
   `app/machine_views.py` (Blueprint `machines`), `app/uploads.py` (Fotos verkleinert nach `UPLOAD_DIR`; gelöschte
   `Photo`-Zeilen verlieren ihre Datei nach dem Commit). Fotoleiste an Kiste, Anbaujahr, Schüttlager, Lieferschein:

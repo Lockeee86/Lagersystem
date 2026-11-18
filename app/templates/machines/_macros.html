@@ -27,3 +27,10 @@
 {% macro photo_input() %}
 <input class="form-control" type="file" name="photos" accept="image/*" multiple>
 {% endmacro %}
+
+{# Unter einer offenen Störung: gibt es schon eine Aufgabe – für wen, wann eingeplant, wartet sie auf ein Teil? #}
+{% macro fault_task(e) -%}
+{% set t = e.open_task %}
+{% if t %}<div class="small mt-1 fault-task"><i class="bi bi-list-check me-1"></i>{{ _("Aufgabe") }}: {{ t.assignees|map(attribute='name')|join(", ") if t.assignees else _("alle") }}{% if t.plan_day %} · {{ _("eingeplant {date}", date=t.plan_day|weekday ~ " " ~ t.plan_day|date) }}{% endif %}{% if t.waiting_part %} · <span class="badge text-bg-info">{{ _("wartet auf Teil") }}</span>{% endif %}</div>
+{% else %}<div class="small mt-1 text-body-secondary"><i class="bi bi-dash-circle me-1"></i>{{ _("noch keine Aufgabe") }}</div>{% endif %}
+{%- endmacro %}

@@ -163,7 +163,7 @@ h2 .count { margin-left: auto; font-size: 20px; color: #aeb8c6; font-weight: 700
                 {% for e in d.faults %}
                 <div class="row"><span class="dot {{ 'blue' if e.still_running else 'red' }}"></span>
                     <span class="stack"><span class="what">{{ e.machine.name }}{% if not e.still_running %} · {{ _("steht") }}{% endif %}</span>
-                        <span class="info">{{ e.text or "" }} · {{ _("seit {date}", date=e.date|date) }}</span></span></div>
+                        <span class="info">{{ e.text or "" }} · {{ _("seit {date}", date=e.date|date) }}{% set t = e.open_task %}{% if t %} · {{ t.assignees|map(attribute='name')|join(", ") if t.assignees else _("Aufgabe offen") }}{% if t.waiting_part %} · {{ _("wartet auf Teil") }}{% endif %}{% else %} · {{ _("noch keine Aufgabe") }}{% endif %}</span></span></div>
                 {% else %}<div class="empty"><i class="bi bi-check-circle"></i>{{ _("Keine offenen Störungen") }}</div>{% endfor %}
                 {% if d.faults_more %}<div class="more">{{ ngettext("+ {n} weitere", "+ {n} weitere", d.faults_more) }}</div>{% endif %}
             </section>

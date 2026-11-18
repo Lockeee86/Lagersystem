@@ -1272,6 +1272,11 @@ class MachineEvent(db.Model):
     def is_open_fault(self):
         return self.kind == "stoerung" and self.resolved_at is None
 
+    @property
+    def open_task(self):
+        """Offene Aufgabe zu dieser Störung (oder None) – zeigt in den Störungslisten, dass schon jemand dran ist."""
+        return Task.query.filter(Task.machine_event_id == self.id, Task.done_at.is_(None)).first()
+
 
 class Photo(db.Model):
     """Hochgeladenes Foto (verkleinert als JPEG im Upload-Verzeichnis gespeichert), gehört zu einem

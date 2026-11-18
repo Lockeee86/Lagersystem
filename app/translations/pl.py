@@ -3967,4 +3967,6 @@ MESSAGES = {
     'Noch keine Lieferanten angelegt.': 'Nie dodano jeszcze dostawców.',
     'Heute nichts – als Nächstes für dich eingeplant:': 'Dziś nic – następnie zaplanowane dla ciebie:',
     'Eingeplant für {date}': 'Zaplanowane na {date}',
+    'eingeplant {date}': 'zaplanowane {date}',
+    'noch keine Aufgabe': 'jeszcze bez zadania',
 }

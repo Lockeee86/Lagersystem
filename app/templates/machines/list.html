@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, site_select, site_filter %}
-{% from "machines/_macros.html" import state_badge, due_text %}
+{% from "machines/_macros.html" import state_badge, due_text, fault_task %}
 {% block title %}{{ _("Maschinen") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -94,6 +94,7 @@
                 <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}#logbuch">
                     <span class="fw-semibold">{{ e.machine.name }}</span> · {{ e.date|date }}
                     <div class="text-body-secondary text-truncate">{{ e.text or "" }}</div>
+                    {{ fault_task(e) }}
                 </a>
                 {% endfor %}
             </ul>

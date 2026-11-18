@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, site_select, machine_options %}
-{% from "machines/_macros.html" import state_badge, due_text %}
+{% from "machines/_macros.html" import state_badge, due_text, fault_task %}
 {% from "machines/_place_macros.html" import place_badges, place_form with context %}
 {% block title %}{{ place.name }}{% endblock %}
 {% block content %}
@@ -46,6 +46,7 @@
                 <a class="list-group-item list-group-item-action small" href="{{ url_for('machines.machine_detail', machine_id=e.machine_id) }}#logbuch">
                     <span class="fw-semibold">{{ e.machine.name }}</span> · {{ e.date|date }}{% if not e.still_running %} · <span class="text-danger">{{ _("steht") }}</span>{% endif %}
                     <div class="text-body-secondary text-truncate">{{ e.text or "" }}</div>
+                    {{ fault_task(e) }}
                 </a>
                 {% endfor %}
             </div>

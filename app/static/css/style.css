@@ -1757,3 +1757,5 @@ input.form-control[type="date"], input.form-control[type="time"], input.form-con
     input.form-control[type="date"]::-webkit-date-and-time-value,
     input.form-control[type="time"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
 }
+
+.fault-task { color: var(--st-info); }
