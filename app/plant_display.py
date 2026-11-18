@@ -170,7 +170,7 @@ def render(d):
     feed_info = d.get("feeding_line")
     bottom = H - 8 - 40 * len(alerts) - (36 if feed_info else 0)
     top = 62
-    cols = [(10, 330), (340, 560), (570, 790)]
+    cols = [(10, 330), (340, 542), (552, 790)]
     for x0, x1 in cols:
         dr.rounded_rectangle([x0, top, x1, bottom], radius=14, outline=BLACK, width=3)
 
@@ -210,34 +210,40 @@ def render(d):
                     fill=RED if late else BLACK)
         y += row_h
 
-    # --- Gasspeicher und Strompreis ---
+    # --- Gasspeicher (nur mit Daten) und Strompreis – von oben nach unten, nichts überlappt ---
     x0, x1 = cols[1]
-    dr.text((x0 + 14, top + 12), _("GASSPEICHER"), font=font(17), fill=BLACK)
+    y = top + 12
     gas = d["gas"]
     if gas and gas.get("now") is not None:
         pct = gas["now"]
         warn = pct >= GAS_HIGH or pct <= GAS_LOW
-        dr.text((x0 + 12, top + 34), _num(pct) + "%", font=font(62), fill=RED if warn else BLACK)
-        bx0, bx1, by = x0 + 14, x1 - 14, top + 110
-        dr.rectangle([bx0, by, bx1, by + 20], outline=BLACK, width=2)
+        dr.text((x0 + 14, y), _("GASSPEICHER"), font=font(17), fill=BLACK)
+        dr.text((x0 + 12, y + 22), _num(pct) + "%", font=font(40), fill=RED if warn else BLACK)
+        bx0, bx1, by = x0 + 14, x1 - 14, y + 72
+        dr.rectangle([bx0, by, bx1, by + 16], outline=BLACK, width=2)
         fill_w = round((bx1 - bx0 - 4) * max(0, min(pct, 100)) / 100)
         if fill_w:
-            dr.rectangle([bx0 + 2, by + 2, bx0 + 2 + fill_w, by + 18], fill=RED if warn else BLUE)
+            dr.rectangle([bx0 + 2, by + 2, bx0 + 2 + fill_w, by + 14], fill=RED if warn else BLUE)
+        y = by + 22
         if gas.get("min") is not None:
-            dr.text((x0 + 14, by + 28), _("24 h: {low} bis {high} %", low=_num(gas["min"]), high=_num(gas["max"])),
-                    font=font(15, False), fill=BLACK)
-    else:
-        dr.text((x0 + 14, top + 44), "–", font=font(40), fill=BLACK)
-    y = top + 176
-    dr.line([(x0 + 14, y), (x1 - 14, y)], fill=BLACK, width=2)
-    dr.text((x0 + 14, y + 10), _("STROMPREIS"), font=font(17), fill=BLACK)
+            dr.text((x0 + 14, y), _fit(dr, _("24 h: {low} bis {high} %", low=_num(gas["min"]), high=_num(gas["max"])),
+                                       14, x1 - x0 - 28, False), font=font(14, False), fill=BLACK)
+            y += 20
+        y += 6
+        dr.line([(x0 + 14, y), (x1 - 14, y)], fill=BLACK, width=2)
+        y += 10
+    dr.text((x0 + 14, y), _("STROMPREIS"), font=font(17), fill=BLACK)
+    y += 26
+    big = 44 if gas and gas.get("now") is not None else 52
     if d["price_now"] is not None:
-        dr.text((x0 + 14, y + 34), _num(d["price_now"]), font=font(44), fill=BLACK)
-        dr.text((x1 - 14, y + 60), "€/MWh", font=font(15, False), fill=BLACK, anchor="rm")
+        dr.text((x0 + 12, y), _num(d["price_now"]), font=font(big), fill=BLACK)
+        dr.text((x0 + 14, y + big + 4), "€/MWh", font=font(14, False), fill=BLACK)
+        y += big + 26
     else:
-        dr.text((x0 + 14, y + 40), "–", font=font(32), fill=BLACK)
-    if d["bands"]:
-        sx0, sx1, sy = x0 + 14, x1 - 14, bottom - 54
+        dr.text((x0 + 14, y), "–", font=font(32), fill=BLACK)
+        y += 44
+    if d["bands"] and y + 34 <= bottom - 8:
+        sx0, sx1, sy = x0 + 14, x1 - 14, y + 10
         total = sx1 - sx0
         pos = float(sx0)
         colors = {"good": GREEN, "mid": YELLOW, "bad": RED}
@@ -250,7 +256,7 @@ def render(d):
         if strip.get("now_pct") is not None:
             nx = sx0 + total * strip["now_pct"] / 100
             dr.polygon([(nx - 7, sy - 10), (nx + 7, sy - 10), (nx, sy - 1)], fill=BLACK)
-        if strip.get("best"):
+        if strip.get("best") and sy + 46 <= bottom - 4:
             when, price = strip["best"]
             label = _("Teuerste Stunde {time}", time=when.strftime("%H:%M")) if strip["view"] == "erzeuger" \
                 else _("Günstigste Stunde {time}", time=when.strftime("%H:%M"))
@@ -259,26 +265,31 @@ def render(d):
     # --- Budget, Rundgang, Prüfungen ---
     x0, x1 = cols[2]
     y = top + 12
+    if d["budgets"]:
+        dr.text((x0 + 14, y), _("JAHRESBUDGET"), font=font(17), fill=BLACK)
+        y += 24
     for s in d["budgets"]:
-        dr.text((x0 + 14, y), _fit(dr, _("BUDGET {name}", name=s["point"].name.upper()), 15, x1 - x0 - 28), font=font(15), fill=BLACK)
+        dr.text((x0 + 14, y), _fit(dr, s["point"].name, 16, x1 - x0 - 28), font=font(16), fill=BLACK)
         y += 22
         used = s["used_pct"] or 0
         color = RED if s["level"] == "over" else YELLOW if s["level"] == "tight" else GREEN
         bx0, bx1 = x0 + 14, x1 - 14
-        dr.rectangle([bx0, y, bx1, y + 20], outline=BLACK, width=2)
+        dr.rectangle([bx0, y, bx1, y + 18], outline=BLACK, width=2)
         w = round((bx1 - bx0 - 4) * max(0, min(used, 100)) / 100)
         if w:
-            dr.rectangle([bx0 + 2, y + 2, bx0 + 2 + w, y + 18], fill=color)
+            dr.rectangle([bx0 + 2, y + 2, bx0 + 2 + w, y + 16], fill=color)
         mark = bx0 + (bx1 - bx0) * min(s["year_pct"], 100) / 100
-        dr.line([(mark, y - 4), (mark, y + 24)], fill=BLACK, width=3)
-        dr.text((x0 + 14, y + 26), _("{used} % verbraucht · Jahr {year} %", used=_num(used), year=_num(s["year_pct"])),
+        dr.line([(mark, y - 4), (mark, y + 22)], fill=BLACK, width=3)
+        dr.text((x0 + 14, y + 23), _fit(dr, _("{used} % verbraucht · Jahr {year} %", used=_num(used),
+                                                year=_num(s["year_pct"])), 14, x1 - x0 - 28, False),
                 font=font(14, False), fill=BLACK)
-        y += 52
+        y += 44
         x = s.get("extra")
         if x and s["level"] in ("over", "tight"):
-            dr.text((x0 + 14, y - 4), _fit(dr, _("Mehrstrom ab {n} €/MWh", n=_num(x["min_ct"] * 10)), 15, x1 - x0 - 28),
-                    font=font(15), fill=RED if s["level"] == "over" else BLACK)
-            y += 24
+            dr.text((x0 + 14, y), _fit(dr, _("Mehrstrom ab {n} €/MWh", n=_num(x["min_ct"] * 10)), 14, x1 - x0 - 28),
+                    font=font(14), fill=RED if s["level"] == "over" else BLACK)
+            y += 22
+        y += 8
     if d["rounds"]:
         r = d["rounds"]
         dr.text((x0 + 14, y), _("RUNDGANG"), font=font(15), fill=BLACK)

@@ -2975,7 +2975,6 @@ MESSAGES = {
     'STROMPREIS': 'CENA PRĄDU',
     'Teuerste Stunde {time}': 'Najdroższa godzina {time}',
     'Günstigste Stunde {time}': 'Najtańsza godzina {time}',
-    'BUDGET {name}': 'BUDŻET {name}',
     '{used} % verbraucht · Jahr {year} %': '{used} % zużyte · rok {year} %',
     'RUNDGANG': 'OBCHÓD',
     'PRÜFUNGEN': 'PRZEGLĄDY',
@@ -3907,4 +3906,5 @@ MESSAGES = {
     'alle Fotos und Dokumente': 'wszystkie zdjęcia i dokumenty',
     'Die Einstellungen dieser Seite liegen im Sicherungsordner, nicht in der Datenbank – sie bleiben beim Zurückspielen erhalten.': 'Ustawienia tej strony leżą w folderze kopii, nie w bazie danych – zostają zachowane przy przywracaniu.',
     'Sichern, herunterladen, zurückspielen, Netzlaufwerk': 'Kopia, pobieranie, przywracanie, dysk sieciowy',
+    'JAHRESBUDGET': 'BUDŻET ROCZNY',
 }

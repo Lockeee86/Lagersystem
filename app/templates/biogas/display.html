@@ -93,14 +93,14 @@ html, body { margin: 0; height: 100%; background: #12110e; overflow: hidden; cur
         </section>
 
         <section class="card">
-            <span class="label">{{ _("Gasspeicher") }}</span>
             {% if d.gas and d.gas.now is not none %}
+            <span class="label">{{ _("Gasspeicher") }}</span>
             {% set gwarn = d.gas.now >= 90 or d.gas.now <= 10 %}
             <span class="mid {{ 'warn' if gwarn }}" style="font-size: 52px">{{ d.gas.now|num(0) }} %</span>
             <div class="meter"><span class="{{ 'warn' if gwarn }}" style="width: {{ [[d.gas.now, 0]|max, 100]|min }}%"></span></div>
             {% if d.gas.min is not none %}<span class="sub muted" style="margin-top: 4px">{{ _("24 h: {low} bis {high} %", low=d.gas.min|num(0), high=d.gas.max|num(0)) }}</span>{% endif %}
-            {% else %}<span class="mid">–</span>{% endif %}
-            <span class="label" style="margin-top: 14px">{{ _("Strompreis") }}</span>
+            {% endif %}
+            <span class="label" {% if d.gas and d.gas.now is not none %}style="margin-top: 14px"{% endif %}>{{ _("Strompreis") }}</span>
             <span class="mid">{{ d.price_now|num(0) if d.price_now is not none else "–" }} <span class="sub">€/MWh</span></span>
             {% if d.bands %}
             <div class="strip">{% for b in d.bands %}<span class="{{ b.level }}" style="width: {{ b.width }}%"></span>{% endfor %}{% if d.strip.now_pct is not none %}<b style="left: {{ d.strip.now_pct }}%"></b>{% endif %}</div>
