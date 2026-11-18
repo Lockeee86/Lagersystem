@@ -975,6 +975,12 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
+### Widget fürs iPhone (0.124.0)
+- Über die kostenlose App „Scriptable“: Mein Konto → Widget fürs iPhone → Skript laden. Klein (Hühner, Biogas,
+  Aufgaben oder „Jetzt wichtig“ über den Parameter), mittel (Biogas + Hühner + Aufgaben + „n wichtig“), groß
+  (Hinweise, Biogas mit Motor-Kästchen, Hühner, nächste Fütterung, Aufgaben). Daten über einen persönlichen Schlüssel
+  ohne Anmeldung, nach den Rechten des Benutzers, ohne Euro-Beträge und ohne Lager. iOS lädt etwa alle 15–30 Minuten.
+
 ### Hühnerklappe: wann sie abends zu sein soll (0.123.0)
 - Die Dämmerung passt nicht immer (die Klappe schließt per Lichtsensor später). Unter Sensoren → Einrichtung wählbar:
   nach Sonnenuntergang (+ Minuten, Vorgabe 15), feste Uhrzeit oder das Spätere von beiden. Gilt für die Push-Meldung

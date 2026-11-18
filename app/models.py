@@ -115,6 +115,7 @@ class User(UserMixin, db.Model):
     forest_only = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # Geheimer Schlüssel für den Kalender-Abo-Link (leer = noch nie abonniert)
     calendar_token = db.Column(db.String(64), unique=True)
+    widget_token = db.Column(db.String(64), unique=True)          # iPhone-Widget (Scriptable), app/widget.py
     # Kacheln auf der Übersicht: Abweichungen von der Voreinstellung der Rolle (kommagetrennt, siehe tiles.py)
     tiles_add = db.Column(db.String(400), nullable=False, default="", server_default="")
     tiles_hide = db.Column(db.String(400), nullable=False, default="", server_default="")

@@ -114,6 +114,33 @@
         </div>
     </div>
 
+    {# Widget fürs iPhone (Scriptable) – app/widget.py #}
+    <div class="col-12" id="widget">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Widget fürs iPhone") }}</div>
+            <div class="card-body">
+                <p class="small text-body-secondary">{{ _("Die wichtigsten Zahlen direkt auf dem Home-Bildschirm – über die kostenlose App „Scriptable“. Drei Größen; das kleine Widget zeigt wahlweise Hühner, Biogas, Aufgaben oder „Jetzt wichtig“. Antippen öffnet die App.") }}</p>
+                {% if current_user.widget_token %}
+                <ol class="small ps-3 mb-3">
+                    <li>{{ _("„Scriptable“ aus dem App Store laden.") }}</li>
+                    <li>{{ _("Hier auf dem iPhone „Skript laden“ antippen, teilen → „Scriptable“ (oder die Datei in Scriptable öffnen).") }}</li>
+                    <li>{{ _("Auf dem Home-Bildschirm lange drücken → „+“ → Scriptable → Größe wählen → Widget antippen → Skript „Hof-Widget“ wählen.") }}</li>
+                    <li>{{ _("Kleines Widget: bei „Parameter“ huehner, biogas, aufgaben oder wichtig eintragen.") }}</li>
+                </ol>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('widget.script') }}"><i class="bi bi-download me-1"></i>{{ _("Skript laden") }}</a>
+                    <form method="post" action="{{ url_for('widget.token') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="neu" value="1">
+                        <button class="btn btn-outline-secondary btn-sm" data-confirm="{{ _('Neuen Schlüssel erzeugen? Das Widget mit dem alten Skript zeigt dann nichts mehr.') }}">{{ _("Neuer Schlüssel") }}</button></form>
+                </div>
+                <p class="small text-body-secondary mt-2 mb-0">{{ _("Der Schlüssel ist persönlich: wer das Skript hat, sieht deine Kennzahlen und Aufgaben-Titel. Nicht weitergeben – bei Verlust des Handys hier einen neuen erzeugen.") }}</p>
+                {% else %}
+                <form method="post" action="{{ url_for('widget.token') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-primary btn-sm"><i class="bi bi-phone me-1"></i>{{ _("Widget einrichten") }}</button></form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     {# Konto: Sprache und Passwort #}
     <div class="col-lg-6">
         <div class="card shadow-sm h-100">

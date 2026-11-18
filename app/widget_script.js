@@ -1,0 +1,435 @@
+// Hof-Widget für Scriptable (iPhone) – erzeugt vom Lagersystem unter Mein Konto → Widget fürs iPhone.
+// Nicht weitergeben: die Adresse enthält deinen persönlichen Schlüssel.
+//
+// Größen: klein, mittel, groß. Für das kleine Widget unter „Parameter“ eintragen:
+//   huehner | biogas | aufgaben | wichtig   (leer = Hühner, sonst Biogas, sonst Aufgaben)
+
+const DATA_URL = "__WIDGET_URL__";
+const REFRESH_MINUTES = 15;
+
+const C = {
+  bg: Color.dynamic(new Color("#f4f5f0"), new Color("#1d221e")),
+  tile: Color.dynamic(new Color("#e6eae2"), new Color("#262c27")),
+  text: Color.dynamic(new Color("#1b1f1b"), new Color("#f4f5f0")),
+  sub: Color.dynamic(new Color("#5a6359"), new Color("#b9c0b6")),
+  accent: Color.dynamic(new Color("#3f7a2e"), new Color("#a8d08d")),
+  ok: new Color("#3fae5a"),
+  warn: new Color("#e0a020"),
+  bad: new Color("#e5534b"),
+  idle: new Color("#3e5ba8"),
+  unknown: new Color("#7a837a"),
+  badBg: Color.dynamic(new Color("#fbe3e1"), new Color("#3a1f1d")),
+  badPill: Color.dynamic(new Color("#f7d2ce"), new Color("#4a2522")),
+  warnPill: Color.dynamic(new Color("#f6e7c2"), new Color("#3b3320")),
+  badText: Color.dynamic(new Color("#a5281f"), new Color("#ffb1ab")),
+  warnText: Color.dynamic(new Color("#7d5800"), new Color("#f2cf70")),
+};
+
+// --- Daten (mit Zwischenspeicher, falls das Netz gerade fehlt) ---------------------------
+
+async function load() {
+  const fm = FileManager.local();
+  const cache = fm.joinPath(fm.cacheDirectory(), "hof-widget.json");
+  try {
+    const req = new Request(DATA_URL);
+    req.timeoutInterval = 20;
+    const data = await req.loadJSON();
+    if (!data || data.v !== 1) throw new Error("Unerwartete Antwort");
+    fm.writeString(cache, JSON.stringify(data));
+    return { data, offline: false };
+  } catch (e) {
+    if (fm.fileExists(cache)) return { data: JSON.parse(fm.readString(cache)), offline: true };
+    return { data: null, offline: true, error: String(e) };
+  }
+}
+
+// --- Bausteine ------------------------------------------------------------------------------
+
+function txt(stack, value, size, opts = {}) {
+  const t = stack.addText(String(value));
+  t.font = opts.heavy ? Font.heavySystemFont(size) : opts.bold ? Font.boldSystemFont(size)
+    : opts.semibold ? Font.semiboldSystemFont(size) : Font.systemFont(size);
+  t.textColor = opts.color || C.text;
+  t.lineLimit = opts.lines || 1;
+  t.minimumScaleFactor = opts.scale || 0.6;
+  return t;
+}
+
+function symbol(name) {
+  return SFSymbol.named(name) || SFSymbol.named("circle.fill");
+}
+
+function row(stack, spacing = 6) {
+  const r = stack.addStack();
+  r.layoutHorizontally();
+  r.centerAlignContent();
+  r.spacing = spacing;
+  return r;
+}
+
+function column(stack, spacing = 2) {
+  const c = stack.addStack();
+  c.layoutVertically();
+  c.spacing = spacing;
+  return c;
+}
+
+function header(stack, icon, label, color) {
+  const r = row(stack, 5);
+  const img = r.addImage(symbol(icon).image);
+  img.imageSize = new Size(14, 14);
+  img.tintColor = color || C.accent;
+  txt(r, label, 13, { bold: true, color: color || C.accent });
+  return r;
+}
+
+function dot(stack, color, size = 8) {
+  const d = stack.addStack();
+  d.size = new Size(size, size);
+  d.cornerRadius = size / 2;
+  d.backgroundColor = color;
+  return d;
+}
+
+function num(value) {
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function dec(value) {
+  return String(value).replace(".", ",");
+}
+
+function priceBar(stack, b, width, height) {
+  if (!b.bands || !b.bands.length) return;
+  const dc = new DrawContext();
+  dc.size = new Size(width, height);
+  dc.opaque = false;
+  dc.respectScreenScale = true;
+  const colors = { good: C.ok, mid: C.warn, bad: C.bad };
+  let x = 0;
+  for (const band of b.bands) {
+    const w = width * band.width / 100;
+    dc.setFillColor(colors[band.level] || C.unknown);
+    dc.fillRect(new Rect(x, 0, w + 0.5, height));
+    x += w;
+  }
+  if (b.now_pct !== null && b.now_pct !== undefined) {
+    dc.setFillColor(Color.white());
+    dc.fillRect(new Rect(width * b.now_pct / 100 - 1, 0, 2, height));
+  }
+  const img = stack.addImage(dc.getImage());
+  img.imageSize = new Size(width, height);
+  img.cornerRadius = height / 2;
+}
+
+function doorLine(stack, ch, t, size = 13) {
+  if (!ch.door) return;
+  const bad = ch.door_alert || ch.door === "door_half";
+  const r = row(stack, 6);
+  dot(r, bad ? C.bad : ch.door === "door_closed" ? C.ok : C.warn);
+  let label = ch.door_alert ? t.door_alert : t[ch.door];
+  if (ch.door_since && !ch.door_alert) label += " " + t.since + " " + ch.door_since;
+  txt(r, label, size, { semibold: bad, color: bad ? C.badText : C.text });
+}
+
+function motorPills(stack, motors) {
+  const r = row(stack, 4);
+  const colors = { laeuft: C.ok, steht: C.idle, stoerung: C.bad, unbekannt: C.unknown };
+  motors.slice(0, 6).forEach((m, i) => {
+    const p = r.addStack();
+    p.size = new Size(0, 18);
+    p.setPadding(0, 7, 0, 7);
+    p.cornerRadius = 5;
+    p.backgroundColor = colors[m.state] || C.unknown;
+    p.centerAlignContent();
+    txt(p, String(i + 1), 11, { bold: true, color: Color.white() });
+  });
+}
+
+function footer(stack, d, offline) {
+  stack.addSpacer();
+  txt(stack, offline ? d.t.offline + " " + d.stand : d.t.stand + " " + d.stand, 10, { color: C.sub });
+}
+
+// --- Kleines Widget ------------------------------------------------------------------------
+
+function smallChickens(w, d) {
+  const ch = d.chickens;
+  w.url = ch.url;
+  header(w, "bird", d.t.chickens);
+  w.addSpacer();
+  txt(w, ch.eggs, 44, { heavy: true });
+  txt(w, d.t.eggs_today, 13, { color: C.sub });
+  w.addSpacer();
+  doorLine(w, ch, d.t);
+  if (ch.temp !== null && ch.temp !== undefined) txt(w, d.t.stall + " " + dec(ch.temp) + " °C", 12, { color: C.sub });
+}
+
+function smallBiogas(w, d) {
+  const b = d.biogas;
+  w.url = b.url;
+  header(w, "bolt.fill", d.t.biogas);
+  w.addSpacer();
+  const r = row(w, 3);
+  r.bottomAlignContent();
+  txt(r, num(b.kw), 34, { heavy: true });
+  txt(r, "kW", 14, { semibold: true, color: C.sub });
+  txt(w, b.running_text, 12, { color: C.sub });
+  w.addSpacer();
+  if (b.price !== null && b.price !== undefined) {
+    txt(w, d.t.price + " " + b.price + " €/MWh", 12, { color: C.sub });
+    w.addSpacer(4);
+    priceBar(w, b, 130, 7);
+  }
+}
+
+function smallTasks(w, d) {
+  const tk = d.tasks;
+  w.url = tk.url;
+  header(w, "checklist", d.t.tasks);
+  w.addSpacer();
+  txt(w, tk.open, 44, { heavy: true });
+  txt(w, d.t.today_mine, 13, { color: C.sub });
+  w.addSpacer();
+  if (tk.items.length) txt(w, tk.items[0], 13, { lines: 2 });
+}
+
+function smallImportant(w, d, offline) {
+  const items = d.important;
+  if (items.length) {
+    w.backgroundColor = C.badBg;
+    header(w, "exclamationmark.circle.fill", d.t.important, C.badText);
+    w.url = items[0].url || d.url;
+    w.addSpacer();
+    items.slice(0, 3).forEach((it) => {
+      txt(w, it.text, 13, { semibold: it.level === "danger", lines: 2,
+        color: it.level === "danger" ? C.badText : C.warnText });
+      w.addSpacer(5);
+    });
+  } else {
+    header(w, "checkmark.circle.fill", d.t.important);
+    w.url = d.url;
+    w.addSpacer();
+    txt(w, d.t.all_good, 16, { bold: true, lines: 2 });
+  }
+  footer(w, d, offline);
+}
+
+function small(w, d, offline) {
+  const param = (args.widgetParameter || "").trim().toLowerCase();
+  let kind = ["huehner", "biogas", "aufgaben", "wichtig"].includes(param) ? param
+    : d.chickens ? "huehner" : d.biogas ? "biogas" : "aufgaben";
+  if (kind === "huehner" && !d.chickens) kind = "aufgaben";
+  if (kind === "biogas" && !d.biogas) kind = "aufgaben";
+  if (kind === "huehner") smallChickens(w, d);
+  else if (kind === "biogas") smallBiogas(w, d);
+  else if (kind === "wichtig") return smallImportant(w, d, offline);
+  else smallTasks(w, d);
+  if (offline) txt(w, d.t.offline + " " + d.stand, 9, { color: C.sub });
+}
+
+// --- Mittleres Widget ----------------------------------------------------------------------
+
+function medium(w, d, offline) {
+  const body = row(w, 14);
+  body.topAlignContent();
+  const left = column(body, 3);
+  if (d.biogas) {
+    const b = d.biogas;
+    left.url = b.url;
+    header(left, "bolt.fill", d.t.biogas);
+    left.addSpacer();
+    const r = row(left, 3);
+    r.bottomAlignContent();
+    txt(r, num(b.kw), 30, { heavy: true });
+    txt(r, "kW", 13, { semibold: true, color: C.sub });
+    txt(left, b.running_text, 12, { color: C.sub });
+    left.addSpacer();
+    if (b.price !== null && b.price !== undefined) {
+      txt(left, d.t.price + " " + b.price + " €/MWh", 11, { color: C.sub });
+      left.addSpacer(3);
+      priceBar(left, b, 150, 6);
+    }
+  } else if (d.chickens) {
+    left.url = d.chickens.url;
+    header(left, "bird", d.t.chickens);
+    left.addSpacer();
+    txt(left, d.chickens.eggs, 36, { heavy: true });
+    txt(left, d.t.eggs_today, 12, { color: C.sub });
+    left.addSpacer();
+    doorLine(left, d.chickens, d.t, 12);
+  } else {
+    left.url = d.tasks.url;
+    header(left, "checklist", d.t.my_tasks);
+    left.addSpacer();
+    txt(left, d.tasks.open, 36, { heavy: true });
+    txt(left, d.t.today_mine, 12, { color: C.sub });
+  }
+  body.addSpacer();
+  const right = column(body, 6);
+  right.size = new Size(120, 0);
+  if (d.biogas && d.chickens) {
+    const c = column(right, 1);
+    c.url = d.chickens.url;
+    txt(c, d.t.chickens, 11, { color: C.sub });
+    txt(c, d.chickens.eggs + " " + d.t.eggs, 17, { bold: true });
+    doorLine(c, d.chickens, d.t, 11);
+  }
+  if (d.biogas || d.chickens) {
+    const c = column(right, 1);
+    c.url = d.tasks.url;
+    txt(c, d.t.my_tasks, 11, { color: C.sub });
+    txt(c, d.tasks.open + " " + d.t.open, 17, { bold: true });
+  }
+  right.addSpacer();
+  if (d.important.length) {
+    const pill = row(right, 4);
+    pill.url = d.important[0].url || d.url;
+    pill.setPadding(3, 8, 3, 8);
+    pill.cornerRadius = 9;
+    pill.backgroundColor = C.badPill;
+    const img = pill.addImage(symbol("exclamationmark.circle.fill").image);
+    img.imageSize = new Size(11, 11);
+    img.tintColor = C.badText;
+    txt(pill, d.important_text, 11, { semibold: true, color: C.badText });
+  } else {
+    txt(right, (offline ? d.t.offline + " " : d.t.stand + " ") + d.stand, 10, { color: C.sub });
+  }
+}
+
+// --- Großes Widget -------------------------------------------------------------------------
+
+function tile(parent) {
+  const t = column(parent, 4);
+  t.backgroundColor = C.tile;
+  t.cornerRadius = 14;
+  t.setPadding(9, 10, 9, 10);
+  return t;
+}
+
+function large(w, d, offline) {
+  const top = row(w, 6);
+  txt(top, d.farm, 15, { bold: true });
+  top.addSpacer();
+  txt(top, (offline ? d.t.offline + " " : d.t.stand + " ") + d.stand, 11, { color: C.sub });
+  w.addSpacer(8);
+
+  const maxHints = d.biogas && d.chickens ? 2 : 3;
+  d.important.slice(0, maxHints).forEach((it) => {
+    const r = row(w, 6);
+    r.url = it.url || d.url;
+    r.setPadding(5, 9, 5, 9);
+    r.cornerRadius = 10;
+    r.backgroundColor = it.level === "danger" ? C.badPill : C.warnPill;
+    const img = r.addImage(symbol(it.level === "danger" ? "exclamationmark.circle.fill" : "clock.fill").image);
+    img.imageSize = new Size(12, 12);
+    img.tintColor = it.level === "danger" ? C.badText : C.warnText;
+    txt(r, it.text, 12, { semibold: true, color: it.level === "danger" ? C.badText : C.warnText });
+    r.addSpacer();
+    w.addSpacer(4);
+  });
+  if (d.important.length) w.addSpacer(4);
+
+  if (d.biogas || d.chickens) {
+    const tiles = row(w, 8);
+    tiles.topAlignContent();
+    if (d.biogas) {
+      const b = d.biogas;
+      const t = tile(tiles);
+      t.url = b.url;
+      txt(t, d.t.biogas, 11, { bold: true, color: C.accent });
+      const r = row(t, 3);
+      r.bottomAlignContent();
+      txt(r, num(b.kw), 22, { heavy: true });
+      txt(r, "kW", 11, { color: C.sub });
+      motorPills(t, b.motors);
+      if (b.price !== null && b.price !== undefined) {
+        txt(t, b.price + " €/MWh" + (b.best ? " · " + b.best : ""), 10, { color: C.sub });
+      }
+      if (!d.chickens) t.addSpacer();
+    }
+    if (d.chickens) {
+      const ch = d.chickens;
+      const t = tile(tiles);
+      t.url = ch.url;
+      txt(t, d.t.chickens, 11, { bold: true, color: C.accent });
+      const r = row(t, 3);
+      r.bottomAlignContent();
+      txt(r, ch.eggs, 22, { heavy: true });
+      txt(r, d.t.eggs, 11, { color: C.sub });
+      doorLine(t, ch, d.t, 11);
+      const extra = [];
+      if (ch.temp !== null && ch.temp !== undefined) extra.push(d.t.stall + " " + dec(ch.temp) + " °C");
+      extra.push(d.t.stock + " " + ch.stock);
+      txt(t, extra.join(" · "), 10, { color: C.sub });
+    }
+    w.addSpacer(8);
+  }
+
+  if (d.feeding) {
+    const f = row(w, 6);
+    f.url = d.feeding.url;
+    f.setPadding(6, 10, 6, 10);
+    f.cornerRadius = 10;
+    f.backgroundColor = C.tile;
+    const img = f.addImage(symbol("leaf.fill").image);
+    img.imageSize = new Size(12, 12);
+    img.tintColor = C.accent;
+    txt(f, d.feeding.text, 12, { semibold: true });
+    f.addSpacer();
+    w.addSpacer(8);
+  }
+
+  const tk = d.tasks;
+  const head = row(w, 6);
+  head.url = tk.url;
+  txt(head, d.t.my_tasks, 12, { bold: true });
+  head.addSpacer();
+  txt(head, tk.open + " " + d.t.open, 11, { color: C.sub });
+  w.addSpacer(4);
+  tk.items.slice(0, 2).forEach((title) => {
+    const r = row(w, 8);
+    r.url = tk.url;
+    const box = r.addStack();
+    box.size = new Size(13, 13);
+    box.cornerRadius = 4;
+    box.borderWidth = 1.5;
+    box.borderColor = C.sub;
+    txt(r, title, 12);
+    w.addSpacer(3);
+  });
+  if (tk.open > 2) txt(w, "+ " + (tk.open - 2) + " " + d.t.more, 11, { color: C.sub });
+  w.addSpacer();
+}
+
+// --- Start -----------------------------------------------------------------------------------
+
+const { data, offline, error } = await load();
+const w = new ListWidget();
+w.backgroundColor = C.bg;
+w.setPadding(14, 14, 14, 14);
+w.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
+const family = config.widgetFamily || "medium";
+
+if (!data) {
+  header(w, "exclamationmark.triangle.fill", "Hof-Widget", C.badText);
+  w.addSpacer();
+  txt(w, "Keine Verbindung zur App.", 13, { lines: 3 });
+  txt(w, error || "", 10, { color: C.sub, lines: 3 });
+} else {
+  w.url = data.url;
+  if (family === "small") small(w, data, offline);
+  else if (family === "large" || family === "extraLarge") large(w, data, offline);
+  else medium(w, data, offline);
+}
+
+if (config.runsInWidget) {
+  Script.setWidget(w);
+} else if (family === "small") {
+  await w.presentSmall();
+} else if (family === "large") {
+  await w.presentLarge();
+} else {
+  await w.presentMedium();
+}
+Script.complete();

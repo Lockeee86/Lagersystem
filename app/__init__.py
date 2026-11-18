@@ -127,6 +127,8 @@ def create_app(config=None):
     app.register_blueprint(sensors_bp)
     from .assistant_views import bp as assistant_bp
     app.register_blueprint(assistant_bp)
+    from .widget_views import bp as widget_bp
+    app.register_blueprint(widget_bp)
 
     from . import cli
     cli.register(app)

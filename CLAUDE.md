@@ -241,6 +241,13 @@ docker compose up --build -d
   `AssistantQuery` (Werkzeuge, Tokens, `cost_usd`, Fehler als Kennung `ERRORS`), Monatslimit `settings` `assistant_limit_usd`,
   Antwort-Markdown `render_markdown()`. In Tests `assistant._client` ersetzen (kein Netz). Neue Werkzeuge: Personen weglassen und
   `tests/test_assistant.py` (Datenschutz-Test) erweitern
+- `app/widget.py`: iPhone-Widget über die App „Scriptable“ – persönlicher Schlüssel `User.widget_token` (`ensure_token()` /
+  `renew_token()`, wie das Kalender-Abo), `data(user)` = JSON ohne Anmeldung `widget.feed` `/widget/<schlüssel>.json`
+  (Rechte wie in der App: Biogas nur `sees_biogas`, Hühner `sees_chickens`, Fütterung `sees_feeding`; „Jetzt wichtig“
+  über `views._important` ohne Lieferscheine/Bestellungen/Lager; keine Euro-Beträge; Texte in der Sprache des Benutzers
+  unter `t`). Das Skript `app/widget_script.js` (Platzhalter `__WIDGET_URL__`, kein ESLint – Scriptable-API) lädt man
+  unter Mein Konto `#widget` herunter (`widget.script`); Größen klein (Parameter huehner/biogas/aufgaben/wichtig),
+  mittel, groß; Zwischenspeicher bei fehlendem Netz. Neue Felder im JSON: `v` hochzählen, wenn sich etwas ändert
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
   leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
   `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, Hof-Kanal `channel()` / `save_channel()`
