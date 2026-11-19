@@ -57,8 +57,37 @@ function txt(stack, value, size, opts = {}) {
   return t;
 }
 
+// Huhn selbst gezeichnet – SF Symbols kennt kein Huhn (nur einen Vogel)
+const HEN_POLY = [[[14, 64], [6, 24], [20, 34], [25, 20], [36, 44]], [[56, 50], [63, 26], [81, 26], [82, 56]],
+  [[83, 19], [95, 25], [83, 30]]];
+const HEN_ELL = [[16, 40, 64, 44], [60, 12, 24, 24], [59, 6, 10, 10], [66, 2, 10, 10], [73, 6, 10, 10],
+  [77, 31, 8, 11], [39, 80, 6, 13], [53, 80, 6, 13], [33, 90, 14, 5], [47, 90, 14, 5]];
+
+function henImage(color) {
+  const ctx = new DrawContext();
+  ctx.size = new Size(100, 100);
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+  ctx.setFillColor(color);
+  // jede Form einzeln füllen – in einem Pfad könnten Überlappungen Löcher ergeben
+  const fill = (add) => {
+    const path = new Path();
+    add(path);
+    ctx.addPath(path);
+    ctx.fillPath();
+  };
+  for (const poly of HEN_POLY) fill((p) => { p.addLines(poly.map(([x, y]) => new Point(x, y))); p.closeSubpath(); });
+  for (const [x, y, w, h] of HEN_ELL) fill((p) => p.addEllipse(new Rect(x, y, w, h)));
+  return ctx.getImage();
+}
+
+function iconFor(name, color) {
+  if (name === "huhn") return henImage(color);
+  return (SFSymbol.named(name) || SFSymbol.named("circle.fill")).image;
+}
+
 function symbol(name) {
-  return SFSymbol.named(name) || SFSymbol.named("circle.fill");
+  return { image: iconFor(name, W) };
 }
 
 function row(stack, spacing = 6) {
@@ -78,7 +107,7 @@ function column(stack, spacing = 2) {
 
 function header(stack, icon, label, color) {
   const r = row(stack, 5);
-  const img = r.addImage(symbol(icon).image);
+  const img = r.addImage(iconFor(icon, color || C.accent));
   img.imageSize = new Size(14, 14);
   img.tintColor = color || C.accent;
   txt(r, label, 13, { bold: true, color: color || C.accent });
@@ -158,7 +187,7 @@ function footer(stack, d, offline) {
 function smallChickens(w, d) {
   const ch = d.chickens;
   w.url = ch.url;
-  header(w, "bird", d.t.chickens);
+  header(w, "huhn", d.t.chickens);
   w.addSpacer();
   txt(w, ch.eggs, 44, { heavy: true });
   txt(w, d.t.eggs_today, 13, { color: C.sub });
@@ -254,7 +283,7 @@ function medium(w, d, offline) {
     }
   } else if (d.chickens) {
     left.url = d.chickens.url;
-    header(left, "bird", d.t.chickens);
+    header(left, "huhn", d.t.chickens);
     left.addSpacer();
     txt(left, d.chickens.eggs, 36, { heavy: true });
     txt(left, d.t.eggs_today, 12, { color: C.sub });
@@ -423,7 +452,7 @@ function doorText(ch, t) {
 }
 
 function doorIcon(ch) {
-  if (!ch || !ch.door) return "bird";
+  if (!ch || !ch.door) return "huhn";
   return ch.door === "door_closed" ? "lock.fill" : "lock.open.fill";
 }
 
@@ -491,8 +520,8 @@ function lockRectangular(w, d, offline) {
   const ch = d.chickens, b = d.biogas, tk = d.tasks;
   if (kind === "huehner") {
     w.url = ch.url;
-    lockLine(w, "bird", d.t.chickens, { bold: true });
-    lockLine(w, "circle.grid.2x2", ch.eggs + " " + d.t.eggs_today);
+    lockLine(w, "huhn", d.t.chickens, { bold: true });
+    lockLine(w, "oval.portrait.fill", ch.eggs + " " + d.t.eggs_today);
     lockLine(w, doorIcon(ch), [doorText(ch, d.t), ch.temp !== null && ch.temp !== undefined ? dec(ch.temp) + " °C" : null]
       .filter(Boolean).join(" · ") || d.t.no_data);
   } else if (kind === "biogas") {
