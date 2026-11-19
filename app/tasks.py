@@ -121,7 +121,8 @@ def complete_task(task, user, note=None, photo_names=None):
             recurrence=task.recurrence, due_on=next_due(task.due_on, task.recurrence),
             assignees=list(task.assignees), machine_id=task.machine_id, machines=list(task.machines), delivery_id=task.delivery_id,
             warehouse_id=task.warehouse_id, row=task.row, plots=list(task.plots), area=task.area, previous_id=task.id,
-            created_by_id=task.created_by_id,
+            created_by_id=task.created_by_id, project_id=task.project_id, project_position=task.project_position,
+            milestone=task.milestone,
         )
         db.session.add(follow_up)
     db.session.flush()

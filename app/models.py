@@ -281,6 +281,7 @@ def _feeding_active():
 PUSH_TOPICS = {
     "tasks_new": {"label": N_("Neue Aufgabe für mich"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
     "tasks_due": {"label": N_("Morgens: meine Aufgaben für heute"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
+    "project": {"label": N_("Neues in meinen Projekten (Tagebuch)"), "group": N_("Aufgaben"), "who": lambda u: u.can_edit},
     "purchase_new": {"label": N_("Neue Bestellwünsche und an mich weitergegebene"), "group": N_("Bestellungen"),
                      "who": lambda u: u.is_buyer},
     "purchase_status": {"label": N_("Neuigkeiten zu meinen Bestellwünschen (bestellt, geliefert …)"),
@@ -1295,6 +1296,7 @@ class Photo(db.Model):
     field_note_id = db.Column(db.Integer, db.ForeignKey("field_notes.id"), index=True)
     check_id = db.Column(db.Integer, db.ForeignKey("station_checks.id", ondelete="CASCADE"), index=True)
     forest_tree_id = db.Column(db.Integer, db.ForeignKey("forest_trees.id", ondelete="CASCADE"), index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     filename = db.Column(db.String(80), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -1308,6 +1310,7 @@ class Photo(db.Model):
     delivery = db.relationship("Delivery", back_populates="photos")
     field_note = db.relationship("FieldNote", back_populates="photos")
     forest_tree = db.relationship("ForestTree", back_populates="photos")
+    project = db.relationship("Project", back_populates="photos")
     user = db.relationship("User")
 
 
@@ -1373,6 +1376,10 @@ class Task(db.Model):
     # Tagesplan: eingeplant für einen Tag und eine Person (die Zuteilung); leer = offen
     plan_day = db.Column(db.Date, index=True)
     plan_position = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    # Schritt eines Projekts (projects.py): Reihenfolge und Meilenstein
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="SET NULL"), index=True)
+    project_position = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    milestone = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     assignees = db.relationship("User", secondary=task_assignees, order_by="User.username")
     machine = db.relationship("Machine")
@@ -1438,6 +1445,101 @@ class Task(db.Model):
         if not (user and user.is_authenticated and user.can_edit):
             return False
         return bool(user.is_planner or not self.assignees or user in self.assignees)
+
+
+# --- Projekte ---------------------------------------------------------------
+
+PROJECT_STATUSES = {
+    "idee": (N_("Idee"), "secondary"),
+    "laeuft": (N_("Läuft"), "info"),
+    "pausiert": (N_("Pausiert"), "warning"),
+    "fertig": (N_("Fertig"), "success"),
+}
+PROJECT_ACTIVE = ("idee", "laeuft", "pausiert")
+
+project_members = db.Table(
+    "project_members",
+    db.Column("project_id", db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
+
+
+class Project(db.Model):
+    """Vorhaben über Wochen oder Monate (neue Software, neuer Betriebszweig …). Die Schritte sind normale
+    Aufgaben (`Task.project_id`) – sie erscheinen wie gewohnt im Tagesplan und unter „Meine Aufgaben“."""
+    __tablename__ = "projects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text)
+    status = db.Column(db.String(12), nullable=False, default="laeuft", index=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), index=True)   # verantwortlich
+    start_on = db.Column(db.Date)
+    target_on = db.Column(db.Date)                       # Zieldatum
+    finished_on = db.Column(db.Date)
+    budget = db.Column(db.Numeric(10, 2))                # nur für Admins sichtbar
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    owner = db.relationship("User", foreign_keys=[owner_id])
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+    members = db.relationship("User", secondary=project_members, order_by="User.username")
+    steps = db.relationship("Task", backref="project", order_by=lambda: [Task.project_position, Task.id])
+    entries = db.relationship("ProjectEntry", back_populates="project", order_by="ProjectEntry.created_at.desc()",
+                              cascade="all, delete-orphan")
+    photos = db.relationship("Photo", back_populates="project", order_by="Photo.id", cascade="all, delete-orphan")
+
+    @property
+    def is_active(self):
+        return self.status in PROJECT_ACTIVE
+
+    @property
+    def status_label(self):
+        return _(PROJECT_STATUSES.get(self.status, (self.status,))[0])
+
+    @property
+    def status_color(self):
+        return PROJECT_STATUSES.get(self.status, ("", "secondary"))[1]
+
+    @property
+    def people(self):
+        """Verantwortlich + Beteiligte (ohne doppelte)."""
+        out = [self.owner] if self.owner else []
+        return out + [u for u in self.members if u not in out]
+
+
+class ProjectEntry(db.Model):
+    """Eintrag im Projekt-Tagebuch; optional mit Betrag (Kosten ohne Bestellwunsch, nur Admins)."""
+    __tablename__ = "project_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = db.Column(db.Text, nullable=False)
+    amount = db.Column(db.Numeric(10, 2))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    project = db.relationship("Project", back_populates="entries")
+    user = db.relationship("User")
+
+
+class ProjectDocument(db.Model):
+    """Datei am Projekt (Angebot, Plan, Genehmigung) – liegt wie alle Dokumente unter `UPLOAD_DIR/dokumente/`."""
+    __tablename__ = "project_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = db.Column(db.String(150), nullable=False)
+    filename = db.Column(db.String(80), nullable=False, unique=True)
+    original_name = db.Column(db.String(200))
+    mimetype = db.Column(db.String(50), nullable=False)
+    size = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    project = db.relationship("Project", backref=db.backref("documents", order_by="ProjectDocument.created_at",
+                                                            cascade="all, delete-orphan"))
+    user = db.relationship("User")
 
 
 # --- Bestellungen -----------------------------------------------------------

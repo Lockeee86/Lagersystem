@@ -100,7 +100,7 @@ def test_new_section_after_saved_default(db, seed):
     worker = seed["worker"]
     Setting.put("home_mitarbeiter", "wichtig,aufgaben")                  # gespeichert vor dem Bereich Hühner
     db.session.commit()
-    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "huehner"]
+    assert tiles.section_default("mitarbeiter") == ["wichtig", "aufgaben", "projekte", "huehner"]
     assert "huehner" not in tiles.sections_for(worker)                    # nur mit Freischaltung
     worker.chickens = True
     assert "huehner" in tiles.sections_for(worker)

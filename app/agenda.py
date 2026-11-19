@@ -259,9 +259,12 @@ def events(start, end, today=None, user=None, mine_only=False):
     if user is None or user.sees_feeding:   # Fütterungsplan der Biogasanlage
         from . import plant_feeding
         items += plant_feeding.calendar_events(start, end, _event, user)
+    if user is None or not user.restricted:                 # Zieldaten der Projekte
+        from . import projects
+        items += projects.calendar_events(start, end, _event, user)
     if mine_only:
         items = [e for e in items if e["mine"] or e["kind"] == "feiertag"]
-    order = {"feiertag": 0, "fuetterung": 1, "beisetzung": 1, "baumauswahl": 1, "eintrag": 1, "aufgabe": 2, "wartung": 3, "lieferung": 4, "wartezeit": 5}
+    order = {"feiertag": 0, "fuetterung": 1, "beisetzung": 1, "baumauswahl": 1, "eintrag": 1, "projekt": 1, "aufgabe": 2, "wartung": 3, "lieferung": 4, "wartezeit": 5}
     items.sort(key=lambda e: (e["date"], order.get(e["kind"], 9), e["time"] is not None, e["time"] or 0, e["title"]))
     return items, undated
 

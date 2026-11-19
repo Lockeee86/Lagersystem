@@ -1,0 +1,66 @@
+{# Kachel eines Projekts (Liste und Startseite) #}
+{% macro project_card(c, today, compact=false) %}
+{% set p = c.project %}
+<a class="project-card {{ 'compact' if compact }}" href="{{ url_for('projects.project_detail', project_id=p.id) }}">
+    <div class="d-flex align-items-start gap-2">
+        <span class="fw-semibold flex-grow-1 min-w-0 project-name">{{ p.name }}</span>
+        {% if c.health in ("bad", "warn") %}<span class="badge text-bg-{{ 'danger' if c.health == 'bad' else 'warning' }}" title="{{ c.reason }}"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ c.reason }}</span>
+        {% elif p.status != "laeuft" %}<span class="badge text-bg-{{ p.status_color }}">{{ p.status_label }}</span>{% endif %}
+    </div>
+    <div class="small text-body-secondary project-meta">
+        {% if p.owner %}<span><i class="bi bi-person"></i> {{ p.owner.name }}</span>{% endif %}
+        {% if p.status == "fertig" and p.finished_on %}<span><i class="bi bi-flag-fill"></i> {{ _("fertig {date}", date=p.finished_on|date) }}</span>
+        {% elif p.target_on %}<span class="{{ 'text-danger fw-semibold' if p.target_on < today and p.is_active }}"><i class="bi bi-flag"></i> {{ _("Ziel {date}", date=p.target_on|date) }}</span>{% endif %}
+    </div>
+    {% if c.progress.total %}
+    <div class="project-progress" title="{{ _('{done} von {total} Schritten erledigt', done=c.progress.done, total=c.progress.total) }}">
+        <span class="bar"><span style="width: {{ c.progress.pct }}%"></span></span>
+        <span class="small text-body-secondary text-nowrap">{{ c.progress.done }}/{{ c.progress.total }}</span>
+    </div>
+    {% endif %}
+    {% if c.next and p.status != "fertig" %}
+    <div class="small project-next"><span class="text-body-secondary">{{ _("Als Nächstes:") }}</span> {{ c.next.title }}{% if c.next.due_on %} <span class="{{ 'text-danger' if c.next.due_on < today else 'text-body-secondary' }}">· {{ c.next.due_on|date }}</span>{% endif %}</div>
+    {% elif not c.progress.total and not compact %}
+    <div class="small text-body-secondary">{{ _("Noch keine Schritte.") }}</div>
+    {% endif %}
+</a>
+{% endmacro %}
+
+{# Formular Projekt anlegen / bearbeiten #}
+{% macro project_form(action, statuses, users, project=none) %}
+<form method="post" action="{{ action }}" class="row g-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% set pre = "e_" if project else "n_" %}
+    <div class="col-12"><label class="form-label small mb-1" for="{{ pre }}name">{{ _("Name") }}</label>
+        <input class="form-control" id="{{ pre }}name" name="name" maxlength="150" required value="{{ project.name if project else '' }}" placeholder="{{ _('z. B. Neue Waagensoftware') }}"></div>
+    <div class="col-12"><label class="form-label small mb-1" for="{{ pre }}desc">{{ _("Ziel / Beschreibung") }}</label>
+        <textarea class="form-control" id="{{ pre }}desc" name="description" rows="3" maxlength="4000">{{ project.description or '' if project else '' }}</textarea></div>
+    <div class="col-6"><label class="form-label small mb-1" for="{{ pre }}start">{{ _("Start") }}</label>
+        <input class="form-control" type="date" id="{{ pre }}start" name="start_on" value="{{ project.start_on.isoformat() if project and project.start_on else '' }}"></div>
+    <div class="col-6"><label class="form-label small mb-1" for="{{ pre }}target">{{ _("Zieldatum") }}</label>
+        <input class="form-control" type="date" id="{{ pre }}target" name="target_on" value="{{ project.target_on.isoformat() if project and project.target_on else '' }}"></div>
+    <div class="col-6"><label class="form-label small mb-1" for="{{ pre }}status">{{ _("Status") }}</label>
+        <select class="form-select" id="{{ pre }}status" name="status">
+            {% for key, (label, color) in statuses.items() %}<option value="{{ key }}" {% if (project and project.status == key) or (not project and key == 'laeuft') %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+        </select></div>
+    <div class="col-6"><label class="form-label small mb-1" for="{{ pre }}owner">{{ _("Verantwortlich") }}</label>
+        <select class="form-select" id="{{ pre }}owner" name="owner_id">
+            <option value="">{{ _("– niemand –") }}</option>
+            {% for u in users %}<option value="{{ u.id }}" {% if (project and project.owner_id == u.id) or (not project and u.id == current_user.id) %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+        </select></div>
+    {% if current_user.is_admin %}
+    <div class="col-6"><label class="form-label small mb-1" for="{{ pre }}budget">{{ _("Budget (€, nur Admins)") }}</label>
+        <input class="form-control" id="{{ pre }}budget" name="budget" inputmode="decimal" value="{{ project.budget|num(2) if project and project.budget is not none else '' }}"></div>
+    {% endif %}
+    <div class="col-12">
+        <div class="form-label small mb-1">{{ _("Beteiligt") }} <span class="text-body-secondary">{{ _("(bekommen Neuigkeiten aus dem Tagebuch)") }}</span></div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for u in users %}
+            <input type="checkbox" class="btn-check" name="member_ids" value="{{ u.id }}" id="{{ pre }}m{{ u.id }}" {% if project and u in project.members %}checked{% endif %}>
+            <label class="btn btn-sm btn-outline-primary" for="{{ pre }}m{{ u.id }}">{{ u.name }}</label>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-12"><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ _("Speichern") if project else _("Projekt anlegen") }}</button></div>
+</form>
+{% endmacro %}

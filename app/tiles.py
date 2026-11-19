@@ -106,6 +106,8 @@ SECTIONS = {
     "wichtig": section(N_("Jetzt wichtig"), "bi-exclamation-circle"),
     "plan": section(N_("Meine Aufgaben heute"), "bi-check2-square", ROLE_MITARBEITER),
     "uebergabe": section(N_("Übergabe"), "bi-chat-square-text"),
+    "projekte": section(N_("Meine Projekte"), "bi-kanban", hint=N_("Laufende Projekte, in denen du mitarbeitest"),
+                        show=lambda u: not u.restricted),
     "aufgaben": section(N_("Offen für alle"), "bi-inbox", ROLE_MITARBEITER),
     "bhkw": section(N_("BHKW"), "bi-lightning-charge", hint=N_("Motoren, Leistung, nächste Wartung"),
                     show=lambda u: u.sees_biogas),
@@ -119,8 +121,8 @@ SECTIONS = {
 # Bewusst kurz: was die Rolle täglich braucht. Alles Weitere steht unter „Alle Bereiche anzeigen“ (`more_for`)
 # und lässt sich unter „Startseite anpassen“ dauerhaft dazunehmen.
 SECTION_DEFAULTS = {
-    ROLE_ADMIN: ["kennzahlen", "wichtig", "plan", "uebergabe", "aufgaben", "woche", "wetter"],
-    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "aufgaben", "huehner", "wetter"],
+    ROLE_ADMIN: ["kennzahlen", "wichtig", "plan", "uebergabe", "projekte", "aufgaben", "woche", "wetter"],
+    ROLE_MITARBEITER: ["wichtig", "plan", "uebergabe", "projekte", "aufgaben", "huehner", "wetter"],
     ROLE_BETRACHTER: ["kennzahlen", "wichtig", "uebergabe", "woche", "wetter"],
 }
 

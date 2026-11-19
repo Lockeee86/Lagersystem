@@ -13,6 +13,7 @@
             {% if task.plan_day %}<a href="{{ url_for('team.day_plan', datum=task.plan_day.isoformat()) }}"><i class="bi bi-calendar-check me-1"></i>{{ _("Eingeplant für {date}", date=task.plan_day|weekday ~ " " ~ task.plan_day|date) }}{% if task.plan_user %} · {{ task.plan_user.name }}{% endif %}</a>{% if task.due_on %} · {% endif %}{% endif %}
             {% if task.due_on %}{{ _("Fällig am {date}", date=task.due_on|weekday ~ " " ~ task.due_on|date) }}{% elif not task.plan_day %}{{ _("Ohne Termin") }}{% endif %}
             {% if task.recurrence %} · <i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}{% endif %}
+            {% if task.project %} · <a href="{{ url_for('projects.project_detail', project_id=task.project_id) }}#schritte"><i class="bi bi-kanban me-1"></i>{{ _("Projekt: {name}", name=task.project.name) }}</a>{% if task.milestone %} <i class="bi bi-flag-fill text-primary" title="{{ _('Meilenstein') }}"></i>{% endif %}{% endif %}
         </p>
     </div>
     <a class="btn btn-outline-secondary" href="{{ url_for('tasks.task_list') }}"><i class="bi bi-list-check me-1"></i>{{ _("Alle Aufgaben") }}</a>
@@ -126,7 +127,7 @@
         <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-pencil me-1"></i>{{ _("Bearbeiten") }}</div>
             <div class="card-body">
-                {{ task_form(url_for('tasks.task_edit', task_id=task.id), task=task, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses, plots=plots) }}
+                {{ task_form(url_for('tasks.task_edit', task_id=task.id), task=task, users=users, recurrences=recurrences, machines=machines, deliveries=deliveries, warehouses=warehouses, plots=plots, projects=projects) }}
             </div>
         </div>
         <div class="d-flex gap-2">

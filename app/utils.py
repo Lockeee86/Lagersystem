@@ -1,3 +1,4 @@
+import re
 import threading
 import time
 from datetime import date, datetime, UTC
@@ -113,6 +114,8 @@ def form_money(name):
         return None
     if "," in raw:
         raw = raw.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(\.\d{3})+", raw):       # „10.000“ = zehntausend, nicht zehn
+        raw = raw.replace(".", "")
     try:
         value = Decimal(raw).quantize(Decimal("0.01"))
     except InvalidOperation:

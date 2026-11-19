@@ -61,7 +61,7 @@ def test_subscribe_and_settings(app, as_worker, db, seed):
     assert "Android · Chrome" in html and 'value="fault"' in html and 'value="purchase_new"' not in html
     assert 'value="frost"' in html and "Wetter-Warnungen" in html
     as_worker.post("/konto/push/themen", data={"topic": ["tasks_new", "tasks_due", "frost"]})
-    assert set(seed["worker"].push_off.split(",")) == {"purchase_status", "fault", "maintenance", "day_plan"}
+    assert set(seed["worker"].push_off.split(",")) == {"purchase_status", "fault", "maintenance", "day_plan", "project"}
     assert seed["worker"].push_on == "frost"
 
     as_worker.post("/konto/push/test")

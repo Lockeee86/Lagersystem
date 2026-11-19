@@ -11,12 +11,13 @@ from sqlalchemy.orm import Session
 # Tabelle → Thema (in `base.html` steht je Seite, auf welche Themen sie hört: <main data-live="…">)
 TOPICS = {"tasks": "tasks", "handovers": "handover", "feeding_shifts": "feeding", "feeding_days": "feeding",
           "feeding_amounts": "feeding",
-          "purchase_requests": "purchases"}
+          "purchase_requests": "purchases", "projects": "projects", "project_entries": "projects"}
 # Seite → Themen ("movement" = Kistenbewegungen, wie bisher)
 PAGES = {
     "main.dashboard": "movement,tasks,feeding,handover,purchases",
     "team.day_plan": "tasks", "team.open_page": "tasks", "tasks.task_list": "tasks",
     "team.handovers": "handover", "biogas.feeding_page": "feeding", "purchases.purchase_list": "purchases",
+    "projects.project_list": "projects,tasks",
 }
 
 _lock = threading.Lock()

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "macros.html" import fold_card, empty_state %}
+{% from "projects/_macros.html" import project_card, project_form with context %}
+{% block title %}{{ _("Projekte") }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ _("Projekte") }}</h1>
+        <p class="text-body-secondary mb-0">{{ _("Vorhaben über Wochen oder Monate – die Schritte landen als Aufgaben im Tagesplan.") }}</p>
+    </div>
+</div>
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item"><a class="nav-link {{ 'active' if not finished }}" href="{{ url_for('projects.project_list') }}">{{ _("Aktiv") }} <span class="badge text-bg-secondary">{{ counts.active }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {{ 'active' if finished }}" href="{{ url_for('projects.project_list', fertig=1) }}">{{ _("Fertig") }} <span class="badge text-bg-secondary">{{ counts.finished }}</span></a></li>
+</ul>
+<div class="row g-3">
+<div class="{{ 'col-lg-8' if can_create else 'col-12' }}">
+    {% if cards %}
+    <div class="project-grid">
+        {% for c in cards %}{{ project_card(c, today) }}{% endfor %}
+    </div>
+    {% elif finished %}
+    {{ empty_state("bi-flag", _("Noch kein Projekt abgeschlossen.")) }}
+    {% else %}
+    {{ empty_state("bi-kanban", _("Noch keine Projekte."), _("Zum Beispiel: neue Waagensoftware, neuer Stall, Umbau der Halle."),
+                   collapse="#neu-body" if can_create else none, label=_("Projekt anlegen")) }}
+    {% endif %}
+</div>
+{% if can_create %}
+<div class="col-lg-4 order-first order-lg-last">
+    {% call fold_card("neu", "bi-plus-lg", _("Neues Projekt")) %}
+        <div class="card-body">{{ project_form(url_for('projects.project_create'), statuses, users) }}</div>
+    {% endcall %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

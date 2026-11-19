@@ -1759,3 +1759,22 @@ input.form-control[type="date"], input.form-control[type="time"], input.form-con
 }
 
 .fault-task { color: var(--st-info); }
+
+/* --- Projekte ---------------------------------------------------------------------- */
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .75rem; }
+.project-card { display: flex; flex-direction: column; gap: .45rem; padding: .9rem 1rem; border-radius: var(--r-lg);
+    background: var(--surface); border: 1px solid var(--line); color: inherit; text-decoration: none;
+    box-shadow: 0 1px 2px rgba(60, 45, 20, .06); min-width: 0; }
+.project-card:hover, .project-card:focus-visible { border-color: var(--brand); color: inherit; }
+.project-card.compact { padding: .7rem .85rem; gap: .35rem; }
+.project-name { overflow-wrap: anywhere; }
+.project-meta { display: flex; flex-wrap: wrap; column-gap: .9rem; row-gap: .15rem; }
+.project-progress { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.project-progress .bar { flex: 1 1 8rem; height: .5rem; border-radius: var(--r-pill); background: var(--line); overflow: hidden; }
+.project-progress .bar > span { display: block; height: 100%; background: var(--brand); border-radius: var(--r-pill); }
+.project-progress .bar.over > span { background: var(--st-bad); }
+.project-progress.big .bar { height: .7rem; }
+.project-next { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-goal, .project-entry { white-space: pre-line; overflow-wrap: anywhere; }
+.project-goal { max-width: 60rem; }
+.project-steps .step-move .bi { font-size: var(--fs-lg); }

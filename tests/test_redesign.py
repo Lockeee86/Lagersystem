@@ -21,13 +21,13 @@ def test_menu_groups(app, db, seed, as_admin):
 
 def test_short_home_and_show_all(app, db, seed, as_worker):
     worker = seed["worker"]
-    assert tiles.sections_for(worker) == ["wichtig", "plan", "uebergabe", "aufgaben", "wetter"]
+    assert tiles.sections_for(worker) == ["wichtig", "plan", "uebergabe", "projekte", "aufgaben", "wetter"]
     assert "bestand" in tiles.more_for(worker) and "plan" not in tiles.more_for(worker)
     home = as_worker.get("/").get_data(as_text=True)
     assert "Alle Bereiche anzeigen" in home and "home-bestand" not in home
     alle = as_worker.get("/?alle=1").get_data(as_text=True)
     assert "home-bestand" in alle and "Weniger anzeigen" in alle and "Dauerhaft anpassen" in alle
-    assert tiles.sections_for(worker) == ["wichtig", "plan", "uebergabe", "aufgaben", "wetter"]      # nichts gespeichert
+    assert tiles.sections_for(worker) == ["wichtig", "plan", "uebergabe", "projekte", "aufgaben", "wetter"]      # nichts gespeichert
 
 
 def test_account_two_parts_and_advanced(app, db, seed, as_worker):

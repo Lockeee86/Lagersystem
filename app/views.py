@@ -268,6 +268,7 @@ def dashboard():
         quick_tiles=tiles.quick(tiles.for_user(current_user)), tile_catalog=tiles.CATALOG,
         week=_week(mine_only=week_mine),
         handovers=team.open_handovers(),
+        my_projects=_my_projects(today) if "projekte" in show else [],
         my_today=my_today, my_upcoming=team.my_upcoming(current_user, today) if current_user.can_edit and not my_today else [],
         my_feeding=my_feeding,
         open_for_all=[t for t in team.open_tasks(today, current_user, today) if not t.assignees]
@@ -285,6 +286,11 @@ def dashboard():
     return response
 
 
+def _my_projects(today):
+    from . import projects
+    return projects.mine(current_user, today)
+
+
 def _status(endpoint):
     """Kurzer Stand je Unterpunkt für die Bereichsseiten am Handy: (Text, Warnung?) oder (None, False)."""
     if endpoint == "main.warehouse_map":
@@ -298,6 +304,10 @@ def _status(endpoint):
         if not rows:
             return _("Getreide, Raps … in Boxen und Big Bags"), False
         return (" · ".join(f"{ware} {fmt_kg(kg)}" for ware, kg in list(per_ware.items())[:2]) or _("leer")), False
+    if endpoint == "projects.project_list":
+        from . import projects
+        n = projects.counts()["active"]
+        return (ngettext("{n} aktives Projekt", "{n} aktive Projekte", n) if n else _("Vorhaben über Wochen und Monate")), False
     if endpoint == "main.history":
         return _("Ein- und Auslagern, Änderungen"), False
     if endpoint == "main.labels":
@@ -1357,6 +1367,12 @@ def _photo_owner(kind, owner_id):
         if not current_user.sees_forest:
             abort(403)
         return tree, url_for("forest.tree_detail", key=tree.key) + "#fotos"
+    if kind == "projekt":
+        from .models import Project
+        project = db.session.get(Project, owner_id) or abort(404)
+        if current_user.restricted:
+            abort(403)
+        return project, url_for("projects.project_detail", project_id=project.id) + "#fotos"
     if kind == "schlag":
         plot = db.session.get(Plot, owner_id) or abort(404)
         year = form_int("year", minimum=1990, maximum=2100) or abort(400)

@@ -135,6 +135,16 @@ docker compose up --build -d
 - `app/tasks.py`: Aufgaben (Zuteilung, Fälligkeit, Wiederholung `next_due`; mehrere Maschinen `Task.machines` /
   `machine_list` / `set_machines()` – `machine_id` = die erste, für Maschinenseite/Wartung/Störung), committet nicht;
   `app/task_views.py` (Blueprint `tasks`). Makros aus `tasks/_macros.html` mit `with context` importieren.
+- `app/projects.py`: Projekte (`Project`, Status `PROJECT_STATUSES`, Verantwortlicher `owner`, Beteiligte `members`,
+  Zieldatum, Budget nur Admin). Schritte = Aufgaben (`Task.project_id`, Reihenfolge `project_position`, `milestone`;
+  `add_step()` / `move_step()` / `link_task()` – im Aufgaben-Formular Auswahl `project_id`, Wiederholung behält das
+  Projekt), Fortschritt `progress()` / `next_step()` / Ampel `health()`, Tagebuch `ProjectEntry` (`add_entry()`, Betrag nur
+  Admin, Push `push.project_entry` Thema `project`), Dateien `ProjectDocument` (`uploads.save_document(office=True)`),
+  Fotos `Photo.project_id` (Fotoleiste `kind="projekt"`), Kosten `costs()` = Bestellwünsche der Schritte + Beträge,
+  Startseite `mine()` (Bereich `projekte`), Kalender `calendar_events()` (Zieldatum). Rechte: anlegen `can_create()`
+  (Admin/Tagesplan-Pfleger), pflegen `can_manage()` (+ Verantwortlicher), Tagebuch/Dateien `can_write()`.
+  `delete_project()` lässt die Schritte als Aufgaben stehen; committet nicht. `app/project_views.py` (Blueprint
+  `projects`, `/projekte`, `/projekt/<id>` mit Reitern Schritte/Tagebuch/Dateien/Kosten/Bearbeiten), Vorlagen `projects/`
 - `app/fields.py`: Schlagkartei (KML-Import mit Abgleich, Anbaujahre `PlotYear`, Ertrag t/ha), committet nicht;
   `app/fields_views.py` (Blueprint `fields`), `app/static/js/schlagkarte.js` (Umrisse als SVG, Nullpunkt in der Kartenmitte `lon0`/`lat0`; eigener Standort
   `map.locate()` + Knopf `Schlagkarte.locateButton(map, btn, texte)` auf Schlag- und Waldkarte; Hinführen: Option `target`

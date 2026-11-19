@@ -129,6 +129,8 @@ def create_app(config=None):
     app.register_blueprint(assistant_bp)
     from .widget_views import bp as widget_bp
     app.register_blueprint(widget_bp)
+    from .project_views import bp as projects_bp
+    app.register_blueprint(projects_bp)
 
     from . import cli
     cli.register(app)

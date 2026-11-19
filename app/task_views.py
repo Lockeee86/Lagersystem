@@ -4,7 +4,7 @@ from datetime import date
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from . import machines, push, tasks, uploads
+from . import machines, projects, push, tasks, uploads
 from .extensions import db
 from .machines import visible as visible_machines
 from .i18n import gettext as _
@@ -28,7 +28,7 @@ def _choices(task=None):
     """Auswahllisten für das Formular (aktive Maschinen, offene Lieferscheine + der bisherige Bezug)."""
     if current_user.restricted:                        # kein Bezug zu Maschinen, Lieferscheinen, Schlägen, Lager
         return dict(users=tasks.request_recipients(), recurrences=RECURRENCES, machines=[], deliveries=[],
-                    warehouses=[], plots=[])
+                    warehouses=[], plots=[], projects=[])
     machines = visible_machines(Machine.query, current_user).filter(
         (Machine.active.is_(True)) | Machine.id.in_([m.id for m in task.machine_list] if task else []))
     deliveries = Delivery.query.filter((Delivery.status == DELIVERY_OPEN) |
@@ -40,7 +40,17 @@ def _choices(task=None):
         warehouses=Warehouse.query.order_by(Warehouse.name).all(),
         plots=Plot.query.filter((Plot.active.is_(True)) | Plot.id.in_([p.id for p in task.plots] if task else []))
         .order_by(Plot.name).all(),
+        projects=projects.choices(task),
     )
+
+
+def _project_from_form():
+    """Projekt aus dem Formular (leer = keins); None-Tupel, wenn das Feld fehlt."""
+    if "project_id" not in request.form:
+        return False, None
+    from .models import Project
+    pid = form_int("project_id")
+    return True, db.session.get(Project, pid) if pid else None
 
 
 def _fields_from_form():
@@ -92,6 +102,7 @@ def task_list():
         "plot_ids": request.args.getlist("schlag", type=int),
         "area": current_user.only_area or (request.args.get("bereich")
                                            if request.args.get("bereich") in ("huehner", "wald") else None),
+        "project_id": request.args.get("projekt", type=int),
     }
     if request.args.get("titel"):                      # z. B. „Halle 2 lüften“ aus dem Lagerklima
         prefill.update(title=request.args["titel"].strip()[:200], important=True, due_on=date.today())
@@ -131,6 +142,9 @@ def task_create():
             task.area = current_user.only_area
         elif request.form.get("area") in ("huehner", "wald"):
             task.area = request.form["area"]
+        given, project = _project_from_form()
+        if given and project is not None and not current_user.restricted:
+            projects.link_task(task, project)
         db.session.commit()
         push.task_assigned(task, current_user)
         flash(_("Aufgabe „{title}“ angelegt.", title=task.title), "success")
@@ -160,6 +174,9 @@ def task_edit(task_id):
     before = set(task.assignees)
     try:
         tasks.apply_fields(task, **_fields_from_form())
+        given, project = _project_from_form()
+        if given:
+            projects.link_task(task, project)
         db.session.commit()
         added = [u for u in task.assignees if u not in before]
         if added and not task.is_done:

@@ -36,6 +36,7 @@ AREAS = [
         item("main.dashboard", N_("Heute"), "bi-sun"),
         item("team.day_plan", N_("Aufgaben"), "bi-list-check", endpoints=("team.open_page",), prefixes=("tasks.",),
              badge="tasks"),
+        item("projects.project_list", N_("Projekte"), "bi-kanban", prefixes=("projects.",)),
         item("team.handovers", N_("Übergabe"), "bi-chat-square-text"),
         item("purchases.purchase_list", N_("Bestellungen"), "bi-box-seam", prefixes=("purchases.",), badge="purchases"),
         item("agenda.month", N_("Kalender"), "bi-calendar3", prefixes=("agenda.",)),
@@ -403,6 +404,7 @@ SPLIT = {
     "sales.deliveries": r"^/lieferschein/\d+$",
     "purchases.purchase_list": r"^/bestellung/\d+$",
     "tasks.task_list": r"^/aufgabe/\d+$",
+    "projects.project_list": r"^/projekt/\d+$",
     "forest.trees": r"^/wald/baum/[^/]+$",
     "forest.contracts_page": r"^/wald/vertrag/\d+$",
 }

@@ -975,6 +975,19 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
   das Etikett wird dort gestaltet, die Liste ist die Datenquelle. Rohlinge: Kisten vorab anlegen, Bereich exportieren.
 - 0.119.1: Die Liste gibt es auch für Schüttlager, Rundgang-Stationen, Maschinen und Bäume (Spalte „Name“).
 
+### Projekte (0.127.0)
+- Übersicht → Projekte: Vorhaben über Wochen oder Monate (neue Software, Stallbau, Hallenumbau) mit Ziel,
+  Verantwortlichem, Beteiligten, Start/Zieldatum und Status (Idee, läuft, pausiert, fertig).
+- Schritte sind normale Aufgaben – sie stehen im Tagesplan, unter „Meine Aufgaben“, im Kalender und im Widget; auf der
+  Projektseite in Reihenfolge (verschiebbar), mit Meilensteinen und Fortschrittsbalken. Ampel: Zieldatum überschritten,
+  Schritte überfällig, Ziel bald bei viel Offenem.
+- Tagebuch (Beteiligte bekommen eine Nachricht), Dateien (PDF, Bilder, Word, Excel) und Fotos.
+- Kosten nur für Admins: Budget, Bestellwünsche aus den Schritten, Beträge im Tagebuch.
+- Startseite „Meine Projekte“ (verantwortlich, beteiligt oder mit offenem Schritt), Zieldatum im Kalender.
+- Anlegen: Admins und wer den Tagesplan pflegt; pflegen auch der Verantwortliche; Tagebuch alle Mitarbeiter.
+- Später möglich: Vorlagen (Projekt mit allen Schritten neu starten), Abhängigkeiten zwischen Schritten, Zeitleiste.
+- Nebenbei: Geldbeträge wie „10.000“ zählen jetzt als zehntausend (vorher 10,00 €).
+
 ### Ersatzteil aus einer Aufgabe bestellen (0.125.0)
 - Auf der Aufgabenseite „Teil bestellen“: Bestellwunsch mit Maschine und Störung der Aufgabe, Auswahl aus den
   Ersatzteilen der Maschine (Teilenummer, Lieferant vorbelegt), „dringend“ vorausgewählt, wenn die Maschine steht.

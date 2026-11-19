@@ -228,6 +228,15 @@ def task_assigned(task, actor, users=None):
                   url_for("tasks.task_detail", task_id=task.id), tag=f"task-{task.id}", exclude=actor)
 
 
+def project_entry(entry, actor):
+    """Neuer Tagebuch-Eintrag: an Verantwortlichen und Beteiligte des Projekts."""
+    project = entry.project
+    text = entry.text.strip().splitlines()[0][:150] if entry.text.strip() else None
+    return notify([u for u in project.people if u.active], "project", Msg("Projekt: {name}", name=project.name), text,
+                  url_for("projects.project_detail", project_id=project.id) + "#tagebuch", tag=f"project-{project.id}",
+                  exclude=actor)
+
+
 def fault_reported(event, actor, exclude=()):
     from .machines import can_see
     return notify([u for u in editors() if can_see(event.machine, u)], "fault",

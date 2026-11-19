@@ -13,7 +13,7 @@
     {% endif %}
     <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{{ url_for('tasks.task_detail', task_id=task.id) }}">
         <div class="d-flex flex-wrap gap-2 align-items-baseline">
-            <span class="fw-semibold task-title">{{ task.title }}</span>
+            <span class="fw-semibold task-title">{% if task.milestone %}<i class="bi bi-flag-fill text-primary me-1" title="{{ _('Meilenstein') }}"></i>{% endif %}{{ task.title }}</span>
             {% if task.important and not task.is_done %}<span class="badge text-bg-danger d-none d-lg-inline">{{ _("wichtig") }}</span>{% endif %}
             {% if task.waiting_part %}<span class="badge text-bg-info"><i class="bi bi-box-seam me-1"></i>{{ _("wartet auf Teil") }}</span>{% endif %}
             {% if task.recurrence %}<span class="small text-body-secondary d-none d-lg-inline" title="{{ task.recurrence_label }}"><i class="bi bi-arrow-repeat"></i> {{ task.recurrence_label }}</span>{% endif %}
@@ -27,6 +27,7 @@
             <span class="{{ 'text-danger fw-semibold' if task.due_on < today and not task.waiting_part }}">{{ _("Heute") if task.due_on == today else task.due_on|weekday ~ " " ~ task.due_on|date }}</span>
             {% endif %}
             <span><i class="bi bi-person"></i> {{ task.assignees|map(attribute='name')|join(", ") if task.assignees else _("alle") }}</span>
+            {% if task.project %}<span><i class="bi bi-kanban"></i> {{ task.project.name }}</span>{% endif %}
             {% if task.plots %}<span><i class="bi bi-map"></i> {{ task.plots|map(attribute="name")|join(", ") }}</span>{% endif %}
             {% if task.machine_list %}<span><i class="bi bi-gear-wide-connected"></i> {{ task.machine_list|map(attribute="name")|join(", ") }}</span>{% endif %}
             {% if task.delivery %}<span><i class="bi bi-truck"></i> {{ task.delivery.number }}</span>{% endif %}
@@ -38,7 +39,7 @@
 </li>
 {% endmacro %}
 
-{% macro task_form(action, task=none, prefill={}, users=[], recurrences={}, machines=[], deliveries=[], warehouses=[], plots=[], back="") %}
+{% macro task_form(action, task=none, prefill={}, users=[], recurrences={}, machines=[], deliveries=[], warehouses=[], plots=[], back="", projects=[]) %}
 <form method="post" action="{{ action }}" class="row g-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="back" value="{{ back }}">
@@ -97,6 +98,15 @@
         {% set mids = task.machine_list|map(attribute="id")|list if task else ([prefill.get('machine_id')] if prefill.get('machine_id') else []) %}
         {{ machine_pick(machines, mids, _("– keine Maschine –")) }}
     </div>
+    {% if projects %}
+    <div class="col-12 col-md-6 col-xl-3">
+        <select class="form-select form-select-sm" name="project_id" aria-label="{{ _('Projekt') }}">
+            <option value="">{{ _("– kein Projekt –") }}</option>
+            {% set pid = task.project_id if task else prefill.get('project_id') %}
+            {% for pr in projects %}<option value="{{ pr.id }}" {% if pr.id == pid %}selected{% endif %}>{{ pr.name }}</option>{% endfor %}
+        </select>
+    </div>
+    {% endif %}
     <div class="col-12 col-md-6 col-xl-3">
         <select class="form-select form-select-sm" name="delivery_id" aria-label="{{ _('Lieferschein') }}">
             <option value="">{{ _("– kein Lieferschein –") }}</option>

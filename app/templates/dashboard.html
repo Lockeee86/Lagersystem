@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import movement_item, variety_chip, motor_start, empty_state, sparkline %}
+{% from "projects/_macros.html" import project_card with context %}
 {% block title %}{{ _("Übersicht") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -164,6 +165,17 @@
     {% else %}
     <div class="hub-list"><div class="hub-row d-block">{{ empty_state("bi-chat-square-text", _("Keine offene Übergabe."), _("Zum Feierabend kurz notieren, was der Nächste wissen muss."), compact=true) }}</div></div>
     {% endif %}
+</section>
+{% endif %}
+{% endset %}
+{% set sec_projekte %}
+{% if "projekte" in show and my_projects %}
+<section class="mb-4" id="projekte">
+    <div class="d-flex justify-content-between align-items-baseline">
+        <h2 class="hub-heading mt-0">{{ _("Meine Projekte") }}</h2>
+        <a class="small" href="{{ url_for('projects.project_list') }}">{{ _("Alle") }}</a>
+    </div>
+    <div class="project-grid">{% for c in my_projects %}{{ project_card(c, today, compact=true) }}{% endfor %}</div>
 </section>
 {% endif %}
 {% endset %}
@@ -336,7 +348,7 @@
 </div>
 {% endif %}
 {% endset %}
-{% set blocks = {"kennzahlen": sec_kennzahlen, "strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
+{% set blocks = {"kennzahlen": sec_kennzahlen, "strompreis": sec_strompreis, "plan": sec_plan, "uebergabe": sec_uebergabe, "projekte": sec_projekte, "wichtig": sec_wichtig, "aufgaben": sec_aufgaben, "bhkw": sec_bhkw, "huehner": sec_huehner, "woche": sec_woche, "wetter": sec_wetter, "bestand": sec_bestand} %}
 {# Handy: untereinander in der eingestellten Reihenfolge. PC: Strompreis und Bestand über die volle Breite, die
    Bereiche dazwischen in derselben Reihenfolge auf zwei Spalten verteilt (ein einzelner nutzt die volle Breite). #}
 {% set wide = ["kennzahlen", "strompreis", "bestand"] %}
