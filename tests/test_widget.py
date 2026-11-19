@@ -41,6 +41,7 @@ def test_widget_data_follows_rights(app, db, seed):
     assert r.status_code == 200 and r.headers["Cache-Control"].startswith("private")
     d = r.get_json()
     assert d["v"] == 1 and d["chickens"]["eggs"] == 7 and d["chickens"]["url"].startswith("http")
+    assert d["projects"] == []                                                       # kein Projekt
     assert "biogas" not in d                                                        # Rubrik Biogas abgewählt
     assert d["tasks"]["open"] == 1 and d["tasks"]["items"] == ["Radlader abschmieren"]
     assert d["t"]["eggs_today"] == "Eier heute" and all(i["level"] in ("danger", "warning") for i in d["important"])
@@ -89,3 +90,28 @@ def test_widget_biogas(app, db, seed, monkeypatch):
     assert [m["state"] for m in b["motors"]] == ["laeuft", "stoerung"]
     assert b["bands"] and abs(sum(x["width"] for x in b["bands"]) - 100) < 0.5
     assert len(b["bands"]) <= 6 and b["running_text"] == "1 von 2 Motoren laufen"
+
+
+def test_widget_projects(app, db, seed):
+    """Laufende Projekte wie „Meine Projekte“ – Name, Fortschritt, nächster Schritt, ohne Kosten."""
+    from datetime import timedelta
+    from decimal import Decimal
+    from app import projects
+    worker = seed["worker"]
+    widget.ensure_token(worker)
+    project = projects.save_project(None, seed["admin"], "Neue Waagensoftware", owner=worker,
+                                    target_on=date.today() + timedelta(days=30), budget=Decimal("8000"))
+    first = projects.add_step(project, seed["admin"], "Angebote einholen")
+    projects.add_step(project, seed["admin"], "Bestellung", due_on=date.today() - timedelta(days=1))
+    tasks.complete_task(first, seed["admin"])
+    projects.save_project(None, seed["admin"], "Hofladen", status="idee", owner=worker)       # nicht laufend
+    db.session.commit()
+    d = app.test_client().get(f"/widget/{worker.widget_token}.json").get_json()
+    assert [p["name"] for p in d["projects"]] == ["Neue Waagensoftware"]
+    p = d["projects"][0]
+    assert (p["done"], p["total"], p["pct"]) == (1, 2, 50) and p["next"] == "Bestellung" and p["next_late"]
+    assert p["health"] == "warn" and f"/projekt/{project.id}" in p["url"] and d["t"]["projects"] == "Projekte"
+    assert "8000" not in str(d) and "8.000" not in str(d)                            # kein Budget
+    with open(widget.SCRIPT_FILE, encoding="utf-8") as f:
+        js = f.read()
+    assert "smallProjects" in js and '"projekte"' in js

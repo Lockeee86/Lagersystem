@@ -987,6 +987,8 @@ setzt zurück. Dateien in `UPLOAD_DIR/branding/` (mitgesichert).
 - Anlegen: Admins und wer den Tagesplan pflegt; pflegen auch der Verantwortliche; Tagebuch alle Mitarbeiter.
 - Später möglich: Vorlagen (Projekt mit allen Schritten neu starten), Abhängigkeiten zwischen Schritten, Zeitleiste.
 - Nebenbei: Geldbeträge wie „10.000“ zählen jetzt als zehntausend (vorher 10,00 €).
+- 0.127.1: Projekte im iPhone-Widget – klein mit Parameter „projekte“ (Name, Balken, nächster Schritt), groß als
+  Zeilen mit Balken über den Aufgaben, Sperrbildschirm (rund „2/7“, rechteckig mit nächstem Schritt, Zeile über der Uhr).
 
 ### Ersatzteil aus einer Aufgabe bestellen (0.125.0)
 - Auf der Aufgabenseite „Teil bestellen“: Bestellwunsch mit Maschine und Störung der Aufgabe, Auswahl aus den

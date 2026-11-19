@@ -25,6 +25,7 @@ const C = {
   warnPill: Color.dynamic(new Color("#f6e7c2"), new Color("#3b3320")),
   badText: Color.dynamic(new Color("#a5281f"), new Color("#ffb1ab")),
   warnText: Color.dynamic(new Color("#7d5800"), new Color("#f2cf70")),
+  track: Color.dynamic(new Color("#cfd6cb"), new Color("#3a423b")),
 };
 
 // --- Daten (mit Zwischenspeicher, falls das Netz gerade fehlt) ---------------------------
@@ -36,7 +37,7 @@ async function load() {
     const req = new Request(DATA_URL);
     req.timeoutInterval = 20;
     const data = await req.loadJSON();
-    if (!data || data.v !== 1) throw new Error("Unerwartete Antwort");
+    if (!data || !(data.v >= 1)) throw new Error("Unerwartete Antwort");
     fm.writeString(cache, JSON.stringify(data));
     return { data, offline: false };
   } catch (e) {
@@ -153,6 +154,25 @@ function priceBar(stack, b, width, height) {
   img.cornerRadius = height / 2;
 }
 
+// Fortschrittsbalken (Projekte): gefüllter Teil in `color`, Rest grau
+function progressBar(stack, pct, width, height, color) {
+  const dc = new DrawContext();
+  dc.size = new Size(width, height);
+  dc.opaque = false;
+  dc.respectScreenScale = true;
+  dc.setFillColor(C.track);
+  dc.fillRect(new Rect(0, 0, width, height));
+  dc.setFillColor(color || C.accent);
+  dc.fillRect(new Rect(0, 0, width * Math.max(0, Math.min(100, pct || 0)) / 100, height));
+  const img = stack.addImage(dc.getImage());
+  img.imageSize = new Size(width, height);
+  img.cornerRadius = height / 2;
+}
+
+function projectColor(p) {
+  return p.health === "bad" ? C.bad : p.health === "warn" ? C.warn : C.accent;
+}
+
 function doorLine(stack, ch, t, size = 13) {
   if (!ch.door) return;
   const bad = ch.door_alert || ch.door === "door_half";
@@ -246,14 +266,45 @@ function smallImportant(w, d, offline) {
   footer(w, d, offline);
 }
 
+function smallProjects(w, d) {
+  const list = d.projects || [];
+  header(w, "flag.fill", d.t.projects);
+  if (!list.length) {
+    w.url = d.url;
+    w.addSpacer();
+    txt(w, d.t.no_projects, 15, { bold: true, lines: 3 });
+    w.addSpacer();
+    return;
+  }
+  const p = list[0];
+  w.url = p.url;
+  w.addSpacer(8);
+  txt(w, p.name, 16, { bold: true, lines: 2, scale: 0.7 });
+  w.addSpacer();
+  const r = row(w, 6);
+  progressBar(r, p.pct, 90, 7, projectColor(p));
+  txt(r, p.done + "/" + p.total, 12, { semibold: true, color: C.sub });
+  w.addSpacer(6);
+  if (p.next) {
+    txt(w, d.t.next_step, 11, { color: C.sub });
+    txt(w, p.next + (p.next_due ? " · " + p.next_due : ""), 12, { lines: 2, semibold: p.next_late,
+      color: p.next_late ? C.badText : C.text });
+  } else if (p.reason) {
+    txt(w, p.reason, 12, { lines: 2, color: C.badText });
+  }
+  if (list.length > 1) txt(w, "+ " + (list.length - 1) + " " + d.t.more, 10, { color: C.sub });
+}
+
 function small(w, d, offline) {
   const param = (args.widgetParameter || "").trim().toLowerCase();
-  let kind = ["huehner", "biogas", "aufgaben", "wichtig"].includes(param) ? param
+  let kind = ["huehner", "biogas", "aufgaben", "wichtig", "projekte"].includes(param) ? param
     : d.chickens ? "huehner" : d.biogas ? "biogas" : "aufgaben";
   if (kind === "huehner" && !d.chickens) kind = "aufgaben";
   if (kind === "biogas" && !d.biogas) kind = "aufgaben";
+  if (kind === "projekte" && !d.projects) kind = "aufgaben";
   if (kind === "huehner") smallChickens(w, d);
   else if (kind === "biogas") smallBiogas(w, d);
+  else if (kind === "projekte") smallProjects(w, d);
   else if (kind === "wichtig") return smallImportant(w, d, offline);
   else smallTasks(w, d);
   if (offline) txt(w, d.t.offline + " " + d.stand, 9, { color: C.sub });
@@ -419,6 +470,24 @@ function large(w, d, offline) {
     w.addSpacer(8);
   }
 
+  // Projekte: je eine Zeile mit Balken (ohne Hinweise zwei, sonst eine)
+  const projects = (d.projects || []).slice(0, d.important.length ? 1 : 2);
+  if (projects.length) {
+    projects.forEach((p) => {
+      const r = row(w, 6);
+      r.url = p.url;
+      const img = r.addImage(symbol("flag.fill").image);
+      img.imageSize = new Size(11, 11);
+      img.tintColor = projectColor(p);
+      txt(r, p.name, 12, { semibold: true, scale: 0.8 });
+      r.addSpacer();
+      progressBar(r, p.pct, 60, 5, projectColor(p));
+      txt(r, p.done + "/" + p.total, 11, { color: C.sub });
+      w.addSpacer(4);
+    });
+    w.addSpacer(4);
+  }
+
   const tk = d.tasks;
   const head = row(w, 6);
   head.url = tk.url;
@@ -427,7 +496,7 @@ function large(w, d, offline) {
   txt(head, tk.open + " " + d.t.open, 11, { color: C.sub });
   w.addSpacer(4);
   // ohne Hinweise ist unten Platz für mehr Aufgaben
-  const maxTasks = 4 - Math.min(d.important.length, 2);
+  const maxTasks = Math.max(1, 4 - Math.min(d.important.length, 2) - projects.length);
   const shown = tk.items.slice(0, maxTasks);
   shown.forEach((title) => {
     const r = row(w, 8);
@@ -453,6 +522,7 @@ function lockKind(d) {
   const p = (args.widgetParameter || "").trim().toLowerCase();
   if (p === "huehner" && d.chickens) return p;
   if (p === "biogas" && d.biogas) return p;
+  if (p === "projekte" && d.projects) return p;
   if (p === "aufgaben" || p === "wichtig") return p;
   return "status";
 }
@@ -484,6 +554,8 @@ function lockInline(w, d) {
     biogas: b ? num(b.kw) + " kW · " + b.running + "/" + b.total : null,
     aufgaben: d.tasks.open + " " + d.t.tasks,
     wichtig: d.important.length ? d.important_text : d.t.all_good,
+    projekte: d.projects ? (d.projects.length ? d.projects[0].name + " " + d.projects[0].done + "/" + d.projects[0].total
+      : d.t.no_projects) : null,
   };
   let text = parts[kind];
   if (kind === "status") {
@@ -493,6 +565,7 @@ function lockInline(w, d) {
   }
   txt(w, text || parts.aufgaben, 13, { color: W });
   w.url = kind === "huehner" ? ch.url : kind === "biogas" ? b.url : kind === "aufgaben" ? d.tasks.url
+    : kind === "projekte" ? ((d.projects[0] && d.projects[0].url) || d.url)
     : (d.important[0] && d.important[0].url) || d.url;
 }
 
@@ -505,6 +578,9 @@ function lockCircular(w, d) {
     icon = doorIcon(d.chickens); value = String(d.chickens.eggs); url = d.chickens.url;
   } else if (kind === "biogas") {
     icon = "bolt.fill"; value = d.biogas.running + "/" + d.biogas.total; url = d.biogas.url;
+  } else if (kind === "projekte") {
+    const p = d.projects[0];
+    icon = "flag.fill"; value = p ? p.done + "/" + p.total : "0"; url = p ? p.url : d.url;
   } else if (kind === "wichtig") {
     icon = d.important.length ? "exclamationmark.circle.fill" : "checkmark.circle";
     value = String(d.important.length); url = (d.important[0] && d.important[0].url) || d.url;
@@ -540,6 +616,17 @@ function lockRectangular(w, d, offline) {
     lockLine(w, "bolt.fill", d.t.biogas + " · " + num(b.kw) + " kW", { bold: true });
     lockLine(w, "gearshape.2", b.running_text);
     if (b.price !== null && b.price !== undefined) lockLine(w, "eurosign.circle", b.price + " €/MWh" + (b.best ? " · " + b.best : ""));
+  } else if (kind === "projekte") {
+    const p = d.projects[0];
+    w.url = p ? p.url : d.url;
+    if (!p) {
+      lockLine(w, "flag", d.t.projects, { bold: true });
+      lockLine(w, "checkmark.circle", d.t.no_projects);
+    } else {
+      lockLine(w, "flag.fill", p.name, { bold: true });
+      lockLine(w, "chart.bar.fill", p.done + "/" + p.total + " " + d.t.steps + (p.reason ? " · " + p.reason : ""));
+      if (p.next) lockLine(w, "arrow.right.circle", p.next + (p.next_due ? " · " + p.next_due : ""), { size: 12 });
+    }
   } else if (kind === "aufgaben") {
     w.url = tk.url;
     lockLine(w, "checklist", d.t.my_tasks + ": " + tk.open, { bold: true });

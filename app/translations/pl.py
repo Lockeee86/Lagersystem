@@ -3940,7 +3940,7 @@ MESSAGES = {
     '„Scriptable“ aus dem App Store laden.': 'Pobierz „Scriptable” z App Store.',
     'Hier auf dem iPhone „Skript laden“ antippen, teilen → „Scriptable“ (oder die Datei in Scriptable öffnen).': 'Tutaj na iPhonie dotknij „Pobierz skrypt”, udostępnij → „Scriptable” (lub otwórz plik w Scriptable).',
     'Auf dem Home-Bildschirm lange drücken → „+“ → Scriptable → Größe wählen → Widget antippen → Skript „Hof-Widget“ wählen.': 'Przytrzymaj ekran główny → „+” → Scriptable → wybierz rozmiar → dotknij widżetu → wybierz skrypt „Hof-Widget”.',
-    'Kleines Widget: bei „Parameter“ huehner, biogas, aufgaben oder wichtig eintragen.': 'Mały widżet: w polu „Parameter” wpisz huehner, biogas, aufgaben lub wichtig.',
+    'Kleines Widget: bei „Parameter“ huehner, biogas, aufgaben, wichtig oder projekte eintragen.': 'Mały widżet: w polu „Parameter” wpisz huehner, biogas, aufgaben, wichtig lub projekte.',
     'Skript laden': 'Pobierz skrypt',
     'Neuen Schlüssel erzeugen? Das Widget mit dem alten Skript zeigt dann nichts mehr.': 'Utworzyć nowy klucz? Widżet ze starym skryptem nie będzie już nic pokazywał.',
     'Neuer Schlüssel': 'Nowy klucz',
@@ -4036,4 +4036,5 @@ MESSAGES = {
     '(bekommen Neuigkeiten aus dem Tagebuch)': '(otrzymują nowości z dziennika)',
     'Projekt': 'Projekt',
     '– kein Projekt –': '– bez projektu –',
+    'Keine laufenden Projekte': 'Brak trwających projektów',
 }

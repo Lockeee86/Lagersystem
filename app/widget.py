@@ -18,7 +18,7 @@ from .i18n import gettext as _, ngettext
 from .models import Setting, User
 from .utils import local_tz
 
-SMALL_KINDS = ("huehner", "biogas", "aufgaben", "wichtig")      # Parameter des kleinen Widgets in Scriptable
+SMALL_KINDS = ("huehner", "biogas", "aufgaben", "wichtig", "projekte")      # Parameter des kleinen Widgets in Scriptable
 SCRIPT_FILE = os.path.join(os.path.dirname(__file__), "widget_script.js")
 DOOR_WORDS = {"zu": "door_closed", "offen": "door_open", "halb": "door_half"}
 
@@ -69,6 +69,8 @@ def _labels():
         "important": _("Jetzt wichtig"), "all_good": _("Alles in Ordnung"), "price": _("Strompreis"),
         "next_feeding": _("Fütterung"), "more": _("weitere"), "open": _("offen"), "stand": _("Stand"),
         "offline": _("Keine Verbindung – letzter Stand"), "no_data": _("Noch keine Daten"),
+        "projects": _("Projekte"), "next_step": _("Als Nächstes:"), "no_projects": _("Keine laufenden Projekte"),
+        "steps": _("Schritte"),
     }
 
 
@@ -94,6 +96,22 @@ def _tasks(user, today):
     open_ = [t for t in team.my_today(user, today) if not t.is_done]
     return {"open": len(open_), "items": [t.title for t in open_[:4]],
             "url": _abs(url_for("team.day_plan"))}
+
+
+def _projects(user, today):
+    """Laufende Projekte des Benutzers (wie „Meine Projekte“ auf der Startseite) – ohne Kosten."""
+    from . import projects
+    rows = []
+    for c in projects.mine(user, today, limit=3):
+        p, nxt = c["project"], c["next"]
+        rows.append({"name": p.name, "done": c["progress"]["done"], "total": c["progress"]["total"],
+                     "pct": c["progress"]["pct"], "health": c["health"], "reason": c["reason"],
+                     "next": nxt.title if nxt else None,
+                     "next_due": nxt.due_on.strftime("%d.%m.") if nxt and nxt.due_on else None,
+                     "next_late": bool(nxt and nxt.due_on and nxt.due_on < today),
+                     "target": p.target_on.strftime("%d.%m.%Y") if p.target_on else None,
+                     "url": _abs(url_for("projects.project_detail", project_id=p.id))})
+    return rows
 
 
 def _bands(strip):
@@ -179,6 +197,8 @@ def data(user, now=None):
         out["feeding"] = _feeding(today)
     if user.sees_chickens:
         out["chickens"] = _chickens(now)
+    if not user.restricted:
+        out["projects"] = _projects(user, today)
     out["important_text"] = ngettext("{n} wichtig", "{n} wichtig", len(out["important"])) if out["important"] else ""
     db.session.rollback()                       # nur gelesen
     return out
