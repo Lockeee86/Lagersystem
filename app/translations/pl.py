@@ -3937,7 +3937,6 @@ MESSAGES = {
     '{n} von {total} Motoren laufen': 'Pracuje {n} z {total} silników',
     'Neuer Widget-Schlüssel erstellt. Das alte Skript funktioniert nicht mehr – bitte neu laden.': 'Utworzono nowy klucz widżetu. Stary skrypt już nie działa – pobierz go ponownie.',
     'Widget fürs iPhone': "Widżet na iPhone'a",
-    'Die wichtigsten Zahlen direkt auf dem Home-Bildschirm – über die kostenlose App „Scriptable“. Drei Größen; das kleine Widget zeigt wahlweise Hühner, Biogas, Aufgaben oder „Jetzt wichtig“. Antippen öffnet die App.': 'Najważniejsze liczby bezpośrednio na ekranie głównym – przez darmową aplikację „Scriptable”. Trzy rozmiary; mały widżet pokazuje do wyboru kury, biogaz, zadania lub „Teraz ważne”. Dotknięcie otwiera aplikację.',
     '„Scriptable“ aus dem App Store laden.': 'Pobierz „Scriptable” z App Store.',
     'Hier auf dem iPhone „Skript laden“ antippen, teilen → „Scriptable“ (oder die Datei in Scriptable öffnen).': 'Tutaj na iPhonie dotknij „Pobierz skrypt”, udostępnij → „Scriptable” (lub otwórz plik w Scriptable).',
     'Auf dem Home-Bildschirm lange drücken → „+“ → Scriptable → Größe wählen → Widget antippen → Skript „Hof-Widget“ wählen.': 'Przytrzymaj ekran główny → „+” → Scriptable → wybierz rozmiar → dotknij widżetu → wybierz skrypt „Hof-Widget”.',
@@ -3969,4 +3968,6 @@ MESSAGES = {
     'Eingeplant für {date}': 'Zaplanowane na {date}',
     'eingeplant {date}': 'zaplanowane {date}',
     'noch keine Aufgabe': 'jeszcze bez zadania',
+    'Die wichtigsten Zahlen direkt auf dem Home-Bildschirm – über die kostenlose App „Scriptable“. Drei Größen und auf dem Sperrbildschirm; das kleine Widget zeigt wahlweise Hühner, Biogas, Aufgaben oder „Jetzt wichtig“. Antippen öffnet die App.': 'Najważniejsze liczby bezpośrednio na ekranie głównym – przez darmową aplikację „Scriptable”. Trzy rozmiary oraz ekran blokady; mały widżet pokazuje do wyboru kury, biogaz, zadania lub „Teraz ważne”. Dotknięcie otwiera aplikację.',
+    'Sperrbildschirm: lange drücken → „Anpassen“ → Sperrbildschirm → Widgets → Scriptable (rund, rechteckig oder die Zeile über der Uhr). Ohne Parameter zeigt es einen Überblick, sonst wie beim kleinen Widget.': 'Ekran blokady: przytrzymaj → „Dostosuj” → ekran blokady → widżety → Scriptable (okrągły, prostokątny lub wiersz nad zegarem). Bez parametru pokazuje przegląd, w przeciwnym razie jak mały widżet.',
 }

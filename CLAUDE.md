@@ -252,7 +252,7 @@ docker compose up --build -d
   über `views._important` ohne Lieferscheine/Bestellungen/Lager; keine Euro-Beträge; Texte in der Sprache des Benutzers
   unter `t`). Das Skript `app/widget_script.js` (Platzhalter `__WIDGET_URL__`, kein ESLint – Scriptable-API) lädt man
   unter Mein Konto `#widget` herunter (`widget.script`); Größen klein (Parameter huehner/biogas/aufgaben/wichtig),
-  mittel, groß; Zwischenspeicher bei fehlendem Netz. Neue Felder im JSON: `v` hochzählen, wenn sich etwas ändert
+  mittel, groß, Sperrbildschirm `accessoryCircular`/`Rectangular`/`Inline` (nur Weiß – iOS färbt ein; ohne Parameter Überblick); Zwischenspeicher bei fehlendem Netz. Neue Felder im JSON: `v` hochzählen, wenn sich etwas ändert
 - `app/sensors.py`: Rubrik Sensoren – alle Meshtastic-Knoten (`MeshNode`, `purpose` coop/coop_top/climate/ignore,
   leer = neu), `record()` aus `api.meshtastic` (`/api/meshtastic`, jedes Paket der Brücke) reicht an `coop.record` /
   `climate.record` weiter, `assign()` / `add()` / `delete()`, Klappe verkehrt herum `door_settings()`, Hof-Kanal `channel()` / `save_channel()`

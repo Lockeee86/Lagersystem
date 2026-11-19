@@ -119,13 +119,14 @@
         <div class="card shadow-sm">
             <div class="card-header"><i class="bi bi-phone me-1"></i>{{ _("Widget fürs iPhone") }}</div>
             <div class="card-body">
-                <p class="small text-body-secondary">{{ _("Die wichtigsten Zahlen direkt auf dem Home-Bildschirm – über die kostenlose App „Scriptable“. Drei Größen; das kleine Widget zeigt wahlweise Hühner, Biogas, Aufgaben oder „Jetzt wichtig“. Antippen öffnet die App.") }}</p>
+                <p class="small text-body-secondary">{{ _("Die wichtigsten Zahlen direkt auf dem Home-Bildschirm – über die kostenlose App „Scriptable“. Drei Größen und auf dem Sperrbildschirm; das kleine Widget zeigt wahlweise Hühner, Biogas, Aufgaben oder „Jetzt wichtig“. Antippen öffnet die App.") }}</p>
                 {% if current_user.widget_token %}
                 <ol class="small ps-3 mb-3">
                     <li>{{ _("„Scriptable“ aus dem App Store laden.") }}</li>
                     <li>{{ _("Hier auf dem iPhone „Skript laden“ antippen, teilen → „Scriptable“ (oder die Datei in Scriptable öffnen).") }}</li>
                     <li>{{ _("Auf dem Home-Bildschirm lange drücken → „+“ → Scriptable → Größe wählen → Widget antippen → Skript „Hof-Widget“ wählen.") }}</li>
                     <li>{{ _("Kleines Widget: bei „Parameter“ huehner, biogas, aufgaben oder wichtig eintragen.") }}</li>
+                    <li>{{ _("Sperrbildschirm: lange drücken → „Anpassen“ → Sperrbildschirm → Widgets → Scriptable (rund, rechteckig oder die Zeile über der Uhr). Ohne Parameter zeigt es einen Überblick, sonst wie beim kleinen Widget.") }}</li>
                 </ol>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary btn-sm" href="{{ url_for('widget.script') }}"><i class="bi bi-download me-1"></i>{{ _("Skript laden") }}</a>

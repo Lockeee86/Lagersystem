@@ -17,6 +17,7 @@ def test_widget_token_and_script(app, as_worker, db, seed):
     text = js.get_data(as_text=True)
     assert js.headers["Content-Disposition"].startswith("attachment") and f"/widget/{token}.json" in text
     assert "__WIDGET_URL__" not in text and "ListWidget" in text
+    assert "accessoryRectangular" in text and "accessoryCircular" in text and "accessoryInline" in text
     # Neuer Schlüssel → der alte gilt nicht mehr
     as_worker.post("/konto/widget", data={"neu": "1"})
     assert app.test_client().get(f"/widget/{token}.json").status_code == 404

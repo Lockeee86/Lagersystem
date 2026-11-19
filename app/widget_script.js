@@ -1,8 +1,10 @@
 // Hof-Widget für Scriptable (iPhone) – erzeugt vom Lagersystem unter Mein Konto → Widget fürs iPhone.
 // Nicht weitergeben: die Adresse enthält deinen persönlichen Schlüssel.
 //
-// Größen: klein, mittel, groß. Für das kleine Widget unter „Parameter“ eintragen:
-//   huehner | biogas | aufgaben | wichtig   (leer = Hühner, sonst Biogas, sonst Aufgaben)
+// Größen: klein, mittel, groß – und auf dem Sperrbildschirm rund, rechteckig, eine Zeile.
+// Für das kleine Widget und den Sperrbildschirm unter „Parameter“ eintragen:
+//   huehner | biogas | aufgaben | wichtig
+// leer = klein: Hühner, sonst Biogas, sonst Aufgaben; Sperrbildschirm: Überblick
 
 const DATA_URL = "__WIDGET_URL__";
 const REFRESH_MINUTES = 15;
@@ -402,6 +404,126 @@ function large(w, d, offline) {
   w.addSpacer();
 }
 
+// --- Sperrbildschirm (rund, rechteckig, eine Zeile) ------------------------------------------
+// iOS färbt diese Widgets selbst ein – deshalb nur Weiß und Symbole, keine Ampelfarben.
+
+const W = Color.white();
+
+function lockKind(d) {
+  const p = (args.widgetParameter || "").trim().toLowerCase();
+  if (p === "huehner" && d.chickens) return p;
+  if (p === "biogas" && d.biogas) return p;
+  if (p === "aufgaben" || p === "wichtig") return p;
+  return "status";
+}
+
+function doorText(ch, t) {
+  if (!ch || !ch.door) return null;
+  return ch.door_alert ? t.door_alert : t[ch.door];
+}
+
+function doorIcon(ch) {
+  if (!ch || !ch.door) return "bird";
+  return ch.door === "door_closed" ? "lock.fill" : "lock.open.fill";
+}
+
+function lockLine(stack, icon, text, opts = {}) {
+  const r = row(stack, 4);
+  const img = r.addImage(symbol(icon).image);
+  img.imageSize = new Size(opts.size || 12, opts.size || 12);
+  img.tintColor = W;
+  txt(r, text, opts.size || 13, { semibold: opts.bold, color: W, scale: 0.7 });
+  return r;
+}
+
+function lockInline(w, d) {
+  const kind = lockKind(d);
+  const ch = d.chickens, b = d.biogas;
+  const parts = {
+    huehner: ch ? [doorText(ch, d.t), ch.eggs + " " + d.t.eggs].filter(Boolean).join(" · ") : null,
+    biogas: b ? num(b.kw) + " kW · " + b.running + "/" + b.total : null,
+    aufgaben: d.tasks.open + " " + d.t.tasks,
+    wichtig: d.important.length ? d.important_text : d.t.all_good,
+  };
+  let text = parts[kind];
+  if (kind === "status") {
+    // kurz halten – iOS kürzt die Zeile über der Uhr nach etwa 25 Zeichen
+    text = d.important.length ? parts.wichtig + " · " + parts.aufgaben
+      : [parts.aufgaben, ch ? doorText(ch, d.t) : null].filter(Boolean).join(" · ");
+  }
+  txt(w, text || parts.aufgaben, 13, { color: W });
+  w.url = kind === "huehner" ? ch.url : kind === "biogas" ? b.url : kind === "aufgaben" ? d.tasks.url
+    : (d.important[0] && d.important[0].url) || d.url;
+}
+
+function lockCircular(w, d) {
+  w.addAccessoryWidgetBackground = true;
+  let kind = lockKind(d);
+  if (kind === "status") kind = d.chickens ? "huehner" : d.biogas ? "biogas" : "aufgaben";
+  let icon, value, url;
+  if (kind === "huehner") {
+    icon = doorIcon(d.chickens); value = String(d.chickens.eggs); url = d.chickens.url;
+  } else if (kind === "biogas") {
+    icon = "bolt.fill"; value = d.biogas.running + "/" + d.biogas.total; url = d.biogas.url;
+  } else if (kind === "wichtig") {
+    icon = d.important.length ? "exclamationmark.circle.fill" : "checkmark.circle";
+    value = String(d.important.length); url = (d.important[0] && d.important[0].url) || d.url;
+  } else {
+    icon = "checklist"; value = String(d.tasks.open); url = d.tasks.url;
+  }
+  w.url = url;
+  w.addSpacer();
+  const top = row(w, 0);
+  top.addSpacer();
+  const img = top.addImage(symbol(icon).image);
+  img.imageSize = new Size(16, 16);
+  img.tintColor = W;
+  top.addSpacer();
+  const mid = row(w, 0);
+  mid.addSpacer();
+  txt(mid, value, 20, { heavy: true, color: W, scale: 0.5 });
+  mid.addSpacer();
+  w.addSpacer();
+}
+
+function lockRectangular(w, d, offline) {
+  const kind = lockKind(d);
+  const ch = d.chickens, b = d.biogas, tk = d.tasks;
+  if (kind === "huehner") {
+    w.url = ch.url;
+    lockLine(w, "bird", d.t.chickens, { bold: true });
+    lockLine(w, "circle.grid.2x2", ch.eggs + " " + d.t.eggs_today);
+    lockLine(w, doorIcon(ch), [doorText(ch, d.t), ch.temp !== null && ch.temp !== undefined ? dec(ch.temp) + " °C" : null]
+      .filter(Boolean).join(" · ") || d.t.no_data);
+  } else if (kind === "biogas") {
+    w.url = b.url;
+    lockLine(w, "bolt.fill", d.t.biogas + " · " + num(b.kw) + " kW", { bold: true });
+    lockLine(w, "gearshape.2", b.running_text);
+    if (b.price !== null && b.price !== undefined) lockLine(w, "eurosign.circle", b.price + " €/MWh" + (b.best ? " · " + b.best : ""));
+  } else if (kind === "aufgaben") {
+    w.url = tk.url;
+    lockLine(w, "checklist", d.t.my_tasks + ": " + tk.open, { bold: true });
+    tk.items.slice(0, 2).forEach((title) => lockLine(w, "square", title, { size: 12 }));
+  } else if (kind === "wichtig") {
+    w.url = (d.important[0] && d.important[0].url) || d.url;
+    if (!d.important.length) {
+      lockLine(w, "checkmark.circle", d.t.important, { bold: true });
+      lockLine(w, "hand.thumbsup", d.t.all_good);
+    } else {
+      lockLine(w, "exclamationmark.circle.fill", d.t.important + ": " + d.important.length, { bold: true });
+      d.important.slice(0, 2).forEach((it) => lockLine(w, it.level === "danger" ? "exclamationmark.triangle" : "clock", it.text, { size: 12 }));
+    }
+  } else {
+    // Überblick: Hühner, Biogas, Aufgaben + Hinweise – je eine Zeile
+    w.url = (d.important[0] && d.important[0].url) || d.url;
+    if (ch) lockLine(w, doorIcon(ch), [doorText(ch, d.t), ch.eggs + " " + d.t.eggs].filter(Boolean).join(" · "));
+    if (b) lockLine(w, "bolt.fill", num(b.kw) + " kW · " + b.running + "/" + b.total);
+    lockLine(w, d.important.length ? "exclamationmark.circle.fill" : "checklist",
+      tk.open + " " + d.t.tasks + (d.important.length ? " · " + d.important_text : ""), { bold: d.important.length > 0 });
+  }
+  if (offline) txt(w, d.t.offline + " " + d.stand, 9, { color: W });
+}
+
 // --- Start -----------------------------------------------------------------------------------
 
 const { data, offline, error } = await load();
@@ -410,21 +532,37 @@ w.backgroundColor = C.bg;
 w.setPadding(14, 14, 14, 14);
 w.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
 const family = config.widgetFamily || "medium";
+const lockScreen = family.startsWith("accessory");
+if (lockScreen) {
+  w.backgroundColor = Color.clear();
+  w.setPadding(0, 0, 0, 0);
+}
 
-if (!data) {
+if (!data && lockScreen) {
+  txt(w, "Hof: keine Verbindung", 12, { color: W });
+} else if (!data) {
   header(w, "exclamationmark.triangle.fill", "Hof-Widget", C.badText);
   w.addSpacer();
   txt(w, "Keine Verbindung zur App.", 13, { lines: 3 });
   txt(w, error || "", 10, { color: C.sub, lines: 3 });
 } else {
   w.url = data.url;
-  if (family === "small") small(w, data, offline);
+  if (family === "accessoryInline") lockInline(w, data);
+  else if (family === "accessoryCircular") lockCircular(w, data);
+  else if (family === "accessoryRectangular") lockRectangular(w, data, offline);
+  else if (family === "small") small(w, data, offline);
   else if (family === "large" || family === "extraLarge") large(w, data, offline);
   else medium(w, data, offline);
 }
 
 if (config.runsInWidget) {
   Script.setWidget(w);
+} else if (family === "accessoryCircular") {
+  await w.presentAccessoryCircular();
+} else if (family === "accessoryRectangular") {
+  await w.presentAccessoryRectangular();
+} else if (family === "accessoryInline") {
+  await w.presentAccessoryInline();
 } else if (family === "small") {
   await w.presentSmall();
 } else if (family === "large") {
