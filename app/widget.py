@@ -92,7 +92,7 @@ def _important(user, today):
 def _tasks(user, today):
     from . import team
     open_ = [t for t in team.my_today(user, today) if not t.is_done]
-    return {"open": len(open_), "items": [t.title for t in open_[:3]],
+    return {"open": len(open_), "items": [t.title for t in open_[:4]],
             "url": _abs(url_for("team.day_plan"))}
 
 

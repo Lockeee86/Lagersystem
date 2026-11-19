@@ -338,6 +338,14 @@ function tile(parent) {
   return t;
 }
 
+// Überschrift der Kachel über die ganze Breite – sonst ist eine Kachel nur so breit wie ihr Inhalt
+// und beide rutschen nach links. Mit je einem Abstandhalter teilen sich die Kacheln die Breite.
+function stretch(t, label) {
+  const r = row(t, 0);
+  txt(r, label, 11, { bold: true, color: C.accent });
+  r.addSpacer();
+}
+
 function large(w, d, offline) {
   const top = row(w, 6);
   txt(top, d.farm, 15, { bold: true });
@@ -368,7 +376,7 @@ function large(w, d, offline) {
       const b = d.biogas;
       const t = tile(tiles);
       t.url = b.url;
-      txt(t, d.t.biogas, 11, { bold: true, color: C.accent });
+      stretch(t, d.t.biogas);
       const r = row(t, 3);
       r.bottomAlignContent();
       txt(r, num(b.kw), 22, { heavy: true });
@@ -383,7 +391,7 @@ function large(w, d, offline) {
       const ch = d.chickens;
       const t = tile(tiles);
       t.url = ch.url;
-      txt(t, d.t.chickens, 11, { bold: true, color: C.accent });
+      stretch(t, d.t.chickens);
       const r = row(t, 3);
       r.bottomAlignContent();
       txt(r, ch.eggs, 22, { heavy: true });
@@ -418,7 +426,10 @@ function large(w, d, offline) {
   head.addSpacer();
   txt(head, tk.open + " " + d.t.open, 11, { color: C.sub });
   w.addSpacer(4);
-  tk.items.slice(0, 2).forEach((title) => {
+  // ohne Hinweise ist unten Platz für mehr Aufgaben
+  const maxTasks = 4 - Math.min(d.important.length, 2);
+  const shown = tk.items.slice(0, maxTasks);
+  shown.forEach((title) => {
     const r = row(w, 8);
     r.url = tk.url;
     const box = r.addStack();
@@ -429,7 +440,7 @@ function large(w, d, offline) {
     txt(r, title, 12);
     w.addSpacer(3);
   });
-  if (tk.open > 2) txt(w, "+ " + (tk.open - 2) + " " + d.t.more, 11, { color: C.sub });
+  if (tk.open > shown.length) txt(w, "+ " + (tk.open - shown.length) + " " + d.t.more, 11, { color: C.sub });
   w.addSpacer();
 }
 
